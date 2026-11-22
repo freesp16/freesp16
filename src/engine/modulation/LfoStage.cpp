@@ -240,24 +240,9 @@ bool TrackModSink::apply(int track, core::ParamId dest, const ModValue* v) noexc
     const int env = static_cast<int>(target) - static_cast<int>(T::EnvFirst);
     if (env >= 0 && env <= static_cast<int>(AmpEnvField::Release))
     {
-        const AmpEnvParams& base = sources_->envParams[scene_][track];
-        AmpEnvParams p = base;
-        if (v != nullptr)
-        {
-            std::uint8_t* field = nullptr;
-            int range = 127;
-            switch (static_cast<AmpEnvField>(env))
-            {
-                case AmpEnvField::Velocity: field = &p.velocity; break;
-                case AmpEnvField::Attack: field = &p.attack; break;
-                case AmpEnvField::Hold: field = &p.hold; range = 128; break;
-                case AmpEnvField::Release: field = &p.release; range = 128; break;
-                default: return false;
-            }
-            const float r = static_cast<float>(range);
-            *field = static_cast<std::uint8_t>(clampInt(roundInt(v->apply(static_cast<float>(*field) / r) * r), 0, range));
-        }
-        sources_->env.setParams(track, p, bpm_);
+        // The envelope applies it on top of the stored or locked value where it reads the field (a step's
+        // ATTACK lock is modulated too); its stored parameters stay as they are.
+        sources_->env.setModulation(track, static_cast<AmpEnvField>(env), v);
         return true;
     }
     if (mixer_ == nullptr)

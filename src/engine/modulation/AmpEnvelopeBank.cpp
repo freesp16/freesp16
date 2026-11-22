@@ -57,6 +57,36 @@ template <int N> void AmpEnvelopeLanes<N>::setParams(int lane, const AmpEnvParam
         bypassChanged(lane);
 }
 
+template <int N> void AmpEnvelopeLanes<N>::setModulation(int lane, AmpEnvField field, const ModValue* v) noexcept
+{
+    const int f = static_cast<int>(field);
+    if (lane < 0 || lane >= N || f < 0 || f > static_cast<int>(AmpEnvField::Release))
+        return;
+    const auto i = static_cast<std::size_t>(lane);
+    const auto bit = static_cast<std::uint8_t>(1u << f);
+    if (v == nullptr)
+    {
+        modMask_[i] = static_cast<std::uint8_t>(modMask_[i] & ~bit);
+        return;
+    }
+    mod_[i][static_cast<std::size_t>(f)] = *v;
+    modMask_[i] = static_cast<std::uint8_t>(modMask_[i] | bit);
+}
+
+template <int N> int AmpEnvelopeLanes<N>::modulated(int lane, AmpEnvField field, int index) const noexcept
+{
+    const int f = static_cast<int>(field);
+    const auto i = static_cast<std::size_t>(lane);
+    if (lane < 0 || lane >= N || f < 0 || f > static_cast<int>(AmpEnvField::Release) || ((modMask_[i] >> f) & 1u) == 0)
+        return index;
+    // VELOCITY / ATTACK 0–127, HOLD / RELEASE 0–128 (128 = INFINITY): the ParamSpec ranges the matrix normalises to.
+    const int range = field == AmpEnvField::Hold || field == AmpEnvField::Release ? 128 : 127;
+    const float r = static_cast<float>(range);
+    const float v = mod_[i][static_cast<std::size_t>(f)].apply(static_cast<float>(index) / r) * r;
+    const int n = static_cast<int>(v + 0.5f);
+    return n < 0 ? 0 : (n > range ? range : n);
+}
+
 template <int N> void AmpEnvelopeLanes<N>::setThru(int lane, bool thru) noexcept
 {
     const auto i = static_cast<std::size_t>(lane);
@@ -224,11 +254,13 @@ template <int N> void AmpEnvelopeLanes<N>::restart(int lane, const Event& e) noe
     gated_[i] = gateNote_[i] = e.gate;
     lockedRelease_[i] = e.lockRelease; // locks apply at this trigger and revert at the next (ENV-010)
     age_[i] = -static_cast<std::int32_t>(e.frame); // the block's end adds kFrames
-    const int velIndex = e.lockVelocity >= 0 ? e.lockVelocity : p.velocity;
+    // The stored or locked values, with the matrix's modulation on top (FX-084).
+    const int velIndex = modulated(lane, AmpEnvField::Velocity, e.lockVelocity >= 0 ? e.lockVelocity : p.velocity);
     float peak = peakGain_[static_cast<std::size_t>(velIndex > 127 ? 127 : velIndex)];
     if (p.velocitySensitive) // PLY-041 / ENV-005: the ceiling scaled by (vel/127)²
         peak *= static_cast<float>(e.velocity) * static_cast<float>(e.velocity) * kVelocityScale;
-    const auto hold = tables_.hold(static_cast<std::uint8_t>(e.lockHold >= 0 ? e.lockHold : p.hold), p.sync);
+    const auto hold = tables_.hold(
+        static_cast<std::uint8_t>(modulated(lane, AmpEnvField::Hold, e.lockHold >= 0 ? e.lockHold : p.hold)), p.sync);
     holdEnd_[i] = hold;
     if (p.bypass) // the peak and HOLD are still the note's: a live bypass off returns to them
     {
@@ -236,7 +268,9 @@ template <int N> void AmpEnvelopeLanes<N>::restart(int lane, const Event& e) noe
         setLinear(lane, AmpEnvStage::BypassIn, level_[i], 1.0f, tables_.bypassRampFrames());
         return;
     }
-    const auto attack = tables_.attack(static_cast<std::uint8_t>(e.lockAttack >= 0 ? e.lockAttack : p.attack), p.sync);
+    const auto attack = tables_.attack(
+        static_cast<std::uint8_t>(modulated(lane, AmpEnvField::Attack, e.lockAttack >= 0 ? e.lockAttack : p.attack)),
+        p.sync);
     startAttack(lane, peak, attack, hold);
 }
 
@@ -350,7 +384,8 @@ template <int N> void AmpEnvelopeLanes<N>::startRelease(int lane) noexcept
     const auto i = static_cast<std::size_t>(lane);
     const auto& p = base_[i];
     const float from = level_[i];
-    const auto idx = static_cast<std::uint8_t>(lockedRelease_[i] >= 0 ? lockedRelease_[i] : p.release);
+    const auto idx = static_cast<std::uint8_t>(
+        modulated(lane, AmpEnvField::Release, lockedRelease_[i] >= 0 ? lockedRelease_[i] : p.release));
     const auto seg = tables_.release(idx, p.sync);
     if (seg.frames == AmpEnvTables::kInfinite) // RELEASE = INFINITY: never completes (the voice ends with the sample)
         setConst(lane, AmpEnvStage::Release, from, AmpEnvTables::kInfinite);

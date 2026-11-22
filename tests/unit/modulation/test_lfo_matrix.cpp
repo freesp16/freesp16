@@ -260,15 +260,28 @@ TEST_CASE("modulation.sink: the engine's track destinations (pitch, envelope, st
         sink.release(1, id("track.volume"));
         sink.release(1, id("playback.pitch"));
     }
+    using engine::modulation::AmpEnvField;
+    auto& env = sources->env;
     CHECK(sink.modulate(1, id("env.attack"), up));
-    CHECK(sources->env.params(1).attack == 127); // clamp(100/127 + 1) · 127
+    CHECK(env.params(1).attack == 100);                          // the stored value stays unmodulated
+    CHECK(env.modulated(1, AmpEnvField::Attack, 100) == 127);    // clamp(100/127 + 1) · 127
+    CHECK(env.modulated(1, AmpEnvField::Attack, 20) == 127);     // a step's lock is modulated too (FX-084)
     ModValue down;
     down.offset01 = -0.25f;
     CHECK(sink.modulate(1, id("env.release"), down));
-    CHECK(sources->env.params(1).release == 88); // 120 − 0.25 · 128
-    CHECK(sources->env.params(1).attack == 100); // each call starts from the stored base
+    CHECK(env.modulated(1, AmpEnvField::Release, 120) == 88);   // 120 − 0.25 · 128
+    CHECK(env.modulated(1, AmpEnvField::Release, 64) == 32);    // on a locked RELEASE of 64
     sink.release(1, id("env.release"));
-    CHECK(sources->env.params(1).release == 120);
+    CHECK(env.modulated(1, AmpEnvField::Release, 120) == 120);
+    CHECK(env.params(1).release == 120);
+    ModValue user; // a touch strip USER item: absolute, whatever the stored or locked value
+    user.hasOverride = true;
+    user.override01 = 0.5f;
+    CHECK(sink.modulate(1, id("env.attack"), user));
+    CHECK(env.modulated(1, AmpEnvField::Attack, 100) == 64);
+    CHECK(env.modulated(1, AmpEnvField::Attack, 3) == 64);
+    sink.release(1, id("env.attack"));
+    CHECK(env.modulated(1, AmpEnvField::Attack, 3) == 3);
     CHECK(sink.modulate(1, id("playback.pitch"), up));
     CHECK(sink.modulate(1, id("track.volume"), down));
     CHECK(sink.modulate(1, id("track.pan"), up));
@@ -448,4 +461,16 @@ TEST_CASE("modulation.sink: pitch with a step lock — a USER item lands on its 
     CHECK(f.source().voice().modCents(static_cast<int>(VS::Lfo)) == 1200.0f); // +12 locked + 12 = the +24 st top
     f.sink.release(track, id("playback.pitch"));
     CHECK(f.source().voice().modCents(static_cast<int>(VS::Lfo)) == 0.0f);
+}
+
+TEST_CASE("modulation.sink: an LFO on an envelope field a step locks modulates the lock", "[modulation][motion]")
+{
+    MotionStep f;
+    const int track = MotionStep::track;
+    using engine::modulation::AmpEnvField;
+    ModValue down;
+    down.offset01 = -20.0f / 127.0f;
+    f.sink.modulate(track, id("env.velocity"), down);
+    CHECK(f.sources->env.modulated(track, AmpEnvField::Velocity, 90) == 70);
+    CHECK(f.sources->env.modulated(track, AmpEnvField::Velocity, 127) == 107);
 }

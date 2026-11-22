@@ -30,10 +30,16 @@
 // have a 32-frame floor (RELEASE 0 included); an attack restarting from a non-zero level has the same floor; a release
 // from level 0 ends at once; HALF on an idle track does nothing; LockOnly / non-restarting HALF update only the RELEASE
 // lock of a running envelope.
+//
+// Modulation (ModMatrix destinations env.velocity / attack / hold / release, via setModulation): applied on top of the
+// stored or locked value where the field is read — VELOCITY, ATTACK, HOLD at a restart, RELEASE when the release
+// starts — so an LFO or a touch strip USER item also acts on a step that locks the field (FX-084: "base is the
+// stored or locked value"); setParams keeps the stored values unmodulated.
 #pragma once
 
 #include "engine/EngineApi.h"
 #include "engine/modulation/AmpEnvelopeKernels.h"
+#include "engine/modulation/ModMatrix.h"
 #include "engine/modulation/AmpEnvelopeParams.h"
 #include "engine/modulation/AmpEnvelopeTables.h"
 #include "engine/trigger/TriggerEvent.h"
@@ -68,6 +74,10 @@ public:
     void setTempo(double bpm) noexcept;       // sync lengths; recomputes only when bpm changed (≤ once per block)
     void setParams(int lane, const AmpEnvParams&, double bpm) noexcept;
     const AmpEnvParams& params(int lane) const noexcept { return base_[static_cast<std::size_t>(lane)]; }
+    // The matrix's modulation of VELOCITY / ATTACK / HOLD / RELEASE (other fields: ignored); null = unmodulated.
+    void setModulation(int lane, AmpEnvField field, const ModValue* v) noexcept;
+    // The index `field` plays at for a stored or locked `index` (the modulation applied; tests).
+    int modulated(int lane, AmpEnvField field, int index) const noexcept;
     void setThru(int lane, bool thru) noexcept;
     void useScalarKernels(bool scalar) noexcept; // tests: the scalar references instead of NEON
 
@@ -145,6 +155,8 @@ private:
     std::array<bool, N> gateNote_ {};
     // Parameters and the queued events of this block.
     std::array<AmpEnvParams, N> base_ {};
+    std::array<std::array<ModValue, 4>, N> mod_ {}; // per lane: Velocity, Attack, Hold, Release
+    std::array<std::uint8_t, N> modMask_ {};         // bit f = field f is modulated
     std::array<std::uint8_t, N> events_ {};
     std::array<std::array<Event, kMaxEvents>, N> queue_ {};
 };

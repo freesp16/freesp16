@@ -139,12 +139,12 @@ private:
 };
 
 // The engine's track destinations (ModMatrix::applyBlock → ParamStateSink), applied on top of their stored or locked
-// base and clamped to the ParamSpec range (FX-084 / LFO-003):
+// base and clamped to the ParamSpec range (FX-084 / LFO-003); an Override replaces that base, the Offsets add:
 //   playback.pitch      → TrackVoice::setModCents(voice::ModSource::Lfo, …): the matrix sum (LFO + transpose +
 //                         ribbon + bend) in one slot, clamped against the pitch the notes play (TrackSource::
 //                         basePitchCents: the stored pitch or the step's lock)
-//   env.velocity/attack/hold/release → the envelope lane's parameters (AmpEnvelopeBank::setParams; from its next
-//                         segment, ENV docs)
+//   env.velocity/attack/hold/release → AmpEnvelopeBank::setModulation: the envelope applies it on top of the stored or
+//                         locked value where it reads the field (from its next segment or trigger, ENV docs)
 //   track.volume/pan/sendAmount → mixer::Mixer::setModulation (index offset, absolute override; MIX-002's 100-sample
 //                         ramps; the mixer holds the stored-or-locked value)
 // Any other id: not a track destination (modulate() returns false).
