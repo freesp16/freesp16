@@ -1,0 +1,282 @@
+{
+ "model": "fx_filter",
+ "subject": "fx.filter",
+ "local_only": false,
+ "sample_rate": 48000,
+ "block": 64,
+ "tolerance": {
+  "max_rel": 1e-05,
+  "residual_dbfs": -100.0,
+  "floor": 1e-30
+ },
+ "cases": [
+  {
+   "id": "defaults_sine",
+   "description": "insert defaults (LP 12 dB, 998 Hz, Q 0.7, 0 dB) on a 1 kHz sine: start-up gate FX-580",
+   "blocks": 16,
+   "params": {
+    "init": {},
+    "fs": 48000
+   },
+   "stimuli": {
+    "L": {
+     "type": "sine",
+     "freq": 1000.0,
+     "amplitude": 0.5
+    },
+    "R": {
+     "type": "sine",
+     "freq": 1000.0,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "defaults_impulse",
+   "description": "insert defaults, impulses (FX-520)",
+   "blocks": 32,
+   "params": {
+    "init": {},
+    "fs": 48000
+   },
+   "stimuli": {
+    "L": {
+     "type": "impulse",
+     "at": [
+      0,
+      100,
+      700,
+      1500
+     ],
+     "amplitude": 1.0
+    },
+    "R": {
+     "type": "impulse",
+     "at": [
+      0,
+      100,
+      700,
+      1500
+     ],
+     "amplitude": 1.0
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "lp24",
+   "description": "LP 24 dB/oct at Q 5.1, cutoff 0.4, +6 dB (FX-520/523)",
+   "blocks": 24,
+   "params": {
+    "init": {
+     "type": 0,
+     "slope": 1,
+     "k": {
+      "0": 0.4,
+      "1": 0.8,
+      "2": 0.5
+     }
+    },
+    "fs": 48000
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 3,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 9,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "bp12",
+   "description": "BP 12 dB/oct at Q 5.1, cutoff 0.4, +6 dB (FX-520/523)",
+   "blocks": 24,
+   "params": {
+    "init": {
+     "type": 2,
+     "slope": 0,
+     "k": {
+      "0": 0.4,
+      "1": 0.8,
+      "2": 0.5
+     }
+    },
+    "fs": 48000
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 5,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 11,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "glide_half",
+   "description": "Glide 0.5: cutoff 0.566 → 0.2 at block 4, → 0.85 at block 20, Q → 0.9 at block 30 (FX-521/522)",
+   "blocks": 48,
+   "params": {
+    "init": {
+     "k": {
+      "3": 0.5
+     }
+    },
+    "events": [
+     {
+      "block": 4,
+      "k": {
+       "0": 0.2
+      }
+     },
+     {
+      "block": 20,
+      "k": {
+       "0": 0.85
+      }
+     },
+     {
+      "block": 30,
+      "k": {
+       "2": 0.9
+      }
+     }
+    ],
+    "fs": 48000
+   },
+   "stimuli": {
+    "L": {
+     "type": "noise",
+     "seed": 11,
+     "amplitude": 0.5
+    },
+    "R": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 12,
+       "amplitude": 0.3
+      }
+     ]
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "walk_101",
+   "description": "random walk of every parameter (seed 101) (spec test note)",
+   "blocks": 48,
+   "params": {
+    "init": {},
+    "walk": {
+     "seed": 101,
+     "from": 0,
+     "to": 48,
+     "keys": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "type",
+      "slope"
+     ]
+    },
+    "fs": 48000
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 5,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 13,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "shell_defaults",
+   "description": "through the shell: activation fade, crossfade at Mix 1, 10 Hz wet HPF (FX-524)",
+   "blocks": 12,
+   "params": {
+    "mode": "shell",
+    "init": {},
+    "fs": 48000
+   },
+   "stimuli": {
+    "L": {
+     "type": "sine",
+     "freq": 1000.0,
+     "amplitude": 0.5
+    },
+    "R": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 22,
+       "amplitude": 0.3
+      }
+     ]
+    }
+   },
+   "parity": true
+  }
+ ]
+}

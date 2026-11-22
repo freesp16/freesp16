@@ -1,0 +1,77 @@
+{
+  "format": "golden-case/1",
+  "name": "lofi",
+  "case": "type_switches",
+  "description": "type HP \u2192 LP \u2192 BP \u2192 Off \u2192 HP every 8 blocks (gate crossfade, the new filter re-filters 4 inputs)",
+  "subject": "fx.effect",
+  "model": "lofi",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 56,
+  "frames": 3584,
+  "params": {
+    "effect": "lofi",
+    "init": {"3": 0.6, "4": 0.3},
+    "options": {"0": 0},
+    "events": [
+      {"block": 8, "option": 0, "value": 1},
+      {"block": 16, "option": 0, "value": 2},
+      {"block": 24, "option": 0, "value": 3},
+      {"block": 32, "option": 0, "value": 0},
+      {"block": 33, "k": 3, "v": 0.2}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 3584],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "type_switches.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 13, "amplitude": 0.7},
+      "R": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 440.0, "amplitude": 0.4, "phase": 0.0},
+          {"type": "noise", "seed": 14, "amplitude": 0.2}
+        ]
+      }
+    },
+    "sha256": "eb2cbd6817bfb8545a22e68f1b647359842258047a3d4cb0e985d3c8928cdb5e"
+  },
+  "expected": {
+    "file": "type_switches.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "6676e456f8851741a727d4b41cb644d2e46e897737d35577db078b58c131cafc"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

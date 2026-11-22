@@ -1,0 +1,39 @@
+{
+  "model": "gain_test",
+  "subject": "fx.gain_test",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {"max_rel": 1e-5, "residual_dbfs": -100.0, "floor": 1e-30},
+  "cases": [
+    {
+      "id": "unity",
+      "description": "index 100 (x1.0): the effect is bit-transparent",
+      "blocks": 8,
+      "params": {"index": 100, "events": []},
+      "stimuli": {"L": {"type": "noise", "seed": 11, "amplitude": 0.9}, "R": {"type": "noise", "seed": 12, "amplitude": 0.9}},
+      "parity": true
+    },
+    {
+      "id": "steps",
+      "description": "gain index steps 0, 1, 9, 50, 127, 100, each reached by a one-block linear ramp",
+      "blocks": 16,
+      "params": {"index": 100, "events": [
+        {"block": 2, "index": 0}, {"block": 4, "index": 1}, {"block": 6, "index": 9},
+        {"block": 8, "index": 50}, {"block": 9, "index": 127}, {"block": 12, "index": 100}]},
+      "stimuli": {
+        "L": {"type": "sum", "parts": [{"type": "sine", "freq": 1234.5, "amplitude": 0.4}, {"type": "noise", "seed": 13, "amplitude": 0.2}]},
+        "R": {"type": "sweep", "f0": 30.0, "octaves": 9.5, "amplitude": 0.5}},
+      "parity": true,
+      "fault_tests": ["gain"]
+    },
+    {
+      "id": "impulses",
+      "description": "impulses at block edges and inside blocks, starting at index 64, then a ramp to 120",
+      "blocks": 8,
+      "params": {"index": 64, "events": [{"block": 3, "index": 120}]},
+      "stimuli": {"L": {"type": "impulse", "at": [0, 63, 64, 200, 255, 256, 400], "amplitude": 1.0}, "R": {"type": "step", "at": 100, "level": -0.5}},
+      "parity": true
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+Copies of sixteen-spec spec/07-ui-design/mockups/*.svg (the same working tree as resources/design/SPEC_VERSION) that resources/design/mockups/ does not pin yet; references of the performance-screen snapshot tests only (never device captures). They may later move into resources/design/mockups/ and SPEC_VERSION.
+9244773fe6aad4dae0d99630b05c6ddd38a0552f584e5eff6286dac4e20de403  lfo-setting.svg
+4bc047d59e27410f0434c0f395848aad6dc7b84a01d5f580b14f6314c1355ced  lfo.svg
+b86fdaec9b31c000727f0699902bd769b927584b2ccc63ed1d58f29fec729c42  touch-strip-setting.svg

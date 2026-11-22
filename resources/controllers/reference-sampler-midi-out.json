@@ -1,0 +1,20 @@
+{
+  "$description": "Reference sampler MIDI OUT (03-ui/control-surface.md UI-134): the reference hardware unit itself as a controller. Pads arrive as the track's note, base note C5 = 60, pad n = 60 + n - 1 (any channel: the unit sends each track on its own channel); the six knobs of the MIDI CC1 page arrive as pitch bend, channel aftertouch, CC 7, 1, 2, 10 and of the CC2 page as CC 71-76, absolute, turned into detents by difference (UI-132); Start / Stop / Continue = play / stop / play. Chosen by hand on the CONTROLLERS page (no port pattern). No lamps (the unit's MIDI IN does not light its pads).",
+  "schema": 1,
+  "id": "reference-sampler-midi-out",
+  "name": "Reference sampler MIDI OUT",
+  "channel": 0,
+  "in": [
+    {"note": 60, "count": 16, "control": "pad.1"},
+    {"pitchbend": true, "control": "enc.1"},
+    {"pressure": true, "control": "enc.2"},
+    {"cc": 7, "control": "enc.3"},
+    {"cc": 1, "control": "enc.4"},
+    {"cc": 2, "control": "enc.5"},
+    {"cc": 10, "control": "enc.6"},
+    {"cc": 71, "count": 6, "control": "enc.1"},
+    {"realtime": "start", "control": "play"},
+    {"realtime": "stop", "control": "stop"},
+    {"realtime": "continue", "control": "play"}
+  ]
+}

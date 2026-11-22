@@ -1,0 +1,926 @@
+{
+ "model": "fx_eq2",
+ "subject": "fx.eq2",
+ "local_only": false,
+ "sample_rate": 44100,
+ "block": 64,
+ "tolerance": {
+  "max_rel": 1e-05,
+  "residual_dbfs": -100.0,
+  "floor": 1e-30
+ },
+ "cases": [
+  {
+   "id": "defaults_sine",
+   "description": "insert defaults (low shelf + high shelf at 0 dB, 998 Hz, Q 0.7): the first block is not equalised (FX-480)",
+   "blocks": 16,
+   "params": {
+    "parity_maths": true,
+    "init": {},
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sine",
+     "freq": 1000.0,
+     "amplitude": 0.5
+    },
+    "R": {
+     "type": "sine",
+     "freq": 1000.0,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "trap_first_values",
+   "description": "only B1 frequency 0.5 and B1 type peak +gain set: the frequency equals the constructor's 0.5 and is swallowed (FX-056, Reference profile)",
+   "blocks": 16,
+   "params": {
+    "parity_maths": true,
+    "defaults": false,
+    "init": {
+     "type1": 2,
+     "k": {
+      "0": 0.5,
+      "1": 0.9
+     }
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 27,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 28,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "types_loshelf_hishelf",
+   "description": "band 1 loshelf (+9 dB, 300 Hz, Q 2), band 2 hishelf (−12 dB, 4 kHz, Q 0.5) (FX-420/421/424)",
+   "blocks": 24,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 4,
+     "type2": 3,
+     "k": {
+      "0": 0.389,
+      "1": 0.8667,
+      "2": 0.192,
+      "3": 0.719,
+      "4": 0.4,
+      "5": 0.04
+     }
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 35,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 44,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "types_peak_lpf",
+   "description": "band 1 peak (+9 dB, 300 Hz, Q 2), band 2 lpf (−12 dB, 4 kHz, Q 0.5) (FX-420/421/424)",
+   "blocks": 24,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 2,
+     "type2": 1,
+     "k": {
+      "0": 0.389,
+      "1": 0.8667,
+      "2": 0.192,
+      "3": 0.719,
+      "4": 0.4,
+      "5": 0.04
+     }
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 33,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 42,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "types_hpf_peak",
+   "description": "band 1 hpf (+9 dB, 300 Hz, Q 2), band 2 peak (−12 dB, 4 kHz, Q 0.5) (FX-420/421/424)",
+   "blocks": 24,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 0,
+     "type2": 2,
+     "k": {
+      "0": 0.389,
+      "1": 0.8667,
+      "2": 0.192,
+      "3": 0.719,
+      "4": 0.4,
+      "5": 0.04
+     }
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 31,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 43,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "types_hishelf_loshelf",
+   "description": "band 1 hishelf (+9 dB, 300 Hz, Q 2), band 2 loshelf (−12 dB, 4 kHz, Q 0.5) (FX-420/421/424)",
+   "blocks": 24,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 3,
+     "type2": 4,
+     "k": {
+      "0": 0.389,
+      "1": 0.8667,
+      "2": 0.192,
+      "3": 0.719,
+      "4": 0.4,
+      "5": 0.04
+     }
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 34,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 45,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "types_lpf_hpf",
+   "description": "band 1 lpf (+9 dB, 300 Hz, Q 2), band 2 hpf (−12 dB, 4 kHz, Q 0.5) (FX-420/421/424)",
+   "blocks": 24,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 1,
+     "type2": 0,
+     "k": {
+      "0": 0.389,
+      "1": 0.8667,
+      "2": 0.192,
+      "3": 0.719,
+      "4": 0.4,
+      "5": 0.04
+     }
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 32,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 41,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "freq_jumps",
+   "description": "band 1 peak: frequency 0.566 → 0.6 (9 steps: glide), → 0.8 (59 steps > 38: gated jump) (FX-425)",
+   "blocks": 32,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 2,
+     "k": {
+      "1": 0.9
+     }
+    },
+    "events": [
+     {
+      "block": 3,
+      "k": {
+       "0": 0.6
+      }
+     },
+     {
+      "block": 14,
+      "k": {
+       "0": 0.8
+      }
+     }
+    ],
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "noise",
+     "seed": 51,
+     "amplitude": 0.5
+    },
+    "R": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 52,
+       "amplitude": 0.3
+      }
+     ]
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "q_jumps",
+   "description": "band 1 peak +12 dB: Q 0.7 → 2.5 (glide), → 10 (glide), → 0.1 (100 steps > 70: gated jump)",
+   "blocks": 40,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 2,
+     "k": {
+      "1": 0.9333
+     }
+    },
+    "events": [
+     {
+      "block": 3,
+      "k": {
+       "2": 0.2424
+      }
+     },
+     {
+      "block": 14,
+      "k": {
+       "2": 1.0
+      }
+     },
+     {
+      "block": 26,
+      "k": {
+       "2": 0.0
+      }
+     }
+    ],
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "noise",
+     "seed": 53,
+     "amplitude": 0.5
+    },
+    "R": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 54,
+       "amplitude": 0.3
+      }
+     ]
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "gain_jumps",
+   "description": "band 2 high shelf: gain 0 → −6 dB (151 steps: glide), → +15 dB (526 > 250: gated jump)",
+   "blocks": 40,
+   "params": {
+    "parity_maths": true,
+    "events": [
+     {
+      "block": 3,
+      "k": {
+       "4": 0.5333
+      }
+     },
+     {
+      "block": 20,
+      "k": {
+       "4": 1.0
+      }
+     }
+    ],
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 55,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 56,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "changes_every_block",
+   "description": "seeded changes of every knob, every block (FX-425)",
+   "blocks": 48,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 2,
+     "type2": 1
+    },
+    "walk": {
+     "seed": 777,
+     "from": 1,
+     "to": 48,
+     "keys": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "0",
+      "3"
+     ]
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "noise",
+     "seed": 57,
+     "amplitude": 0.5
+    },
+    "R": {
+     "type": "noise",
+     "seed": 58,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "type_every_block",
+   "description": "band types drawn every block: gate fade + swap (FX-426)",
+   "blocks": 40,
+   "params": {
+    "parity_maths": true,
+    "walk": {
+     "seed": 31337,
+     "from": 1,
+     "to": 40,
+     "keys": [
+      "type1",
+      "type2",
+      "type1",
+      "type2"
+     ]
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 59,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 60,
+       "amplitude": 0.3
+      }
+     ]
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "reset_mid_glide",
+   "description": "reset (activation, FX-460) while band 1 glides",
+   "blocks": 32,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 2,
+     "k": {
+      "1": 0.8
+     }
+    },
+    "events": [
+     {
+      "block": 2,
+      "k": {
+       "0": 0.3
+      }
+     },
+     {
+      "block": 5,
+      "reset": true
+     }
+    ],
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sine",
+     "freq": 1000.0,
+     "amplitude": 0.5
+    },
+    "R": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 61,
+       "amplitude": 0.3
+      }
+     ]
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "loud_inputs",
+   "description": "peak +15 dB at Q 10 and LP with ±10,000 noise",
+   "blocks": 16,
+   "params": {
+    "parity_maths": true,
+    "init": {
+     "type1": 2,
+     "type2": 1,
+     "k": {
+      "1": 1.0,
+      "2": 1.0,
+      "3": 0.5
+     }
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "noise",
+     "seed": 62,
+     "amplitude": 10000.0
+    },
+    "R": {
+     "type": "noise",
+     "seed": 63,
+     "amplitude": 10000.0
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "walk_404",
+   "description": "random walk of every parameter and both types (seed 404)",
+   "blocks": 48,
+   "params": {
+    "parity_maths": true,
+    "walk": {
+     "seed": 404,
+     "from": 0,
+     "to": 48,
+     "keys": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "type1",
+      "type2"
+     ]
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 17,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 49,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "walk_505",
+   "description": "random walk of every parameter and both types (seed 505)",
+   "blocks": 48,
+   "params": {
+    "parity_maths": true,
+    "walk": {
+     "seed": 505,
+     "from": 0,
+     "to": 48,
+     "keys": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "type1",
+      "type2"
+     ]
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 21,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 61,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "walk_606",
+   "description": "random walk of every parameter and both types (seed 606)",
+   "blocks": 48,
+   "params": {
+    "parity_maths": true,
+    "walk": {
+     "seed": 606,
+     "from": 0,
+     "to": 48,
+     "keys": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "type1",
+      "type2"
+     ]
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 25,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 73,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "default_maths_types",
+   "description": "band 1 low shelf +9 dB / band 2 peak −12 dB with the default (std::) maths",
+   "blocks": 24,
+   "params": {
+    "init": {
+     "type1": 4,
+     "type2": 2,
+     "k": {
+      "0": 0.333,
+      "1": 0.8667,
+      "3": 0.777,
+      "4": 0.4,
+      "5": 0.2
+     }
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 71,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 72,
+     "amplitude": 0.5
+    }
+   },
+   "tolerance": {
+    "max_rel": 0.0001,
+    "residual_dbfs": -80.0
+   }
+  },
+  {
+   "id": "default_maths_walk",
+   "description": "random walk with the default (std::) maths",
+   "blocks": 48,
+   "params": {
+    "walk": {
+     "seed": 909,
+     "from": 0,
+     "to": 48,
+     "keys": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "type1",
+      "type2"
+     ]
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "noise",
+     "seed": 73,
+     "amplitude": 0.5
+    },
+    "R": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 74,
+       "amplitude": 0.3
+      }
+     ]
+    }
+   },
+   "tolerance": {
+    "max_rel": 0.0001,
+    "residual_dbfs": -80.0
+   }
+  },
+  {
+   "id": "shell_dc_dip",
+   "description": "through the shell at the defaults, DC 0.5: the one-time start-up dip to 0.6544 at sample 76 (FX-480, F153)",
+   "blocks": 8,
+   "params": {
+    "parity_maths": true,
+    "mode": "shell",
+    "init": {},
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "dc",
+     "level": 0.5
+    },
+    "R": {
+     "type": "dc",
+     "level": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "shell_types",
+   "description": "through the shell (dry 0, wet 1, no HPF, FX-461): peak + LP",
+   "blocks": 16,
+   "params": {
+    "parity_maths": true,
+    "mode": "shell",
+    "init": {
+     "type1": 2,
+     "type2": 1,
+     "k": {
+      "1": 0.9,
+      "3": 0.7
+     }
+    },
+    "fs": 44100
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 1000.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 75,
+       "amplitude": 0.3
+      }
+     ]
+    },
+    "R": {
+     "type": "noise",
+     "seed": 76,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  }
+ ]
+}

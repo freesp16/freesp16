@@ -1,0 +1,319 @@
+{
+  "model": "track_strip",
+  "subject": "mixer.track_strip",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "cases": [
+    {
+      "id": "unity_noise",
+      "description": "one track at fader 100, pan 0, send 0: main = input bit for bit (the mixer starts settled at its parameters: no start-up ramps)",
+      "blocks": 16,
+      "params": {
+        "tracks": [
+          {"fader": 100, "pan": 0, "send": 0, "main_on": true}
+        ],
+        "events": []
+      },
+      "stimuli": {
+        "t0.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "t0.R": {"type": "noise", "seed": 2, "amplitude": 0.5}
+      },
+      "parity": true
+    },
+    {
+      "id": "fader_steps",
+      "description": "fader through the low range 1-9 (the app's interpolated law), 10, 50, 127, 0, 64, 101; ramps start mid-block and interrupt each other",
+      "blocks": 36,
+      "params": {
+        "tracks": [
+          {"fader": 100, "pan": 0, "send": 0, "main_on": true}
+        ],
+        "events": [
+          {"block": 2, "track": 0, "fader": 1},
+          {"block": 5, "track": 0, "offset": 17, "fader": 5},
+          {"block": 8, "track": 0, "fader": 9},
+          {"block": 11, "track": 0, "offset": 63, "fader": 10},
+          {"block": 14, "track": 0, "fader": 50},
+          {"block": 16, "track": 0, "offset": 30, "fader": 127},
+          {"block": 17, "track": 0, "offset": 5, "fader": 100},
+          {"block": 20, "track": 0, "fader": 0},
+          {"block": 24, "track": 0, "fader": 64},
+          {"block": 28, "track": 0, "offset": 40, "fader": 101}
+        ]
+      },
+      "stimuli": {
+        "t0.L": {"type": "sine", "freq": 997.0, "amplitude": 0.7},
+        "t0.R": {"type": "sine", "freq": 997.0, "amplitude": 0.7, "phase": 0.25}
+      },
+      "parity": true,
+      "fault_tests": ["gain"]
+    },
+    {
+      "id": "pan_sweep",
+      "description": "linear balance pan law: -64, -32, 0, 32, 64, -1, 1 with 100-sample ramps from mid-block offsets",
+      "blocks": 24,
+      "params": {
+        "tracks": [
+          {"fader": 100, "pan": 0, "send": 0, "main_on": true}
+        ],
+        "events": [
+          {"block": 2, "track": 0, "pan": -64},
+          {"block": 5, "track": 0, "offset": 40, "pan": -32},
+          {"block": 8, "track": 0, "pan": 0},
+          {"block": 11, "track": 0, "offset": 10, "pan": 32},
+          {"block": 14, "track": 0, "pan": 64},
+          {"block": 17, "track": 0, "offset": 63, "pan": -1},
+          {"block": 20, "track": 0, "pan": 1}
+        ]
+      },
+      "stimuli": {
+        "t0.L": {"type": "noise", "seed": 3, "amplitude": 0.5},
+        "t0.R": {"type": "noise", "seed": 4, "amplitude": 0.5}
+      },
+      "parity": true
+    },
+    {
+      "id": "mute_toggle",
+      "description": "128-sample mute ramps across block boundaries, a fade-in interrupted half-way; the send tap is post-mute",
+      "blocks": 16,
+      "params": {
+        "tracks": [
+          {"fader": 100, "pan": 0, "send": 100, "main_on": true}
+        ],
+        "events": [
+          {"block": 3, "track": 0, "main_on": false},
+          {"block": 6, "track": 0, "main_on": true},
+          {"block": 7, "track": 0, "main_on": false},
+          {"block": 10, "track": 0, "main_on": true}
+        ]
+      },
+      "stimuli": {
+        "t0.L": {"type": "sine", "freq": 440.0, "amplitude": 0.8},
+        "t0.R": {"type": "sine", "freq": 660.0, "amplitude": 0.8}
+      },
+      "parity": true
+    },
+    {
+      "id": "send_prefader",
+      "description": "send tap pre-fader: fader to 0 leaves the send bus; send 127 (x1.0), 64 and 0 with GainLaw x 0.5",
+      "blocks": 20,
+      "params": {
+        "tracks": [
+          {"fader": 100, "pan": 0, "send": 127, "main_on": true}
+        ],
+        "events": [
+          {"block": 4, "track": 0, "fader": 0},
+          {"block": 8, "track": 0, "offset": 20, "send": 64},
+          {"block": 12, "track": 0, "send": 0},
+          {"block": 15, "track": 0, "offset": 33, "send": 9}
+        ]
+      },
+      "stimuli": {
+        "t0.L": {"type": "sweep", "f0": 40.0, "octaves": 9.0, "amplitude": 0.6},
+        "t0.R": {"type": "sweep", "f0": 20000.0, "f1": 40.0, "mode": "linear", "amplitude": 0.6}
+      },
+      "parity": true
+    },
+    {
+      "id": "two_tracks_sum",
+      "description": "two tracks summed into main and send at unity (no normalisation), different fader/pan/send, mute and changes mid-block",
+      "blocks": 16,
+      "params": {
+        "tracks": [
+          {"fader": 80, "pan": -20, "send": 50, "main_on": true},
+          {"fader": 120, "pan": 40, "send": 127, "main_on": true}
+        ],
+        "events": [
+          {"block": 3, "track": 1, "offset": 11, "fader": 30},
+          {"block": 6, "track": 0, "main_on": false},
+          {"block": 9, "track": 0, "send": 0},
+          {"block": 9, "track": 1, "offset": 50, "pan": -64}
+        ]
+      },
+      "stimuli": {
+        "t0.L": {"type": "sweep", "f0": 100.0, "octaves": 6.0, "amplitude": 0.5},
+        "t0.R": {"type": "sweep", "f0": 100.0, "octaves": 6.0, "amplitude": 0.5, "phase": 0.5},
+        "t1.L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "impulse",
+              "at": [0, 64, 333, 700],
+              "amplitude": 0.9
+            },
+            {"type": "noise", "seed": 5, "amplitude": 0.1}
+          ]
+        },
+        "t1.R": {"type": "noise", "seed": 6, "amplitude": 0.3}
+      },
+      "parity": true
+    },
+    {
+      "id": "mute_offsets",
+      "description": "mute changes inside the block (frame 20, 50, 7): the 128-sample ramp starts at the change's frame and turns round mid-fade; a fader ramp waiting for its own offset in the same block; the send tap is post-mute",
+      "blocks": 14,
+      "params": {
+        "tracks": [
+          {"fader": 100, "pan": 10, "send": 100, "main_on": true}
+        ],
+        "events": [
+          {"block": 2, "track": 0, "offset": 20, "main_on": false},
+          {"block": 2, "track": 0, "offset": 40, "fader": 80},
+          {"block": 4, "track": 0, "offset": 50, "main_on": true},
+          {"block": 5, "track": 0, "offset": 7, "main_on": false},
+          {"block": 5, "track": 0, "offset": 3, "send": 60},
+          {"block": 9, "track": 0, "offset": 33, "main_on": true}
+        ]
+      },
+      "stimuli": {
+        "t0.L": {"type": "sine", "freq": 330.0, "amplitude": 0.7},
+        "t0.R": {"type": "noise", "seed": 7, "amplitude": 0.4}
+      },
+      "parity": true
+    },
+    {
+      "id": "return_after_master",
+      "description": "bus chain: main -> Master FX stand-in (swap L/R) -> + send return (Send FX stand-in x0.5 -> return fader) -> master fader; the return is added after the master FX; master and return ramps from mid-block offsets",
+      "blocks": 16,
+      "params": {
+        "tracks": [
+          {"fader": 100, "pan": -30, "send": 127, "main_on": true},
+          {"fader": 90, "pan": 40, "send": 64, "main_on": true}
+        ],
+        "bus": {"master": 90, "return": 110, "send_fx": "half", "master_fx": "swap"},
+        "events": [
+          {"block": 3, "offset": 13, "master": 127},
+          {"block": 5, "offset": 0, "return": 40},
+          {"block": 7, "track": 1, "offset": 9, "send": 0},
+          {"block": 9, "offset": 60, "master": 0},
+          {"block": 11, "offset": 2, "master": 100},
+          {"block": 12, "offset": 31, "return": 100}
+        ]
+      },
+      "stimuli": {
+        "t0.L": {"type": "noise", "seed": 11, "amplitude": 0.5},
+        "t0.R": {"type": "sine", "freq": 523.0, "amplitude": 0.5},
+        "t1.L": {"type": "sweep", "f0": 60.0, "octaves": 8.0, "amplitude": 0.6},
+        "t1.R": {"type": "noise", "seed": 12, "amplitude": 0.3}
+      },
+      "parity": true,
+      "fault_tests": ["gain"]
+    },
+    {
+      "id": "send_fx_off",
+      "description": "Send FX Off: the return is silence (no dry path), so master = main x master fader whatever the sends",
+      "blocks": 8,
+      "params": {
+        "tracks": [
+          {"fader": 100, "pan": 0, "send": 127, "main_on": true}
+        ],
+        "bus": {"master": 64, "return": 100, "send_fx": "off"},
+        "events": [
+          {"block": 4, "offset": 17, "master": 120}
+        ]
+      },
+      "stimuli": {
+        "t0.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.5},
+        "t0.R": {"type": "sine", "freq": 1500.0, "amplitude": 0.5}
+      },
+      "parity": true
+    },
+    {
+      "id": "sixteen_tracks",
+      "description": "16 strips with random fader/pan/send/mute and 33 changes at random offsets, summed at unity into main and send",
+      "blocks": 14,
+      "params": {
+        "tracks": [
+          {"fader": 92, "pan": 56, "send": 123, "main_on": true},
+          {"fader": 72, "pan": 42, "send": 58, "main_on": true},
+          {"fader": 114, "pan": -63, "send": 104, "main_on": true},
+          {"fader": 66, "pan": -4, "send": 56, "main_on": true},
+          {"fader": 2, "pan": 11, "send": 77, "main_on": false},
+          {"fader": 85, "pan": -28, "send": 79, "main_on": true},
+          {"fader": 5, "pan": -8, "send": 64, "main_on": true},
+          {"fader": 5, "pan": -25, "send": 7, "main_on": true},
+          {"fader": 118, "pan": 52, "send": 75, "main_on": true},
+          {"fader": 57, "pan": 15, "send": 92, "main_on": false},
+          {"fader": 66, "pan": 43, "send": 22, "main_on": true},
+          {"fader": 89, "pan": 62, "send": 108, "main_on": true},
+          {"fader": 44, "pan": 11, "send": 11, "main_on": true},
+          {"fader": 72, "pan": -43, "send": 1, "main_on": true},
+          {"fader": 95, "pan": -4, "send": 125, "main_on": false},
+          {"fader": 39, "pan": 15, "send": 77, "main_on": true}
+        ],
+        "events": [
+          {"block": 1, "track": 10, "offset": 58, "main_on": true},
+          {"block": 1, "track": 15, "offset": 56, "fader": 125},
+          {"block": 1, "track": 0, "offset": 15, "main_on": true},
+          {"block": 2, "track": 2, "offset": 2, "main_on": false},
+          {"block": 2, "track": 7, "offset": 47, "main_on": true},
+          {"block": 2, "track": 1, "offset": 40, "main_on": true},
+          {"block": 3, "track": 2, "offset": 40, "pan": -39},
+          {"block": 3, "track": 2, "offset": 31, "fader": 2},
+          {"block": 3, "track": 12, "offset": 14, "fader": 12},
+          {"block": 4, "track": 12, "offset": 32, "pan": -3},
+          {"block": 4, "track": 5, "offset": 30, "fader": 62},
+          {"block": 4, "track": 3, "offset": 18, "fader": 68},
+          {"block": 5, "track": 12, "offset": 4, "main_on": true},
+          {"block": 5, "track": 14, "offset": 33, "main_on": true},
+          {"block": 5, "track": 0, "offset": 54, "pan": 1},
+          {"block": 6, "track": 12, "offset": 27, "fader": 29},
+          {"block": 6, "track": 13, "offset": 36, "fader": 29},
+          {"block": 6, "track": 14, "offset": 18, "main_on": false},
+          {"block": 7, "track": 7, "offset": 16, "pan": 39},
+          {"block": 7, "track": 13, "offset": 50, "pan": -17},
+          {"block": 7, "track": 11, "offset": 22, "main_on": false},
+          {"block": 8, "track": 6, "offset": 2, "main_on": true},
+          {"block": 8, "track": 9, "offset": 9, "fader": 78},
+          {"block": 8, "track": 15, "offset": 60, "pan": -11},
+          {"block": 9, "track": 14, "offset": 62, "pan": -44},
+          {"block": 9, "track": 3, "offset": 7, "send": 118},
+          {"block": 9, "track": 2, "offset": 6, "main_on": false},
+          {"block": 10, "track": 5, "offset": 46, "fader": 103},
+          {"block": 10, "track": 9, "offset": 8, "main_on": true},
+          {"block": 10, "track": 14, "offset": 1, "pan": -64},
+          {"block": 11, "track": 7, "offset": 50, "send": 52},
+          {"block": 11, "track": 1, "offset": 2, "send": 98},
+          {"block": 11, "track": 1, "offset": 28, "pan": -12}
+        ]
+      },
+      "stimuli": {
+        "t0.L": {"type": "noise", "seed": 100, "amplitude": 0.2},
+        "t0.R": {"type": "noise", "seed": 101, "amplitude": 0.2},
+        "t1.L": {"type": "noise", "seed": 102, "amplitude": 0.2},
+        "t1.R": {"type": "noise", "seed": 103, "amplitude": 0.2},
+        "t2.L": {"type": "noise", "seed": 104, "amplitude": 0.2},
+        "t2.R": {"type": "noise", "seed": 105, "amplitude": 0.2},
+        "t3.L": {"type": "noise", "seed": 106, "amplitude": 0.2},
+        "t3.R": {"type": "noise", "seed": 107, "amplitude": 0.2},
+        "t4.L": {"type": "noise", "seed": 108, "amplitude": 0.2},
+        "t4.R": {"type": "noise", "seed": 109, "amplitude": 0.2},
+        "t5.L": {"type": "noise", "seed": 110, "amplitude": 0.2},
+        "t5.R": {"type": "noise", "seed": 111, "amplitude": 0.2},
+        "t6.L": {"type": "noise", "seed": 112, "amplitude": 0.2},
+        "t6.R": {"type": "noise", "seed": 113, "amplitude": 0.2},
+        "t7.L": {"type": "noise", "seed": 114, "amplitude": 0.2},
+        "t7.R": {"type": "noise", "seed": 115, "amplitude": 0.2},
+        "t8.L": {"type": "noise", "seed": 116, "amplitude": 0.2},
+        "t8.R": {"type": "noise", "seed": 117, "amplitude": 0.2},
+        "t9.L": {"type": "noise", "seed": 118, "amplitude": 0.2},
+        "t9.R": {"type": "noise", "seed": 119, "amplitude": 0.2},
+        "t10.L": {"type": "noise", "seed": 120, "amplitude": 0.2},
+        "t10.R": {"type": "noise", "seed": 121, "amplitude": 0.2},
+        "t11.L": {"type": "noise", "seed": 122, "amplitude": 0.2},
+        "t11.R": {"type": "noise", "seed": 123, "amplitude": 0.2},
+        "t12.L": {"type": "noise", "seed": 124, "amplitude": 0.2},
+        "t12.R": {"type": "noise", "seed": 125, "amplitude": 0.2},
+        "t13.L": {"type": "noise", "seed": 126, "amplitude": 0.2},
+        "t13.R": {"type": "noise", "seed": 127, "amplitude": 0.2},
+        "t14.L": {"type": "noise", "seed": 128, "amplitude": 0.2},
+        "t14.R": {"type": "noise", "seed": 129, "amplitude": 0.2},
+        "t15.L": {"type": "noise", "seed": 130, "amplitude": 0.2},
+        "t15.R": {"type": "noise", "seed": 131, "amplitude": 0.2}
+      },
+      "parity": true
+    }
+  ]
+}

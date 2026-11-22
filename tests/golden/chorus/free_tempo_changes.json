@@ -1,0 +1,124 @@
+{
+  "format": "golden-case/1",
+  "name": "chorus",
+  "case": "free_tempo_changes",
+  "description": "free rate, tempo changes every 4 blocks (each re-applies the rate)",
+  "subject": "fx.mod",
+  "model": "chorus",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 160,
+  "frames": 10240,
+  "params": {
+    "effect": "chorus",
+    "init": {"0": 0.6, "3": 0.4, "5": 1.0},
+    "events": [
+      {"block": 4, "bpm": 104.0},
+      {"block": 8, "bpm": 101.0},
+      {"block": 12, "bpm": 105.0},
+      {"block": 16, "bpm": 102.0},
+      {"block": 20, "bpm": 106.0},
+      {"block": 24, "bpm": 103.0},
+      {"block": 28, "bpm": 100.0},
+      {"block": 32, "bpm": 104.0},
+      {"block": 36, "bpm": 101.0},
+      {"block": 40, "bpm": 105.0},
+      {"block": 44, "bpm": 102.0},
+      {"block": 48, "bpm": 106.0},
+      {"block": 52, "bpm": 103.0},
+      {"block": 56, "bpm": 100.0},
+      {"block": 60, "bpm": 104.0},
+      {"block": 64, "bpm": 101.0},
+      {"block": 68, "bpm": 105.0},
+      {"block": 72, "bpm": 102.0},
+      {"block": 76, "bpm": 106.0},
+      {"block": 80, "bpm": 103.0},
+      {"block": 84, "bpm": 100.0},
+      {"block": 88, "bpm": 104.0},
+      {"block": 92, "bpm": 101.0},
+      {"block": 96, "bpm": 105.0},
+      {"block": 100, "bpm": 102.0},
+      {"block": 104, "bpm": 106.0},
+      {"block": 108, "bpm": 103.0},
+      {"block": 112, "bpm": 100.0},
+      {"block": 116, "bpm": 104.0},
+      {"block": 120, "bpm": 101.0},
+      {"block": 124, "bpm": 105.0},
+      {"block": 128, "bpm": 102.0},
+      {"block": 132, "bpm": 106.0},
+      {"block": 136, "bpm": 103.0},
+      {"block": 140, "bpm": 100.0},
+      {"block": 144, "bpm": 104.0},
+      {"block": 148, "bpm": 101.0},
+      {"block": 152, "bpm": 105.0},
+      {"block": 156, "bpm": 102.0}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 10240],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "free_tempo_changes.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+      "R": {"type": "noise", "seed": 2, "amplitude": 0.5}
+    },
+    "sha256": "d8eee5f28a47557b9de86f090554e5118440021b8275fcafef5b8db2e036e9e8"
+  },
+  "expected": {
+    "file": "free_tempo_changes.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "57f1757dd58979158082155d478ae048c97b7ba60513f29c431b47d8b48cb4fa"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/chorus.py",
+      "licence": "MIT",
+      "sha256": "026cec49227eff6b21991818a3c5755492a713b5148aaa29482c5fbdeebba985"
+    },
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fdlibm_sincosf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "f31de1f124893baec9000ddb0bd9648109d34b0b22eb36508bb1eb5335f2f1f2"
+    },
+    {
+      "file": "tools/fx/fdlibm_tanf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b3a22338aa75a0125a41cfb22d86c782daf5afd4b4e2cac51ac2709bb346d130"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/osc.py",
+      "licence": "MIT",
+      "sha256": "322c964ab4d5ac7417f7b40e4a13c9d79184acc374f5b708185ee7cfd5c7bf5f"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

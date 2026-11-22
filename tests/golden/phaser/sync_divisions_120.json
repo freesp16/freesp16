@@ -1,0 +1,90 @@
+{
+  "format": "golden-case/1",
+  "name": "phaser",
+  "case": "sync_divisions_120",
+  "description": "SYNC: all 12 divisions at 120 BPM (8 blocks each)",
+  "subject": "fx.mod",
+  "model": "phaser",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 100,
+  "frames": 6400,
+  "params": {
+    "effect": "phaser",
+    "fs": 44100,
+    "parity_maths": true,
+    "bpm": 120.0,
+    "options": {"0": 1},
+    "init": {"0": 0.0, "4": 0.5, "5": 1.0},
+    "events": [
+      {"block": 12, "k": 0, "v": 0.09090909090909091},
+      {"block": 20, "k": 0, "v": 0.18181818181818182},
+      {"block": 28, "k": 0, "v": 0.2727272727272727},
+      {"block": 36, "k": 0, "v": 0.36363636363636365},
+      {"block": 44, "k": 0, "v": 0.45454545454545453},
+      {"block": 52, "k": 0, "v": 0.5454545454545454},
+      {"block": 60, "k": 0, "v": 0.6363636363636364},
+      {"block": 68, "k": 0, "v": 0.7272727272727273},
+      {"block": 76, "k": 0, "v": 0.8181818181818182},
+      {"block": 84, "k": 0, "v": 0.9090909090909091},
+      {"block": 92, "k": 0, "v": 1.0}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 6400],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "sync_divisions_120.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+      "R": {"type": "noise", "seed": 2, "amplitude": 0.5}
+    },
+    "sha256": "10c16065eaec0b7a70c54fa642f6bff4ac02e1fb708f6f6e1b57b59dbd13b459"
+  },
+  "expected": {
+    "file": "sync_divisions_120.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "3e9f91ca807c475571273e9b9bf60a321e5a1753e453bc8f5de81229f420d339"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fdlibm_tanf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b3a22338aa75a0125a41cfb22d86c782daf5afd4b4e2cac51ac2709bb346d130"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/phaser.py",
+      "licence": "MIT",
+      "sha256": "3d276ad1976363526516d99b93922438f979298a6647775dd07e79dbb6714cb7"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

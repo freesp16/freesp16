@@ -1,0 +1,81 @@
+{
+  "format": "golden-case/1",
+  "name": "routing",
+  "case": "mode_dip_interrupted",
+  "description": "a mode change during the fade-in of the previous one: the reference Selector fades out over 128 samples from the gain reached (0.5), then switches",
+  "subject": "routing.router",
+  "model": "routing_router",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 16,
+  "frames": 1024,
+  "params": {
+    "mode": 0,
+    "assign": [3, 0],
+    "events": [
+      {"block": 4, "mode": 1},
+      {"block": 7, "mode": 0}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 1024],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "mode_dip_interrupted.in.f32",
+    "channels": ["master.L", "master.R", "t0.L", "t0.R", "t1.L", "t1.R"],
+    "stimuli": {
+      "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+      "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+      "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+      "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+      "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+      "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25}
+    },
+    "sha256": "a41fba0685700a2b087c094ed17cc326095a378fc86b88e261337fd545bd6fc1"
+  },
+  "expected": {
+    "file": "mode_dip_interrupted.out.f32",
+    "channels": ["out12.L", "out12.R", "out34.L", "out34.R", "out56.L", "out56.R", "out78.L", "out78.R"],
+    "sha256": "61d3b507b6444b857bde5580d373e3a7916918ec5379c95fa1425f9c42fd9328"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fx_processors.py",
+      "licence": "MIT",
+      "sha256": "cc621f42389318b2bc50641ec8e99197cece954b904f768ab4697775a76aba20"
+    },
+    {
+      "file": "tools/fx/headphone_mix.py",
+      "licence": "MIT",
+      "sha256": "987b5db83a80998199843cb590b8a3b449156d1c0b7da8cb5d466d463d73aff4"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/track_mix.py",
+      "licence": "MIT",
+      "sha256": "42f6c106ba465227d86e23149d442fb330b9e7492e8fb5d8089f0bdc18b79353"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

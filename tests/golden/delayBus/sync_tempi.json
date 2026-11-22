@@ -1,0 +1,109 @@
+{
+  "format": "golden-case/1",
+  "name": "delayBus",
+  "case": "sync_tempi",
+  "description": "SYNC on, 1/2 beat, feedback 0.5: 87.5 \u2192 120 \u2192 133.37 \u2192 999 BPM (342.86, 250, 224.94, 30.03 ms)",
+  "subject": "fx.delay",
+  "model": "delayBus",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 900,
+  "frames": 57600,
+  "params": {
+    "effect": "delayBus",
+    "slot": "send",
+    "bpm": 87.5,
+    "options": {"0": 1},
+    "init": {"0": 0.2857143, "1": 0.5},
+    "events": [
+      {"block": 300, "bpm": 120.0},
+      {"block": 550, "bpm": 133.37},
+      {"block": 800, "bpm": 999.0}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 57600],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "sync_tempi.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {
+        "type": "impulse",
+        "at": [3000, 20000, 36000, 52000],
+        "amplitude": 1.0
+      },
+      "R": {
+        "type": "impulse",
+        "at": [3100, 20100, 36100, 52100],
+        "amplitude": 0.7
+      }
+    },
+    "sha256": "fc75e462847fdc2248f59d65eaf23c497e1770f5755ed21f56b5a7a031cfe338"
+  },
+  "expected": {
+    "file": "sync_tempi.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "a165b83aaf14eba5b5a733e437e7e41c9066e79c738d524805a13c12df285b72"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/chorus.py",
+      "licence": "MIT",
+      "sha256": "026cec49227eff6b21991818a3c5755492a713b5148aaa29482c5fbdeebba985"
+    },
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fdlibm_sincosf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "f31de1f124893baec9000ddb0bd9648109d34b0b22eb36508bb1eb5335f2f1f2"
+    },
+    {
+      "file": "tools/fx/fdlibm_tanf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b3a22338aa75a0125a41cfb22d86c782daf5afd4b4e2cac51ac2709bb346d130"
+    },
+    {
+      "file": "tools/fx/insert_delay.py",
+      "licence": "MIT",
+      "sha256": "e743147edad4355974927db1e217b9dfbf770f6d9ecf9d74a1a9be4af603cbb9"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/osc.py",
+      "licence": "MIT",
+      "sha256": "322c964ab4d5ac7417f7b40e4a13c9d79184acc374f5b708185ee7cfd5c7bf5f"
+    },
+    {
+      "file": "tools/fx/send_delay.py",
+      "licence": "MIT",
+      "sha256": "5d88f607356fb183ec091fd187fd57eb42f3600f4063a39555ce95b1b9e721af"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "note": "Reference step-lock ordinal -> lockable parameter id. Classes are the documented value classes; the parameter names are guesses (OQ-01). Edit a copy and place it where the app reads it.",
+  "ordinals": [
+    {"ordinal": 0, "param": "playback.pitch", "class": "raw", "scale": 0.01, "guess": true, "basis": "observed"},
+    {"ordinal": 1, "param": "playback.start", "class": "frames", "highSlot": 16, "guess": true, "basis": "research"},
+    {"ordinal": 2, "param": "playback.loopStart", "class": "frames", "highSlot": 17, "guess": true, "basis": "research"},
+    {"ordinal": 3, "param": "playback.length", "class": "frames", "highSlot": 18, "guess": true, "basis": "research"},
+    {"ordinal": 4, "param": "env.velocity", "class": "raw", "guess": true, "basis": "guess"},
+    {"ordinal": 5, "param": "env.attack", "class": "norm", "guess": true, "basis": "observed"},
+    {"ordinal": 6, "param": "env.hold", "class": "norm", "guess": true, "basis": "observed"},
+    {"ordinal": 7, "param": "env.release", "class": "norm", "guess": true, "basis": "observed"},
+    {"ordinal": 8, "param": "playback.loop", "class": "normOrIndex", "guess": true, "basis": "guess"},
+    {"ordinal": 9, "param": "track.triggerMode", "class": "raw", "guess": true, "basis": "guess"},
+    {"ordinal": 10, "param": "", "class": "raw", "guess": true, "basis": "observed"},
+    {"ordinal": 11, "param": "seq.retrigCount", "class": "raw", "guess": true, "basis": "observed"},
+    {"ordinal": 12, "param": "seq.retrigSpeed", "class": "raw", "guess": true, "basis": "observed"},
+    {"ordinal": 13, "param": "track.sendAmount", "class": "raw", "guess": true, "basis": "observed"},
+    {"ordinal": 14, "param": "track.pan", "class": "raw", "guess": true, "basis": "observed"},
+    {"ordinal": 15, "param": "track.volume", "class": "raw", "guess": true, "basis": "observed"},
+    {"ordinal": 16, "param": "seq.offset", "class": "raw", "guess": true, "basis": "guess"},
+    {"ordinal": 17, "param": "track.mute", "class": "raw", "guess": true, "basis": "guess"},
+    {"ordinal": 18, "param": "lfo.speed", "class": "raw", "guess": true, "basis": "guess"},
+    {"ordinal": 19, "param": "lfo.depth", "class": "raw", "guess": true, "basis": "guess"},
+    {"ordinal": 20, "param": "lfo.phase", "class": "raw", "guess": true, "basis": "guess"},
+    {"ordinal": 21, "param": "playback.reverse", "class": "raw", "guess": true, "basis": "guess"},
+    {"ordinal": 22, "param": "slice.number", "class": "raw", "guess": true, "basis": "guess"}
+  ],
+  "pathAliases": {
+    "%Smp": ["Samples"],
+    "%Tmp": ["Samples", "Samples/Tmp", "Tmp", ""]
+  },
+  "volumes": {
+    "$Ext0": "",
+    "$Int0": ""
+  },
+  "stepValue2": "ignore"
+}

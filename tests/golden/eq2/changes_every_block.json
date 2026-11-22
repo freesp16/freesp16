@@ -1,0 +1,75 @@
+{
+  "format": "golden-case/1",
+  "name": "eq2",
+  "case": "changes_every_block",
+  "description": "seeded changes of every knob, every block (FX-425)",
+  "subject": "fx.eq2",
+  "model": "fx_eq2",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 48,
+  "frames": 3072,
+  "params": {
+    "parity_maths": true,
+    "init": {"type1": 2, "type2": 1},
+    "walk": {
+      "seed": 777,
+      "from": 1,
+      "to": 48,
+      "keys": ["0", "1", "2", "3", "4", "5", "0", "3"]
+    },
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 3072],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "changes_every_block.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 57, "amplitude": 0.5},
+      "R": {"type": "noise", "seed": 58, "amplitude": 0.5}
+    },
+    "sha256": "f7f0f506d4628af545c32453d81f3ab0fff2367e1f1dae4f3729649a77cae615"
+  },
+  "expected": {
+    "file": "changes_every_block.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "7ab485cf305554ffe0a2704bc412905e112593b59dcc7ad4d6802fa0f043467a"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/mmf.py",
+      "licence": "MIT",
+      "sha256": "ff256ee75f4b57f91760b43e3c750ffb5133dfc8bdd088c73225429a42310a3d"
+    },
+    {
+      "file": "tools/fx/peq.py",
+      "licence": "MIT",
+      "sha256": "15aa6e4437bd54beeaa8834a399ae667387e3699dc4f0cf949d1aba7a0e8e498"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

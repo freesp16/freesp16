@@ -1,0 +1,65 @@
+{
+  "format": "golden-case/1",
+  "name": "compressor",
+  "case": "neutral",
+  "description": "the defaults are neutral (0 dB, 1:1, Mix 100 %)",
+  "subject": "fx.compressor",
+  "model": "compressor",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 64,
+  "frames": 4096,
+  "params": {"fs": 44100},
+  "tolerance": {"max_rel": 0.0001, "residual_dbfs": -90.0, "floor": 1e-30},
+  "window": [0, 4096],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "neutral.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 31, "amplitude": 0.9},
+      "R": {"type": "sweep", "f0": 40.0, "octaves": 8.0, "amplitude": 0.6}
+    },
+    "sha256": "2e038dd203e6b68cd77082e7c7e6e2abcee4d56bd8503c7e9caeb519331989d0"
+  },
+  "expected": {
+    "file": "neutral.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "c2acd69945ec57c4cc6b0cec7a004c121be40a53fd37ddb1ad99a510524bc046"
+  },
+  "tables": {
+    "expf": {
+      "source": "crmath.expf (correctly rounded) in place of the glibc 2.13 expf",
+      "f32_bits": []
+    }
+  },
+  "models": [
+    {
+      "file": "tools/fx/compressor.py",
+      "licence": "MIT",
+      "sha256": "94e947f607d6e841cdd1bf850255554cd3be2bc94a5e9c7a455c3944fec32265"
+    },
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/glibc_log10.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b1e727188a6c7763c77d94227fd8d6f39bb0211bb5af4ddd5018aa52202d8972"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

@@ -1,0 +1,17 @@
+# Build outputs
+/build/
+/out/
+# Never commit firmware, keys, update files, data images or session captures
+*.UPD
+*.upd
+*.key
+*.sqfs
+*.img
+*.prj
+private/
+sessions/
+# Local tools
+.DS_Store
+__pycache__/
+*.pyc
+compile_commands.json

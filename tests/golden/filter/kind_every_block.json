@@ -1,0 +1,71 @@
+{
+  "format": "golden-case/1",
+  "name": "filter",
+  "case": "kind_every_block",
+  "description": "type/slope drawn every block (seeded walk) (FX-520/522)",
+  "subject": "fx.filter",
+  "model": "fx_filter",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 40,
+  "frames": 2560,
+  "params": {
+    "init": {
+      "k": {"0": 0.5, "2": 0.4}
+    },
+    "walk": {
+      "seed": 4242,
+      "from": 1,
+      "to": 40,
+      "keys": ["type", "slope", "type", "slope"]
+    },
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 2560],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "kind_every_block.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 17, "amplitude": 0.5},
+      "R": {"type": "noise", "seed": 18, "amplitude": 0.5}
+    },
+    "sha256": "1dfe1c91fd138f3f833be07a8afa1dd5a92cc3745b31254166e71d91d2c8caf2"
+  },
+  "expected": {
+    "file": "kind_every_block.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "b127322aa1566090be70450c588f9cbcfafd80cccbcc260b9ee8eebf1f487725"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/mmf.py",
+      "licence": "MIT",
+      "sha256": "ff256ee75f4b57f91760b43e3c750ffb5133dfc8bdd088c73225429a42310a3d"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

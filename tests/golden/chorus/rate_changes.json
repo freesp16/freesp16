@@ -1,0 +1,105 @@
+{
+  "format": "golden-case/1",
+  "name": "chorus",
+  "case": "rate_changes",
+  "description": "rate changes mid-run (next block, FX-160), width/phase/delay at once",
+  "subject": "fx.mod",
+  "model": "chorus",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 160,
+  "frames": 10240,
+  "params": {
+    "effect": "chorus",
+    "init": {"0": 0.1, "3": 0.5, "5": 1.0},
+    "events": [
+      {"block": 80, "k": 0, "v": 0.9},
+      {"block": 95, "k": 0, "v": 0.33},
+      {"block": 100, "k": 1, "v": 0.4},
+      {"block": 110, "k": 2, "v": 0.7},
+      {"block": 120, "k": 3, "v": 0.9},
+      {"block": 130, "k": 0, "v": 0.0},
+      {"block": 140, "k": 0, "v": 1.0},
+      {"block": 150, "k": 5, "v": 0.5}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 10240],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "rate_changes.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 441.0, "amplitude": 0.4, "phase": 0.0},
+          {"type": "noise", "seed": 3, "amplitude": 0.2}
+        ]
+      },
+      "R": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 1234.5, "amplitude": 0.3, "phase": 0.0},
+          {"type": "noise", "seed": 4, "amplitude": 0.2}
+        ]
+      }
+    },
+    "sha256": "86e4645e693af7100fdc734e37c2e8db73420d704f58279815eba1022acda15f"
+  },
+  "expected": {
+    "file": "rate_changes.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "548b9a00b2c14cca921de805c64bc60563b973a32960c8c1233300a097503504"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/chorus.py",
+      "licence": "MIT",
+      "sha256": "026cec49227eff6b21991818a3c5755492a713b5148aaa29482c5fbdeebba985"
+    },
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fdlibm_sincosf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "f31de1f124893baec9000ddb0bd9648109d34b0b22eb36508bb1eb5335f2f1f2"
+    },
+    {
+      "file": "tools/fx/fdlibm_tanf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b3a22338aa75a0125a41cfb22d86c782daf5afd4b4e2cac51ac2709bb346d130"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/osc.py",
+      "licence": "MIT",
+      "sha256": "322c964ab4d5ac7417f7b40e4a13c9d79184acc374f5b708185ee7cfd5c7bf5f"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

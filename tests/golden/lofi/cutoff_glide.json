@@ -1,0 +1,72 @@
+{
+  "format": "golden-case/1",
+  "name": "lofi",
+  "case": "cutoff_glide",
+  "description": "LP Post: cutoff 0.5 \u2192 0.55 (a glide below 38 steps) \u2192 0.3 (a gated jump) \u2192 0.31, resonance changes",
+  "subject": "fx.effect",
+  "model": "lofi",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 64,
+  "frames": 4096,
+  "params": {
+    "effect": "lofi",
+    "init": {"3": 0.5, "4": 0.2},
+    "options": {"0": 1},
+    "events": [
+      {"block": 6, "k": 3, "v": 0.55},
+      {"block": 14, "k": 3, "v": 0.3},
+      {"block": 22, "k": 3, "v": 0.31},
+      {"block": 30, "k": 4, "v": 0.8},
+      {"block": 31, "k": 3, "v": 0.6},
+      {"block": 44, "k": 4, "v": 0.05}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 4096],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "cutoff_glide.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 12, "amplitude": 0.7},
+      "R": {"type": "sine", "freq": 700.0, "amplitude": 0.5, "phase": 0.0}
+    },
+    "sha256": "de3de4359b97738c0080d62f49a22be86301e4c7a6a76f0b30a52b1d3f968441"
+  },
+  "expected": {
+    "file": "cutoff_glide.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "3edaf5c5af75f659b1debe0fdf6a47a732fe3b3c0db110ad48fba62447dfe865"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

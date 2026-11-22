@@ -1,0 +1,2110 @@
+{
+  "model": "delayBus",
+  "subject": "fx.delay",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 1e-05,
+    "residual_dbfs": -100.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "send_defaults",
+      "description": "the Send defaults (500 ms, feedback 0.7, mix 1 = wet only): impulses at 192 (warm-up window, FX-780: never echoes) and 3000",
+      "blocks": 1100,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send"
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            192,
+            3000
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            3000
+          ],
+          "amplitude": 0.6
+        }
+      }
+    },
+    {
+      "id": "master_defaults",
+      "description": "the Master defaults (mix 0.5: dry 1, wet 0.667), noise burst",
+      "blocks": 800,
+      "params": {
+        "effect": "delayBus",
+        "slot": "master"
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 101,
+          "amplitude": 0.5,
+          "start": 2000,
+          "length": 5000
+        },
+        "R": {
+          "type": "noise",
+          "seed": 102,
+          "amplitude": 0.5,
+          "start": 2000,
+          "length": 5000
+        }
+      }
+    },
+    {
+      "id": "t4000_fb1",
+      "description": "4000 ms (176400 samples, the longest; ring 178900, so the write index wraps) with feedback 1.0: the echo of an impulse pair at full level, integer positions. 4000 blocks instead of the research's 5800 (tools/check-no-firmware.sh caps a file at 2 MB); the second echo and the sustain are checked by fx.delayBus unit tests",
+      "blocks": 4000,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send",
+        "init": {
+          "0": 1.0,
+          "1": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            4000,
+            4001
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            4500
+          ],
+          "amplitude": 0.8
+        }
+      }
+    },
+    {
+      "id": "spread_0",
+      "description": "Spread 0 (straight): a left-only impulse stays left (FX-721)",
+      "blocks": 500,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send",
+        "init": {
+          "0": 0.05,
+          "1": 0.6,
+          "4": 0.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            3000
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "silence"
+        }
+      },
+      "fault_tests": [
+        "gain"
+      ]
+    },
+    {
+      "id": "spread_half",
+      "description": "Spread 0.5: half straight, half cross-fed",
+      "blocks": 500,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send",
+        "init": {
+          "0": 0.05,
+          "1": 0.6,
+          "4": 0.5
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            3000
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "noise",
+          "seed": 111,
+          "amplitude": 0.2,
+          "start": 9000,
+          "length": 3000
+        }
+      }
+    },
+    {
+      "id": "spread_1_pingpong",
+      "description": "Spread 1 (ping-pong): a left impulse appears first on the right after D, then on the left after 2D (FX-721)",
+      "blocks": 600,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send",
+        "init": {
+          "0": 0.0726817,
+          "1": 0.8,
+          "4": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            3000
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "silence"
+        }
+      }
+    },
+    {
+      "id": "spread_ramps",
+      "description": "Spread 0 \u2192 1 \u2192 0.3 (147-sample direct and cross ramps), noise",
+      "blocks": 330,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send",
+        "init": {
+          "0": 0.02,
+          "1": 0.5
+        },
+        "events": [
+          {
+            "block": 100,
+            "k": 4,
+            "v": 1.0
+          },
+          {
+            "block": 250,
+            "k": 4,
+            "v": 0.3
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 121,
+              "amplitude": 0.5,
+              "start": 1000,
+              "length": 3000
+            },
+            {
+              "type": "noise",
+              "seed": 122,
+              "amplitude": 0.5,
+              "start": 8000,
+              "length": 3000
+            },
+            {
+              "type": "noise",
+              "seed": 123,
+              "amplitude": 0.5,
+              "start": 16000,
+              "length": 3000
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 124,
+              "amplitude": 0.3,
+              "start": 1500,
+              "length": 3000
+            },
+            {
+              "type": "noise",
+              "seed": 125,
+              "amplitude": 0.3,
+              "start": 8500,
+              "length": 3000
+            },
+            {
+              "type": "noise",
+              "seed": 126,
+              "amplitude": 0.3,
+              "start": 16500,
+              "length": 3000
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "filter_sweeps",
+      "description": "hi cut and lo cut sweeps (both stepped first-order filters, 1000 log steps, 1/3 ms per step, FX-722): hi cut 1 \u2192 0.2 \u2192 1, lo cut 0 \u2192 0.5 \u2192 0.25 \u2192 0.03 (FX-784: below the 5 Hz floor)",
+      "blocks": 450,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send",
+        "init": {
+          "0": 0.03,
+          "1": 0.7
+        },
+        "events": [
+          {
+            "block": 50,
+            "k": 2,
+            "v": 0.2
+          },
+          {
+            "block": 150,
+            "k": 3,
+            "v": 0.5
+          },
+          {
+            "block": 260,
+            "k": 2,
+            "v": 1.0
+          },
+          {
+            "block": 330,
+            "k": 3,
+            "v": 0.25
+          },
+          {
+            "block": 450,
+            "k": 3,
+            "v": 0.03
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 131,
+              "amplitude": 0.5,
+              "start": 1000,
+              "length": 2500
+            },
+            {
+              "type": "noise",
+              "seed": 132,
+              "amplitude": 0.5,
+              "start": 6000,
+              "length": 2500
+            },
+            {
+              "type": "noise",
+              "seed": 133,
+              "amplitude": 0.5,
+              "start": 12000,
+              "length": 2500
+            },
+            {
+              "type": "noise",
+              "seed": 134,
+              "amplitude": 0.5,
+              "start": 18000,
+              "length": 2500
+            },
+            {
+              "type": "noise",
+              "seed": 135,
+              "amplitude": 0.5,
+              "start": 24000,
+              "length": 2500
+            }
+          ]
+        },
+        "R": {
+          "type": "sweep",
+          "f0": 20.0,
+          "octaves": 10.0,
+          "amplitude": 0.5,
+          "length": 26000
+        }
+      }
+    },
+    {
+      "id": "sync_tempi",
+      "description": "SYNC on, 1/2 beat, feedback 0.5: 87.5 \u2192 120 \u2192 133.37 \u2192 999 BPM (342.86, 250, 224.94, 30.03 ms)",
+      "blocks": 900,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send",
+        "bpm": 87.5,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.2857143,
+          "1": 0.5
+        },
+        "events": [
+          {
+            "block": 300,
+            "bpm": 120.0
+          },
+          {
+            "block": 550,
+            "bpm": 133.37
+          },
+          {
+            "block": 800,
+            "bpm": 999.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            3000,
+            20000,
+            36000,
+            52000
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            3100,
+            20100,
+            36100,
+            52100
+          ],
+          "amplitude": 0.7
+        }
+      }
+    },
+    {
+      "id": "sync_divisions",
+      "description": "SYNC on at 133.37 BPM on the Master: 1/8, 1/4, 1/2, 3/4 and 1 beat in turn (56.2 \u2026 449.9 ms), noise; the 4 s clamp of 4 and 8 beats below 120 BPM is a unit test (fx.delayBus: sync clamp)",
+      "blocks": 700,
+      "params": {
+        "effect": "delayBus",
+        "slot": "master",
+        "bpm": 133.37,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.0,
+          "1": 0.4
+        },
+        "events": [
+          {
+            "block": 120,
+            "k": 0,
+            "v": 0.142857
+          },
+          {
+            "block": 240,
+            "k": 0,
+            "v": 0.285714
+          },
+          {
+            "block": 360,
+            "k": 0,
+            "v": 0.428571
+          },
+          {
+            "block": 480,
+            "k": 0,
+            "v": 0.571429
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 171,
+              "amplitude": 0.4,
+              "start": 3000,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 172,
+              "amplitude": 0.4,
+              "start": 10680,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 173,
+              "amplitude": 0.4,
+              "start": 18360,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 174,
+              "amplitude": 0.4,
+              "start": 26040,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 175,
+              "amplitude": 0.4,
+              "start": 33720,
+              "length": 1500
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 176,
+              "amplitude": 0.4,
+              "start": 3100,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 177,
+              "amplitude": 0.4,
+              "start": 10780,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 178,
+              "amplitude": 0.4,
+              "start": 18460,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 179,
+              "amplitude": 0.4,
+              "start": 26140,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 180,
+              "amplitude": 0.4,
+              "start": 33820,
+              "length": 1500
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "midrun_changes",
+      "description": "random time / feedback / hi cut / lo cut / spread writes every 3 blocks and a re-activation (reset keeps the rings and the filter states, FX-761)",
+      "blocks": 340,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send",
+        "init": {
+          "0": 0.05,
+          "1": 0.5
+        },
+        "events": [
+          {
+            "block": 30,
+            "k": 3,
+            "v": 0.865742
+          },
+          {
+            "block": 33,
+            "k": 3,
+            "v": 0.451832
+          },
+          {
+            "block": 36,
+            "k": 4,
+            "v": 0.189902
+          },
+          {
+            "block": 39,
+            "k": 4,
+            "v": 0.475763
+          },
+          {
+            "block": 42,
+            "k": 4,
+            "v": 0.792977
+          },
+          {
+            "block": 45,
+            "k": 0,
+            "v": 0.089319
+          },
+          {
+            "block": 48,
+            "k": 1,
+            "v": 0.090671
+          },
+          {
+            "block": 51,
+            "k": 0,
+            "v": 0.119087
+          },
+          {
+            "block": 54,
+            "k": 3,
+            "v": 0.964758
+          },
+          {
+            "block": 57,
+            "k": 4,
+            "v": 0.650071
+          },
+          {
+            "block": 60,
+            "k": 4,
+            "v": 0.015001
+          },
+          {
+            "block": 63,
+            "k": 4,
+            "v": 0.063165
+          },
+          {
+            "block": 66,
+            "k": 0,
+            "v": 0.038042
+          },
+          {
+            "block": 69,
+            "k": 1,
+            "v": 0.599618
+          },
+          {
+            "block": 72,
+            "k": 3,
+            "v": 0.326293
+          },
+          {
+            "block": 75,
+            "k": 4,
+            "v": 0.842427
+          },
+          {
+            "block": 78,
+            "k": 4,
+            "v": 0.233646
+          },
+          {
+            "block": 81,
+            "k": 2,
+            "v": 0.499773
+          },
+          {
+            "block": 84,
+            "k": 0,
+            "v": 0.091466
+          },
+          {
+            "block": 87,
+            "k": 2,
+            "v": 0.406779
+          },
+          {
+            "block": 90,
+            "k": 4,
+            "v": 0.995692
+          },
+          {
+            "block": 93,
+            "k": 0,
+            "v": 0.141562
+          },
+          {
+            "block": 96,
+            "k": 2,
+            "v": 0.75799
+          },
+          {
+            "block": 99,
+            "k": 4,
+            "v": 0.28904
+          },
+          {
+            "block": 102,
+            "k": 0,
+            "v": 0.112628
+          },
+          {
+            "block": 105,
+            "k": 0,
+            "v": 0.08008
+          },
+          {
+            "block": 108,
+            "k": 2,
+            "v": 0.386514
+          },
+          {
+            "block": 111,
+            "k": 0,
+            "v": 0.169462
+          },
+          {
+            "block": 114,
+            "k": 0,
+            "v": 0.0427
+          },
+          {
+            "block": 117,
+            "k": 0,
+            "v": 0.093997
+          },
+          {
+            "block": 120,
+            "k": 3,
+            "v": 0.419791
+          },
+          {
+            "block": 123,
+            "k": 4,
+            "v": 0.629455
+          },
+          {
+            "block": 126,
+            "k": 2,
+            "v": 0.336893
+          },
+          {
+            "block": 129,
+            "k": 2,
+            "v": 0.332586
+          },
+          {
+            "block": 132,
+            "k": 3,
+            "v": 0.758041
+          },
+          {
+            "block": 135,
+            "k": 0,
+            "v": 0.026919
+          },
+          {
+            "block": 138,
+            "k": 0,
+            "v": 0.002191
+          },
+          {
+            "block": 141,
+            "k": 3,
+            "v": 0.797022
+          },
+          {
+            "block": 144,
+            "k": 1,
+            "v": 0.682077
+          },
+          {
+            "block": 147,
+            "k": 1,
+            "v": 0.447425
+          },
+          {
+            "block": 150,
+            "k": 1,
+            "v": 0.985281
+          },
+          {
+            "block": 153,
+            "k": 1,
+            "v": 0.41923
+          },
+          {
+            "block": 156,
+            "k": 3,
+            "v": 0.116508
+          },
+          {
+            "block": 159,
+            "k": 3,
+            "v": 0.990052
+          },
+          {
+            "block": 162,
+            "k": 0,
+            "v": 0.053959
+          },
+          {
+            "block": 165,
+            "k": 4,
+            "v": 0.304145
+          },
+          {
+            "block": 168,
+            "k": 0,
+            "v": 0.042142
+          },
+          {
+            "block": 171,
+            "k": 3,
+            "v": 0.995836
+          },
+          {
+            "block": 174,
+            "k": 4,
+            "v": 0.641836
+          },
+          {
+            "block": 177,
+            "k": 0,
+            "v": 0.008422
+          },
+          {
+            "block": 180,
+            "k": 1,
+            "v": 0.213243
+          },
+          {
+            "block": 183,
+            "k": 2,
+            "v": 0.009575
+          },
+          {
+            "block": 186,
+            "k": 4,
+            "v": 0.328955
+          },
+          {
+            "block": 189,
+            "k": 2,
+            "v": 0.38617
+          },
+          {
+            "block": 192,
+            "k": 0,
+            "v": 0.018023
+          },
+          {
+            "block": 195,
+            "k": 4,
+            "v": 0.636587
+          },
+          {
+            "block": 198,
+            "k": 0,
+            "v": 0.120257
+          },
+          {
+            "block": 201,
+            "k": 2,
+            "v": 0.622149
+          },
+          {
+            "block": 204,
+            "k": 1,
+            "v": 0.959135
+          },
+          {
+            "block": 207,
+            "k": 3,
+            "v": 0.832359
+          },
+          {
+            "block": 210,
+            "k": 1,
+            "v": 0.866526
+          },
+          {
+            "block": 213,
+            "k": 1,
+            "v": 0.627245
+          },
+          {
+            "block": 216,
+            "k": 2,
+            "v": 0.908424
+          },
+          {
+            "block": 219,
+            "k": 4,
+            "v": 0.249499
+          },
+          {
+            "block": 222,
+            "k": 1,
+            "v": 0.158476
+          },
+          {
+            "block": 225,
+            "k": 4,
+            "v": 0.19659
+          },
+          {
+            "block": 228,
+            "k": 3,
+            "v": 0.88219
+          },
+          {
+            "block": 231,
+            "k": 4,
+            "v": 0.078498
+          },
+          {
+            "block": 234,
+            "k": 0,
+            "v": 0.020768
+          },
+          {
+            "block": 237,
+            "k": 0,
+            "v": 0.102471
+          },
+          {
+            "block": 240,
+            "k": 2,
+            "v": 0.238407
+          },
+          {
+            "block": 243,
+            "k": 3,
+            "v": 0.256981
+          },
+          {
+            "block": 246,
+            "k": 4,
+            "v": 0.491
+          },
+          {
+            "block": 249,
+            "k": 4,
+            "v": 0.175433
+          },
+          {
+            "block": 252,
+            "k": 0,
+            "v": 0.02528
+          },
+          {
+            "block": 255,
+            "k": 3,
+            "v": 0.559366
+          },
+          {
+            "block": 258,
+            "k": 4,
+            "v": 0.614303
+          },
+          {
+            "block": 261,
+            "k": 2,
+            "v": 0.2124
+          },
+          {
+            "block": 264,
+            "k": 1,
+            "v": 0.748985
+          },
+          {
+            "block": 267,
+            "k": 0,
+            "v": 0.053839
+          },
+          {
+            "block": 270,
+            "k": 3,
+            "v": 0.249064
+          },
+          {
+            "block": 273,
+            "k": 0,
+            "v": 0.035251
+          },
+          {
+            "block": 276,
+            "k": 2,
+            "v": 0.531004
+          },
+          {
+            "block": 279,
+            "k": 1,
+            "v": 0.092192
+          },
+          {
+            "block": 282,
+            "k": 1,
+            "v": 0.89094
+          },
+          {
+            "block": 285,
+            "k": 2,
+            "v": 0.656932
+          },
+          {
+            "block": 288,
+            "k": 4,
+            "v": 0.58444
+          },
+          {
+            "block": 291,
+            "k": 1,
+            "v": 0.589876
+          },
+          {
+            "block": 294,
+            "k": 0,
+            "v": 0.094959
+          },
+          {
+            "block": 297,
+            "k": 2,
+            "v": 0.70097
+          },
+          {
+            "block": 300,
+            "k": 0,
+            "v": 0.004252
+          },
+          {
+            "block": 303,
+            "k": 0,
+            "v": 0.096447
+          },
+          {
+            "block": 306,
+            "k": 2,
+            "v": 0.318904
+          },
+          {
+            "block": 309,
+            "k": 0,
+            "v": 0.015053
+          },
+          {
+            "block": 312,
+            "k": 4,
+            "v": 0.367776
+          },
+          {
+            "block": 315,
+            "k": 0,
+            "v": 0.180039
+          },
+          {
+            "block": 318,
+            "k": 1,
+            "v": 0.793267
+          },
+          {
+            "block": 321,
+            "k": 2,
+            "v": 0.351834
+          },
+          {
+            "block": 324,
+            "k": 3,
+            "v": 0.900836
+          },
+          {
+            "block": 327,
+            "k": 3,
+            "v": 0.944239
+          },
+          {
+            "block": 200,
+            "op": "activate"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 141,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 142,
+          "amplitude": 0.5
+        }
+      }
+    },
+    {
+      "id": "time_every_block",
+      "description": "a new time every block on both lines (gates fade out, jump, fade in, FX-724)",
+      "blocks": 220,
+      "params": {
+        "effect": "delayBus",
+        "slot": "send",
+        "init": {
+          "0": 0.02,
+          "1": 0.5
+        },
+        "events": [
+          {
+            "block": 40,
+            "k": 0,
+            "v": 0.001513
+          },
+          {
+            "block": 41,
+            "k": 0,
+            "v": 0.024996
+          },
+          {
+            "block": 42,
+            "k": 0,
+            "v": 0.000727
+          },
+          {
+            "block": 43,
+            "k": 0,
+            "v": 0.033113
+          },
+          {
+            "block": 44,
+            "k": 0,
+            "v": 0.018959
+          },
+          {
+            "block": 45,
+            "k": 0,
+            "v": 0.000622
+          },
+          {
+            "block": 46,
+            "k": 0,
+            "v": 0.003612
+          },
+          {
+            "block": 47,
+            "k": 0,
+            "v": 0.004532
+          },
+          {
+            "block": 48,
+            "k": 0,
+            "v": 0.005779
+          },
+          {
+            "block": 49,
+            "k": 0,
+            "v": 0.01286
+          },
+          {
+            "block": 50,
+            "k": 0,
+            "v": 0.020812
+          },
+          {
+            "block": 51,
+            "k": 0,
+            "v": 0.016507
+          },
+          {
+            "block": 52,
+            "k": 0,
+            "v": 0.046713
+          },
+          {
+            "block": 53,
+            "k": 0,
+            "v": 0.034708
+          },
+          {
+            "block": 54,
+            "k": 0,
+            "v": 0.022888
+          },
+          {
+            "block": 55,
+            "k": 0,
+            "v": 0.023131
+          },
+          {
+            "block": 56,
+            "k": 0,
+            "v": 0.027063
+          },
+          {
+            "block": 57,
+            "k": 0,
+            "v": 0.025935
+          },
+          {
+            "block": 58,
+            "k": 0,
+            "v": 0.025727
+          },
+          {
+            "block": 59,
+            "k": 0,
+            "v": 0.015512
+          },
+          {
+            "block": 60,
+            "k": 0,
+            "v": 0.004387
+          },
+          {
+            "block": 61,
+            "k": 0,
+            "v": 0.001115
+          },
+          {
+            "block": 62,
+            "k": 0,
+            "v": 0.04787
+          },
+          {
+            "block": 63,
+            "k": 0,
+            "v": 0.005644
+          },
+          {
+            "block": 64,
+            "k": 0,
+            "v": 0.038997
+          },
+          {
+            "block": 65,
+            "k": 0,
+            "v": 0.033007
+          },
+          {
+            "block": 66,
+            "k": 0,
+            "v": 0.024315
+          },
+          {
+            "block": 67,
+            "k": 0,
+            "v": 0.044821
+          },
+          {
+            "block": 68,
+            "k": 0,
+            "v": 0.018398
+          },
+          {
+            "block": 69,
+            "k": 0,
+            "v": 0.007161
+          },
+          {
+            "block": 70,
+            "k": 0,
+            "v": 0.030588
+          },
+          {
+            "block": 71,
+            "k": 0,
+            "v": 0.02592
+          },
+          {
+            "block": 72,
+            "k": 0,
+            "v": 0.037689
+          },
+          {
+            "block": 73,
+            "k": 0,
+            "v": 0.017126
+          },
+          {
+            "block": 74,
+            "k": 0,
+            "v": 0.046515
+          },
+          {
+            "block": 75,
+            "k": 0,
+            "v": 0.024916
+          },
+          {
+            "block": 76,
+            "k": 0,
+            "v": 0.012074
+          },
+          {
+            "block": 77,
+            "k": 0,
+            "v": 0.020238
+          },
+          {
+            "block": 78,
+            "k": 0,
+            "v": 0.01253
+          },
+          {
+            "block": 79,
+            "k": 0,
+            "v": 0.031709
+          },
+          {
+            "block": 80,
+            "k": 0,
+            "v": 0.040186
+          },
+          {
+            "block": 81,
+            "k": 0,
+            "v": 0.037731
+          },
+          {
+            "block": 82,
+            "k": 0,
+            "v": 0.010015
+          },
+          {
+            "block": 83,
+            "k": 0,
+            "v": 0.010709
+          },
+          {
+            "block": 84,
+            "k": 0,
+            "v": 0.010979
+          },
+          {
+            "block": 85,
+            "k": 0,
+            "v": 0.04604
+          },
+          {
+            "block": 86,
+            "k": 0,
+            "v": 0.010495
+          },
+          {
+            "block": 87,
+            "k": 0,
+            "v": 0.006728
+          },
+          {
+            "block": 88,
+            "k": 0,
+            "v": 0.017537
+          },
+          {
+            "block": 89,
+            "k": 0,
+            "v": 0.044783
+          },
+          {
+            "block": 90,
+            "k": 0,
+            "v": 0.002029
+          },
+          {
+            "block": 91,
+            "k": 0,
+            "v": 0.003207
+          },
+          {
+            "block": 92,
+            "k": 0,
+            "v": 0.049018
+          },
+          {
+            "block": 93,
+            "k": 0,
+            "v": 0.041093
+          },
+          {
+            "block": 94,
+            "k": 0,
+            "v": 0.005641
+          },
+          {
+            "block": 95,
+            "k": 0,
+            "v": 0.023568
+          },
+          {
+            "block": 96,
+            "k": 0,
+            "v": 0.046287
+          },
+          {
+            "block": 97,
+            "k": 0,
+            "v": 0.041545
+          },
+          {
+            "block": 98,
+            "k": 0,
+            "v": 0.019127
+          },
+          {
+            "block": 99,
+            "k": 0,
+            "v": 0.025999
+          },
+          {
+            "block": 100,
+            "k": 0,
+            "v": 0.033607
+          },
+          {
+            "block": 101,
+            "k": 0,
+            "v": 0.035814
+          },
+          {
+            "block": 102,
+            "k": 0,
+            "v": 0.042095
+          },
+          {
+            "block": 103,
+            "k": 0,
+            "v": 0.031239
+          },
+          {
+            "block": 104,
+            "k": 0,
+            "v": 0.016017
+          },
+          {
+            "block": 105,
+            "k": 0,
+            "v": 0.041436
+          },
+          {
+            "block": 106,
+            "k": 0,
+            "v": 0.013906
+          },
+          {
+            "block": 107,
+            "k": 0,
+            "v": 0.030378
+          },
+          {
+            "block": 108,
+            "k": 0,
+            "v": 0.033913
+          },
+          {
+            "block": 109,
+            "k": 0,
+            "v": 0.014054
+          },
+          {
+            "block": 110,
+            "k": 0,
+            "v": 0.017711
+          },
+          {
+            "block": 111,
+            "k": 0,
+            "v": 0.032464
+          },
+          {
+            "block": 112,
+            "k": 0,
+            "v": 0.028202
+          },
+          {
+            "block": 113,
+            "k": 0,
+            "v": 0.032049
+          },
+          {
+            "block": 114,
+            "k": 0,
+            "v": 0.020259
+          },
+          {
+            "block": 115,
+            "k": 0,
+            "v": 0.009496
+          },
+          {
+            "block": 116,
+            "k": 0,
+            "v": 0.038461
+          },
+          {
+            "block": 117,
+            "k": 0,
+            "v": 0.013321
+          },
+          {
+            "block": 118,
+            "k": 0,
+            "v": 0.038963
+          },
+          {
+            "block": 119,
+            "k": 0,
+            "v": 0.039842
+          },
+          {
+            "block": 120,
+            "k": 0,
+            "v": 0.049201
+          },
+          {
+            "block": 121,
+            "k": 0,
+            "v": 0.005765
+          },
+          {
+            "block": 122,
+            "k": 0,
+            "v": 0.005451
+          },
+          {
+            "block": 123,
+            "k": 0,
+            "v": 0.02677
+          },
+          {
+            "block": 124,
+            "k": 0,
+            "v": 0.031996
+          },
+          {
+            "block": 125,
+            "k": 0,
+            "v": 0.018434
+          },
+          {
+            "block": 126,
+            "k": 0,
+            "v": 0.003898
+          },
+          {
+            "block": 127,
+            "k": 0,
+            "v": 0.009903
+          },
+          {
+            "block": 128,
+            "k": 0,
+            "v": 0.041192
+          },
+          {
+            "block": 129,
+            "k": 0,
+            "v": 0.012802
+          },
+          {
+            "block": 130,
+            "k": 0,
+            "v": 0.035711
+          },
+          {
+            "block": 131,
+            "k": 0,
+            "v": 0.037753
+          },
+          {
+            "block": 132,
+            "k": 0,
+            "v": 0.026742
+          },
+          {
+            "block": 133,
+            "k": 0,
+            "v": 0.001809
+          },
+          {
+            "block": 134,
+            "k": 0,
+            "v": 0.011323
+          },
+          {
+            "block": 135,
+            "k": 0,
+            "v": 0.038929
+          },
+          {
+            "block": 136,
+            "k": 0,
+            "v": 0.026984
+          },
+          {
+            "block": 137,
+            "k": 0,
+            "v": 0.047341
+          },
+          {
+            "block": 138,
+            "k": 0,
+            "v": 0.025021
+          },
+          {
+            "block": 139,
+            "k": 0,
+            "v": 0.04984
+          },
+          {
+            "block": 140,
+            "k": 0,
+            "v": 0.00796
+          },
+          {
+            "block": 141,
+            "k": 0,
+            "v": 0.042438
+          },
+          {
+            "block": 142,
+            "k": 0,
+            "v": 0.03499
+          },
+          {
+            "block": 143,
+            "k": 0,
+            "v": 0.011196
+          },
+          {
+            "block": 144,
+            "k": 0,
+            "v": 0.020524
+          },
+          {
+            "block": 145,
+            "k": 0,
+            "v": 0.044632
+          },
+          {
+            "block": 146,
+            "k": 0,
+            "v": 0.019399
+          },
+          {
+            "block": 147,
+            "k": 0,
+            "v": 0.022525
+          },
+          {
+            "block": 148,
+            "k": 0,
+            "v": 0.009844
+          },
+          {
+            "block": 149,
+            "k": 0,
+            "v": 0.044366
+          },
+          {
+            "block": 150,
+            "k": 0,
+            "v": 0.000336
+          },
+          {
+            "block": 151,
+            "k": 0,
+            "v": 0.027501
+          },
+          {
+            "block": 152,
+            "k": 0,
+            "v": 0.032634
+          },
+          {
+            "block": 153,
+            "k": 0,
+            "v": 0.025133
+          },
+          {
+            "block": 154,
+            "k": 0,
+            "v": 0.040972
+          },
+          {
+            "block": 155,
+            "k": 0,
+            "v": 0.017155
+          },
+          {
+            "block": 156,
+            "k": 0,
+            "v": 0.016323
+          },
+          {
+            "block": 157,
+            "k": 0,
+            "v": 0.049117
+          },
+          {
+            "block": 158,
+            "k": 0,
+            "v": 0.004948
+          },
+          {
+            "block": 159,
+            "k": 0,
+            "v": 0.043308
+          },
+          {
+            "block": 160,
+            "k": 0,
+            "v": 0.039915
+          },
+          {
+            "block": 161,
+            "k": 0,
+            "v": 0.046212
+          },
+          {
+            "block": 162,
+            "k": 0,
+            "v": 0.006174
+          },
+          {
+            "block": 163,
+            "k": 0,
+            "v": 0.012115
+          },
+          {
+            "block": 164,
+            "k": 0,
+            "v": 0.019511
+          },
+          {
+            "block": 165,
+            "k": 0,
+            "v": 0.004392
+          },
+          {
+            "block": 166,
+            "k": 0,
+            "v": 0.015493
+          },
+          {
+            "block": 167,
+            "k": 0,
+            "v": 0.048837
+          },
+          {
+            "block": 168,
+            "k": 0,
+            "v": 0.046613
+          },
+          {
+            "block": 169,
+            "k": 0,
+            "v": 0.013094
+          },
+          {
+            "block": 170,
+            "k": 0,
+            "v": 0.035913
+          },
+          {
+            "block": 171,
+            "k": 0,
+            "v": 0.000782
+          },
+          {
+            "block": 172,
+            "k": 0,
+            "v": 0.025236
+          },
+          {
+            "block": 173,
+            "k": 0,
+            "v": 0.001857
+          },
+          {
+            "block": 174,
+            "k": 0,
+            "v": 0.017103
+          },
+          {
+            "block": 175,
+            "k": 0,
+            "v": 0.021071
+          },
+          {
+            "block": 176,
+            "k": 0,
+            "v": 0.013763
+          },
+          {
+            "block": 177,
+            "k": 0,
+            "v": 0.045988
+          },
+          {
+            "block": 178,
+            "k": 0,
+            "v": 0.010915
+          },
+          {
+            "block": 179,
+            "k": 0,
+            "v": 0.043377
+          },
+          {
+            "block": 180,
+            "k": 0,
+            "v": 0.021447
+          },
+          {
+            "block": 181,
+            "k": 0,
+            "v": 0.001755
+          },
+          {
+            "block": 182,
+            "k": 0,
+            "v": 0.026656
+          },
+          {
+            "block": 183,
+            "k": 0,
+            "v": 0.034329
+          },
+          {
+            "block": 184,
+            "k": 0,
+            "v": 0.0458
+          },
+          {
+            "block": 185,
+            "k": 0,
+            "v": 0.023528
+          },
+          {
+            "block": 186,
+            "k": 0,
+            "v": 0.049991
+          },
+          {
+            "block": 187,
+            "k": 0,
+            "v": 0.045028
+          },
+          {
+            "block": 188,
+            "k": 0,
+            "v": 0.025911
+          },
+          {
+            "block": 189,
+            "k": 0,
+            "v": 0.033894
+          },
+          {
+            "block": 190,
+            "k": 0,
+            "v": 0.022008
+          },
+          {
+            "block": 191,
+            "k": 0,
+            "v": 0.043997
+          },
+          {
+            "block": 192,
+            "k": 0,
+            "v": 0.028948
+          },
+          {
+            "block": 193,
+            "k": 0,
+            "v": 0.034453
+          },
+          {
+            "block": 194,
+            "k": 0,
+            "v": 0.037892
+          },
+          {
+            "block": 195,
+            "k": 0,
+            "v": 0.021971
+          },
+          {
+            "block": 196,
+            "k": 0,
+            "v": 0.027939
+          },
+          {
+            "block": 197,
+            "k": 0,
+            "v": 0.041558
+          },
+          {
+            "block": 198,
+            "k": 0,
+            "v": 0.028077
+          },
+          {
+            "block": 199,
+            "k": 0,
+            "v": 0.008218
+          },
+          {
+            "block": 200,
+            "k": 0,
+            "v": 0.025711
+          },
+          {
+            "block": 201,
+            "k": 0,
+            "v": 0.045361
+          },
+          {
+            "block": 202,
+            "k": 0,
+            "v": 0.012826
+          },
+          {
+            "block": 203,
+            "k": 0,
+            "v": 0.033565
+          },
+          {
+            "block": 204,
+            "k": 0,
+            "v": 0.047739
+          },
+          {
+            "block": 205,
+            "k": 0,
+            "v": 0.043503
+          },
+          {
+            "block": 206,
+            "k": 0,
+            "v": 0.030472
+          },
+          {
+            "block": 207,
+            "k": 0,
+            "v": 0.015223
+          },
+          {
+            "block": 208,
+            "k": 0,
+            "v": 0.007058
+          },
+          {
+            "block": 209,
+            "k": 0,
+            "v": 0.027236
+          },
+          {
+            "block": 210,
+            "k": 0,
+            "v": 0.013648
+          },
+          {
+            "block": 211,
+            "k": 0,
+            "v": 0.024882
+          },
+          {
+            "block": 212,
+            "k": 0,
+            "v": 0.020554
+          },
+          {
+            "block": 213,
+            "k": 0,
+            "v": 0.005714
+          },
+          {
+            "block": 214,
+            "k": 0,
+            "v": 0.000247
+          },
+          {
+            "block": 215,
+            "k": 0,
+            "v": 0.018852
+          },
+          {
+            "block": 216,
+            "k": 0,
+            "v": 0.026916
+          },
+          {
+            "block": 217,
+            "k": 0,
+            "v": 0.002198
+          },
+          {
+            "block": 218,
+            "k": 0,
+            "v": 0.045868
+          },
+          {
+            "block": 219,
+            "k": 0,
+            "v": 0.0272
+          },
+          {
+            "block": 220,
+            "k": 0,
+            "v": 0.04947
+          },
+          {
+            "block": 221,
+            "k": 0,
+            "v": 0.006097
+          },
+          {
+            "block": 222,
+            "k": 0,
+            "v": 0.004661
+          },
+          {
+            "block": 223,
+            "k": 0,
+            "v": 0.008339
+          },
+          {
+            "block": 224,
+            "k": 0,
+            "v": 0.046541
+          },
+          {
+            "block": 225,
+            "k": 0,
+            "v": 0.022947
+          },
+          {
+            "block": 226,
+            "k": 0,
+            "v": 0.046039
+          },
+          {
+            "block": 227,
+            "k": 0,
+            "v": 0.04002
+          },
+          {
+            "block": 228,
+            "k": 0,
+            "v": 0.020208
+          },
+          {
+            "block": 229,
+            "k": 0,
+            "v": 0.012314
+          },
+          {
+            "block": 230,
+            "k": 0,
+            "v": 0.024652
+          },
+          {
+            "block": 231,
+            "k": 0,
+            "v": 0.016984
+          },
+          {
+            "block": 232,
+            "k": 0,
+            "v": 0.045045
+          },
+          {
+            "block": 233,
+            "k": 0,
+            "v": 0.046784
+          },
+          {
+            "block": 234,
+            "k": 0,
+            "v": 0.046001
+          },
+          {
+            "block": 235,
+            "k": 0,
+            "v": 0.026249
+          },
+          {
+            "block": 236,
+            "k": 0,
+            "v": 0.005431
+          },
+          {
+            "block": 237,
+            "k": 0,
+            "v": 0.020977
+          },
+          {
+            "block": 238,
+            "k": 0,
+            "v": 0.001471
+          },
+          {
+            "block": 239,
+            "k": 0,
+            "v": 0.013011
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 151,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 152,
+          "amplitude": 0.5
+        }
+      }
+    },
+    {
+      "id": "fs48k",
+      "description": "48 kHz Master: 500 ms = 24000 samples, ring 194500",
+      "blocks": 900,
+      "params": {
+        "effect": "delayBus",
+        "slot": "master",
+        "fs": 48000,
+        "init": {
+          "3": 0.3,
+          "4": 0.4
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 161,
+          "amplitude": 0.5,
+          "start": 3000,
+          "length": 4000
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            3300
+          ],
+          "amplitude": 1.0
+        }
+      }
+    }
+  ]
+}

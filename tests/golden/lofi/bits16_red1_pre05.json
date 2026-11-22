@@ -1,0 +1,63 @@
+{
+  "format": "golden-case/1",
+  "name": "lofi",
+  "case": "bits16_red1_pre05",
+  "description": "16 bits, reduction off, preamp 0.5, quiet sine (fine steps of the sqrt companding)",
+  "subject": "fx.effect",
+  "model": "lofi",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 32,
+  "frames": 2048,
+  "params": {
+    "effect": "lofi",
+    "init": {"0": 0.5, "1": 1.0, "2": 0.8823529411764706}
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 2048],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "bits16_red1_pre05.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "sine", "freq": 997.0, "amplitude": 0.01, "phase": 0.0},
+      "R": {"type": "sine", "freq": 50.0, "amplitude": 0.001, "phase": 0.0}
+    },
+    "sha256": "88463caac7d305857dc64e13855721bb60b103abe184fb0eae5a21088f37eaeb"
+  },
+  "expected": {
+    "file": "bits16_red1_pre05.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "6c4c1979ac3a02a3fcded0c19bc84a6e4ead235188e28718005425b8a86766de"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

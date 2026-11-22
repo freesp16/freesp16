@@ -1,0 +1,75 @@
+{
+  "format": "golden-case/1",
+  "name": "filter_48k",
+  "case": "shell_defaults",
+  "description": "through the shell: activation fade, crossfade at Mix 1, 10 Hz wet HPF (FX-524)",
+  "subject": "fx.filter",
+  "model": "fx_filter",
+  "sample_rate": 48000.0,
+  "block": 64,
+  "blocks": 12,
+  "frames": 768,
+  "params": {
+    "mode": "shell",
+    "init": {},
+    "fs": 48000
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 768],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "shell_defaults.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "sine", "freq": 1000.0, "amplitude": 0.5},
+      "R": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 1000.0, "amplitude": 0.3},
+          {"type": "noise", "seed": 22, "amplitude": 0.3}
+        ]
+      }
+    },
+    "sha256": "7b4d1e9839702f2d2a41eb00a6bee5598a6ff9e19616966505f738aea6f5d9b9"
+  },
+  "expected": {
+    "file": "shell_defaults.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "a27be9a9c2d172af381b7064620705611525c396d885882ccf43826bfa8ce0f3"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/mmf.py",
+      "licence": "MIT",
+      "sha256": "ff256ee75f4b57f91760b43e3c750ffb5133dfc8bdd088c73225429a42310a3d"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

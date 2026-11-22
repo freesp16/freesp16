@@ -1,0 +1,11 @@
+Copies of sixteen-spec spec/07-ui-design/mockups/*.svg (the same working tree as resources/design/SPEC_VERSION) that resources/design/mockups/ does not pin yet; references of the sampling and sync screen snapshot tests only (never device captures). They may later move into resources/design/mockups/ and SPEC_VERSION. output-setting.svg is pinned already.
+b1ae0bee69efe4f6c6be6df79f9d013947b98c30ff2343b46fed7fba559c5c7b  arranger.svg
+7a95128e8d5f87b4c81b5c716ca724f0b02ef11a7cdb7120322fb45fca20d998  live-sampling.svg
+2aaf4fe0dae6e54fcb8d7d10d2205e3ac501b3d19cba07d3d93f7512bc287d64  midi-bank-select.svg
+2e34805961502b5f515e7d3b48261655626606a04499368d8b4dccac27373b8a  midi-cc1.svg
+5cd7f07cf88e5f381e8f53b7443678e6194315826213b9bf596116fdeb51e522  midi-cc2.svg
+095152afba48280a277b663050211aa608b106b4058d0a9eab32ddb83bcede5f  midi-note.svg
+b7b74a4f6f35bfc98dd76db769484157450539ea5647f513d46c74c96b1cd8e5  midi-select-ch.svg
+1032e1d876381e9dec37bc797fae690f5cb8a9ebdcf22cdcd01fbf8141ef7d82  render-audio.svg
+7a98ed1836e6ab364db777addf2939f9fec7d8fffa9521141ec2b7618c65bdc4  sampling-edit.svg
+42cefcde7c80f3cca96315a61acd49a3321087621fe787cbd5bc713670fae83e  sampling-recording.svg

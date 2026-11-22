@@ -1,0 +1,557 @@
+{
+  "model": "reverb",
+  "subject": "fx.delay",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 0.0001,
+    "residual_dbfs": -100.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "send_defaults_impulse",
+      "description": "the Send defaults (pre-delay 0.1 ms, room 50, time 8.70 s, damping 18 kHz, spread 0, mix 1): impulses after the 101 ms warm-up (FX-880) on L, later on R",
+      "blocks": 300,
+      "params": {
+        "effect": "reverb",
+        "slot": "send"
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            5000
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            9000
+          ],
+          "amplitude": 0.5
+        }
+      },
+      "fault_tests": [
+        "gain"
+      ]
+    },
+    {
+      "id": "master_defaults_burst",
+      "description": "the Master defaults (mix 0.5): a noise burst that starts inside the warm-up window",
+      "blocks": 260,
+      "params": {
+        "effect": "reverb",
+        "slot": "master"
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 201,
+              "amplitude": 0.5,
+              "start": 1000,
+              "length": 3000
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 203,
+              "amplitude": 0.5,
+              "start": 1500,
+              "length": 3000
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "room_glide",
+      "description": "room 50 \u2192 100 \u2192 8 \u2192 60 (one unit per t-ms chunk, t = max(20, 40 \u2212 \u2154\u00b7\u0394), the comb delays gliding, the integer-read zipper kept, FX-825/885)",
+      "blocks": 420,
+      "params": {
+        "effect": "reverb",
+        "slot": "send",
+        "init": {
+          "2": 0.3
+        },
+        "events": [
+          {
+            "block": 80,
+            "k": 1,
+            "v": 1.0
+          },
+          {
+            "block": 200,
+            "k": 1,
+            "v": 0.0707071
+          },
+          {
+            "block": 330,
+            "k": 1,
+            "v": 0.6
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 211,
+              "amplitude": 0.4,
+              "start": 5000,
+              "length": 2000
+            },
+            {
+              "type": "noise",
+              "seed": 212,
+              "amplitude": 0.4,
+              "start": 13000,
+              "length": 2000
+            },
+            {
+              "type": "noise",
+              "seed": 213,
+              "amplitude": 0.4,
+              "start": 21000,
+              "length": 2000
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 214,
+              "amplitude": 0.4,
+              "start": 5200,
+              "length": 2000
+            },
+            {
+              "type": "noise",
+              "seed": 215,
+              "amplitude": 0.4,
+              "start": 13200,
+              "length": 2000
+            },
+            {
+              "type": "noise",
+              "seed": 216,
+              "amplitude": 0.4,
+              "start": 21200,
+              "length": 2000
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "time_changes",
+      "description": "time 0 \u2192 0.3 \u2192 1 \u2192 0.09 (comb gain glides over the glide time; 100 ms until the first room change in this profile, FX-886)",
+      "blocks": 380,
+      "params": {
+        "effect": "reverb",
+        "slot": "send",
+        "init": {
+          "2": 0.0
+        },
+        "events": [
+          {
+            "block": 90,
+            "k": 2,
+            "v": 0.3
+          },
+          {
+            "block": 180,
+            "k": 2,
+            "v": 1.0
+          },
+          {
+            "block": 290,
+            "k": 2,
+            "v": 0.09
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 221,
+              "amplitude": 0.4,
+              "start": 5000,
+              "length": 800
+            },
+            {
+              "type": "noise",
+              "seed": 222,
+              "amplitude": 0.4,
+              "start": 6200,
+              "length": 800
+            },
+            {
+              "type": "noise",
+              "seed": 223,
+              "amplitude": 0.4,
+              "start": 12000,
+              "length": 800
+            },
+            {
+              "type": "noise",
+              "seed": 224,
+              "amplitude": 0.4,
+              "start": 19000,
+              "length": 800
+            }
+          ]
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            5100,
+            12100
+          ],
+          "amplitude": 1.0
+        }
+      }
+    },
+    {
+      "id": "damping_sweep",
+      "description": "damping 0 \u2192 1 \u2192 0.4 (the stepped damping low-pass in the comb loop, 100 log steps, 1/3 ms per step, FX-824), time 0.6",
+      "blocks": 340,
+      "params": {
+        "effect": "reverb",
+        "slot": "send",
+        "init": {
+          "2": 0.6
+        },
+        "events": [
+          {
+            "block": 100,
+            "k": 3,
+            "v": 1.0
+          },
+          {
+            "block": 220,
+            "k": 3,
+            "v": 0.4
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 231,
+              "amplitude": 0.4,
+              "start": 5000,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 232,
+              "amplitude": 0.4,
+              "start": 12000,
+              "length": 1500
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 233,
+              "amplitude": 0.4,
+              "start": 5000,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 234,
+              "amplitude": 0.4,
+              "start": 12000,
+              "length": 1500
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "spread_sweep",
+      "description": "spread 0 \u2192 0.3 \u2192 0.7 \u2192 1 \u2192 0.1 (the per-comb LR-swap gains, 132-sample ramps with the shared counter, FX-826/884)",
+      "blocks": 400,
+      "params": {
+        "effect": "reverb",
+        "slot": "send",
+        "init": {
+          "2": 0.4
+        },
+        "events": [
+          {
+            "block": 70,
+            "k": 4,
+            "v": 0.3
+          },
+          {
+            "block": 150,
+            "k": 4,
+            "v": 0.7
+          },
+          {
+            "block": 230,
+            "k": 4,
+            "v": 1.0
+          },
+          {
+            "block": 320,
+            "k": 4,
+            "v": 0.1
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 241,
+              "amplitude": 0.5,
+              "start": 5000,
+              "length": 1200
+            },
+            {
+              "type": "noise",
+              "seed": 242,
+              "amplitude": 0.5,
+              "start": 10000,
+              "length": 1200
+            },
+            {
+              "type": "noise",
+              "seed": 243,
+              "amplitude": 0.5,
+              "start": 15000,
+              "length": 1200
+            },
+            {
+              "type": "noise",
+              "seed": 244,
+              "amplitude": 0.5,
+              "start": 20500,
+              "length": 1200
+            }
+          ]
+        },
+        "R": {
+          "type": "silence"
+        }
+      }
+    },
+    {
+      "id": "predelay_glide",
+      "description": "pre-delay 0.25 \u2192 0.75 \u2192 1.0 (25 \u2192 75 \u2192 100 ms, the 1 s linear glide of the interpolated read, FX-820/861)",
+      "blocks": 420,
+      "params": {
+        "effect": "reverb",
+        "slot": "send",
+        "init": {
+          "0": 0.25,
+          "2": 0.2
+        },
+        "events": [
+          {
+            "block": 100,
+            "k": 0,
+            "v": 0.75
+          },
+          {
+            "block": 300,
+            "k": 0,
+            "v": 1.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 251,
+              "amplitude": 0.4,
+              "start": 6000,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 252,
+              "amplitude": 0.4,
+              "start": 14000,
+              "length": 1500
+            },
+            {
+              "type": "noise",
+              "seed": 253,
+              "amplitude": 0.4,
+              "start": 22000,
+              "length": 1500
+            }
+          ]
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            6000,
+            14000,
+            22000
+          ],
+          "amplitude": 1.0
+        }
+      }
+    },
+    {
+      "id": "reset_stale_rings",
+      "description": "a re-activation at block 160 with pre-delay 75 ms: the reset keeps the rings (FX-881) and restarts the warm-up (FX-880)",
+      "blocks": 330,
+      "params": {
+        "effect": "reverb",
+        "slot": "send",
+        "init": {
+          "0": 0.75,
+          "2": 0.45
+        },
+        "events": [
+          {
+            "block": 160,
+            "op": "activate"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 261,
+              "amplitude": 0.5,
+              "start": 5000,
+              "length": 5000
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 262,
+              "amplitude": 0.5,
+              "start": 5000,
+              "length": 5000
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "stop_tail",
+      "description": "stop at block 150 (the shell fades to dry and closes the input, the reverb keeps running)",
+      "blocks": 260,
+      "params": {
+        "effect": "reverb",
+        "slot": "master",
+        "init": {
+          "2": 0.35,
+          "5": 0.6
+        },
+        "events": [
+          {
+            "block": 150,
+            "op": "stop"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 271,
+              "amplitude": 0.4,
+              "start": 5000,
+              "length": 4000
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 272,
+              "amplitude": 0.4,
+              "start": 5000,
+              "length": 4000
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fs48k",
+      "description": "48 kHz: rings 4848 frames, damping max 18 kHz (min(18 kHz, 0.4\u00b7fs), FX-824), room 30, spread 0.5",
+      "blocks": 330,
+      "params": {
+        "effect": "reverb",
+        "slot": "send",
+        "fs": 48000,
+        "init": {
+          "1": 0.2929293,
+          "2": 0.4,
+          "3": 0.3,
+          "4": 0.5
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 281,
+              "amplitude": 0.5,
+              "start": 6000,
+              "length": 2000
+            }
+          ]
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            6500
+          ],
+          "amplitude": 1.0
+        }
+      }
+    }
+  ]
+}

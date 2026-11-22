@@ -1,0 +1,165 @@
+{
+  "format": "golden-case/1",
+  "name": "filter",
+  "case": "gain_every_block",
+  "description": "a gain change every block, HP 24 dB (FX-523)",
+  "subject": "fx.filter",
+  "model": "fx_filter",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 24,
+  "frames": 1536,
+  "params": {
+    "init": {
+      "type": 1,
+      "slope": 1,
+      "k": {"0": 0.3}
+    },
+    "events": [
+      {
+        "block": 1,
+        "k": {"1": 1.0}
+      },
+      {
+        "block": 2,
+        "k": {"1": 0.5}
+      },
+      {
+        "block": 3,
+        "k": {"1": 0.9}
+      },
+      {
+        "block": 4,
+        "k": {"1": 0.2}
+      },
+      {
+        "block": 5,
+        "k": {"1": 0.6667}
+      },
+      {
+        "block": 6,
+        "k": {"1": 0.0}
+      },
+      {
+        "block": 7,
+        "k": {"1": 1.0}
+      },
+      {
+        "block": 8,
+        "k": {"1": 0.5}
+      },
+      {
+        "block": 9,
+        "k": {"1": 0.9}
+      },
+      {
+        "block": 10,
+        "k": {"1": 0.2}
+      },
+      {
+        "block": 11,
+        "k": {"1": 0.6667}
+      },
+      {
+        "block": 12,
+        "k": {"1": 0.0}
+      },
+      {
+        "block": 13,
+        "k": {"1": 1.0}
+      },
+      {
+        "block": 14,
+        "k": {"1": 0.5}
+      },
+      {
+        "block": 15,
+        "k": {"1": 0.9}
+      },
+      {
+        "block": 16,
+        "k": {"1": 0.2}
+      },
+      {
+        "block": 17,
+        "k": {"1": 0.6667}
+      },
+      {
+        "block": 18,
+        "k": {"1": 0.0}
+      },
+      {
+        "block": 19,
+        "k": {"1": 1.0}
+      },
+      {
+        "block": 20,
+        "k": {"1": 0.5}
+      },
+      {
+        "block": 21,
+        "k": {"1": 0.9}
+      }
+    ],
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 1536],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "gain_every_block.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 1000.0, "amplitude": 0.3},
+          {"type": "noise", "seed": 15, "amplitude": 0.3}
+        ]
+      },
+      "R": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 1000.0, "amplitude": 0.3},
+          {"type": "noise", "seed": 16, "amplitude": 0.3}
+        ]
+      }
+    },
+    "sha256": "6fc76fb1896180fa4148281e1e5a762d673bd58cd9f3fdb5c33d9b817c9c15ba"
+  },
+  "expected": {
+    "file": "gain_every_block.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "cfddc86a77d11e403c3c2724e4f12dd1a2af9d1accc9af8cbbb1d0c53faf5cf8"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/mmf.py",
+      "licence": "MIT",
+      "sha256": "ff256ee75f4b57f91760b43e3c750ffb5133dfc8bdd088c73225429a42310a3d"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

@@ -1,0 +1,81 @@
+{
+  "format": "golden-case/1",
+  "name": "fx_shell",
+  "case": "skip_clamp_midblock",
+  "description": "reference skip/clamp: activation and stop take effect mid-block, at sample N_shell (FX-033)",
+  "subject": "fx.shell",
+  "model": "fx_shell",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 12,
+  "frames": 768,
+  "params": {
+    "kind": "shell",
+    "fs": 44100,
+    "skip": true,
+    "law": "crossfadeK5",
+    "mix": 0.5,
+    "events": [
+      {"block": 1, "op": "activate"},
+      {"block": 6, "op": "stop"}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 768],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "skip_clamp_midblock.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 441.0, "amplitude": 0.4},
+          {"type": "noise", "seed": 21, "amplitude": 0.2}
+        ]
+      },
+      "R": {"type": "sweep", "f0": 40.0, "octaves": 8.0, "amplitude": 0.5}
+    },
+    "sha256": "e3cc76347329bb2f1985ba24d6671fc99ff9841ea6a6abc2e9fd911c022090a4"
+  },
+  "expected": {
+    "file": "skip_clamp_midblock.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "fbf93cfd957da5bb1ad17b0ab6f117ac0e201f5401a02d449b904ddd6597c707"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fx_processors.py",
+      "licence": "MIT",
+      "sha256": "cc621f42389318b2bc50641ec8e99197cece954b904f768ab4697775a76aba20"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

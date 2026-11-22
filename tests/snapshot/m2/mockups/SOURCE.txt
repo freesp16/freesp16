@@ -1,0 +1,9 @@
+Copies of sixteen-spec spec/07-ui-design/mockups/*.svg (commit e2b9f59 working tree, the same tree as resources/design/SPEC_VERSION) that resources/design/mockups/ does not pin yet; references of the sequencing-screen snapshot tests only (never device captures). They may later move into resources/design/mockups/ and SPEC_VERSION.
+4c41d52200ea54a5244596e5ec5f4856f2b1f14f3e02babddab5408664321f4e  bpm-quantize.svg
+841eef88adac5692fdf3cf34f6c4770b1e284fabbf0d705592cf0a81de89a08e  project-open.svg
+c2377f395205122fe2547088acc68025ac3b805d5f411ef8473fc10039cab2e6  project.svg
+1032e1d876381e9dec37bc797fae690f5cb8a9ebdcf22cdcd01fbf8141ef7d82  render-audio.svg
+a5c8db466110066814057cff62ca93cf6c62b6ad801331e10b6856c9c34181a7  scene-manager-pattern.svg
+bcc2d6ec51b8e5cf4a44b15cd59a358a32b1448fccc8ee015e1ca694d9666508  scene-manager-seq.svg
+9ba4c2014847a76250c898869f8bda0d0111426f7b48e9c46033b8ed7fdf7c81  scene-manager-track.svg
+16d43df5b789c5a3ecb1c80e1c18a560747bc002483dd6ab9db2dc56c53b6651  sequence.svg

@@ -1,0 +1,115 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "host",
+      "inherits": "base",
+      "displayName": "Host (macOS/Linux): core, engine, ui render libs + unit tests, Debug with sanitizers",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "APP_BUILD_TESTS": "ON",
+        "APP_SANITIZERS": "ON",
+        "APP_RT_CHECKS": "ON",
+        "CMAKE_CXX_FLAGS_DEBUG": "-g1",
+        "CMAKE_C_FLAGS_DEBUG": "-g1"
+      }
+    },
+    {
+      "name": "host-release",
+      "inherits": "base",
+      "displayName": "Host Release: benchmarks and the offline snapshot tool",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "APP_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "host-fast",
+      "inherits": "base",
+      "displayName": "Host fast: Release + unit tests + real-time allocation hook, no sanitizers (fast iteration build)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "APP_BUILD_TESTS": "ON",
+        "APP_SANITIZERS": "OFF",
+        "APP_RT_CHECKS": "ON"
+      }
+    },
+    {
+      "name": "armel",
+      "inherits": "base",
+      "displayName": "Device (armel, glibc 2.13): run inside the toolchain container (scripts/build-armel.sh)",
+      "toolchainFile": "${sourceDir}/toolchain/cross.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "APP_BUILD_TESTS": "OFF",
+        "APP_BUILD_DEVICE_APP": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "host",
+      "configurePreset": "host"
+    },
+    {
+      "name": "host-release",
+      "configurePreset": "host-release"
+    },
+    {
+      "name": "host-fast",
+      "configurePreset": "host-fast"
+    },
+    {
+      "name": "armel",
+      "configurePreset": "armel"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "host",
+      "configurePreset": "host",
+      "output": {
+        "outputOnFailure": true
+      },
+      "environment": {
+        "LSAN_OPTIONS": "suppressions=${sourceDir}/tests/lsan.supp:print_suppressions=0"
+      }
+    },
+    {
+      "name": "host-release",
+      "configurePreset": "host-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-fast",
+      "configurePreset": "host-fast",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "exclude": {
+          "label": "bench|long"
+        }
+      },
+      "execution": {
+        "jobs": 4
+      }
+    }
+  ]
+}

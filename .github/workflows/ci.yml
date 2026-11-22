@@ -1,0 +1,177 @@
+# CI: the same stages as ci/run-local.sh. Emulator smoke tests are local only (they need your own imported firmware).
+# The project's name is read from cmake/ProjectIdentity.cmake (tools/identity.py), never written here.
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TOOLCHAIN_IMAGE: sp16-toolchain:gcc11-egl
+
+jobs:
+  lint:
+    name: format and lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format-18 && sudo ln -sf /usr/bin/clang-format-18 /usr/local/bin/clang-format
+      - name: Dependency rules (tools/check-deps.py)
+        run: python3 tools/check-deps.py
+      - name: Real-time lint (tools/rt-lint.py)
+        run: python3 tools/rt-lint.py
+      - name: Lint stage
+        run: ci/run-local.sh lint
+
+  host:
+    name: host build + unit tests (ASan/UBSan, RT hook)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Linux dependencies (JUCE)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libx11-dev libxext-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxrender-dev libxcomposite-dev libxi-dev libfreetype-dev libfontconfig1-dev libgl-dev
+      - name: macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install ninja
+      - uses: actions/cache@v4
+        with:
+          path: build/host/_deps
+          key: deps-${{ matrix.os }}-${{ hashFiles('tests/CMakeLists.txt') }}
+      - name: Host stage
+        run: ci/run-local.sh host
+      - name: Snapshot artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshots-${{ matrix.os }}
+          path: build/host/artifacts/*.png
+          if-no-files-found: ignore
+
+  bench:
+    name: benchmarks (performance budgets, > 10 % regression fails)
+    # Apple silicon (NEON paths, like the device). The baseline is per machine model (ci/bench-baseline.json): a runner
+    # model without an entry passes as "new"; record it from the uploaded results (check_regression.py --update).
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: macOS dependencies
+        run: brew install ninja
+      - uses: actions/cache@v4
+        with:
+          path: build/host-release/_deps
+          key: deps-bench-macos-14-${{ hashFiles('tests/CMakeLists.txt') }}
+      - name: Bench stage
+        run: ci/run-local.sh bench
+      - name: Bench results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: build/host-release/artifacts/bench/*.json
+          if-no-files-found: ignore
+
+  golden:
+    name: golden tests (research models)
+    runs-on: ubuntu-24.04
+    # Needs the research repository (models in tools/fx, MIT). Set the repository variable RESEARCH_REPO
+    # (owner/name) to enable; pinned to the commit the spec was written from.
+    if: vars.RESEARCH_REPO != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.RESEARCH_REPO }}
+          ref: 8901c97
+          path: research
+          sparse-checkout: |
+            docs
+            tools/fx
+      - name: Place the research checkout next to the repository
+        run: mv research ../PioneerSP16FirmwareResearch
+      - name: Linux dependencies (JUCE)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libx11-dev libxext-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxrender-dev libxcomposite-dev libxi-dev libfreetype-dev libfontconfig1-dev libgl-dev
+      - name: Golden stage
+        run: ci/run-local.sh golden
+
+  armel:
+    name: armel cross-build (toolchain container)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: docker/setup-buildx-action@v3
+      - name: Toolchain image (cached; ~30 min cold)
+        uses: docker/build-push-action@v6
+        with:
+          context: toolchain
+          tags: ${{ env.TOOLCHAIN_IMAGE }}
+          load: true
+          cache-from: type=gha,scope=toolchain
+          cache-to: type=gha,mode=max,scope=toolchain
+      - name: Identity
+        id: identity
+        run: echo "name=$(python3 tools/identity.py NAME)" >> "$GITHUB_OUTPUT"
+      - name: Armel stage
+        run: ci/run-local.sh armel
+      - name: glibc symbol-version check
+        run: ci/run-local.sh glibc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: armel-binary
+          path: out/armel/${{ steps.identity.outputs.name }}
+
+  package:
+    name: packaging
+    needs: [lint, host, armel]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Identity
+        id: identity
+        run: echo "name=$(python3 tools/identity.py NAME)" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: armel-binary
+          path: out/armel
+      - name: Package stage
+        run: chmod +x "out/armel/${{ steps.identity.outputs.name }}" && ci/run-local.sh package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: out/package/*
+      - name: Draft a release for a version tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" out/package/* --draft --title "${GITHUB_REF_NAME}" --notes "The hardware build for the boot menu (copy it next to the boot menu's autoexec.bin), the same in a tarball with the licences, and an emulator mod. No firmware included."
+    permissions:
+      contents: write

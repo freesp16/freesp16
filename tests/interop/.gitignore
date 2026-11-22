@@ -1,0 +1,3 @@
+# Files for the local-only interop-private tests (tests/unit/interop/test_private.cpp): your own .prj /
+# data.rsm / .wav.dat copies. Never committed, never used in CI (tools/check-no-firmware.sh).
+private/

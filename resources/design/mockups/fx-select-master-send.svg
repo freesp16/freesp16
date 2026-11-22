@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 768" width="1280" height="768" role="img" aria-label="Sixteen — SELECT FX (SEND slot), REVERB current, DELAY focused">
+  <title>Sixteen — SELECT FX (SEND slot), REVERB current, DELAY focused</title>
+  <rect x="0" y="0" width="1280" height="768" fill="#0B0D10"/>
+  <text x="16" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#A3ACBA" text-anchor="start" dominant-baseline="middle">HOME</text>
+  <text x="60" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#6B7482" text-anchor="start" dominant-baseline="middle">›</text>
+  <text x="76" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#A3ACBA" text-anchor="start" dominant-baseline="middle">MIXER</text>
+  <text x="129" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#6B7482" text-anchor="start" dominant-baseline="middle">›</text>
+  <text x="145" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle">MASTER/SEND FX</text>
+  <text x="1264" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#6B7482" text-anchor="end" dominant-baseline="middle">▶</text>
+  <text x="1224" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#6B7482" text-anchor="end" dominant-baseline="middle">●</text>
+  <text x="1184" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#6B7482" text-anchor="end" dominant-baseline="middle">OUT</text>
+  <text x="1144" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#6B7482" text-anchor="end" dominant-baseline="middle">IN</text>
+  <rect x="0" y="40" width="1280" height="96" fill="#13161B"/>
+  <line x1="0" y1="136" x2="1280" y2="136" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <rect x="16" y="52" width="96" height="72" fill="#1A1E25" rx="8"/>
+  <path d="M56 74 h16 l8 8 v22 h-24 z M72 74 v8 h8 M60 92 h16 M60 98 h12" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="120" y="52" width="256" height="72" fill="#1A1E25" rx="8"/>
+  <line x1="248" y1="64" x2="248" y2="112" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <text x="184" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">BPM</text>
+  <text x="184" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">120.0</text>
+  <text x="312" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">QUANTIZE</text>
+  <text x="312" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">1/16</text>
+  <rect x="384" y="52" width="256" height="72" fill="#1A1E25" rx="8"/>
+  <line x1="512" y1="64" x2="512" y2="112" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <text x="448" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">SCENE</text>
+  <text x="448" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">01</text>
+  <text x="576" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">PATTERN</text>
+  <text x="576" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">01</text>
+  <text x="664" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="start" dominant-baseline="middle">BAR:BEAT:STEP</text>
+  <text x="664" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle" font-variant-numeric="tabular-nums">001:01:01</text>
+  <rect x="824" y="52" width="104" height="72" fill="#1A1E25" rx="8"/>
+  <rect x="866.0" y="66.0" width="4.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="866.0" y="72.0" width="4.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="866.0" y="78.0" width="4.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="872.0" y="66.0" width="4.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="872.0" y="72.0" width="4.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="872.0" y="78.0" width="4.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="878.0" y="66.0" width="4.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="878.0" y="72.0" width="4.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="878.0" y="78.0" width="4.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <path d="M880.0 86.0 L887.0 79.0" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="876" y="108" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">TRACKS</text>
+  <rect x="936" y="52" width="104" height="72" fill="#569DFF29" rx="8"/>
+  <rect x="952" y="52" width="72" height="3" fill="#569DFF" rx="1"/>
+  <path d="M981.0 66.0 V86.0" fill="none" stroke="#569DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="978.0" y="78.0" width="6.0" height="3.0" fill="#569DFF" rx="1"/>
+  <path d="M988.0 66.0 V86.0" fill="none" stroke="#569DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="985.0" y="70.0" width="6.0" height="3.0" fill="#569DFF" rx="1"/>
+  <path d="M995.0 66.0 V86.0" fill="none" stroke="#569DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="992.0" y="75.0" width="6.0" height="3.0" fill="#569DFF" rx="1"/>
+  <text x="988" y="108" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#569DFF" text-anchor="middle" dominant-baseline="middle">MIXER</text>
+  <rect x="1048" y="52" width="104" height="72" fill="#1A1E25" rx="8"/>
+  <rect x="1090.0" y="67.0" width="12.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="1094.0" y="74.0" width="14.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <rect x="1090.0" y="81.0" width="8.0" height="4.0" fill="#E8ECF2" rx="1"/>
+  <text x="1100" y="108" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">ARRANGER</text>
+  <rect x="1160" y="52" width="104" height="72" fill="#1A1E25" rx="8"/>
+  <circle cx="1212.0" cy="76.0" r="4.0" fill="none" stroke="#E8ECF2" stroke-width="2"/>
+  <path d="M1219.0 76.0 L1222.0 76.0" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1216.9 80.9 L1219.1 83.1" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1212.0 83.0 L1212.0 86.0" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1207.1 80.9 L1204.9 83.1" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1205.0 76.0 L1202.0 76.0" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1207.1 71.1 L1204.9 68.9" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1212.0 69.0 L1212.0 66.0" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1216.9 71.1 L1219.1 68.9" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1212" y="108" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">UTILITY</text>
+  <rect x="16" y="152" width="1248" height="456" fill="#13161B" rx="8"/>
+  <circle cx="48.3" cy="188.0" r="2.5" fill="#E8ECF2" stroke="#E8ECF2" stroke-width="2.3"/>
+  <path d="M53.7 181.6 A8.3 8.3 0 0 1 53.7 194.4" fill="none" stroke="#E8ECF2" stroke-width="2.3333333333333335" stroke-linecap="round" stroke-linejoin="round" opacity="0.75"/>
+  <path d="M58.0 176.5 A15.0 15.0 0 0 1 58.0 199.5" fill="none" stroke="#E8ECF2" stroke-width="2.3333333333333335" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
+  <path d="M62.3 171.4 A21.7 21.7 0 0 1 62.3 204.6" fill="none" stroke="#E8ECF2" stroke-width="2.3333333333333335" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+  <text x="96" y="174" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="start" dominant-baseline="middle">SEND FX</text>
+  <text x="96" y="200" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="17" font-weight="600" letter-spacing="0.00" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle">REVERB</text>
+  <rect x="640" y="160" width="240" height="56" fill="#1A1E25" rx="8"/>
+  <text x="700.0" y="190.0" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">MASTER</text>
+  <line x1="760.0" y1="168" x2="760.0" y2="208" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <rect x="762.0" y="162" width="116.0" height="52" fill="#569DFF29" rx="6"/>
+  <rect x="772.0" y="162" width="96.0" height="3" fill="#569DFF" rx="1"/>
+  <text x="820.0" y="190.0" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">SEND</text>
+  <rect x="896" y="160" width="144" height="56" fill="#1A1E25" rx="6"/>
+  <rect x="912" y="168" width="112" height="4" fill="#3A4250" rx="2"/>
+  <text x="968.0" y="192.0" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">BYPASS</text>
+  <rect x="1056" y="160" width="192" height="56" fill="#1A1E25" rx="6"/>
+  <text x="1152.0" y="189.0" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">SELECT FX</text>
+  <line x1="32" y1="232" x2="1232" y2="232" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <text x="640" y="380" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="400" letter-spacing="0.00" fill="#6B7482" text-anchor="middle" dominant-baseline="middle">No effect in this slot. SELECT FX to choose one.</text>
+  <rect x="0" y="624" width="1280" height="144" fill="#13161B"/>
+  <line x1="0" y1="624" x2="1280" y2="624" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <path d="M0 624 h224 l24 24 h-248 z" fill="#1A1E25"/>
+  <text x="16" y="637" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="start" dominant-baseline="middle">SEND FX</text>
+  <rect x="0" y="0" width="1280" height="768" fill="#0B0D10" opacity="0.72"/>
+  <rect x="48" y="48" width="1184" height="672" fill="#13161B" rx="12" stroke="#2A303B" stroke-width="1"/>
+  <rect x="48" y="48" width="1184" height="56" fill="#1A1E25" rx="12"/>
+  <rect x="48" y="92" width="1184" height="12" fill="#1A1E25"/>
+  <text x="72" y="76" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="17" font-weight="600" letter-spacing="0.00" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle">SELECT FX</text>
+  <text x="184" y="77" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="start" dominant-baseline="middle">SEND FX</text>
+  <text x="1196" y="76" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="17" font-weight="600" letter-spacing="0.00" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">✕</text>
+  <rect x="72" y="128" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <circle cx="176.0" cy="176.0" r="18.0" fill="none" stroke="#E8ECF2" stroke-width="2.8"/>
+  <path d="M 163.2 188.8 L 188.8 163.2" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="176" y="240" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">NONE</text>
+  <rect x="304" y="128" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <circle cx="418.0" cy="176.0" r="9.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" opacity="0.35"/>
+  <circle cx="408.0" cy="176.0" r="9.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" opacity="0.65"/>
+  <circle cx="398.0" cy="176.0" r="9.0" fill="none" stroke="#E8ECF2" stroke-width="2.8"/>
+  <text x="408" y="240" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">DELAY</text>
+  <rect x="300" y="124" width="216" height="160" fill="none" rx="10" stroke="#569DFF" stroke-width="2"/>
+  <path d="M504 264 v8 h-8 z" fill="#569DFF"/>
+  <rect x="536" y="128" width="208" height="152" fill="#1A1E25" rx="8" stroke="#569DFF" stroke-width="2"/>
+  <circle cx="626.0" cy="176.0" r="3.0" fill="#569DFF" stroke="#569DFF" stroke-width="2.8"/>
+  <path d="M632.4 168.3 A10.0 10.0 0 0 1 632.4 183.7" fill="none" stroke="#569DFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.75"/>
+  <path d="M637.6 162.2 A18.0 18.0 0 0 1 637.6 189.8" fill="none" stroke="#569DFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
+  <path d="M642.7 156.1 A26.0 26.0 0 0 1 642.7 195.9" fill="none" stroke="#569DFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+  <text x="640" y="240" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#569DFF" text-anchor="middle" dominant-baseline="middle">REVERB</text>
+  <text x="724" y="148" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="600" letter-spacing="0.00" fill="#569DFF" text-anchor="middle" dominant-baseline="middle">✓</text>
+  <rect x="768" y="128" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <circle cx="864.0" cy="172.0" r="10.0" fill="none" stroke="#E8ECF2" stroke-width="2.8"/>
+  <circle cx="880.0" cy="172.0" r="10.0" fill="none" stroke="#E8ECF2" stroke-width="2.8"/>
+  <circle cx="872.0" cy="184.0" r="10.0" fill="none" stroke="#E8ECF2" stroke-width="2.8"/>
+  <text x="872" y="240" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">CHORUS</text>
+  <rect x="1000" y="128" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <path d="M 1086.0 194.0 C 1098.0 194.0 1106.0 162.0 1122.0 158.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 1086.0 184.0 C 1098.0 184.0 1106.0 167.0 1122.0 163.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 1086.0 174.0 C 1098.0 174.0 1106.0 172.0 1122.0 168.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1104" y="240" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">FLANGER</text>
+  <rect x="72" y="304" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <path d="M 156.0 358.0 C 162.0 358.0 164.0 342.0 170.0 342.0 C 176.0 342.0 176.0 358.0 180.0 358.0 C 186.0 358.0 188.0 366.0 196.0 366.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 156.0 370.0 H 196.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+  <text x="176" y="416" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">2 BAND EQ</text>
+  <rect x="304" y="304" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <path d="M 388.0 346.0 H 408.0 C 414.0 346.0 414.0 340.0 418.0 344.0 C 420.0 348.0 422.0 364.0 428.0 370.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 388.0 370.0 H 428.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+  <text x="408" y="416" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">FILTER</text>
+  <rect x="536" y="304" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <path d="M 620.0 352.0 H 626.0 V 340.0 H 634.0 V 352.0 H 640.0 V 364.0 H 648.0 V 352.0 H 654.0 V 344.0 H 660.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="640" y="416" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">LO-FI</text>
+  <rect x="768" y="304" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <path d="M 854.0 334.0 V 370.0 H 890.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+  <path d="M 854.0 370.0 L 872.0 352.0 C 876.0 348.0 882.0 346.0 890.0 344.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="872" y="416" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">COMPRESSOR</text>
+  <rect x="1000" y="304" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <path d="M 1084.0 352.0 C 1086.0 344.0 1088.0 340.0 1092.0 340.0 H 1100.0 C 1102.0 340.0 1102.0 352.0 1104.0 352.0 C 1106.0 352.0 1106.0 364.0 1108.0 364.0 H 1116.0 C 1120.0 364.0 1122.0 360.0 1124.0 352.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1104" y="416" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">DISTORTION</text>
+  <rect x="72" y="480" width="208" height="152" fill="#1A1E25" rx="8"/>
+  <path d="M 156.0 518.0 C 160.0 518.0 160.0 542.0 164.0 542.0 C 168.0 542.0 168.0 518.0 172.0 518.0 C 176.0 518.0 176.0 538.0 180.0 538.0 C 184.0 538.0 184.0 518.0 188.0 518.0 C 192.0 518.0 192.0 534.0 196.0 534.0" fill="none" stroke="#E8ECF2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="176" y="592" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">PHASER</text>
+  <text x="72" y="684" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#6B7482" text-anchor="start" dominant-baseline="middle">TURN TO MOVE · PUSH OR TAP AGAIN TO CHOOSE · BACK CANCELS</text>
+</svg>

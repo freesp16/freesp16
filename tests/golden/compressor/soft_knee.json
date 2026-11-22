@@ -1,0 +1,91 @@
+{
+  "format": "golden-case/1",
+  "name": "compressor",
+  "case": "soft_knee",
+  "description": "soft knee (18 dB) against hard, ratio 4, threshold -18 dB",
+  "subject": "fx.compressor",
+  "model": "compressor",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 400,
+  "frames": 25600,
+  "params": {
+    "threshold": 0.6538461538461539,
+    "ratio": 0.10344827586206896,
+    "attack": 0.022593320235756387,
+    "release": 0.047619047619047616,
+    "knee": 1,
+    "events": [
+      {"block": 200, "k": "knee", "v": 0}
+    ],
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 0.0001, "residual_dbfs": -90.0, "floor": 1e-30},
+  "window": [0, 25600],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "soft_knee.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 997.0, "amplitude": 0.05, "length": 4096},
+          {"type": "sine", "freq": 997.0, "amplitude": 0.7, "start": 4096, "length": 6144},
+          {"type": "sine", "freq": 997.0, "amplitude": 0.02, "start": 10240, "length": 6144},
+          {"type": "sine", "freq": 997.0, "amplitude": 0.9, "start": 16384}
+        ]
+      },
+      "R": {
+        "type": "sum",
+        "parts": [
+          {"type": "noise", "seed": 3, "amplitude": 0.03, "length": 4096},
+          {"type": "noise", "seed": 4, "amplitude": 0.5, "start": 4096, "length": 6144},
+          {"type": "noise", "seed": 5, "amplitude": 0.01, "start": 10240, "length": 6144},
+          {"type": "noise", "seed": 6, "amplitude": 0.8, "start": 16384}
+        ]
+      }
+    },
+    "sha256": "990f5a32004b4db962d4d8fe16101f6916813a15f4d5ff79b89aca75041ebe00"
+  },
+  "expected": {
+    "file": "soft_knee.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "cf52cf2d54f9166cb522461fbaa865d5c54c41f59f6727d42449d4e96e8b903f"
+  },
+  "tables": {
+    "expf": {
+      "source": "crmath.expf (correctly rounded) in place of the glibc 2.13 expf",
+      "f32_bits": []
+    }
+  },
+  "models": [
+    {
+      "file": "tools/fx/compressor.py",
+      "licence": "MIT",
+      "sha256": "94e947f607d6e841cdd1bf850255554cd3be2bc94a5e9c7a455c3944fec32265"
+    },
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/glibc_log10.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b1e727188a6c7763c77d94227fd8d6f39bb0211bb5af4ddd5018aa52202d8972"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

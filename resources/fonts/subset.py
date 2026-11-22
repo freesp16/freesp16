@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Regenerates the embedded UI fonts from the pinned upstream releases. Not part of the build.
+
+    python3 -m venv venv && venv/bin/pip install fonttools==4.55.0
+    venv/bin/python resources/fonts/subset.py <Inter-4.1.zip> <JetBrainsMono-2.304.zip> <DejaVuSans.ttf>
+
+Inputs (checked by SHA-256; download them yourself from the projects' GitHub release pages):
+  Inter-4.1.zip            https://github.com/rsms/inter/releases/tag/v4.1
+  JetBrainsMono-2.304.zip  https://github.com/JetBrains/JetBrainsMono/releases/tag/v2.304
+  DejaVuSans.ttf           DejaVu Sans 2.37 (dejavu-fonts-ttf-2.37, ttf/DejaVuSans.ttf), for the symbols Inter
+                           does not draw; only its subset is committed.
+
+Outputs (committed):
+  resources/fonts/Inter-{Light,Regular,Medium,SemiBold}.subset.ttf   weights 300/400/500/600 of the token styles;
+      Light and Medium carry only the value styles (tokens.json: value-s/value/value-l 500, display 300, all "tnum",
+      font.feature.values "tnum, ss01"), so tnum + ss01 are frozen into their cmap: digits are tabular open digits
+      without any shaping at run time (the glyph atlas rasterises one code point at a time).
+  resources/fonts/JetBrainsMono-Regular.subset.ttf                   debug readouts (02-tokens.md font.family.mono)
+  resources/fonts/DejaVuSans-Symbols.subset.ttf                      fallback for the UI symbols Inter lacks
+  src/ui/render/fonts/FontData.cpp                                   the same bytes as C++ arrays (embedded data)
+Subsets keep the code points of src/ui/render/fonts/Charset.h (printable ASCII, Latin-1, Latin Extended-A and the UI's
+symbols); hinting and OpenType layout tables are dropped (JUCE rasterises outlines; the atlas does no shaping).
+OFL 1.1 (Inter, JetBrains Mono: no Reserved Font Name) and the Bitstream Vera terms (DejaVu: the name contains neither
+"Bitstream" nor "Vera") allow these modified versions; the licences are next to the files.
+"""
+import hashlib
+import io
+import pathlib
+import re
+import sys
+import zipfile
+
+from fontTools import subset
+from fontTools.ttLib import TTFont
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+FONTS = ROOT / "resources" / "fonts"
+PINS = {
+    "Inter-4.1.zip": "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e",
+    "JetBrainsMono-2.304.zip": "6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf",
+    "DejaVuSans.ttf": "abdc775b21b1bc470d50c97e790d276f2054b7504e56e5bd3e64f48d68582322",
+}
+
+
+def charset():
+    """Code points from ui/render/fonts/Charset.h (ranges and the symbol list), the single source of the glyph set."""
+    text = (ROOT / "src" / "ui" / "render" / "fonts" / "Charset.h").read_text(encoding="utf-8")
+    cps = set()
+    for a, b in re.findall(r"\{\s*0x([0-9A-Fa-f]+)\s*,\s*0x([0-9A-Fa-f]+)\s*\}", text):
+        cps.update(range(int(a, 16), int(b, 16) + 1))
+    block = re.search(r"kSymbols\[\]\s*=\s*\{(.*?)\};", text, re.S).group(1)
+    cps.update(int(x, 16) for x in re.findall(r"0x([0-9A-Fa-f]+)", block))
+    return sorted(cps)
+
+
+def read_zip(path, member_suffix):
+    data = pathlib.Path(path).read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    if PINS[pathlib.Path(path).name] != digest:
+        raise SystemExit(f"{path}: SHA-256 {digest} is not the pinned release")
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        name = next(n for n in z.namelist() if n.endswith(member_suffix))
+        return z.read(name)
+
+
+def freeze(font, tags):
+    """Applies the single substitutions of `tags` (lookup-list order) to every cmap entry."""
+    gsub = font["GSUB"].table
+    lookups = sorted({i for fr in gsub.FeatureList.FeatureRecord if fr.FeatureTag in tags for i in fr.Feature.LookupListIndex})
+    for i in lookups:
+        lookup = gsub.LookupList.Lookup[i]
+        for st in lookup.SubTable:
+            if lookup.LookupType == 7:
+                st = st.ExtSubTable
+            mapping = getattr(st, "mapping", None)
+            if mapping is None:  # only single substitutions (type 1, or type 7 wrapping one)
+                continue
+            for table in font["cmap"].tables:
+                for cp, g in list(table.cmap.items()):
+                    if g in mapping:
+                        table.cmap[cp] = mapping[g]
+
+
+def make_subset(raw, cps, out, frozen=()):
+    font = TTFont(io.BytesIO(raw), recalcTimestamp=False)  # reproducible bytes
+    if frozen:
+        freeze(font, frozen)
+    have = font.getBestCmap()
+    keep = [c for c in cps if c in have]
+    options = subset.Options()
+    options.layout_features = []
+    options.hinting = False
+    options.drop_tables += ["GSUB", "GPOS", "GDEF", "kern", "STAT", "DSIG", "meta", "gasp"]
+    options.name_IDs = [0, 1, 2, 3, 4, 5, 6, 13, 14]
+    options.notdef_outline = True
+    sub = subset.Subsetter(options)
+    sub.populate(unicodes=keep)
+    sub.subset(font)
+    font.save(out)
+    return set(keep)
+
+
+def to_cpp(files):
+    lines = ["// Generated by resources/fonts/subset.py from the pinned font releases. Do not edit.",
+             "// The bytes of resources/fonts/*.subset.ttf; tests/unit/render/test_fonts.cpp checks they match.",
+             "// clang-format off", '#include "ui/render/fonts/Fonts.h"', "", "namespace ui::fonts::data", "{"]
+    for ident, path in files:
+        data = path.read_bytes()
+        lines.append(f"extern const unsigned char {ident}[];")
+        lines.append(f"extern const std::size_t {ident}Size;")
+        lines.append(f"alignas(4) const unsigned char {ident}[] = {{")
+        for i in range(0, len(data), 24):
+            lines.append("    " + ",".join(str(b) for b in data[i:i + 24]) + ",")
+        lines.append("};")
+        lines.append(f"const std::size_t {ident}Size = {len(data)};")
+        lines.append("")
+    lines.append("} // namespace ui::fonts::data")
+    lines.append("// clang-format on")
+    (ROOT / "src" / "ui" / "render" / "fonts" / "FontData.cpp").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def main():
+    if len(sys.argv) != 4:
+        raise SystemExit(__doc__)
+    inter_zip, jbm_zip, dejavu = sys.argv[1:4]
+    dejavu_raw = pathlib.Path(dejavu).read_bytes()
+    if hashlib.sha256(dejavu_raw).hexdigest() != PINS["DejaVuSans.ttf"]:
+        raise SystemExit(f"{dejavu}: not the pinned DejaVu Sans 2.37")
+    cps = charset()
+    covered = set()
+    outs = []
+    for weight, frozen in (("Light", ("ss01", "tnum")), ("Regular", ()), ("Medium", ("ss01", "tnum")), ("SemiBold", ())):
+        out = FONTS / f"Inter-{weight}.subset.ttf"
+        got = make_subset(read_zip(inter_zip, f"extras/ttf/Inter-{weight}.ttf"), cps, out, frozen)
+        covered |= got
+        outs.append((f"inter{weight}", out))
+    out = FONTS / "JetBrainsMono-Regular.subset.ttf"
+    make_subset(read_zip(jbm_zip, "fonts/ttf/JetBrainsMono-Regular.ttf"), [c for c in cps if c < 0x180], out)
+    outs.append(("jetBrainsMonoRegular", out))
+    missing = [c for c in cps if c not in covered]
+    out = FONTS / "DejaVuSans-Symbols.subset.ttf"
+    got = make_subset(dejavu_raw, missing, out)
+    outs.append(("dejaVuSymbols", out))
+    still = [f"U+{c:04X}" for c in missing if c not in got]
+    to_cpp(outs)
+    for _, path in outs:
+        print(f"{path.name}: {path.stat().st_size} bytes sha256 {hashlib.sha256(path.read_bytes()).hexdigest()}")
+    print("from DejaVu:", " ".join(f"U+{c:04X}" for c in missing if c in got))
+    print("in no font (atlas draws the fallback box):", " ".join(still) or "none")
+
+
+if __name__ == "__main__":
+    main()

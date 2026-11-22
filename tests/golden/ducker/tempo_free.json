@@ -1,0 +1,51 @@
+{
+  "format": "golden-case/1",
+  "name": "ducker",
+  "case": "tempo_free",
+  "description": "free mode ignores the tempo (BPM 87.5)",
+  "subject": "fx.ducker",
+  "model": "ducker",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 40,
+  "frames": 2560,
+  "params": {
+    "bpm": 87.5,
+    "triggers": [
+      {"block": 1, "offset": 11}
+    ],
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -120.0, "floor": 1e-30},
+  "window": [0, 2560],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "tempo_free.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "dc", "level": 0.5},
+      "R": {"type": "dc", "level": -0.25}
+    },
+    "sha256": "d030715883410258dc0580e2f0accc1c1e36214059e305fd986b354d2a1a9ea2"
+  },
+  "expected": {
+    "file": "tempo_free.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "7c5bc62521af102d2924a71160ed1484b2b529a26ea75d6356d9e120e12df6f8"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/ducker.py",
+      "licence": "MIT",
+      "sha256": "c6c859dae972da899d5eabcb200dd06deb6a522dd13f5d4de178c219b683d9bc"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

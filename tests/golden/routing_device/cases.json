@@ -1,0 +1,86 @@
+{
+  "model": "routing_device",
+  "subject": "routing.device",
+  "local_only": false,
+  "comment": "device_out.py with cfg = 1.0, no sign flip (the x(-0.5) DAC scaling is not reproduced, MIX-060, our choice) and the app's own output-trim table plugged into OutputVolume (device_out.load_table is never called). Not reproduced: the BulkMute re-toggle quirk (a change back in the block right after a fade is adopted without a fade by the reference); the cases toggle at least two blocks apart.",
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -100.0, "floor": 1e-30},
+  "cases": [
+    {
+      "id": "trim_steps",
+      "description": "output trim (the app's table: 1 = -60 dB .. 1023 = 0 dB, 0 = mute) as the research OutputVolume, 100-sample ramps, on Main and the headphones alike (MIX-060, MIX-023)",
+      "blocks": 22,
+      "params": {
+        "trim": 1023,
+        "phones_level": 100,
+        "cue": 0,
+        "events": [
+          {"block": 2, "trim": 512},
+          {"block": 6, "trim": 1},
+          {"block": 9, "trim": 0},
+          {"block": 12, "trim": 1000},
+          {"block": 15, "trim": 1023},
+          {"block": 18, "trim": 700}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 200, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 201, "amplitude": 0.5},
+        "aux.L": {"type": "sine", "freq": 440.0, "amplitude": 0.25},
+        "aux.R": {"type": "noise", "seed": 202, "amplitude": 0.1}
+      },
+      "parity": true,
+      "fault_tests": ["gain"]
+    },
+    {
+      "id": "mute_all",
+      "description": "mute-all = the research BulkMute (64-sample MuteSmoother: 1 .. 1/64 then 0; 0 .. 63/64 then 1), after the trim, also during a trim ramp (REN-005)",
+      "blocks": 22,
+      "params": {
+        "trim": 900,
+        "phones_level": 127,
+        "cue": 2,
+        "events": [
+          {"block": 3, "mute_all": true},
+          {"block": 7, "mute_all": false},
+          {"block": 12, "mute_all": true},
+          {"block": 12, "trim": 400},
+          {"block": 16, "mute_all": false},
+          {"block": 16, "trim": 1023}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 200, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 201, "amplitude": 0.5},
+        "aux.L": {"type": "sine", "freq": 440.0, "amplitude": 0.25},
+        "aux.R": {"type": "noise", "seed": 202, "amplitude": 0.1}
+      },
+      "parity": true
+    },
+    {
+      "id": "phones_chain",
+      "description": "headphones end to end: MASTER (gates closed) -> OUT 3-4 (silent here: only the aux at unity) with level and trim ramps, then the device stage",
+      "blocks": 18,
+      "params": {
+        "trim": 1023,
+        "phones_level": 127,
+        "cue": 0,
+        "events": [
+          {"block": 2, "phones_level": 90},
+          {"block": 5, "cue": 2},
+          {"block": 6, "trim": 800},
+          {"block": 11, "cue": 0},
+          {"block": 12, "phones_level": 127}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 200, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 201, "amplitude": 0.5},
+        "aux.L": {"type": "sine", "freq": 440.0, "amplitude": 0.25},
+        "aux.R": {"type": "noise", "seed": 202, "amplitude": 0.1}
+      },
+      "parity": true
+    }
+  ]
+}

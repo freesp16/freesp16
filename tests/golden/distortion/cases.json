@@ -1,0 +1,473 @@
+{
+  "model": "distortion",
+  "subject": "fx.effect",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 0.0001,
+    "residual_dbfs": -100.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "drive_0db",
+      "description": "drive 0 dB, defaults otherwise (lo 50 Hz, hi/tone 20 kHz, dynamics off), noise and sine",
+      "blocks": 32,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 31,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 440.0,
+          "amplitude": 0.5,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "drive_10db",
+      "description": "drive 10 dB, defaults otherwise (lo 50 Hz, hi/tone 20 kHz, dynamics off), noise and sine",
+      "blocks": 32,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.25
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 41,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 440.0,
+          "amplitude": 0.5,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "drive_20db",
+      "description": "drive 20 dB, defaults otherwise (lo 50 Hz, hi/tone 20 kHz, dynamics off), noise and sine",
+      "blocks": 32,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.5
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 51,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 440.0,
+          "amplitude": 0.5,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "drive_40db",
+      "description": "drive 40 dB, defaults otherwise (lo 50 Hz, hi/tone 20 kHz, dynamics off), noise and sine",
+      "blocks": 32,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 71,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 440.0,
+          "amplitude": 0.5,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "drive20_quiet",
+      "description": "drive 20 dB, blend 1: quiet signals follow 0.7\u00b7u\u00b3 (FX-1080 dead zone)",
+      "blocks": 32,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.5
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 300.0,
+          "amplitude": 0.01,
+          "phase": 0.0
+        },
+        "R": {
+          "type": "sine",
+          "freq": 3000.0,
+          "amplitude": 0.05,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "dynamics01_quiet",
+      "description": "dynamics 0.1 with a quiet sine: the auto-gain rises to 100 (e-fold per 100 ms) and holds",
+      "blocks": 360,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.25,
+          "4": 0.1
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 220.0,
+          "amplitude": 0.0005,
+          "phase": 0.0
+        },
+        "R": {
+          "type": "sine",
+          "freq": 330.0,
+          "amplitude": 0.0002,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "dynamics05_loud",
+      "description": "dynamics 0.5 with loud noise: the gain stays at 1 (decay 3 ms, hold 20 ms)",
+      "blocks": 48,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.5,
+          "4": 0.5
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 41,
+          "amplitude": 0.9
+        },
+        "R": {
+          "type": "noise",
+          "seed": 42,
+          "amplitude": 0.8
+        }
+      }
+    },
+    {
+      "id": "dynamics05_bursts",
+      "description": "dynamics 0.5, bursts of loud noise between quiet passages (attack, hold, release)",
+      "blocks": 120,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.3,
+          "4": 0.5
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 43,
+              "amplitude": 0.8,
+              "start": 0,
+              "length": 1500
+            },
+            {
+              "type": "sine",
+              "freq": 500.0,
+              "amplitude": 0.02
+            },
+            {
+              "type": "noise",
+              "seed": 44,
+              "amplitude": 0.9,
+              "start": 5000,
+              "length": 800
+            }
+          ]
+        },
+        "R": {
+          "type": "sine",
+          "freq": 800.0,
+          "amplitude": 0.01
+        }
+      }
+    },
+    {
+      "id": "freq_extremes",
+      "description": "lo freq 1 (20 kHz HPF), hi freq 0 (50 Hz LPF), tone 0.5; then the reverse",
+      "blocks": 48,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "1": 0.5,
+          "2": 1.0,
+          "3": 0.0,
+          "0": 0.6
+        },
+        "events": [
+          {
+            "block": 20,
+            "k": 2,
+            "v": 0.0
+          },
+          {
+            "block": 20,
+            "k": 3,
+            "v": 1.0
+          },
+          {
+            "block": 30,
+            "k": 1,
+            "v": 0.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 45,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 5000.0,
+          "amplitude": 0.7,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "midrun_changes",
+      "description": "every parameter changed mid-run (coefficients jump), mix 0.4",
+      "blocks": 64,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.3,
+          "1": 0.8,
+          "2": 0.2,
+          "3": 0.7,
+          "4": 0.0,
+          "5": 0.4
+        },
+        "events": [
+          {
+            "block": 3,
+            "k": 3,
+            "v": 0.9
+          },
+          {
+            "block": 7,
+            "k": 1,
+            "v": 0.0
+          },
+          {
+            "block": 11,
+            "k": 5,
+            "v": 0.15
+          },
+          {
+            "block": 15,
+            "k": 3,
+            "v": 0.33
+          },
+          {
+            "block": 19,
+            "k": 1,
+            "v": 1.0
+          },
+          {
+            "block": 23,
+            "k": 5,
+            "v": 0.5
+          },
+          {
+            "block": 27,
+            "k": 3,
+            "v": 0.71
+          },
+          {
+            "block": 31,
+            "k": 1,
+            "v": 0.9
+          },
+          {
+            "block": 35,
+            "k": 5,
+            "v": 0.0
+          },
+          {
+            "block": 39,
+            "k": 3,
+            "v": 0.15
+          },
+          {
+            "block": 43,
+            "k": 1,
+            "v": 0.33
+          },
+          {
+            "block": 47,
+            "k": 5,
+            "v": 1.0
+          },
+          {
+            "block": 51,
+            "k": 3,
+            "v": 0.5
+          },
+          {
+            "block": 55,
+            "k": 1,
+            "v": 0.71
+          },
+          {
+            "block": 59,
+            "k": 5,
+            "v": 0.9
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 46,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "sine",
+          "freq": 110.0,
+          "amplitude": 0.6,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "resets",
+      "description": "stop / re-activate twice with dynamics 0.1 (kernel re-init: filter states 0, g = 1, hold 882)",
+      "blocks": 80,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.4,
+          "4": 0.1
+        },
+        "events": [
+          {
+            "block": 25,
+            "op": "stop"
+          },
+          {
+            "block": 32,
+            "op": "activate"
+          },
+          {
+            "block": 55,
+            "op": "stop"
+          },
+          {
+            "block": 58,
+            "op": "activate"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 200.0,
+          "amplitude": 0.002,
+          "phase": 0.0
+        },
+        "R": {
+          "type": "noise",
+          "seed": 47,
+          "amplitude": 0.3
+        }
+      }
+    },
+    {
+      "id": "impulse_silence",
+      "description": "impulses, then silence (tails of the three one-poles)",
+      "blocks": 32,
+      "params": {
+        "effect": "distortion",
+        "init": {
+          "0": 0.75,
+          "1": 0.3
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            0,
+            1000
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "silence"
+        }
+      }
+    },
+    {
+      "id": "fs48k",
+      "description": "48 kHz: drive 15 dB, dynamics 0.2 (the reference kernel runs at a literal 44,100 Hz)",
+      "blocks": 48,
+      "params": {
+        "effect": "distortion",
+        "fs": 48000,
+        "init": {
+          "0": 0.375,
+          "4": 0.2,
+          "2": 0.3
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 48,
+          "amplitude": 0.4
+        },
+        "R": {
+          "type": "sine",
+          "freq": 1000.0,
+          "amplitude": 0.05,
+          "phase": 0.0
+        }
+      }
+    }
+  ]
+}

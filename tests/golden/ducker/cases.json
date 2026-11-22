@@ -1,0 +1,436 @@
+{
+  "model": "ducker",
+  "subject": "fx.ducker",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 1e-06,
+    "residual_dbfs": -120.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "defaults",
+      "description": "Insert defaults (30 ms linear attack, 300 ms linear release, depth 100 %): hits at blocks 2 (offset 0) and 40 (offset 17)",
+      "blocks": 80,
+      "params": {
+        "triggers": [
+          {
+            "block": 2,
+            "offset": 0
+          },
+          {
+            "block": 40,
+            "offset": 17
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    },
+    {
+      "id": "attack0",
+      "description": "attack 0 ms (one-sample attack, Na = 1), release 300 ms, offset 5",
+      "blocks": 40,
+      "params": {
+        "attack": 0.0,
+        "triggers": [
+          {
+            "block": 1,
+            "offset": 5
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    },
+    {
+      "id": "attack1_release1",
+      "description": "attack 1 ms, release 1 ms: hits every 4 blocks at offsets 0, 1, 62, 63",
+      "blocks": 24,
+      "params": {
+        "attack": 0.001,
+        "release": 0.00011250140626757835,
+        "triggers": [
+          {
+            "block": 1,
+            "offset": 0
+          },
+          {
+            "block": 5,
+            "offset": 1
+          },
+          {
+            "block": 9,
+            "offset": 62
+          },
+          {
+            "block": 13,
+            "offset": 63
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 21,
+          "amplitude": 0.8
+        },
+        "R": {
+          "type": "sine",
+          "freq": 441.0,
+          "amplitude": 0.6
+        }
+      }
+    },
+    {
+      "id": "attack1000",
+      "description": "attack 1000 ms (curve -50), release 300 ms (curve 50), depth 50 %: the first 58 % of the attack",
+      "blocks": 400,
+      "params": {
+        "attack": 1.0,
+        "attack_curve": 0.25,
+        "release_curve": 0.75,
+        "depth": 0.5,
+        "triggers": [
+          {
+            "block": 1,
+            "offset": 9
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    },
+    {
+      "id": "release8s",
+      "description": "attack 1 ms, release 8000 ms (curve -50), depth 50 %; a retrigger during the release (block 240, offset 62)",
+      "blocks": 320,
+      "params": {
+        "attack": 0.001,
+        "release": 1.0,
+        "release_curve": 0.25,
+        "depth": 0.5,
+        "triggers": [
+          {
+            "block": 1,
+            "offset": 0
+          },
+          {
+            "block": 240,
+            "offset": 62
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    },
+    {
+      "id": "curves_extreme",
+      "description": "attack curve -100, release curve +100 (30 ms / 300 ms, depth 100 %); then +100 / -100 from block 40",
+      "blocks": 90,
+      "params": {
+        "attack_curve": 0.0,
+        "release_curve": 1.0,
+        "triggers": [
+          {
+            "block": 2,
+            "offset": 3
+          },
+          {
+            "block": 45,
+            "offset": 40
+          }
+        ],
+        "events": [
+          {
+            "block": 40,
+            "k": 1,
+            "v": 1.0
+          },
+          {
+            "block": 40,
+            "k": 3,
+            "v": 0.0
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    },
+    {
+      "id": "curves_mid",
+      "description": "attack curve 50, release curve -50, then linear (0) for the second hit",
+      "blocks": 80,
+      "params": {
+        "attack_curve": 0.75,
+        "release_curve": 0.25,
+        "triggers": [
+          {
+            "block": 2,
+            "offset": 31
+          },
+          {
+            "block": 40,
+            "offset": 0
+          }
+        ],
+        "events": [
+          {
+            "block": 38,
+            "k": 1,
+            "v": 0.5
+          },
+          {
+            "block": 38,
+            "k": 3,
+            "v": 0.5
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 5,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 6,
+          "amplitude": 0.5
+        }
+      }
+    },
+    {
+      "id": "depth0",
+      "description": "depth 0: a trigger changes nothing",
+      "blocks": 24,
+      "params": {
+        "depth": 0.0,
+        "triggers": [
+          {
+            "block": 2,
+            "offset": 10
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    },
+    {
+      "id": "depth_half",
+      "description": "depth 50 %, attack 10 ms, release 100 ms",
+      "blocks": 40,
+      "params": {
+        "depth": 0.5,
+        "attack": 0.01,
+        "release": 0.012487656095701197,
+        "triggers": [
+          {
+            "block": 2,
+            "offset": 1
+          },
+          {
+            "block": 20,
+            "offset": 62
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    },
+    {
+      "id": "retrigger_attack",
+      "description": "attack 100 ms: a second hit during the attack restarts the counter only (the floor lasts longer)",
+      "blocks": 120,
+      "params": {
+        "attack": 0.1,
+        "attack_curve": 0.25,
+        "triggers": [
+          {
+            "block": 2,
+            "offset": 0
+          },
+          {
+            "block": 30,
+            "offset": 20
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    },
+    {
+      "id": "retrigger_release",
+      "description": "attack 10 ms (curve -50), release 500 ms (curve 50): a hit during the release restarts the attack from the current gain",
+      "blocks": 120,
+      "params": {
+        "attack": 0.01,
+        "attack_curve": 0.25,
+        "release": 0.062488281103513794,
+        "release_curve": 0.75,
+        "triggers": [
+          {
+            "block": 2,
+            "offset": 0
+          },
+          {
+            "block": 30,
+            "offset": 30
+          },
+          {
+            "block": 60,
+            "offset": 63
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 220.0,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "dc",
+          "level": 0.5
+        }
+      }
+    },
+    {
+      "id": "reset_keeps_duck",
+      "description": "a reset (activation) during a duck re-applies the parameters and does not stop it (FX-1261); Depth changes mid-duck",
+      "blocks": 60,
+      "params": {
+        "triggers": [
+          {
+            "block": 2,
+            "offset": 7
+          }
+        ],
+        "resets": [
+          6,
+          20
+        ],
+        "events": [
+          {
+            "block": 20,
+            "k": 5,
+            "v": 0.5
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    },
+    {
+      "id": "tempo_free",
+      "description": "free mode ignores the tempo (BPM 87.5)",
+      "blocks": 40,
+      "params": {
+        "bpm": 87.5,
+        "triggers": [
+          {
+            "block": 1,
+            "offset": 11
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "dc",
+          "level": 0.5
+        },
+        "R": {
+          "type": "dc",
+          "level": -0.25
+        }
+      }
+    }
+  ]
+}

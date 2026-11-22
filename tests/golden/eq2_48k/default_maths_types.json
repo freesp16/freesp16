@@ -1,0 +1,78 @@
+{
+  "format": "golden-case/1",
+  "name": "eq2_48k",
+  "case": "default_maths_types",
+  "description": "band 1 low shelf +9 dB / band 2 peak \u221212 dB with the default (std::) maths",
+  "subject": "fx.eq2",
+  "model": "fx_eq2",
+  "sample_rate": 48000.0,
+  "block": 64,
+  "blocks": 24,
+  "frames": 1536,
+  "params": {
+    "init": {
+      "type1": 4,
+      "type2": 2,
+      "k": {"0": 0.333, "1": 0.8667, "3": 0.777, "4": 0.4, "5": 0.2}
+    },
+    "fs": 48000
+  },
+  "tolerance": {"max_rel": 0.0001, "residual_dbfs": -80.0, "floor": 1e-30},
+  "window": [0, 1536],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "default_maths_types.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 1000.0, "amplitude": 0.3},
+          {"type": "noise", "seed": 71, "amplitude": 0.3}
+        ]
+      },
+      "R": {"type": "noise", "seed": 72, "amplitude": 0.5}
+    },
+    "sha256": "731446a20038f402bb284f7c056defa3b1b38cf39163de03713f4603dd497f54"
+  },
+  "expected": {
+    "file": "default_maths_types.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "9ca3f4ac378ade79ee56d6180e8a385822fd6a0cb8b1415f0c879ab3fd056319"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/mmf.py",
+      "licence": "MIT",
+      "sha256": "ff256ee75f4b57f91760b43e3c750ffb5133dfc8bdd088c73225429a42310a3d"
+    },
+    {
+      "file": "tools/fx/peq.py",
+      "licence": "MIT",
+      "sha256": "15aa6e4437bd54beeaa8834a399ae667387e3699dc4f0cf949d1aba7a0e8e498"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

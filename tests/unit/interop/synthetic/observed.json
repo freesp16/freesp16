@@ -1,0 +1,48 @@
+{
+  "name": "Observed",
+  "schema": "observed",
+  "version": [3, 0],
+  "project": {"projectBpm": 126.0, "swingRate": 20, "patternQuantizeUnit": 262145, "padQuantizeUnit": 65552},
+  "scenes": {
+    "1": {
+      "props": {"name": "OBS"},
+      "tracks": {
+        "1": {"PlaybackData": {"audioSourceUrl": "$Ext0/%Smp/Kit/kick.wav", "lengthSample": 5292, "stretchMode": "MT"},
+              "AmpEnvelopeData": {"attackNorm": 0.07874015718698502, "releaseNorm": 0.31496062874794006,
+                                  "bVelocityEffective": true},
+              "InsertFx0": {"effectType": "FxType_MultiModeFilter", "bType1": "FilterTypeHighPass", "bType2": "FilterOrder4"},
+              "InsertFx1": {"effectType": "FxType_LoFi", "bType1": "FilterTypeLowPass", "bType2": "FilterPositionPre"}},
+        "2": {"PlaybackData": {"audioSourceUrl": "$Ext0/%Smp/Kit/tone.wav", "lengthSample": 4410, "stretchMode": "RS"},
+              "InsertFx0": {"effectType": "FxType_Ducker", "bType1": "SourceTrack3", "bSync": true},
+              "InsertFx1": {"effectType": "Flanger", "bType1": "FilterTypeLowPass", "bType2": "FilterOrder2"}},
+        "3": {"InsertFx0": {"effectType": "FxType_2BandEQ", "bType1": "FilterTypeHighShelving", "bType2": "FilterTypePeaking"},
+              "InsertFx1": {"effectType": "FxType_InsertDelay"}},
+        "4": {"TrackData": {"chokeGroup": 3, "trackMode": "Midi"},
+              "MidiTrackData/MidiCc1Data": {"param3CcNo": 20, "param3Value": 64, "param3Active": 1, "pitchBendActive": 1},
+              "MidiTrackData/MidiCc2Data": {"param6Active": 1, "MidiBypassFlg": 1},
+              "MidiTrackData/MidiOtherData": {"programchange": 5},
+              "MidiTrackData/MidiNoteData": {"length": 8, "note2": 64}},
+        "5": {"SequencerData": {"retriggerSpeed": 65537, "stepShiftArea": 0}}
+      },
+      "patterns": {
+        "1": {"Length": 16, "steps": [
+          {"step": 1, "track": 1, "trigger": 0, "value2": 0, "type": 15},
+          {"step": 5, "track": 1, "trigger": 7, "value2": 22, "type": 15, "locks": {"0": {"raw": -700}, "15": {"raw": 50}}},
+          {"step": 9, "track": 1, "trigger": 3, "value2": 9, "type": 15,
+           "locks": {"14": {"raw": -20}, "7": {"k127": 30}, "28": {"norm": 0.5, "idx": 9}}},
+          {"step": 13, "track": 1, "trigger": 12, "value2": 63, "type": 15,
+           "locks": {"10": {"raw": 1}, "11": {"raw": 1}, "12": {"raw": 2}}},
+          {"step": 3, "track": 2, "trigger": 1, "value2": 40, "type": 15},
+          {"step": 11, "track": 2, "trigger": 0, "value2": 0, "type": 15}
+        ]}
+      },
+      "SendFx": {"effectType": "Reverb"},
+      "MasterFx": {"effectType": "FxType_Compressor", "bBypass": true}
+    }
+  },
+  "extraProps": [{"path": "SceneData0/RoutingData/TrackRoutingData2", "name": "assignableOutCh", "value": "AssignTo56"}],
+  "samples": {
+    "Kit/kick.wav": {"freq": 80, "ms": 120, "gain": 0.8, "dat": {"bar": 0.25, "bpm": 0.0, "sampleNum": 7}},
+    "Kit/tone.wav": {"freq": 660, "ms": 100, "gain": 0.6}
+  }
+}

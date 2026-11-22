@@ -1,0 +1,76 @@
+{
+  "format": "golden-case/1",
+  "name": "compressor",
+  "case": "send_rms_soft",
+  "description": "Send/Master without look-ahead: RMS, soft knee, make-up 12 dB, Mix 0.7",
+  "subject": "fx.compressor",
+  "model": "compressor",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 300,
+  "frames": 19200,
+  "params": {
+    "send": true,
+    "threshold": 0.4230769230769231,
+    "ratio": 0.06896551724137931,
+    "attack": 0.03732809430255403,
+    "release": 0.12280701754385964,
+    "knee": 1,
+    "detect": 1,
+    "gain": 0.24,
+    "mix": 0.7,
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 0.0001, "residual_dbfs": -90.0, "floor": 1e-30},
+  "window": [0, 19200],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "send_rms_soft.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 31, "amplitude": 0.9},
+      "R": {"type": "sweep", "f0": 40.0, "octaves": 8.0, "amplitude": 0.6}
+    },
+    "sha256": "b848318e6198ab86c005216a395cb6a2297d66db118025bd4d91d94ed9648a20"
+  },
+  "expected": {
+    "file": "send_rms_soft.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "4f93c6eb3ebcd6ffbf17e3bdfab90509bcff4ad6ec03c7a13a7676a635f8ff3b"
+  },
+  "tables": {
+    "expf": {
+      "source": "crmath.expf (correctly rounded) in place of the glibc 2.13 expf",
+      "f32_bits": []
+    }
+  },
+  "models": [
+    {
+      "file": "tools/fx/compressor.py",
+      "licence": "MIT",
+      "sha256": "94e947f607d6e841cdd1bf850255554cd3be2bc94a5e9c7a455c3944fec32265"
+    },
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/glibc_log10.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b1e727188a6c7763c77d94227fd8d6f39bb0211bb5af4ddd5018aa52202d8972"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

@@ -1,0 +1,759 @@
+{
+  "model": "compressor",
+  "subject": "fx.compressor",
+  "local_only": false,
+  "comment": "app-maths golden (crmath.expf for glibc expf)",
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 0.0001,
+    "residual_dbfs": -90.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "neutral",
+      "description": "the defaults are neutral (0 dB, 1:1, Mix 100 %)",
+      "blocks": 64,
+      "params": {
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 31,
+          "amplitude": 0.9
+        },
+        "R": {
+          "type": "sweep",
+          "f0": 40.0,
+          "octaves": 8.0,
+          "amplitude": 0.6
+        }
+      }
+    },
+    {
+      "id": "ratios",
+      "description": "threshold -20 dB, ratio 1, 4, 30 (events), attack 2 ms, release 100 ms, peak, level steps",
+      "blocks": 400,
+      "params": {
+        "threshold": 0.6153846153846154,
+        "ratio": 0.0,
+        "attack": 0.019646365422396856,
+        "release": 0.022556390977443608,
+        "events": [
+          {
+            "block": 100,
+            "k": 1,
+            "v": 0.10344827586206896
+          },
+          {
+            "block": 250,
+            "k": 1,
+            "v": 1.0
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.05,
+              "length": 4096
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.7,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.02,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.9,
+              "start": 16384
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.03,
+              "length": 4096
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.5,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 5,
+              "amplitude": 0.01,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 6,
+              "amplitude": 0.8,
+              "start": 16384
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "thresholds",
+      "description": "ratio 8, thresholds -52, -26 and 0 dB",
+      "blocks": 400,
+      "params": {
+        "threshold": 0.0,
+        "ratio": 0.2413793103448276,
+        "attack": 0.018664047151277015,
+        "release": 0.010025062656641603,
+        "events": [
+          {
+            "block": 130,
+            "k": 0,
+            "v": 0.5
+          },
+          {
+            "block": 270,
+            "k": 0,
+            "v": 1.0
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.05,
+              "length": 4096
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.7,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.02,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.9,
+              "start": 16384
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.03,
+              "length": 4096
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.5,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 5,
+              "amplitude": 0.01,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 6,
+              "amplitude": 0.8,
+              "start": 16384
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "attack_fast",
+      "description": "attack 0.05 ms and 1 ms, release 10 ms",
+      "blocks": 400,
+      "params": {
+        "threshold": 0.5384615384615384,
+        "ratio": 0.1724137931034483,
+        "attack": 0.0,
+        "release": 0.0,
+        "events": [
+          {
+            "block": 200,
+            "k": 2,
+            "v": 0.018664047151277015
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.05,
+              "length": 4096
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.7,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.02,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.9,
+              "start": 16384
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.03,
+              "length": 4096
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.5,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 5,
+              "amplitude": 0.01,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 6,
+              "amplitude": 0.8,
+              "start": 16384
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "attack_slow",
+      "description": "attack 2 ms and 1000 ms, release 4000 ms",
+      "blocks": 400,
+      "params": {
+        "threshold": 0.4230769230769231,
+        "ratio": 0.3103448275862069,
+        "attack": 0.019646365422396856,
+        "release": 1.0,
+        "events": [
+          {
+            "block": 200,
+            "k": 2,
+            "v": 1.0
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.05,
+              "length": 4096
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.7,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.02,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.9,
+              "start": 16384
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.03,
+              "length": 4096
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.5,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 5,
+              "amplitude": 0.01,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 6,
+              "amplitude": 0.8,
+              "start": 16384
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "soft_knee",
+      "description": "soft knee (18 dB) against hard, ratio 4, threshold -18 dB",
+      "blocks": 400,
+      "params": {
+        "threshold": 0.6538461538461539,
+        "ratio": 0.10344827586206896,
+        "attack": 0.022593320235756387,
+        "release": 0.047619047619047616,
+        "knee": 1,
+        "events": [
+          {
+            "block": 200,
+            "k": "knee",
+            "v": 0
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.05,
+              "length": 4096
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.7,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.02,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.9,
+              "start": 16384
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.03,
+              "length": 4096
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.5,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 5,
+              "amplitude": 0.01,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 6,
+              "amplitude": 0.8,
+              "start": 16384
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "makeup_mix",
+      "description": "gain 0, 6 and 50 dB; Mix 0, 0.5 and 1 (parallel compression)",
+      "blocks": 360,
+      "params": {
+        "threshold": 0.23076923076923078,
+        "ratio": 0.6551724137931034,
+        "attack": 0.0206286836935167,
+        "release": 0.017543859649122806,
+        "gain": 0.12,
+        "mix": 0.5,
+        "events": [
+          {
+            "block": 120,
+            "k": 4,
+            "v": 1.0
+          },
+          {
+            "block": 120,
+            "k": 5,
+            "v": 0.0
+          },
+          {
+            "block": 240,
+            "k": 4,
+            "v": 0.0
+          },
+          {
+            "block": 240,
+            "k": 5,
+            "v": 1.0
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.05,
+              "length": 4096
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.7,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.02,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.9,
+              "start": 16384
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.03,
+              "length": 4096
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.5,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 5,
+              "amplitude": 0.01,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 6,
+              "amplitude": 0.8,
+              "start": 16384
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "rms",
+      "description": "RMS detection (3 ms window), ratio 5, threshold -24 dB",
+      "blocks": 400,
+      "params": {
+        "threshold": 0.5384615384615384,
+        "ratio": 0.13793103448275862,
+        "attack": 0.0275049115913556,
+        "release": 0.07268170426065163,
+        "detect": 1,
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.05,
+              "length": 4096
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.7,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.02,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.9,
+              "start": 16384
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.03,
+              "length": 4096
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.5,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 5,
+              "amplitude": 0.01,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 6,
+              "amplitude": 0.8,
+              "start": 16384
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "send_lookahead",
+      "description": "Send/Master: look-ahead on from the start, then off (block 150) and on again (block 300)",
+      "blocks": 400,
+      "params": {
+        "send": true,
+        "lookahead": 1,
+        "threshold": 0.6153846153846154,
+        "ratio": 0.3103448275862069,
+        "attack": 0.018664047151277015,
+        "release": 0.012531328320802004,
+        "events": [
+          {
+            "block": 150,
+            "k": "lookahead",
+            "v": 0
+          },
+          {
+            "block": 300,
+            "k": "lookahead",
+            "v": 1
+          }
+        ],
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.05,
+              "length": 4096
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.7,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.02,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "sine",
+              "freq": 997.0,
+              "amplitude": 0.9,
+              "start": 16384
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.03,
+              "length": 4096
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.5,
+              "start": 4096,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 5,
+              "amplitude": 0.01,
+              "start": 10240,
+              "length": 6144
+            },
+            {
+              "type": "noise",
+              "seed": 6,
+              "amplitude": 0.8,
+              "start": 16384
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "send_rms_soft",
+      "description": "Send/Master without look-ahead: RMS, soft knee, make-up 12 dB, Mix 0.7",
+      "blocks": 300,
+      "params": {
+        "send": true,
+        "threshold": 0.4230769230769231,
+        "ratio": 0.06896551724137931,
+        "attack": 0.03732809430255403,
+        "release": 0.12280701754385964,
+        "knee": 1,
+        "detect": 1,
+        "gain": 0.24,
+        "mix": 0.7,
+        "fs": 44100
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 31,
+          "amplitude": 0.9
+        },
+        "R": {
+          "type": "sweep",
+          "f0": 40.0,
+          "octaves": 8.0,
+          "amplitude": 0.6
+        }
+      }
+    }
+  ]
+}

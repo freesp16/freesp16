@@ -1,0 +1,905 @@
+{
+  "model": "lofi",
+  "subject": "fx.effect",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 1e-05,
+    "residual_dbfs": -100.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "defaults_noise",
+      "description": "defaults (filter off, crusher and reducer off, mix 1): the FX-980 start-up gates, noise",
+      "blocks": 24,
+      "params": {
+        "effect": "lofi"
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.7
+        }
+      }
+    },
+    {
+      "id": "hp_pre",
+      "description": "filter HP, position pre, preamp 0.3, 9 bits, reduction 0.7, cutoff 0.45, resonance 0.4",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "2": 0.5,
+          "3": 0.45,
+          "4": 0.4
+        },
+        "options": {
+          "0": 0,
+          "1": 0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1000.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.3
+            }
+          ]
+        },
+        "R": {
+          "type": "noise",
+          "seed": 4,
+          "amplitude": 0.7
+        }
+      }
+    },
+    {
+      "id": "hp_post",
+      "description": "filter HP, position post, preamp 0.3, 9 bits, reduction 0.7, cutoff 0.45, resonance 0.4",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "2": 0.5,
+          "3": 0.45,
+          "4": 0.4
+        },
+        "options": {
+          "0": 0,
+          "1": 1
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 5,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 220.0,
+          "amplitude": 0.8,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "lp_pre",
+      "description": "filter LP, position pre, preamp 0.3, 9 bits, reduction 0.7, cutoff 0.45, resonance 0.4",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "2": 0.5,
+          "3": 0.45,
+          "4": 0.4
+        },
+        "options": {
+          "0": 1,
+          "1": 0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            0,
+            100,
+            700,
+            1500
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            10,
+            900
+          ],
+          "amplitude": 1.0
+        }
+      }
+    },
+    {
+      "id": "lp_post",
+      "description": "filter LP, position post, preamp 0.3, 9 bits, reduction 0.7, cutoff 0.45, resonance 0.4",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "2": 0.5,
+          "3": 0.45,
+          "4": 0.4
+        },
+        "options": {
+          "0": 1,
+          "1": 1
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 1000.0,
+          "amplitude": 0.9,
+          "phase": 0.0
+        },
+        "R": {
+          "type": "noise",
+          "seed": 6,
+          "amplitude": 0.5
+        }
+      }
+    },
+    {
+      "id": "bp_pre",
+      "description": "filter BP, position pre, preamp 0.3, 9 bits, reduction 0.7, cutoff 0.45, resonance 0.4",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "2": 0.5,
+          "3": 0.45,
+          "4": 0.4
+        },
+        "options": {
+          "0": 2,
+          "1": 0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1000.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.3
+            }
+          ]
+        },
+        "R": {
+          "type": "noise",
+          "seed": 4,
+          "amplitude": 0.7
+        }
+      }
+    },
+    {
+      "id": "bp_post",
+      "description": "filter BP, position post, preamp 0.3, 9 bits, reduction 0.7, cutoff 0.45, resonance 0.4",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "2": 0.5,
+          "3": 0.45,
+          "4": 0.4
+        },
+        "options": {
+          "0": 2,
+          "1": 1
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 5,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 220.0,
+          "amplitude": 0.8,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "off_pre",
+      "description": "filter OFF, position pre, preamp 0.3, 9 bits, reduction 0.7, cutoff 0.45, resonance 0.4",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "2": 0.5,
+          "3": 0.45,
+          "4": 0.4
+        },
+        "options": {
+          "0": 3,
+          "1": 0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            0,
+            100,
+            700,
+            1500
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            10,
+            900
+          ],
+          "amplitude": 1.0
+        }
+      }
+    },
+    {
+      "id": "off_post",
+      "description": "filter OFF, position post, preamp 0.3, 9 bits, reduction 0.7, cutoff 0.45, resonance 0.4",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "2": 0.5,
+          "3": 0.45,
+          "4": 0.4
+        },
+        "options": {
+          "0": 3,
+          "1": 1
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 1000.0,
+          "amplitude": 0.9,
+          "phase": 0.0
+        },
+        "R": {
+          "type": "noise",
+          "seed": 6,
+          "amplitude": 0.5
+        }
+      }
+    },
+    {
+      "id": "bits1_red0_pre0",
+      "description": "1 bit, reduction 0 (44 Hz hold), preamp 0, noise",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 7,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "noise",
+          "seed": 8,
+          "amplitude": 0.7
+        }
+      }
+    },
+    {
+      "id": "bits4_red01_pre05",
+      "description": "4 bits, reduction 0.1, preamp 0.5 (21 dB), sine",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.5,
+          "1": 0.1,
+          "2": 0.17647058823529413
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 330.0,
+          "amplitude": 0.5,
+          "phase": 0.0
+        },
+        "R": {
+          "type": "sine",
+          "freq": 1000.0,
+          "amplitude": 0.2,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "bits9_red05_pre1",
+      "description": "9 bits, reduction 0.5 (1,395 Hz), preamp 1 (42 dB), noise",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 1.0,
+          "1": 0.5,
+          "2": 0.5
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 9,
+          "amplitude": 0.3
+        },
+        "R": {
+          "type": "noise",
+          "seed": 10,
+          "amplitude": 0.05
+        }
+      }
+    },
+    {
+      "id": "bits16_red1_pre05",
+      "description": "16 bits, reduction off, preamp 0.5, quiet sine (fine steps of the sqrt companding)",
+      "blocks": 32,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.5,
+          "1": 1.0,
+          "2": 0.8823529411764706
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 997.0,
+          "amplitude": 0.01,
+          "phase": 0.0
+        },
+        "R": {
+          "type": "sine",
+          "freq": 50.0,
+          "amplitude": 0.001,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "bits24_lp",
+      "description": "24 bits, LP Post at 0.8, resonance 1 (Q 10), sine sweep",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "2": 0.9411764705882353,
+          "3": 0.8,
+          "4": 1.0
+        },
+        "options": {
+          "0": 1
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sweep",
+          "f0": 40.0,
+          "octaves": 9.0,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 11,
+          "amplitude": 0.4
+        }
+      }
+    },
+    {
+      "id": "cutoff_glide",
+      "description": "LP Post: cutoff 0.5 \u2192 0.55 (a glide below 38 steps) \u2192 0.3 (a gated jump) \u2192 0.31, resonance changes",
+      "blocks": 64,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "3": 0.5,
+          "4": 0.2
+        },
+        "options": {
+          "0": 1
+        },
+        "events": [
+          {
+            "block": 6,
+            "k": 3,
+            "v": 0.55
+          },
+          {
+            "block": 14,
+            "k": 3,
+            "v": 0.3
+          },
+          {
+            "block": 22,
+            "k": 3,
+            "v": 0.31
+          },
+          {
+            "block": 30,
+            "k": 4,
+            "v": 0.8
+          },
+          {
+            "block": 31,
+            "k": 3,
+            "v": 0.6
+          },
+          {
+            "block": 44,
+            "k": 4,
+            "v": 0.05
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 12,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 700.0,
+          "amplitude": 0.5,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "type_switches",
+      "description": "type HP \u2192 LP \u2192 BP \u2192 Off \u2192 HP every 8 blocks (gate crossfade, the new filter re-filters 4 inputs)",
+      "blocks": 56,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "3": 0.6,
+          "4": 0.3
+        },
+        "options": {
+          "0": 0
+        },
+        "events": [
+          {
+            "block": 8,
+            "option": 0,
+            "value": 1
+          },
+          {
+            "block": 16,
+            "option": 0,
+            "value": 2
+          },
+          {
+            "block": 24,
+            "option": 0,
+            "value": 3
+          },
+          {
+            "block": 32,
+            "option": 0,
+            "value": 0
+          },
+          {
+            "block": 33,
+            "k": 3,
+            "v": 0.2
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 13,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 440.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 14,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "position_switches",
+      "description": "BP: position Post \u2192 Pre \u2192 Post (132-sample position gate), with the filter off the swap is immediate",
+      "blocks": 56,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.4,
+          "2": 0.4,
+          "3": 0.5
+        },
+        "options": {
+          "0": 2,
+          "1": 1
+        },
+        "events": [
+          {
+            "block": 8,
+            "option": 1,
+            "value": 0
+          },
+          {
+            "block": 20,
+            "option": 1,
+            "value": 1
+          },
+          {
+            "block": 30,
+            "option": 0,
+            "value": 3
+          },
+          {
+            "block": 36,
+            "option": 1,
+            "value": 0
+          },
+          {
+            "block": 44,
+            "option": 0,
+            "value": 1
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 15,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "noise",
+          "seed": 16,
+          "amplitude": 0.7
+        }
+      }
+    },
+    {
+      "id": "params_every_block",
+      "description": "preamp, bits, reduction and resonance changed every few blocks (44-sample preamp ramp)",
+      "blocks": 48,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "0": 0.1,
+          "1": 0.9,
+          "2": 0.6
+        },
+        "options": {
+          "0": 1
+        },
+        "events": [
+          {
+            "block": 2,
+            "k": 1,
+            "v": 0.8
+          },
+          {
+            "block": 5,
+            "k": 2,
+            "v": 1.0
+          },
+          {
+            "block": 8,
+            "k": 0,
+            "v": 0.8
+          },
+          {
+            "block": 11,
+            "k": 4,
+            "v": 1.0
+          },
+          {
+            "block": 14,
+            "k": 1,
+            "v": 0.8
+          },
+          {
+            "block": 17,
+            "k": 2,
+            "v": 1.0
+          },
+          {
+            "block": 20,
+            "k": 0,
+            "v": 0.8
+          },
+          {
+            "block": 23,
+            "k": 4,
+            "v": 1.0
+          },
+          {
+            "block": 26,
+            "k": 1,
+            "v": 0.8
+          },
+          {
+            "block": 29,
+            "k": 2,
+            "v": 1.0
+          },
+          {
+            "block": 32,
+            "k": 0,
+            "v": 0.8
+          },
+          {
+            "block": 35,
+            "k": 4,
+            "v": 1.0
+          },
+          {
+            "block": 38,
+            "k": 1,
+            "v": 0.8
+          },
+          {
+            "block": 41,
+            "k": 2,
+            "v": 1.0
+          },
+          {
+            "block": 44,
+            "k": 0,
+            "v": 0.8
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 1000.0,
+          "amplitude": 0.7,
+          "phase": 0.0
+        },
+        "R": {
+          "type": "noise",
+          "seed": 17,
+          "amplitude": 0.6
+        }
+      }
+    },
+    {
+      "id": "three_activations",
+      "description": "reduction 0 (hold step 1,002): activate, stop, re-activate twice (FX-981 silent run), LP glide interrupted by a stop",
+      "blocks": 72,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "1": 0.0,
+          "3": 0.3
+        },
+        "options": {
+          "0": 1
+        },
+        "events": [
+          {
+            "block": 10,
+            "k": 3,
+            "v": 0.7
+          },
+          {
+            "block": 12,
+            "op": "stop"
+          },
+          {
+            "block": 22,
+            "op": "activate"
+          },
+          {
+            "block": 40,
+            "op": "stop"
+          },
+          {
+            "block": 46,
+            "k": 1,
+            "v": 0.1
+          },
+          {
+            "block": 50,
+            "op": "activate"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 18,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 1000.0,
+          "amplitude": 0.5,
+          "phase": 0.0
+        }
+      }
+    },
+    {
+      "id": "late_activation",
+      "description": "pass-through until block 5, then activation; reduction 0.2",
+      "blocks": 24,
+      "params": {
+        "effect": "lofi",
+        "activate": false,
+        "init": {
+          "1": 0.2,
+          "2": 0.4
+        },
+        "events": [
+          {
+            "block": 5,
+            "op": "activate"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 19,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "noise",
+          "seed": 20,
+          "amplitude": 0.7
+        }
+      }
+    },
+    {
+      "id": "impulses",
+      "description": "impulse and late impulse, HP Pre, 6 bits",
+      "blocks": 40,
+      "params": {
+        "effect": "lofi",
+        "init": {
+          "2": 0.29411764705882354,
+          "3": 0.2
+        },
+        "options": {
+          "0": 0,
+          "1": 0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            0,
+            2000
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            5,
+            1400
+          ],
+          "amplitude": 0.5
+        }
+      }
+    },
+    {
+      "id": "fs48k_lp",
+      "description": "48 kHz: LP Post, reduction 0.1 (385-sample drop-out), 8 bits",
+      "blocks": 48,
+      "params": {
+        "effect": "lofi",
+        "fs": 48000,
+        "init": {
+          "1": 0.1,
+          "2": 0.4117647058823529,
+          "3": 0.5
+        },
+        "options": {
+          "0": 1
+        },
+        "events": [
+          {
+            "block": 20,
+            "op": "stop"
+          },
+          {
+            "block": 26,
+            "op": "activate"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 21,
+          "amplitude": 0.7
+        },
+        "R": {
+          "type": "sine",
+          "freq": 1000.0,
+          "amplitude": 0.6,
+          "phase": 0.0
+        }
+      }
+    }
+  ]
+}

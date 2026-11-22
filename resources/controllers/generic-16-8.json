@@ -1,0 +1,40 @@
+{
+  "$description": "Generic 16 + 8 (03-ui/control-surface.md UI-131): 16 pads and 8 endless encoders on one channel (10), the fallback for any port marked as a controller. Details the spec leaves open (our choice): relative CCs are two's complement; note 55 held = ext.steps (pad bank, UI-133); pad lamps = note-on on the pad's note with the velocity of the nearest colour of the rgb palette (0 off, 1-16 the track palette, then white, red, green, blue, amber); PLAY / STOP / REC lamps = CC 115 / 116 / 117 value 127 on, 0 off.",
+  "schema": 1,
+  "id": "generic-16-8",
+  "name": "Generic 16 + 8",
+  "ports": "*",
+  "channel": 10,
+  "padBank": true,
+  "in": [
+    {"note": 36, "count": 16, "control": "pad.1", "aftertouch": true},
+    {"cc": 70, "count": 6, "enc": "twos", "control": "enc.1"},
+    {"cc": 76, "enc": "twos", "control": "sel"},
+    {"cc": 77, "enc": "twos", "control": "main.volume", "scale": 8},
+    {"note": 52, "control": "sel.push"},
+    {"note": 53, "control": "back"},
+    {"note": 54, "control": "home"},
+    {"note": 55, "control": "ext.steps"},
+    {"mmc": "play", "control": "play"},
+    {"mmc": "stop", "control": "stop"},
+    {"mmc": "record", "control": "rec"},
+    {"cc": 115, "control": "play"},
+    {"cc": 116, "control": "stop"},
+    {"cc": 117, "control": "rec"},
+    {"cc": 118, "control": "shift"},
+    {"pitchbend": true, "control": "strip"},
+    {"cc": 119, "enc": "contact", "control": "strip"}
+  ],
+  "palettes": {
+    "rgb": ["000000", "FF7E72", "FD8358", "F68C36", "EA9602", "D9A100", "C3AC00", "94BB3B", "51C672", "00CA9B",
+            "00C7D2", "3FB3FF", "88A2FF", "B394FF", "D787E9", "F07EC2", "FE7B94", "FFFFFF", "FF1E28", "28F03C",
+            "2050FF", "FFB020"],
+    "mono": ["000000:0", "FFFFFF:127"]
+  },
+  "lamps": [
+    {"control": "pad.1", "count": 16, "note": 36, "palette": "rgb"},
+    {"control": "play", "cc": 115, "palette": "mono"},
+    {"control": "stop", "cc": 116, "palette": "mono"},
+    {"control": "rec", "cc": 117, "palette": "mono"}
+  ]
+}

@@ -1,0 +1,577 @@
+{
+  "model": "oscillator",
+  "subject": "fx.oscillator",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 1e-06,
+    "residual_dbfs": -100.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "sine_0p1hz",
+      "description": "sine 0.1 Hz, R phase 0.25, smoother on, every 64th sample over 7,680 blocks",
+      "blocks": 120,
+      "params": {
+        "wave": 0,
+        "freq": 0.1,
+        "phase": 0.25,
+        "stride": 64
+      }
+    },
+    {
+      "id": "sine_2hz",
+      "description": "sine 2 Hz, phase 0, smoother on",
+      "blocks": 40,
+      "params": {
+        "wave": 0,
+        "freq": 2.0,
+        "phase": 0.0,
+        "stride": 4
+      }
+    },
+    {
+      "id": "sine_10hz",
+      "description": "sine 10 Hz, phase 0.5, smoothing off",
+      "blocks": 40,
+      "params": {
+        "wave": 0,
+        "freq": 10.0,
+        "phase": 0.5,
+        "smoothing_off": true
+      }
+    },
+    {
+      "id": "sine_64hz",
+      "description": "sine 64 Hz, phase 0.25, smoother 200 Hz",
+      "blocks": 40,
+      "params": {
+        "wave": 0,
+        "freq": 64.0,
+        "phase": 0.25,
+        "smoothing_hz": 200.0
+      }
+    },
+    {
+      "id": "sine_10000_blocks",
+      "description": "chorus-like sine 3.7 Hz (amplitude 22.05, offset 22.25), the last sample of each of 10,048 blocks: crosses the renormalisation every second (FX-1304)",
+      "blocks": 157,
+      "params": {
+        "wave": 0,
+        "freq": 3.7,
+        "amp": 22.05,
+        "offset": 22.25,
+        "stride": 64
+      }
+    },
+    {
+      "id": "sine_set_frequency",
+      "description": "sine 3 Hz \u2192 7.5 Hz \u2192 1.2 Hz mid-run, phase-continuous (FX-1306)",
+      "blocks": 32,
+      "params": {
+        "wave": 0,
+        "freq": 3.0,
+        "phase": 0.1,
+        "stride": 4,
+        "events": [
+          {
+            "block": 8,
+            "op": "set_frequency",
+            "v": 7.5
+          },
+          {
+            "block": 16,
+            "op": "set_frequency",
+            "v": 1.2
+          }
+        ]
+      }
+    },
+    {
+      "id": "sine_reset_phase",
+      "description": "sine 5 Hz, resetPhase 0.3 at block 6 and 0 at block 20 (FX-1307)",
+      "blocks": 32,
+      "params": {
+        "wave": 0,
+        "freq": 5.0,
+        "stride": 2,
+        "events": [
+          {
+            "block": 6,
+            "op": "reset_phase",
+            "v": 0.3
+          },
+          {
+            "block": 20,
+            "op": "reset_phase",
+            "v": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "triangle_0p1hz",
+      "description": "triangle 0.1 Hz, stride 64, phase 0.0",
+      "blocks": 110,
+      "params": {
+        "wave": 1,
+        "freq": 0.1,
+        "stride": 64,
+        "phase": 0.0
+      }
+    },
+    {
+      "id": "triangle_2hz",
+      "description": "triangle 2 Hz, stride 16, phase 0.25, smoothing_off True",
+      "blocks": 32,
+      "params": {
+        "wave": 1,
+        "freq": 2.0,
+        "stride": 16,
+        "phase": 0.25,
+        "smoothing_off": true
+      }
+    },
+    {
+      "id": "triangle_10hz",
+      "description": "triangle 10 Hz, stride 4, phase 0.5",
+      "blocks": 32,
+      "params": {
+        "wave": 1,
+        "freq": 10.0,
+        "stride": 4,
+        "phase": 0.5
+      }
+    },
+    {
+      "id": "triangle_64hz",
+      "description": "triangle 64 Hz, stride 1, phase 0.25, smoothing_hz 200.0",
+      "blocks": 32,
+      "params": {
+        "wave": 1,
+        "freq": 64.0,
+        "stride": 1,
+        "phase": 0.25,
+        "smoothing_hz": 200.0
+      }
+    },
+    {
+      "id": "saw_0p1hz",
+      "description": "saw 0.1 Hz, stride 64, phase 0.0",
+      "blocks": 110,
+      "params": {
+        "wave": 2,
+        "freq": 0.1,
+        "stride": 64,
+        "phase": 0.0
+      }
+    },
+    {
+      "id": "saw_2hz",
+      "description": "saw 2 Hz, stride 16, phase 0.25, smoothing_off True",
+      "blocks": 32,
+      "params": {
+        "wave": 2,
+        "freq": 2.0,
+        "stride": 16,
+        "phase": 0.25,
+        "smoothing_off": true
+      }
+    },
+    {
+      "id": "saw_10hz",
+      "description": "saw 10 Hz, stride 4, phase 0.5",
+      "blocks": 32,
+      "params": {
+        "wave": 2,
+        "freq": 10.0,
+        "stride": 4,
+        "phase": 0.5
+      }
+    },
+    {
+      "id": "saw_64hz",
+      "description": "saw 64 Hz, stride 1, phase 0.25, smoothing_hz 200.0",
+      "blocks": 32,
+      "params": {
+        "wave": 2,
+        "freq": 64.0,
+        "stride": 1,
+        "phase": 0.25,
+        "smoothing_hz": 200.0
+      }
+    },
+    {
+      "id": "pulse50_0p1hz",
+      "description": "pulse50 0.1 Hz, stride 64, phase 0.0",
+      "blocks": 110,
+      "params": {
+        "wave": 3,
+        "freq": 0.1,
+        "stride": 64,
+        "phase": 0.0
+      }
+    },
+    {
+      "id": "pulse50_2hz",
+      "description": "pulse50 2 Hz, stride 16, phase 0.25, smoothing_off True",
+      "blocks": 32,
+      "params": {
+        "wave": 3,
+        "freq": 2.0,
+        "stride": 16,
+        "phase": 0.25,
+        "smoothing_off": true
+      }
+    },
+    {
+      "id": "pulse50_10hz",
+      "description": "pulse50 10 Hz, stride 4, phase 0.5",
+      "blocks": 32,
+      "params": {
+        "wave": 3,
+        "freq": 10.0,
+        "stride": 4,
+        "phase": 0.5
+      }
+    },
+    {
+      "id": "pulse50_64hz",
+      "description": "pulse50 64 Hz, stride 1, phase 0.25, smoothing_hz 200.0",
+      "blocks": 32,
+      "params": {
+        "wave": 3,
+        "freq": 64.0,
+        "stride": 1,
+        "phase": 0.25,
+        "smoothing_hz": 200.0
+      }
+    },
+    {
+      "id": "pulse25_0p1hz",
+      "description": "pulse25 0.1 Hz, stride 64, phase 0.0",
+      "blocks": 110,
+      "params": {
+        "wave": 4,
+        "freq": 0.1,
+        "stride": 64,
+        "phase": 0.0
+      }
+    },
+    {
+      "id": "pulse25_2hz",
+      "description": "pulse25 2 Hz, stride 16, phase 0.25, smoothing_off True",
+      "blocks": 32,
+      "params": {
+        "wave": 4,
+        "freq": 2.0,
+        "stride": 16,
+        "phase": 0.25,
+        "smoothing_off": true
+      }
+    },
+    {
+      "id": "pulse25_10hz",
+      "description": "pulse25 10 Hz, stride 4, phase 0.5",
+      "blocks": 32,
+      "params": {
+        "wave": 4,
+        "freq": 10.0,
+        "stride": 4,
+        "phase": 0.5
+      }
+    },
+    {
+      "id": "pulse25_64hz",
+      "description": "pulse25 64 Hz, stride 1, phase 0.25, smoothing_hz 200.0",
+      "blocks": 32,
+      "params": {
+        "wave": 4,
+        "freq": 64.0,
+        "stride": 1,
+        "phase": 0.25,
+        "smoothing_hz": 200.0
+      }
+    },
+    {
+      "id": "pulse12_0p1hz",
+      "description": "pulse12 0.1 Hz, stride 64, phase 0.0",
+      "blocks": 110,
+      "params": {
+        "wave": 5,
+        "freq": 0.1,
+        "stride": 64,
+        "phase": 0.0
+      }
+    },
+    {
+      "id": "pulse12_2hz",
+      "description": "pulse12 2 Hz, stride 16, phase 0.25, smoothing_off True",
+      "blocks": 32,
+      "params": {
+        "wave": 5,
+        "freq": 2.0,
+        "stride": 16,
+        "phase": 0.25,
+        "smoothing_off": true
+      }
+    },
+    {
+      "id": "pulse12_10hz",
+      "description": "pulse12 10 Hz, stride 4, phase 0.5",
+      "blocks": 32,
+      "params": {
+        "wave": 5,
+        "freq": 10.0,
+        "stride": 4,
+        "phase": 0.5
+      }
+    },
+    {
+      "id": "pulse12_64hz",
+      "description": "pulse12 64 Hz, stride 1, phase 0.25, smoothing_hz 200.0",
+      "blocks": 32,
+      "params": {
+        "wave": 5,
+        "freq": 64.0,
+        "stride": 1,
+        "phase": 0.25,
+        "smoothing_hz": 200.0
+      }
+    },
+    {
+      "id": "triangle_set_frequency",
+      "description": "triangle 5 \u2192 13 \u2192 0.5 Hz (the counter keeps its phase fraction), amplitude 0.5 offset 0.5",
+      "blocks": 40,
+      "params": {
+        "wave": 1,
+        "freq": 5.0,
+        "amp": 0.5,
+        "offset": 0.5,
+        "phase": 0.3,
+        "stride": 4,
+        "events": [
+          {
+            "block": 10,
+            "op": "set_frequency",
+            "v": 13.0
+          },
+          {
+            "block": 20,
+            "op": "set_frequency",
+            "v": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "saw_reset_phase",
+      "description": "saw 20 Hz, resetPhase 0.3, phase offset change, amplitude change",
+      "blocks": 32,
+      "params": {
+        "wave": 2,
+        "freq": 20.0,
+        "smoothing_off": true,
+        "events": [
+          {
+            "block": 5,
+            "op": "reset_phase",
+            "v": 0.3
+          },
+          {
+            "block": 12,
+            "op": "set_phase_offset",
+            "v": 0.75
+          },
+          {
+            "block": 20,
+            "op": "set_amplitude",
+            "v": 0.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "pulse25_period_ms",
+      "description": "pulse 1/4 at a 37 ms period, then 12.5 ms; resetPhase 0.5",
+      "blocks": 32,
+      "params": {
+        "wave": 4,
+        "freq": 1.0,
+        "stride": 2,
+        "events": [
+          {
+            "block": 0,
+            "op": "set_period_ms",
+            "v": 37.0
+          },
+          {
+            "block": 10,
+            "op": "set_period_ms",
+            "v": 12.5
+          },
+          {
+            "block": 18,
+            "op": "reset_phase",
+            "v": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "triangle_hold",
+      "description": "triangle 8 Hz, f = 0 at block 6 enters hold (output frozen), smoother on",
+      "blocks": 24,
+      "params": {
+        "wave": 1,
+        "freq": 8.0,
+        "phase": 0.2,
+        "events": [
+          {
+            "block": 6,
+            "op": "set_frequency",
+            "v": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "sine_hold",
+      "description": "sine 6 Hz, hold at block 9",
+      "blocks": 20,
+      "params": {
+        "wave": 0,
+        "freq": 6.0,
+        "phase": 0.4,
+        "events": [
+          {
+            "block": 9,
+            "op": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "id": "smoothing_change",
+      "description": "pulse 1/2 30 Hz, smoother 50 \u2192 5 Hz \u2192 off \u2192 on",
+      "blocks": 40,
+      "params": {
+        "wave": 3,
+        "freq": 30.0,
+        "events": [
+          {
+            "block": 8,
+            "op": "set_smoothing_hz",
+            "v": 5.0
+          },
+          {
+            "block": 20,
+            "op": "smoothing_off",
+            "v": true
+          },
+          {
+            "block": 28,
+            "op": "smoothing_off",
+            "v": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "random_r_leads",
+      "description": "random 200 Hz, phase 0.2 (R leads: R draws, L takes R's previous value)",
+      "blocks": 64,
+      "params": {
+        "wave": 6,
+        "freq": 200.0,
+        "phase": 0.2,
+        "smoothing_off": true
+      }
+    },
+    {
+      "id": "random_l_leads_wrap",
+      "description": "random 150 Hz, phase 0.7 (L leads), index offset 8180 (the index wraps past 8192)",
+      "blocks": 64,
+      "params": {
+        "wave": 6,
+        "freq": 150.0,
+        "phase": 0.7,
+        "rand_offset": 8180,
+        "smoothing_off": true
+      }
+    },
+    {
+      "id": "random_smoothed",
+      "description": "random 5 Hz, smoother on, phase 0.5, resetPhase 0.9 at block 40",
+      "blocks": 80,
+      "params": {
+        "wave": 6,
+        "freq": 5.0,
+        "phase": 0.5,
+        "stride": 16,
+        "events": [
+          {
+            "block": 40,
+            "op": "reset_phase",
+            "v": 0.9
+          }
+        ]
+      }
+    },
+    {
+      "id": "random_offset_0x2000",
+      "description": "random 300 Hz, index offset 8192 (reads table[0] as the 8193rd word, our choice), set_frequency 40",
+      "blocks": 48,
+      "params": {
+        "wave": 6,
+        "freq": 300.0,
+        "rand_offset": 8192,
+        "smoothing_off": true,
+        "events": [
+          {
+            "block": 24,
+            "op": "set_frequency",
+            "v": 40.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "sine_48k_set_frequency",
+      "description": "48 kHz: sine 4 Hz \u2192 9 Hz (the reference's setFrequency period uses 44,100, FX-1380)",
+      "blocks": 32,
+      "params": {
+        "fs": 48000,
+        "wave": 0,
+        "freq": 4.0,
+        "stride": 4,
+        "events": [
+          {
+            "block": 10,
+            "op": "set_frequency",
+            "v": 9.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "triangle_48k_set_frequency",
+      "description": "48 kHz: triangle 30 Hz \u2192 45 Hz with the 44,100 Hz period quirk (FX-1380)",
+      "blocks": 32,
+      "params": {
+        "fs": 48000,
+        "wave": 1,
+        "freq": 30.0,
+        "events": [
+          {
+            "block": 8,
+            "op": "set_frequency",
+            "v": 45.0
+          }
+        ]
+      }
+    }
+  ]
+}

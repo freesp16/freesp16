@@ -1,0 +1,539 @@
+{
+  "model": "flanger",
+  "subject": "fx.mod",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 1e-05,
+    "residual_dbfs": -100.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "defaults",
+      "description": "app defaults (Mix 0: out = in, FX-263), noise",
+      "blocks": 40,
+      "params": {
+        "effect": "flanger"
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "defaults_mix1",
+      "description": "defaults with Mix 1: no start-up mute (FX-260), 0.2-4.61 samples",
+      "blocks": 120,
+      "params": {
+        "effect": "flanger",
+        "init": {
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "fb099_tail",
+      "description": "width 100, delay 7 ms, feedback 0.99, 1000 blocks into silence (FTZ floor)",
+      "blocks": 1000,
+      "params": {
+        "effect": "flanger",
+        "init": {
+          "0": 0.5,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            0,
+            37,
+            500,
+            2049
+          ],
+          "amplitude": 0.8
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            3,
+            900
+          ],
+          "amplitude": 0.6
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "knee",
+      "description": "delays straddling the 48-sample knee (delay x1.5: 0.2-66.35 samples, FX-223)",
+      "blocks": 160,
+      "params": {
+        "effect": "flanger",
+        "init": {
+          "0": 0.9,
+          "3": 0.2028985507246377,
+          "4": 0.5,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "knee_slow",
+      "description": "delay x1.1 (peak 48.7 samples), feedback 0.3",
+      "blocks": 160,
+      "params": {
+        "effect": "flanger",
+        "init": {
+          "0": 1.0,
+          "2": 0.3,
+          "3": 0.14492753623188406,
+          "4": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_1",
+      "description": "SYNC, 1 beat per cycle at 1 BPM",
+      "blocks": 120,
+      "params": {
+        "effect": "flanger",
+        "bpm": 1.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 1.0,
+          "3": 0.5,
+          "4": 0.4,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_87_5",
+      "description": "SYNC, 2 beats per cycle at 87.5 BPM",
+      "blocks": 120,
+      "params": {
+        "effect": "flanger",
+        "bpm": 87.5,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.8333333333333334,
+          "3": 0.5,
+          "4": 0.4,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_120",
+      "description": "SYNC, 1 beat per cycle at 120 BPM",
+      "blocks": 120,
+      "params": {
+        "effect": "flanger",
+        "bpm": 120.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 1.0,
+          "3": 0.5,
+          "4": 0.7,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_999",
+      "description": "SYNC at 999 BPM through every division (64 \u2026 1 beats)",
+      "blocks": 160,
+      "params": {
+        "effect": "flanger",
+        "bpm": 999.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.0,
+          "3": 0.3,
+          "4": 0.5,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 20,
+            "k": 0,
+            "v": 0.16666666666666666
+          },
+          {
+            "block": 40,
+            "k": 0,
+            "v": 0.3333333333333333
+          },
+          {
+            "block": 60,
+            "k": 0,
+            "v": 0.5
+          },
+          {
+            "block": 80,
+            "k": 0,
+            "v": 0.6666666666666666
+          },
+          {
+            "block": 100,
+            "k": 0,
+            "v": 0.8333333333333334
+          },
+          {
+            "block": 120,
+            "k": 0,
+            "v": 1.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "fb_changes",
+      "description": "feedback changes mid-run (at once), tempo changes in free mode",
+      "blocks": 160,
+      "params": {
+        "effect": "flanger",
+        "init": {
+          "0": 0.8,
+          "3": 0.6,
+          "4": 0.2,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 30,
+            "k": 4,
+            "v": 0.9
+          },
+          {
+            "block": 60,
+            "k": 4,
+            "v": 0.0
+          },
+          {
+            "block": 90,
+            "k": 4,
+            "v": 1.0
+          },
+          {
+            "block": 100,
+            "bpm": 133.0
+          },
+          {
+            "block": 120,
+            "k": 1,
+            "v": 0.3
+          },
+          {
+            "block": 130,
+            "k": 2,
+            "v": 1.0
+          },
+          {
+            "block": 140,
+            "k": 3,
+            "v": 0.0
+          },
+          {
+            "block": 150,
+            "k": 0,
+            "v": 0.2
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "retrigger_reset",
+      "description": "retrigger (FX-262) and stop + re-activation (FX-261: y_prev, index kept)",
+      "blocks": 160,
+      "params": {
+        "effect": "flanger",
+        "init": {
+          "0": 0.6,
+          "3": 0.5,
+          "4": 0.8,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 40,
+            "op": "retrigger"
+          },
+          {
+            "block": 70,
+            "op": "stop"
+          },
+          {
+            "block": 80,
+            "op": "activate"
+          },
+          {
+            "block": 120,
+            "op": "retrigger"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "rate_trap",
+      "description": "a first RATE of 0.5 = the constructor's last value: the 0.1 Hz of the kernel stays (F026)",
+      "blocks": 120,
+      "params": {
+        "effect": "flanger",
+        "init": {
+          "0": 0.5,
+          "3": 0.6,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "fs48k",
+      "description": "48 kHz engine: the reference kernel still runs at 44.1 kHz (FX-280)",
+      "blocks": 120,
+      "params": {
+        "effect": "flanger",
+        "fs": 48000,
+        "init": {
+          "0": 0.7,
+          "3": 0.5,
+          "4": 0.6,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    }
+  ]
+}

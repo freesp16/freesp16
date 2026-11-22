@@ -1,0 +1,78 @@
+{
+  "format": "golden-case/1",
+  "name": "filter",
+  "case": "reset_mid_glide",
+  "description": "reset (activation, FX-560) in the middle of a glide: the glide continues",
+  "subject": "fx.filter",
+  "model": "fx_filter",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 32,
+  "frames": 2048,
+  "params": {
+    "init": {
+      "k": {"3": 0.7}
+    },
+    "events": [
+      {
+        "block": 2,
+        "k": {"0": 0.1}
+      },
+      {"block": 6, "reset": true}
+    ],
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 2048],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "reset_mid_glide.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {
+        "type": "sum",
+        "parts": [
+          {"type": "sine", "freq": 1000.0, "amplitude": 0.3},
+          {"type": "noise", "seed": 19, "amplitude": 0.3}
+        ]
+      },
+      "R": {"type": "sine", "freq": 1000.0, "amplitude": 0.5}
+    },
+    "sha256": "16a1eecb642de5f4ab04f97097566b77e592cc057be8b574068f49b08e2462f3"
+  },
+  "expected": {
+    "file": "reset_mid_glide.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "6d14d14836d2871db44e18b9ec8e35d9f91204195f417ab84c14cd19a832b35c"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/mmf.py",
+      "licence": "MIT",
+      "sha256": "ff256ee75f4b57f91760b43e3c750ffb5133dfc8bdd088c73225429a42310a3d"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

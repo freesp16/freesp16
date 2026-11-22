@@ -1,0 +1,3 @@
+Copies of sixteen-spec spec/07-ui-design/mockups/*.svg (commit e2b9f59 working tree, the same tree as resources/design/SPEC_VERSION) that resources/design/mockups/ does not pin yet; references of the virtual panel snapshot tests only (never device captures). They may later move into resources/design/mockups/ and SPEC_VERSION.
+828632e9929118c4bb5063c06618e1448141418be05ccc08a33ae63ab6cdcfb5  virtual-panel.svg
+8d2fc37d98f24891b941000d8c1c734e53d99ef2a2f430a8fd5fb393549da1cd  virtual-panel-keys.svg

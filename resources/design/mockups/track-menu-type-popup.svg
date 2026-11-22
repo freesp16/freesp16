@@ -1,0 +1,252 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 768" width="1280" height="768" role="img" aria-label="Sixteen — TRACK MENU, TRACK TYPE popup">
+  <title>Sixteen — TRACK MENU, TRACK TYPE popup</title>
+  <rect x="0" y="0" width="1280" height="768" fill="#0B0D10"/>
+  <text x="16" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#A3ACBA" text-anchor="start" dominant-baseline="middle">HOME</text>
+  <text x="60" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#6B7482" text-anchor="start" dominant-baseline="middle">›</text>
+  <text x="76" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle">TRACK MENU</text>
+  <text x="1264" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#6B7482" text-anchor="end" dominant-baseline="middle">▶</text>
+  <text x="1224" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#6B7482" text-anchor="end" dominant-baseline="middle">●</text>
+  <text x="1184" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#6B7482" text-anchor="end" dominant-baseline="middle">OUT</text>
+  <text x="1144" y="20" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#6B7482" text-anchor="end" dominant-baseline="middle">IN</text>
+  <rect x="0" y="40" width="1280" height="96" fill="#13161B"/>
+  <line x1="0" y1="136" x2="1280" y2="136" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <rect x="16" y="52" width="96" height="72" fill="#1A1E25" rx="8"/>
+  <path d="M54 88 h22 a10 10 0 0 0 0-20 h-14 M54 88 l8-8 M54 88 l8 8" fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="120" y="52" width="256" height="72" fill="#1A1E25" rx="8"/>
+  <line x1="248" y1="64" x2="248" y2="112" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <text x="184" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">BPM</text>
+  <text x="184" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">120.0</text>
+  <text x="312" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">QUANTIZE</text>
+  <text x="312" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">1/16</text>
+  <rect x="384" y="52" width="256" height="72" fill="#1A1E25" rx="8"/>
+  <line x1="512" y1="64" x2="512" y2="112" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <text x="448" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">SCENE</text>
+  <text x="448" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">01</text>
+  <text x="576" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">PATTERN</text>
+  <text x="576" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">01</text>
+  <text x="664" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="start" dominant-baseline="middle">BAR:BEAT:STEP</text>
+  <text x="664" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle" font-variant-numeric="tabular-nums">001:01:01</text>
+  <rect x="824" y="52" width="216" height="72" fill="#1A1E25" rx="8"/>
+  <text x="932" y="72" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">TRACK TYPE</text>
+  <text x="932" y="104" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="17" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">SAMPLE</text>
+  <rect x="1048" y="52" width="216" height="72" fill="#1A1E25" rx="6"/>
+  <rect x="1064" y="60" width="184" height="4" fill="#3A4250" rx="2"/>
+  <text x="1156.0" y="92.0" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">BYPASS</text>
+  <rect x="16" y="152" width="1248" height="456" fill="#13161B" rx="8" stroke="#D9A100" stroke-width="2"/>
+  <line x1="32" y1="256" x2="1248" y2="256" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <rect x="32" y="172" width="32" height="24" fill="#D9A100" rx="4"/>
+  <text x="48.0" y="185.0" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.00" fill="#0B0D10" text-anchor="middle" dominant-baseline="middle">5</text>
+  <rect x="72" y="173" width="48" height="22" fill="#D9A100" rx="4"/>
+  <text x="96.0" y="185" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#0B0D10" text-anchor="middle" dominant-baseline="middle">SMPL</text>
+  <rect x="126" y="173" width="56" height="22" fill="#232833" rx="4"/>
+  <text x="154.0" y="185" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">M.TMP</text>
+  <rect x="188" y="173" width="32" height="22" fill="#232833" rx="4"/>
+  <text x="204.0" y="185" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#D9A100" text-anchor="middle" dominant-baseline="middle">⟲</text>
+  <text x="32" y="224" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="17" font-weight="600" letter-spacing="0.00" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle">Beat_120bpm_2bar</text>
+  <rect x="752" y="168" width="160" height="72" fill="#1A1E25" rx="6"/>
+  <text x="832.0" y="205.0" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">LIVE SAMPLING</text>
+  <rect x="920" y="168" width="160" height="72" fill="#1A1E25" rx="6"/>
+  <text x="1000.0" y="205.0" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">BROWSE</text>
+  <rect x="1088" y="168" width="160" height="72" fill="#1A1E25" rx="6"/>
+  <text x="1168.0" y="205.0" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">SAMPLING/EDIT</text>
+  <rect x="48" y="272" width="184" height="152" fill="#1A1E25" rx="8"/>
+  <text x="140.0" y="294" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">PLAYBACK</text>
+  <rect x="64" y="316" width="152" height="88" fill="#13161B" rx="6"/>
+  <path d="M71.0 337.9V382.1M73.0 342.6V377.4M75.0 351.0V369.0M77.0 355.2V364.8M79.0 357.6V362.4M81.0 357.0V363.0M83.0 358.9V361.1M85.0 359.3V360.7M87.0 359.3V360.7M89.0 340.5V379.5M91.0 352.2V367.8M93.0 353.5V366.5M95.0 356.3V363.7M97.0 358.2V361.8M99.0 357.6V362.4M101.0 359.3V360.7M103.0 359.3V360.7M105.0 359.3V360.7M107.0 335.2V384.8M109.0 347.7V372.3M111.0 352.5V367.5M113.0 355.8V364.2M115.0 356.8V363.2M117.0 358.4V361.6M119.0 359.2V360.8M121.0 359.3V360.7M123.0 359.3V360.7M125.0 348.0V372.0M127.0 349.5V370.5M129.0 356.1V363.9M131.0 357.5V362.5M133.0 356.6V363.4M135.0 358.9V361.1M137.0 359.3V360.7M139.0 359.3V360.7M141.0 339.0V381.0M143.0 343.5V376.5M145.0 349.0V371.0M147.0 355.8V364.2M149.0 357.6V362.4M151.0 357.0V363.0M153.0 358.9V361.1M155.0 359.3V360.7M157.0 359.3V360.7M159.0 340.8V379.2M161.0 347.2V372.8M163.0 353.0V367.0M165.0 357.4V362.6M167.0 358.1V361.9M169.0 357.5V362.5M171.0 359.1V360.9M173.0 359.3V360.7M175.0 359.3V360.7M177.0 340.8V379.2M179.0 351.8V368.2M181.0 352.4V367.6M183.0 356.9V363.1M185.0 356.1V363.9M187.0 358.4V361.6M189.0 359.3V360.7M191.0 359.3V360.7M193.0 359.3V360.7M195.0 341.2V378.8M197.0 349.3V370.7M199.0 356.2V363.8M201.0 357.0V363.0M203.0 357.5V362.5M205.0 358.5V361.5M207.0 359.3V360.7M209.0 359.3V360.7" fill="none" stroke="#D9A100" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="70" y1="360.0" x2="210" y2="360.0" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <rect x="248" y="272" width="184" height="152" fill="#1A1E25" rx="8"/>
+  <text x="340.0" y="294" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">AMP ENVELOPE</text>
+  <rect x="264" y="316" width="152" height="88" fill="#13161B" rx="6"/>
+  <path d="M278 394 L278.0 328 L346.2 328 L346.2 394 Z" fill="#D9A100" opacity="0.12"/>
+  <path d="M278 394 L278.0 328 L346.2 328 L346.2 394" fill="none" stroke="#D9A100" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="448" y="272" width="184" height="152" fill="#1A1E25" rx="8"/>
+  <text x="540.0" y="294" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">FX1 : NONE</text>
+  <rect x="464" y="316" width="152" height="88" fill="#13161B" rx="6"/>
+  <circle cx="540.0" cy="360.0" r="18" fill="none" stroke="#A3ACBA" stroke-width="2"/>
+  <path d="M527.2 372.8 L552.8 347.2" fill="none" stroke="#A3ACBA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="648" y="272" width="184" height="152" fill="#1A1E25" rx="8"/>
+  <text x="740.0" y="294" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">FX2 : NONE</text>
+  <rect x="664" y="316" width="152" height="88" fill="#13161B" rx="6"/>
+  <circle cx="740.0" cy="360.0" r="18" fill="none" stroke="#A3ACBA" stroke-width="2"/>
+  <path d="M727.2 372.8 L752.8 347.2" fill="none" stroke="#A3ACBA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="848" y="272" width="184" height="152" fill="#13161B" rx="8"/>
+  <text x="940.0" y="294" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#6B7482" text-anchor="middle" dominant-baseline="middle">MIXER</text>
+  <rect x="864" y="316" width="152" height="88" fill="#0B0D10" rx="6"/>
+  <rect x="1048" y="272" width="184" height="152" fill="#1A1E25" rx="8"/>
+  <text x="1140.0" y="294" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">LFO</text>
+  <rect x="1064" y="316" width="152" height="88" fill="#13161B" rx="6"/>
+  <path d="M1074.0 360.0 L1076.0 354.3 L1078.0 348.9 L1080.0 343.8 L1082.0 339.3 L1084.0 335.6 L1086.0 332.7 L1088.0 330.8 L1090.0 330.0 L1092.0 330.3 L1094.0 331.6 L1096.0 334.0 L1098.0 337.3 L1100.0 341.5 L1102.0 346.3 L1104.0 351.5 L1106.0 357.1 L1108.0 362.9 L1110.0 368.5 L1112.0 373.7 L1114.0 378.5 L1116.0 382.7 L1118.0 386.0 L1120.0 388.4 L1122.0 389.7 L1124.0 390.0 L1126.0 389.2 L1128.0 387.3 L1130.0 384.4 L1132.0 380.7 L1134.0 376.2 L1136.0 371.1 L1138.0 365.7 L1140.0 360.0 L1142.0 354.3 L1144.0 348.9 L1146.0 343.8 L1148.0 339.3 L1150.0 335.6 L1152.0 332.7 L1154.0 330.8 L1156.0 330.0 L1158.0 330.3 L1160.0 331.6 L1162.0 334.0 L1164.0 337.3 L1166.0 341.5 L1168.0 346.3 L1170.0 351.5 L1172.0 357.1 L1174.0 362.9 L1176.0 368.5 L1178.0 373.7 L1180.0 378.5 L1182.0 382.7 L1184.0 386.0 L1186.0 388.4 L1188.0 389.7 L1190.0 390.0 L1192.0 389.2 L1194.0 387.3 L1196.0 384.4 L1198.0 380.7 L1200.0 376.2 L1202.0 371.1 L1204.0 365.7 L1206.0 360.0" fill="none" stroke="#D9A100" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="232" y1="360" x2="248" y2="360" stroke="#3A4250" stroke-width="2" stroke-linecap="round"/>
+  <line x1="432" y1="360" x2="448" y2="360" stroke="#3A4250" stroke-width="2" stroke-linecap="round"/>
+  <line x1="632" y1="360" x2="648" y2="360" stroke="#3A4250" stroke-width="2" stroke-linecap="round"/>
+  <rect x="48" y="448" width="1184" height="144" fill="#1A1E25" rx="8"/>
+  <text x="640.0" y="468" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.52" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle">SEQUENCE</text>
+  <rect x="64" y="488" width="1152" height="88" fill="#13161B" rx="6"/>
+  <text x="115.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">1</text>
+  <text x="185.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">2</text>
+  <text x="255.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">3</text>
+  <text x="325.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">4</text>
+  <text x="395.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">5</text>
+  <text x="465.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">6</text>
+  <text x="535.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">7</text>
+  <text x="605.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">8</text>
+  <text x="675.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">9</text>
+  <text x="745.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">10</text>
+  <text x="815.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">11</text>
+  <text x="885.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">12</text>
+  <text x="955.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">13</text>
+  <text x="1025.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">14</text>
+  <text x="1095.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">15</text>
+  <text x="1165.0" y="506" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">16</text>
+  <line x1="80.0" y1="540" x2="80.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="91.66666666666667" y1="550" x2="91.66666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="103.33333333333333" y1="550" x2="103.33333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="115.0" y1="550" x2="115.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="126.66666666666666" y1="550" x2="126.66666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="138.33333333333334" y1="550" x2="138.33333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="150.0" y1="540" x2="150.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="161.66666666666669" y1="550" x2="161.66666666666669" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="173.33333333333331" y1="550" x2="173.33333333333331" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="185.0" y1="550" x2="185.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="196.66666666666669" y1="550" x2="196.66666666666669" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="208.33333333333334" y1="550" x2="208.33333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="220.0" y1="540" x2="220.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="231.66666666666666" y1="550" x2="231.66666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="243.33333333333334" y1="550" x2="243.33333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="255.0" y1="550" x2="255.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="266.66666666666663" y1="550" x2="266.66666666666663" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="278.33333333333337" y1="550" x2="278.33333333333337" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="290.0" y1="540" x2="290.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="301.66666666666663" y1="550" x2="301.66666666666663" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="313.33333333333337" y1="550" x2="313.33333333333337" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="325.0" y1="550" x2="325.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="336.6666666666667" y1="550" x2="336.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="348.3333333333333" y1="550" x2="348.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="360.0" y1="540" x2="360.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="371.6666666666667" y1="550" x2="371.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="383.3333333333333" y1="550" x2="383.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="395.0" y1="550" x2="395.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="406.6666666666667" y1="550" x2="406.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="418.3333333333333" y1="550" x2="418.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="430.0" y1="540" x2="430.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="441.6666666666667" y1="550" x2="441.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="453.3333333333333" y1="550" x2="453.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="465.0" y1="550" x2="465.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="476.6666666666667" y1="550" x2="476.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="488.3333333333333" y1="550" x2="488.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="500.0" y1="540" x2="500.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="511.6666666666667" y1="550" x2="511.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="523.3333333333333" y1="550" x2="523.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="535.0" y1="550" x2="535.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="546.6666666666667" y1="550" x2="546.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="558.3333333333333" y1="550" x2="558.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="570.0" y1="540" x2="570.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="581.6666666666667" y1="550" x2="581.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="593.3333333333334" y1="550" x2="593.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="605.0" y1="550" x2="605.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="616.6666666666666" y1="550" x2="616.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="628.3333333333334" y1="550" x2="628.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="640.0" y1="540" x2="640.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="651.6666666666666" y1="550" x2="651.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="663.3333333333334" y1="550" x2="663.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="675.0" y1="550" x2="675.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="686.6666666666666" y1="550" x2="686.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="698.3333333333334" y1="550" x2="698.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="710.0" y1="540" x2="710.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="721.6666666666666" y1="550" x2="721.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="733.3333333333334" y1="550" x2="733.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="745.0" y1="550" x2="745.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="756.6666666666666" y1="550" x2="756.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="768.3333333333334" y1="550" x2="768.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="780.0" y1="540" x2="780.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="791.6666666666666" y1="550" x2="791.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="803.3333333333334" y1="550" x2="803.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="815.0" y1="550" x2="815.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="826.6666666666666" y1="550" x2="826.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="838.3333333333334" y1="550" x2="838.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="850.0" y1="540" x2="850.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="861.6666666666666" y1="550" x2="861.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="873.3333333333334" y1="550" x2="873.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="885.0" y1="550" x2="885.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="896.6666666666666" y1="550" x2="896.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="908.3333333333334" y1="550" x2="908.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="920.0" y1="540" x2="920.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="931.6666666666666" y1="550" x2="931.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="943.3333333333334" y1="550" x2="943.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="955.0" y1="550" x2="955.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="966.6666666666666" y1="550" x2="966.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="978.3333333333334" y1="550" x2="978.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="990.0" y1="540" x2="990.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1001.6666666666666" y1="550" x2="1001.6666666666666" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1013.3333333333334" y1="550" x2="1013.3333333333334" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1025.0" y1="550" x2="1025.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1036.6666666666665" y1="550" x2="1036.6666666666665" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1048.3333333333335" y1="550" x2="1048.3333333333335" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1060.0" y1="540" x2="1060.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1071.6666666666665" y1="550" x2="1071.6666666666665" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1083.3333333333335" y1="550" x2="1083.3333333333335" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1095.0" y1="550" x2="1095.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1106.6666666666667" y1="550" x2="1106.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1118.3333333333333" y1="550" x2="1118.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1130.0" y1="540" x2="1130.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1141.6666666666667" y1="550" x2="1141.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1153.3333333333333" y1="550" x2="1153.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1165.0" y1="550" x2="1165.0" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1176.6666666666667" y1="550" x2="1176.6666666666667" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1188.3333333333333" y1="550" x2="1188.3333333333333" y2="566" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <line x1="1200.0" y1="540" x2="1200.0" y2="566" stroke="#3A4250" stroke-width="1" stroke-linecap="round"/>
+  <rect x="0" y="624" width="1280" height="144" fill="#13161B"/>
+  <line x1="0" y1="624" x2="1280" y2="624" stroke="#2A303B" stroke-width="1" stroke-linecap="round"/>
+  <path d="M0 624 h224 l24 24 h-248 z" fill="#1A1E25"/>
+  <text x="16" y="637" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="start" dominant-baseline="middle">PLAYBACK</text>
+  <circle cx="90" cy="660" r="3" fill="#FE6270"/>
+  <text x="120" y="660" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">PITCH</text>
+  <text x="120" y="704" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">0.0</text>
+  <rect x="56" y="739" width="128" height="2" fill="#3A4250" rx="1"/>
+  <rect x="120" y="739" width="2" height="2" fill="#A3ACBA" rx="1"/>
+  <rect x="119" y="735" width="2" height="10" fill="#A3ACBA"/>
+  <circle cx="298" cy="660" r="3" fill="#FE6270"/>
+  <text x="328" y="660" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">START</text>
+  <text x="328" y="704" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">0</text>
+  <rect x="264" y="739" width="128" height="2" fill="#3A4250" rx="1"/>
+  <rect x="264" y="739" width="2" height="2" fill="#A3ACBA" rx="1"/>
+  <circle cx="486" cy="660" r="3" fill="#FE6270"/>
+  <text x="536" y="660" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">LOOP START</text>
+  <text x="536" y="704" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">0</text>
+  <rect x="472" y="739" width="128" height="2" fill="#3A4250" rx="1"/>
+  <rect x="472" y="739" width="2" height="2" fill="#A3ACBA" rx="1"/>
+  <circle cx="710" cy="660" r="3" fill="#FE6270"/>
+  <text x="744" y="660" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">LENGTH</text>
+  <text x="744" y="704" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">176400</text>
+  <rect x="680" y="739" width="128" height="2" fill="#3A4250" rx="1"/>
+  <rect x="680" y="739" width="128.0" height="2" fill="#A3ACBA" rx="1"/>
+  <circle cx="926" cy="660" r="3" fill="#FE6270"/>
+  <text x="952" y="660" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">LOOP</text>
+  <text x="952" y="704" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">ON</text>
+  <rect x="888" y="739" width="128" height="2" fill="#3A4250" rx="1"/>
+  <text x="884" y="740" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="400" letter-spacing="0.00" fill="#6B7482" text-anchor="middle" dominant-baseline="middle">‹</text>
+  <text x="1020" y="740" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="400" letter-spacing="0.00" fill="#6B7482" text-anchor="middle" dominant-baseline="middle">›</text>
+  <circle cx="1102" cy="660" r="3" fill="#FE6270"/>
+  <text x="1160" y="660" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="11" font-weight="600" letter-spacing="0.66" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">TRIGGER MODE</text>
+  <text x="1160" y="704" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="24" font-weight="500" letter-spacing="0.00" fill="#E8ECF2" text-anchor="middle" dominant-baseline="middle" font-variant-numeric="tabular-nums">ONE SHOT</text>
+  <rect x="1096" y="739" width="128" height="2" fill="#3A4250" rx="1"/>
+  <text x="1092" y="740" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="400" letter-spacing="0.00" fill="#6B7482" text-anchor="middle" dominant-baseline="middle">‹</text>
+  <text x="1228" y="740" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="400" letter-spacing="0.00" fill="#6B7482" text-anchor="middle" dominant-baseline="middle">›</text>
+  <rect x="0" y="0" width="1280" height="768" fill="#0B0D10" opacity="0.72"/>
+  <rect x="320" y="272" width="640" height="224" fill="#13161B" rx="12" stroke="#2A303B" stroke-width="1"/>
+  <rect x="320" y="272" width="640" height="48" fill="#1A1E25" rx="12"/>
+  <rect x="320" y="308" width="640" height="12" fill="#1A1E25"/>
+  <text x="344" y="296" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="17" font-weight="600" letter-spacing="0.00" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle">TRACK TYPE</text>
+  <text x="932" y="296" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="17" font-weight="600" letter-spacing="0.00" fill="#A3ACBA" text-anchor="middle" dominant-baseline="middle">✕</text>
+  <rect x="320" y="320" width="640" height="44" fill="#1A1E25"/>
+  <text x="344" y="342" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="400" letter-spacing="0.00" fill="#569DFF" text-anchor="start" dominant-baseline="middle">SAMPLE</text>
+  <text x="920" y="342" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="600" letter-spacing="0.00" fill="#569DFF" text-anchor="middle" dominant-baseline="middle">✓</text>
+  <rect x="320" y="364" width="640" height="44" fill="#13161B"/>
+  <text x="344" y="386" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="400" letter-spacing="0.00" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle">THRU</text>
+  <rect x="320" y="408" width="640" height="44" fill="#1A1E25"/>
+  <rect x="320" y="408" width="640" height="44" fill="#569DFF29"/>
+  <rect x="320" y="408" width="3" height="44" fill="#569DFF"/>
+  <text x="344" y="430" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="600" letter-spacing="0.00" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle">MIDI</text>
+  <rect x="320" y="452" width="640" height="44" fill="#13161B"/>
+  <text x="344" y="474" font-family="Inter, 'SF Pro Text', system-ui, sans-serif" font-size="15" font-weight="400" letter-spacing="0.00" fill="#E8ECF2" text-anchor="start" dominant-baseline="middle">AS-1</text>
+</svg>

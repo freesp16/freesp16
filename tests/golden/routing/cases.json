@@ -1,0 +1,286 @@
+{
+  "model": "routing_router",
+  "subject": "routing.router",
+  "local_only": false,
+  "comment": "Reference profile = the research Selector / Output12Router (headphone_mix.py) bit for bit. Profile-specific (app, Sixteen deviations, documented in models/routing_router.py): re-selecting the mode during its fade-out fades back in (reference: stuck at 0, F209 quirk; case mode_reselect_*); the mode dip on OUT 3-4..7-8, the per-track assignment dip, the assign rules, mono = (L + R) x 0.5 and absent-pair folding are app rules (our choice, MIX-030..033) with no reference counterpart, modelled with the research Selector.",
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -100.0, "floor": 1e-30},
+  "cases": [
+    {
+      "id": "m6_assign",
+      "description": "M + 6CH: OUT 1-2 is the master untouched; t0 OUT3-4 and t1 mono 6 are added to their outputs, t2 OUT1-2 and t3 '--' stay master only (MIX-030/031)",
+      "blocks": 8,
+      "params": {
+        "mode": 0,
+        "assign": [2, 10, 1, 0],
+        "events": []
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+        "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+        "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+        "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25},
+        "t2.L": {"type": "noise", "seed": 14, "amplitude": 0.25},
+        "t2.R": {"type": "noise", "seed": 15, "amplitude": 0.25},
+        "t3.L": {"type": "noise", "seed": 16, "amplitude": 0.25},
+        "t3.R": {"type": "noise", "seed": 17, "amplitude": 0.25}
+      },
+      "parity": true
+    },
+    {
+      "id": "c8_assign",
+      "description": "8CH: every track on exactly one output ('--' = OUT 1-2), mono = (L + R) x 0.5 on one channel, OUT 1-2 without the master",
+      "blocks": 8,
+      "params": {
+        "mode": 1,
+        "assign": [0, 2, 5, 4, 12, 6],
+        "events": []
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+        "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+        "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+        "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25},
+        "t2.L": {"type": "noise", "seed": 14, "amplitude": 0.25},
+        "t2.R": {"type": "noise", "seed": 15, "amplitude": 0.25},
+        "t3.L": {"type": "noise", "seed": 16, "amplitude": 0.25},
+        "t3.R": {"type": "noise", "seed": 17, "amplitude": 0.25},
+        "t4.L": {"type": "noise", "seed": 18, "amplitude": 0.25},
+        "t4.R": {"type": "noise", "seed": 19, "amplitude": 0.25},
+        "t5.L": {"type": "noise", "seed": 20, "amplitude": 0.25},
+        "t5.R": {"type": "noise", "seed": 21, "amplitude": 0.25}
+      },
+      "parity": true
+    },
+    {
+      "id": "mode_dip",
+      "description": "M + 6CH -> 8CH -> M + 6CH: the research Output12Router dip (128 out from 1, switch, 128 in from 0) on every router output (F212; MIX-033)",
+      "blocks": 20,
+      "params": {
+        "mode": 0,
+        "assign": [2, 0, 9],
+        "events": [
+          {"block": 4, "mode": 1},
+          {"block": 12, "mode": 0}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+        "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+        "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+        "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25},
+        "t2.L": {"type": "noise", "seed": 14, "amplitude": 0.25},
+        "t2.R": {"type": "noise", "seed": 15, "amplitude": 0.25}
+      },
+      "parity": true,
+      "fault_tests": ["gain"]
+    },
+    {
+      "id": "mode_dip_interrupted",
+      "description": "a mode change during the fade-in of the previous one: the reference Selector fades out over 128 samples from the gain reached (0.5), then switches",
+      "blocks": 16,
+      "params": {
+        "mode": 0,
+        "assign": [3, 0],
+        "events": [
+          {"block": 4, "mode": 1},
+          {"block": 7, "mode": 0}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+        "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+        "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+        "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25}
+      },
+      "parity": true
+    },
+    {
+      "id": "mode_reselect_reference",
+      "description": "reference profile (F209/F212 quirk): the mode re-selected during its fade-out -> the fade-out ends and every output stays at 0 until the next change, which fades in from 0",
+      "blocks": 16,
+      "params": {
+        "mode": 0,
+        "assign": [2, 0],
+        "profile": "reference",
+        "events": [
+          {"block": 4, "mode": 1},
+          {"block": 5, "mode": 0},
+          {"block": 11, "mode": 1}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+        "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+        "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+        "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25}
+      },
+      "parity": true
+    },
+    {
+      "id": "mode_reselect_app",
+      "description": "app profile (the fix of F209): the mode re-selected during its fade-out fades back in from the gain reached over 128 samples (adapter rule)",
+      "blocks": 12,
+      "params": {
+        "mode": 0,
+        "assign": [2, 0],
+        "profile": "app",
+        "events": [
+          {"block": 4, "mode": 1},
+          {"block": 5, "mode": 0}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+        "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+        "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+        "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25}
+      },
+      "parity": true
+    },
+    {
+      "id": "assign_dip",
+      "description": "assignment changes fade that track's feed out (128) and in (128) on the new output (our dip, research Selector per track): pair -> pair -> mono, a change during a fade-in, a re-selection during a fade-out (app fix)",
+      "blocks": 26,
+      "params": {
+        "mode": 1,
+        "assign": [2, 3, 1],
+        "events": [
+          {"block": 3, "track": 0, "assign": 3},
+          {"block": 9, "track": 0, "assign": 11},
+          {"block": 3, "track": 1, "assign": 4},
+          {"block": 6, "track": 1, "assign": 1},
+          {"block": 12, "track": 2, "assign": 4},
+          {"block": 13, "track": 2, "assign": 1},
+          {"block": 18, "track": 0, "assign": 0}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+        "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+        "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+        "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25},
+        "t2.L": {"type": "noise", "seed": 14, "amplitude": 0.25},
+        "t2.R": {"type": "noise", "seed": 15, "amplitude": 0.25}
+      },
+      "parity": true
+    },
+    {
+      "id": "mode_and_assign",
+      "description": "a mode change and assignment changes at the same time: the track's dip and the mode dip multiply (track gain into the pair, then the mode gain)",
+      "blocks": 14,
+      "params": {
+        "mode": 0,
+        "assign": [2, 5, 0],
+        "events": [
+          {"block": 3, "mode": 1},
+          {"block": 3, "track": 0, "assign": 4},
+          {"block": 4, "track": 1, "assign": 8}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+        "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+        "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+        "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25},
+        "t2.L": {"type": "noise", "seed": 14, "amplitude": 0.25},
+        "t2.R": {"type": "noise", "seed": 15, "amplitude": 0.25}
+      },
+      "parity": true
+    },
+    {
+      "id": "absent_fold",
+      "description": "absent pairs fold into Main (MIX-032): 8CH OUT 5-6 / 7-8 -> OUT 1-2 (a mono channel keeps its side); M + 6CH drops them (the master has the track); presence changes take effect at once",
+      "blocks": 16,
+      "params": {
+        "mode": 1,
+        "assign": [3, 12, 2, 9],
+        "present": 3,
+        "events": [
+          {"block": 5, "present": 15},
+          {"block": 8, "present": 1},
+          {"block": 10, "mode": 0}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+        "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+        "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+        "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25},
+        "t2.L": {"type": "noise", "seed": 14, "amplitude": 0.25},
+        "t2.R": {"type": "noise", "seed": 15, "amplitude": 0.25},
+        "t3.L": {"type": "noise", "seed": 16, "amplitude": 0.25},
+        "t3.R": {"type": "noise", "seed": 17, "amplitude": 0.25}
+      },
+      "parity": true
+    },
+    {
+      "id": "sixteen_tracks",
+      "description": "16 tracks over every assignment in 8CH, then a mode change: the sums follow the app's track order",
+      "blocks": 10,
+      "params": {
+        "mode": 1,
+        "assign": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 2, 7, 4],
+        "events": [
+          {"block": 4, "mode": 0}
+        ]
+      },
+      "stimuli": {
+        "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+        "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+        "t0.L": {"type": "noise", "seed": 20, "amplitude": 0.125},
+        "t0.R": {"type": "noise", "seed": 21, "amplitude": 0.125},
+        "t1.L": {"type": "noise", "seed": 22, "amplitude": 0.125},
+        "t1.R": {"type": "noise", "seed": 23, "amplitude": 0.125},
+        "t2.L": {"type": "noise", "seed": 24, "amplitude": 0.125},
+        "t2.R": {"type": "noise", "seed": 25, "amplitude": 0.125},
+        "t3.L": {"type": "noise", "seed": 26, "amplitude": 0.125},
+        "t3.R": {"type": "noise", "seed": 27, "amplitude": 0.125},
+        "t4.L": {"type": "noise", "seed": 28, "amplitude": 0.125},
+        "t4.R": {"type": "noise", "seed": 29, "amplitude": 0.125},
+        "t5.L": {"type": "noise", "seed": 30, "amplitude": 0.125},
+        "t5.R": {"type": "noise", "seed": 31, "amplitude": 0.125},
+        "t6.L": {"type": "noise", "seed": 32, "amplitude": 0.125},
+        "t6.R": {"type": "noise", "seed": 33, "amplitude": 0.125},
+        "t7.L": {"type": "noise", "seed": 34, "amplitude": 0.125},
+        "t7.R": {"type": "noise", "seed": 35, "amplitude": 0.125},
+        "t8.L": {"type": "noise", "seed": 36, "amplitude": 0.125},
+        "t8.R": {"type": "noise", "seed": 37, "amplitude": 0.125},
+        "t9.L": {"type": "noise", "seed": 38, "amplitude": 0.125},
+        "t9.R": {"type": "noise", "seed": 39, "amplitude": 0.125},
+        "t10.L": {"type": "noise", "seed": 40, "amplitude": 0.125},
+        "t10.R": {"type": "noise", "seed": 41, "amplitude": 0.125},
+        "t11.L": {"type": "noise", "seed": 42, "amplitude": 0.125},
+        "t11.R": {"type": "noise", "seed": 43, "amplitude": 0.125},
+        "t12.L": {"type": "noise", "seed": 44, "amplitude": 0.125},
+        "t12.R": {"type": "noise", "seed": 45, "amplitude": 0.125},
+        "t13.L": {"type": "noise", "seed": 46, "amplitude": 0.125},
+        "t13.R": {"type": "noise", "seed": 47, "amplitude": 0.125},
+        "t14.L": {"type": "noise", "seed": 48, "amplitude": 0.125},
+        "t14.R": {"type": "noise", "seed": 49, "amplitude": 0.125},
+        "t15.L": {"type": "noise", "seed": 50, "amplitude": 0.125},
+        "t15.R": {"type": "noise", "seed": 51, "amplitude": 0.125}
+      },
+      "parity": true
+    }
+  ]
+}

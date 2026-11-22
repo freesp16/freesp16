@@ -1,0 +1,1062 @@
+{
+  "model": "phaser",
+  "subject": "fx.mod",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 1e-05,
+    "residual_dbfs": -100.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "defaults",
+      "description": "app defaults (Mix 0: out = in, FX-362), noise",
+      "blocks": 40,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "defaults_mix1",
+      "description": "defaults with Mix 1 (2 Hz, width 1, 18 kHz)",
+      "blocks": 120,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "defaults_mix1_std",
+      "description": "defaults with Mix 1, default maths (std:: tan/pow)",
+      "blocks": 120,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "init": {
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "tolerance": {
+        "max_rel": 0.0001,
+        "residual_dbfs": -80.0
+      }
+    },
+    {
+      "id": "sync_divisions_60",
+      "description": "SYNC: all 12 divisions at 60 BPM (8 blocks each)",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "bpm": 60.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.0,
+          "4": 0.5,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 12,
+            "k": 0,
+            "v": 0.09090909090909091
+          },
+          {
+            "block": 20,
+            "k": 0,
+            "v": 0.18181818181818182
+          },
+          {
+            "block": 28,
+            "k": 0,
+            "v": 0.2727272727272727
+          },
+          {
+            "block": 36,
+            "k": 0,
+            "v": 0.36363636363636365
+          },
+          {
+            "block": 44,
+            "k": 0,
+            "v": 0.45454545454545453
+          },
+          {
+            "block": 52,
+            "k": 0,
+            "v": 0.5454545454545454
+          },
+          {
+            "block": 60,
+            "k": 0,
+            "v": 0.6363636363636364
+          },
+          {
+            "block": 68,
+            "k": 0,
+            "v": 0.7272727272727273
+          },
+          {
+            "block": 76,
+            "k": 0,
+            "v": 0.8181818181818182
+          },
+          {
+            "block": 84,
+            "k": 0,
+            "v": 0.9090909090909091
+          },
+          {
+            "block": 92,
+            "k": 0,
+            "v": 1.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_divisions_120",
+      "description": "SYNC: all 12 divisions at 120 BPM (8 blocks each)",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "bpm": 120.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.0,
+          "4": 0.5,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 12,
+            "k": 0,
+            "v": 0.09090909090909091
+          },
+          {
+            "block": 20,
+            "k": 0,
+            "v": 0.18181818181818182
+          },
+          {
+            "block": 28,
+            "k": 0,
+            "v": 0.2727272727272727
+          },
+          {
+            "block": 36,
+            "k": 0,
+            "v": 0.36363636363636365
+          },
+          {
+            "block": 44,
+            "k": 0,
+            "v": 0.45454545454545453
+          },
+          {
+            "block": 52,
+            "k": 0,
+            "v": 0.5454545454545454
+          },
+          {
+            "block": 60,
+            "k": 0,
+            "v": 0.6363636363636364
+          },
+          {
+            "block": 68,
+            "k": 0,
+            "v": 0.7272727272727273
+          },
+          {
+            "block": 76,
+            "k": 0,
+            "v": 0.8181818181818182
+          },
+          {
+            "block": 84,
+            "k": 0,
+            "v": 0.9090909090909091
+          },
+          {
+            "block": 92,
+            "k": 0,
+            "v": 1.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_divisions_140",
+      "description": "SYNC: all 12 divisions at 140 BPM (8 blocks each)",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "bpm": 140.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.0,
+          "4": 0.5,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 12,
+            "k": 0,
+            "v": 0.09090909090909091
+          },
+          {
+            "block": 20,
+            "k": 0,
+            "v": 0.18181818181818182
+          },
+          {
+            "block": 28,
+            "k": 0,
+            "v": 0.2727272727272727
+          },
+          {
+            "block": 36,
+            "k": 0,
+            "v": 0.36363636363636365
+          },
+          {
+            "block": 44,
+            "k": 0,
+            "v": 0.45454545454545453
+          },
+          {
+            "block": 52,
+            "k": 0,
+            "v": 0.5454545454545454
+          },
+          {
+            "block": 60,
+            "k": 0,
+            "v": 0.6363636363636364
+          },
+          {
+            "block": 68,
+            "k": 0,
+            "v": 0.7272727272727273
+          },
+          {
+            "block": 76,
+            "k": 0,
+            "v": 0.8181818181818182
+          },
+          {
+            "block": 84,
+            "k": 0,
+            "v": 0.9090909090909091
+          },
+          {
+            "block": 92,
+            "k": 0,
+            "v": 1.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "freq_204",
+      "description": "Frequency step 204 (tanf-sensitive), width 0.7",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "3": 0.796875,
+          "4": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "freq_204_std",
+      "description": "Frequency step 204, default maths",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "3": 0.796875,
+          "4": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "tolerance": {
+        "max_rel": 0.0001,
+        "residual_dbfs": -80.0
+      }
+    },
+    {
+      "id": "freq_212",
+      "description": "Frequency step 212 (tanf-sensitive), width 0.7",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "3": 0.828125,
+          "4": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "freq_212_std",
+      "description": "Frequency step 212, default maths",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "3": 0.828125,
+          "4": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "tolerance": {
+        "max_rel": 0.0001,
+        "residual_dbfs": -80.0
+      }
+    },
+    {
+      "id": "freq_248",
+      "description": "Frequency step 248 (tanf-sensitive), width 0.7",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "3": 0.96875,
+          "4": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "freq_248_std",
+      "description": "Frequency step 248, default maths",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "init": {
+          "0": 0.3,
+          "1": 0.7,
+          "3": 0.96875,
+          "4": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "tolerance": {
+        "max_rel": 0.0001,
+        "residual_dbfs": -80.0
+      }
+    },
+    {
+      "id": "width_0",
+      "description": "Width 0 (0: no sweep), Frequency 0.6",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.5,
+          "1": 0.0,
+          "3": 0.6,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "width_05",
+      "description": "Width 0.5 (0: no sweep), Frequency 0.6",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.5,
+          "1": 0.5,
+          "3": 0.6,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "width_1",
+      "description": "Width 1 (0: no sweep), Frequency 0.6",
+      "blocks": 100,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.5,
+          "1": 1.0,
+          "3": 0.6,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "fb099",
+      "description": "feedback 0.99 (its 192-sample ramp from 0.495, FX-324), slow rate",
+      "blocks": 200,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.05,
+          "3": 0.8,
+          "4": 1.0,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "midrun_changes",
+      "description": "Rate/Phase/Frequency/Width/Feedback/Sync/tempo changes (192-sample ramps, FX-322)",
+      "blocks": 160,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.2,
+          "3": 0.9,
+          "4": 0.4,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 10,
+            "k": 0,
+            "v": 0.7
+          },
+          {
+            "block": 20,
+            "k": 2,
+            "v": 0.5
+          },
+          {
+            "block": 21,
+            "k": 3,
+            "v": 0.4
+          },
+          {
+            "block": 30,
+            "k": 1,
+            "v": 0.3
+          },
+          {
+            "block": 31,
+            "k": 4,
+            "v": 0.9
+          },
+          {
+            "block": 40,
+            "k": 0,
+            "v": 0.7
+          },
+          {
+            "block": 50,
+            "option": 0,
+            "value": 1
+          },
+          {
+            "block": 60,
+            "bpm": 133.0
+          },
+          {
+            "block": 61,
+            "bpm": 134.0
+          },
+          {
+            "block": 62,
+            "k": 0,
+            "v": 0.5
+          },
+          {
+            "block": 70,
+            "k": 2,
+            "v": 1.0
+          },
+          {
+            "block": 80,
+            "option": 0,
+            "value": 0
+          },
+          {
+            "block": 90,
+            "k": 5,
+            "v": 0.4
+          },
+          {
+            "block": 100,
+            "k": 3,
+            "v": 1.0
+          },
+          {
+            "block": 101,
+            "k": 1,
+            "v": 1.0
+          },
+          {
+            "block": 120,
+            "k": 4,
+            "v": 0.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "retrigger_reset",
+      "description": "retrigger at the peak (FX-360) and stop + re-activation (FX-361)",
+      "blocks": 140,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.1,
+          "3": 0.7,
+          "4": 0.6,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 30,
+            "op": "retrigger"
+          },
+          {
+            "block": 60,
+            "op": "stop"
+          },
+          {
+            "block": 70,
+            "op": "activate"
+          },
+          {
+            "block": 71,
+            "k": 0,
+            "v": 0.4
+          },
+          {
+            "block": 100,
+            "op": "retrigger"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "rate_ctor_value",
+      "description": "a first RATE of 0.5 (the constructor's last): applied by the reset, no ramp",
+      "blocks": 80,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.5,
+          "3": 0.5,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "impulses",
+      "description": "impulses, feedback 0.8",
+      "blocks": 120,
+      "params": {
+        "effect": "phaser",
+        "fs": 44100,
+        "parity_maths": true,
+        "init": {
+          "0": 0.6,
+          "3": 0.5,
+          "4": 0.8,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            0,
+            1000,
+            4000,
+            6100
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            5,
+            3000
+          ],
+          "amplitude": 1.0
+        }
+      },
+      "parity": true
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "format": "golden-case/1",
+  "name": "routing",
+  "case": "assign_dip",
+  "description": "assignment changes fade that track's feed out (128) and in (128) on the new output (our dip, research Selector per track): pair -> pair -> mono, a change during a fade-in, a re-selection during a fade-out (app fix)",
+  "subject": "routing.router",
+  "model": "routing_router",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 26,
+  "frames": 1664,
+  "params": {
+    "mode": 1,
+    "assign": [2, 3, 1],
+    "events": [
+      {"block": 3, "track": 0, "assign": 3},
+      {"block": 9, "track": 0, "assign": 11},
+      {"block": 3, "track": 1, "assign": 4},
+      {"block": 6, "track": 1, "assign": 1},
+      {"block": 12, "track": 2, "assign": 4},
+      {"block": 13, "track": 2, "assign": 1},
+      {"block": 18, "track": 0, "assign": 0}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 1664],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "assign_dip.in.f32",
+    "channels": ["master.L", "master.R", "t0.L", "t0.R", "t1.L", "t1.R", "t2.L", "t2.R"],
+    "stimuli": {
+      "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+      "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+      "t0.L": {"type": "noise", "seed": 10, "amplitude": 0.25},
+      "t0.R": {"type": "noise", "seed": 11, "amplitude": 0.25},
+      "t1.L": {"type": "noise", "seed": 12, "amplitude": 0.25},
+      "t1.R": {"type": "noise", "seed": 13, "amplitude": 0.25},
+      "t2.L": {"type": "noise", "seed": 14, "amplitude": 0.25},
+      "t2.R": {"type": "noise", "seed": 15, "amplitude": 0.25}
+    },
+    "sha256": "3ff14593910cf6124e27593344527f355542c63316d699ad26454ac7cbd2a412"
+  },
+  "expected": {
+    "file": "assign_dip.out.f32",
+    "channels": ["out12.L", "out12.R", "out34.L", "out34.R", "out56.L", "out56.R", "out78.L", "out78.R"],
+    "sha256": "d5c2c8c1b1f08ef98866fe3ef5faa756fa6055135d9b3a1d2cfe77fc91df5219"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fx_processors.py",
+      "licence": "MIT",
+      "sha256": "cc621f42389318b2bc50641ec8e99197cece954b904f768ab4697775a76aba20"
+    },
+    {
+      "file": "tools/fx/headphone_mix.py",
+      "licence": "MIT",
+      "sha256": "987b5db83a80998199843cb590b8a3b449156d1c0b7da8cb5d466d463d73aff4"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/track_mix.py",
+      "licence": "MIT",
+      "sha256": "42f6c106ba465227d86e23149d442fb330b9e7492e8fb5d8089f0bdc18b79353"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

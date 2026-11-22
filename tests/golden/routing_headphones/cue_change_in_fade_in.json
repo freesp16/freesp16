@@ -1,0 +1,93 @@
+{
+  "format": "golden-case/1",
+  "name": "routing_headphones",
+  "case": "cue_change_in_fade_in",
+  "description": "a cue change during the fade-in of the previous one: 128 samples down from the gain reached (0.5), switch, 128 in",
+  "subject": "routing.headphones",
+  "model": "routing_headphones",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 14,
+  "frames": 896,
+  "params": {
+    "mode": 0,
+    "cue": 2,
+    "level": 127,
+    "events": [
+      {"block": 2, "cue": 3},
+      {"block": 5, "cue": 4}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 896],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "cue_change_in_fade_in.in.f32",
+    "channels": ["out12.L", "out12.R", "out34.L", "out34.R", "out56.L", "out56.R", "out78.L", "out78.R", "aux.L", "aux.R", "input.L", "input.R"],
+    "stimuli": {
+      "out12.L": {"type": "noise", "seed": 100, "amplitude": 0.4},
+      "out12.R": {"type": "noise", "seed": 101, "amplitude": 0.4},
+      "out34.L": {"type": "noise", "seed": 102, "amplitude": 0.4},
+      "out34.R": {"type": "noise", "seed": 103, "amplitude": 0.4},
+      "out56.L": {"type": "noise", "seed": 104, "amplitude": 0.4},
+      "out56.R": {"type": "noise", "seed": 105, "amplitude": 0.4},
+      "out78.L": {"type": "noise", "seed": 106, "amplitude": 0.4},
+      "out78.R": {"type": "noise", "seed": 107, "amplitude": 0.4},
+      "aux.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.2},
+      "aux.R": {"type": "sine", "freq": 1000.0, "amplitude": 0.2, "phase": 0.25},
+      "input.L": {"type": "noise", "seed": 120, "amplitude": 0.1},
+      "input.R": {"type": "noise", "seed": 121, "amplitude": 0.1}
+    },
+    "sha256": "d1b5d58d4ae9ebf808b2222ceac351c536ff30fcd1425efc21618e1b1a04c762"
+  },
+  "expected": {
+    "file": "cue_change_in_fade_in.out.f32",
+    "channels": ["phones.L", "phones.R"],
+    "sha256": "d8b0acb81b7962c91c26417fd5f7023070fe563d02b9c7d846aa304f30e0661c"
+  },
+  "tables": {
+    "gain_law": {
+      "source": "core/util/GainLaw.h (GainLaw::gain, index 0..127), the HEADPHONES law x 0.5",
+      "f32_bits": [0, 990036722, 991799742, 993925467, 996488517, 998911607, 1000774669, 1003021017, 1005729506, 1007814086, 1008981770, 1011236628, 1013706234, 1015706078, 1017155630, 1018712556, 1020376855, 1022148529, 1023718877, 1024712088, 1025758986, 1026859572, 1028013844, 1029221804, 1030483450, 1031798784, 1032483294, 1033194648, 1033932846, 1034697887, 1035489772, 1036308500, 1037154071, 1038026487, 1038925745, 1039851848, 1040496093, 1040985987, 1041489304, 1042006042, 1042536202, 1043079784, 1043636788, 1044207213, 1044791060, 1045388329, 1045999020, 1046623132, 1047260666, 1047911622, 1048576000, 1048914900, 1049260510, 1049612832, 1049971864, 1050337608, 1050710062, 1051089227, 1051475103, 1051867690, 1052266988, 1052672996, 1053085716, 1053505146, 1053931287, 1054364140, 1054803703, 1055249977, 1055702961, 1056162657, 1056629064, 1057033395, 1057273309, 1057516578, 1057763203, 1058013184, 1058266520, 1058523211, 1058783258, 1059046661, 1059313418, 1059583531, 1059857000, 1060133824, 1060414004, 1060697539, 1060984429, 1061274675, 1061568276, 1061865233, 1062165545, 1062469213, 1062776236, 1063086614, 1063400348, 1063717437, 1064037882, 1064361683, 1064688838, 1065019349, 1065353216, 1065598803, 1065849054, 1066104009, 1066363712, 1066628203, 1066897523, 1067171714, 1067450818, 1067734875, 1068023927, 1068318015, 1068617180, 1068921463, 1069230907, 1069545550, 1069865436, 1070190604, 1070521095, 1070856951, 1071198213, 1071544921, 1071897116, 1072254839, 1072618130, 1072987031, 1073361582, 1073741824]
+    }
+  },
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fx_processors.py",
+      "licence": "MIT",
+      "sha256": "cc621f42389318b2bc50641ec8e99197cece954b904f768ab4697775a76aba20"
+    },
+    {
+      "file": "tools/fx/headphone_mix.py",
+      "licence": "MIT",
+      "sha256": "987b5db83a80998199843cb590b8a3b449156d1c0b7da8cb5d466d463d73aff4"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/track_mix.py",
+      "licence": "MIT",
+      "sha256": "42f6c106ba465227d86e23149d442fb330b9e7492e8fb5d8089f0bdc18b79353"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

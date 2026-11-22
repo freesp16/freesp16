@@ -1,0 +1,120 @@
+{
+  "format": "golden-case/1",
+  "name": "delay",
+  "case": "sync_divisions",
+  "description": "SYNC on at 133.37 BPM, the six divisions 1/8 \u2026 2 beats in turn, then 2 beats at 60 BPM (clamped to 1000 ms), noise",
+  "subject": "fx.delay",
+  "model": "delay",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 700,
+  "frames": 44800,
+  "params": {
+    "effect": "delay",
+    "bpm": 133.37,
+    "options": {"0": 1},
+    "init": {"0": 0.0, "1": 0.3, "5": 0.7},
+    "events": [
+      {"block": 100, "k": 0, "v": 0.2},
+      {"block": 200, "k": 0, "v": 0.4},
+      {"block": 300, "k": 0, "v": 0.6},
+      {"block": 400, "k": 0, "v": 0.8},
+      {"block": 500, "k": 0, "v": 1.0},
+      {"block": 650, "bpm": 60.0}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 44800],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "sync_divisions.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {
+        "type": "sum",
+        "parts": [
+          {"type": "noise", "seed": 51, "amplitude": 0.4, "start": 3000, "length": 1500},
+          {"type": "noise", "seed": 52, "amplitude": 0.4, "start": 9400, "length": 1500},
+          {"type": "noise", "seed": 53, "amplitude": 0.4, "start": 15800, "length": 1500},
+          {"type": "noise", "seed": 54, "amplitude": 0.4, "start": 22200, "length": 1500},
+          {"type": "noise", "seed": 55, "amplitude": 0.4, "start": 28600, "length": 1500},
+          {"type": "noise", "seed": 56, "amplitude": 0.4, "start": 35000, "length": 1500},
+          {"type": "noise", "seed": 57, "amplitude": 0.4, "start": 44600, "length": 1500}
+        ]
+      },
+      "R": {
+        "type": "sum",
+        "parts": [
+          {"type": "noise", "seed": 60, "amplitude": 0.4, "start": 3100, "length": 1500},
+          {"type": "noise", "seed": 61, "amplitude": 0.4, "start": 9500, "length": 1500},
+          {"type": "noise", "seed": 62, "amplitude": 0.4, "start": 15900, "length": 1500},
+          {"type": "noise", "seed": 63, "amplitude": 0.4, "start": 22300, "length": 1500},
+          {"type": "noise", "seed": 64, "amplitude": 0.4, "start": 28700, "length": 1500},
+          {"type": "noise", "seed": 65, "amplitude": 0.4, "start": 35100, "length": 1500},
+          {"type": "noise", "seed": 66, "amplitude": 0.4, "start": 44700, "length": 1500}
+        ]
+      }
+    },
+    "sha256": "e73239f633e1801fdd05748933a46748e5ea0b8b838ae86296235c241b81d4ca"
+  },
+  "expected": {
+    "file": "sync_divisions.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "b19b557a9ebb1d5c4fb7a43a9ac88aab40c8fce109218a266ddb8a0006bd3268"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/chorus.py",
+      "licence": "MIT",
+      "sha256": "026cec49227eff6b21991818a3c5755492a713b5148aaa29482c5fbdeebba985"
+    },
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fdlibm_sincosf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "f31de1f124893baec9000ddb0bd9648109d34b0b22eb36508bb1eb5335f2f1f2"
+    },
+    {
+      "file": "tools/fx/fdlibm_tanf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b3a22338aa75a0125a41cfb22d86c782daf5afd4b4e2cac51ac2709bb346d130"
+    },
+    {
+      "file": "tools/fx/insert_delay.py",
+      "licence": "MIT",
+      "sha256": "e743147edad4355974927db1e217b9dfbf770f6d9ecf9d74a1a9be4af603cbb9"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/osc.py",
+      "licence": "MIT",
+      "sha256": "322c964ab4d5ac7417f7b40e4a13c9d79184acc374f5b708185ee7cfd5c7bf5f"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

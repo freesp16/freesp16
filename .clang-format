@@ -1,0 +1,18 @@
+# Code style: Allman braces, 4-space indent, 120 columns, JUCE-like spacing (space after logical not, before parens of
+# control statements only). CI checks it (ci/run-local.sh lint).
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++20
+IndentWidth: 4
+ColumnLimit: 120
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+SpaceAfterLogicalNot: true
+SpaceBeforeParens: ControlStatements
+PointerAlignment: Left
+NamespaceIndentation: None
+FixNamespaceComments: true
+IncludeBlocks: Preserve
+AccessModifierOffset: -4

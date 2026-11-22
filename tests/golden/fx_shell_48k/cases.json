@@ -1,0 +1,465 @@
+{
+ "model": "fx_shell",
+ "subject": "fx.shell",
+ "local_only": false,
+ "sample_rate": 48000,
+ "block": 64,
+ "tolerance": {
+  "max_rel": 1e-06,
+  "residual_dbfs": -100.0,
+  "floor": 1e-30
+ },
+ "cases": [
+  {
+   "id": "activate_stop",
+   "description": "activation at block 1, stop at block 6 (FX-025)",
+   "blocks": 12,
+   "params": {
+    "kind": "shell",
+    "fs": 48000,
+    "law": "unityK5",
+    "mix": 0.8,
+    "events": [
+     {
+      "block": 1,
+      "op": "activate"
+     },
+     {
+      "block": 6,
+      "op": "stop"
+     }
+    ]
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 441.0,
+       "amplitude": 0.4
+      },
+      {
+       "type": "noise",
+       "seed": 21,
+       "amplitude": 0.2
+      }
+     ]
+    },
+    "R": {
+     "type": "sweep",
+     "f0": 40.0,
+     "octaves": 8.0,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "activate_during_stop",
+   "description": "a stop at block 4, re-activation at block 5 while the stop fade runs (FX-026)",
+   "blocks": 12,
+   "params": {
+    "kind": "shell",
+    "fs": 48000,
+    "law": "crossfadeK5",
+    "mix": 0.6,
+    "events": [
+     {
+      "block": 0,
+      "op": "activate"
+     },
+     {
+      "block": 4,
+      "op": "stop"
+     },
+     {
+      "block": 5,
+      "op": "activate"
+     }
+    ]
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 441.0,
+       "amplitude": 0.4
+      },
+      {
+       "type": "noise",
+       "seed": 21,
+       "amplitude": 0.2
+      }
+     ]
+    },
+    "R": {
+     "type": "sweep",
+     "f0": 40.0,
+     "octaves": 8.0,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "gate1_delay_law",
+   "description": "gate mode 1 (input fade) with the delay law at Mix 0.6, activation and stop (FX-027)",
+   "blocks": 12,
+   "params": {
+    "kind": "shell",
+    "fs": 48000,
+    "gate": 1,
+    "law": "delay",
+    "mix": 0.6,
+    "events": [
+     {
+      "block": 1,
+      "op": "activate"
+     },
+     {
+      "block": 7,
+      "op": "stop"
+     }
+    ]
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 441.0,
+       "amplitude": 0.4
+      },
+      {
+       "type": "noise",
+       "seed": 21,
+       "amplitude": 0.2
+      }
+     ]
+    },
+    "R": {
+     "type": "sweep",
+     "f0": 40.0,
+     "octaves": 8.0,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "hpf_on",
+   "description": "10 Hz wet high-pass on DC + 5 Hz + noise, crossfade Mix 0.7 (FX-028/029)",
+   "blocks": 48,
+   "params": {
+    "kind": "shell",
+    "fs": 48000,
+    "hpf": true,
+    "law": "crossfadeK5",
+    "mix": 0.7,
+    "events": [
+     {
+      "block": 0,
+      "op": "activate"
+     },
+     {
+      "block": 30,
+      "op": "stop"
+     },
+     {
+      "block": 36,
+      "op": "activate"
+     }
+    ]
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "dc",
+       "level": 0.3
+      },
+      {
+       "type": "sine",
+       "freq": 5.0,
+       "amplitude": 0.3
+      },
+      {
+       "type": "noise",
+       "seed": 23,
+       "amplitude": 0.1
+      }
+     ]
+    },
+    "R": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "dc",
+       "level": -0.2
+      },
+      {
+       "type": "noise",
+       "seed": 24,
+       "amplitude": 0.3
+      }
+     ]
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "mix_during_fade",
+   "description": "dry/wet changes during the activation and stop fades wait; later ones glide (FX-031)",
+   "blocks": 18,
+   "params": {
+    "kind": "shell",
+    "fs": 48000,
+    "law": "crossfadeK5",
+    "mix": 0.5,
+    "events": [
+     {
+      "block": 0,
+      "op": "activate"
+     },
+     {
+      "block": 1,
+      "op": "mix",
+      "v": 0.2
+     },
+     {
+      "block": 5,
+      "op": "mix",
+      "v": 0.9
+     },
+     {
+      "block": 8,
+      "op": "stop"
+     },
+     {
+      "block": 9,
+      "op": "mix",
+      "v": 0.4
+     },
+     {
+      "block": 12,
+      "op": "activate"
+     },
+     {
+      "block": 15,
+      "op": "mix",
+      "v": 0.0
+     }
+    ]
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 441.0,
+       "amplitude": 0.4
+      },
+      {
+       "type": "noise",
+       "seed": 21,
+       "amplitude": 0.2
+      }
+     ]
+    },
+    "R": {
+     "type": "sweep",
+     "f0": 40.0,
+     "octaves": 8.0,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "skip_clamp_midblock",
+   "description": "reference skip/clamp: activation and stop take effect mid-block, at sample N_shell (FX-033)",
+   "blocks": 12,
+   "params": {
+    "kind": "shell",
+    "fs": 48000,
+    "skip": true,
+    "law": "crossfadeK5",
+    "mix": 0.5,
+    "events": [
+     {
+      "block": 1,
+      "op": "activate"
+     },
+     {
+      "block": 6,
+      "op": "stop"
+     }
+    ]
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 441.0,
+       "amplitude": 0.4
+      },
+      {
+       "type": "noise",
+       "seed": 21,
+       "amplitude": 0.2
+      }
+     ]
+    },
+    "R": {
+     "type": "sweep",
+     "f0": 40.0,
+     "octaves": 8.0,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "master_schedule",
+   "description": "Master: type schedule 5, 7, 3 (during the fade), 7, 5, Off, 7: sequential swaps (FX-041/042)",
+   "blocks": 36,
+   "params": {
+    "kind": "master",
+    "fs": 48000,
+    "events": [
+     {
+      "block": 0,
+      "type": 5
+     },
+     {
+      "block": 4,
+      "type": 7
+     },
+     {
+      "block": 6,
+      "type": 3
+     },
+     {
+      "block": 12,
+      "type": 7
+     },
+     {
+      "block": 18,
+      "type": 5
+     },
+     {
+      "block": 24,
+      "type": -1
+     },
+     {
+      "block": 30,
+      "type": 7
+     }
+    ]
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 441.0,
+       "amplitude": 0.4
+      },
+      {
+       "type": "noise",
+       "seed": 21,
+       "amplitude": 0.2
+      }
+     ]
+    },
+    "R": {
+     "type": "sweep",
+     "f0": 40.0,
+     "octaves": 8.0,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  },
+  {
+   "id": "insert_schedule_bypass",
+   "description": "Insert: the schedule with bypass on at block 8 and off at 14 (FX-044)",
+   "blocks": 36,
+   "params": {
+    "kind": "insert",
+    "fs": 48000,
+    "events": [
+     {
+      "block": 0,
+      "type": 5
+     },
+     {
+      "block": 4,
+      "type": 7
+     },
+     {
+      "block": 6,
+      "type": 3
+     },
+     {
+      "block": 12,
+      "type": 7
+     },
+     {
+      "block": 18,
+      "type": 5
+     },
+     {
+      "block": 24,
+      "type": -1
+     },
+     {
+      "block": 30,
+      "type": 7
+     },
+     {
+      "block": 8,
+      "bypass": 1
+     },
+     {
+      "block": 14,
+      "bypass": 0
+     }
+    ]
+   },
+   "stimuli": {
+    "L": {
+     "type": "sum",
+     "parts": [
+      {
+       "type": "sine",
+       "freq": 441.0,
+       "amplitude": 0.4
+      },
+      {
+       "type": "noise",
+       "seed": 21,
+       "amplitude": 0.2
+      }
+     ]
+    },
+    "R": {
+     "type": "sweep",
+     "f0": 40.0,
+     "octaves": 8.0,
+     "amplitude": 0.5
+    }
+   },
+   "parity": true
+  }
+ ]
+}

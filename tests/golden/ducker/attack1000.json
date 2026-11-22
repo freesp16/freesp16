@@ -1,0 +1,54 @@
+{
+  "format": "golden-case/1",
+  "name": "ducker",
+  "case": "attack1000",
+  "description": "attack 1000 ms (curve -50), release 300 ms (curve 50), depth 50 %: the first 58 % of the attack",
+  "subject": "fx.ducker",
+  "model": "ducker",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 400,
+  "frames": 25600,
+  "params": {
+    "attack": 1.0,
+    "attack_curve": 0.25,
+    "release_curve": 0.75,
+    "depth": 0.5,
+    "triggers": [
+      {"block": 1, "offset": 9}
+    ],
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -120.0, "floor": 1e-30},
+  "window": [0, 25600],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "attack1000.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "dc", "level": 0.5},
+      "R": {"type": "dc", "level": -0.25}
+    },
+    "sha256": "505d1fc910eb0e3b7473163bad58eccdcb92bf7adac83535669907494b96bd26"
+  },
+  "expected": {
+    "file": "attack1000.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "53759b66a16511c9cc92bde67f90bbf5e6940fdc289120d11e45b6cee361a18f"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/ducker.py",
+      "licence": "MIT",
+      "sha256": "c6c859dae972da899d5eabcb200dd06deb6a522dd13f5d4de178c219b683d9bc"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

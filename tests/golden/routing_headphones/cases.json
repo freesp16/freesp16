@@ -1,0 +1,259 @@
+{
+  "model": "routing_headphones",
+  "subject": "routing.headphones",
+  "local_only": false,
+  "comment": "Reference profile = the research HeadphoneUnit (headphone_mix.py) bit for bit, with the app's gain law in VolumeKnob and settled start-up. Profile-specific (app, Sixteen deviations, documented in models/routing_headphones.py): re-selecting the cue that fades out fades back in (reference: stuck at 0, F209); the monitor gates follow the audible cue (reference: the selected one). App rules modelled in the adapter: invalid cues corrected per mode (our choice); gates closed exactly while the cue is MASTER (our choice; the IMonitorMixer inputs of F210 are unknown).",
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -100.0, "floor": 1e-30},
+  "cases": [
+    {
+      "id": "cue_master_gates",
+      "description": "cue MASTER: the monitor gates are closed (F210, the master carries preview/metronome/monitor in the app); OUT 3-4 opens them over 44 samples (MuteSmoother(44)) from the selection on, MASTER closes them again (reference profile)",
+      "blocks": 20,
+      "params": {
+        "mode": 0,
+        "cue": 0,
+        "level": 127,
+        "events": [
+          {"block": 4, "cue": 2},
+          {"block": 12, "cue": 0}
+        ]
+      },
+      "stimuli": {
+        "out12.L": {"type": "noise", "seed": 100, "amplitude": 0.4},
+        "out12.R": {"type": "noise", "seed": 101, "amplitude": 0.4},
+        "out34.L": {"type": "noise", "seed": 102, "amplitude": 0.4},
+        "out34.R": {"type": "noise", "seed": 103, "amplitude": 0.4},
+        "out56.L": {"type": "noise", "seed": 104, "amplitude": 0.4},
+        "out56.R": {"type": "noise", "seed": 105, "amplitude": 0.4},
+        "out78.L": {"type": "noise", "seed": 106, "amplitude": 0.4},
+        "out78.R": {"type": "noise", "seed": 107, "amplitude": 0.4},
+        "aux.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.2},
+        "aux.R": {"type": "sine", "freq": 1000.0, "amplitude": 0.2, "phase": 0.25},
+        "input.L": {"type": "noise", "seed": 120, "amplitude": 0.1},
+        "input.R": {"type": "noise", "seed": 121, "amplitude": 0.1}
+      },
+      "parity": true,
+      "fault_tests": ["gain"]
+    },
+    {
+      "id": "cue_master_gates_app",
+      "description": "app profile: the gates follow the audible cue (they open when OUT 3-4 starts its fade-in, close when MASTER does)",
+      "blocks": 20,
+      "params": {
+        "mode": 0,
+        "cue": 0,
+        "level": 127,
+        "profile": "app",
+        "events": [
+          {"block": 4, "cue": 2},
+          {"block": 12, "cue": 0}
+        ]
+      },
+      "stimuli": {
+        "out12.L": {"type": "noise", "seed": 100, "amplitude": 0.4},
+        "out12.R": {"type": "noise", "seed": 101, "amplitude": 0.4},
+        "out34.L": {"type": "noise", "seed": 102, "amplitude": 0.4},
+        "out34.R": {"type": "noise", "seed": 103, "amplitude": 0.4},
+        "out56.L": {"type": "noise", "seed": 104, "amplitude": 0.4},
+        "out56.R": {"type": "noise", "seed": 105, "amplitude": 0.4},
+        "out78.L": {"type": "noise", "seed": 106, "amplitude": 0.4},
+        "out78.R": {"type": "noise", "seed": 107, "amplitude": 0.4},
+        "aux.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.2},
+        "aux.R": {"type": "sine", "freq": 1000.0, "amplitude": 0.2, "phase": 0.25},
+        "input.L": {"type": "noise", "seed": 120, "amplitude": 0.1},
+        "input.R": {"type": "noise", "seed": 121, "amplitude": 0.1}
+      },
+      "parity": true
+    },
+    {
+      "id": "cue_pairs_mono",
+      "description": "8CH: OUT 1-2 -> OUT 5-6 -> mono 1 -> mono 2 -> mono 8 -> OUT 7-8, each a 128 + 128-sample dip; a mono cue is one channel duplicated to both ears (F209, MIX-040/042)",
+      "blocks": 28,
+      "params": {
+        "mode": 1,
+        "cue": 1,
+        "level": 127,
+        "events": [
+          {"block": 3, "cue": 3},
+          {"block": 8, "cue": 5},
+          {"block": 13, "cue": 6},
+          {"block": 18, "cue": 12},
+          {"block": 23, "cue": 4}
+        ]
+      },
+      "stimuli": {
+        "out12.L": {"type": "noise", "seed": 100, "amplitude": 0.4},
+        "out12.R": {"type": "noise", "seed": 101, "amplitude": 0.4},
+        "out34.L": {"type": "noise", "seed": 102, "amplitude": 0.4},
+        "out34.R": {"type": "noise", "seed": 103, "amplitude": 0.4},
+        "out56.L": {"type": "noise", "seed": 104, "amplitude": 0.4},
+        "out56.R": {"type": "noise", "seed": 105, "amplitude": 0.4},
+        "out78.L": {"type": "noise", "seed": 106, "amplitude": 0.4},
+        "out78.R": {"type": "noise", "seed": 107, "amplitude": 0.4},
+        "aux.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.2},
+        "aux.R": {"type": "sine", "freq": 1000.0, "amplitude": 0.2, "phase": 0.25},
+        "input.L": {"type": "noise", "seed": 120, "amplitude": 0.1},
+        "input.R": {"type": "noise", "seed": 121, "amplitude": 0.1}
+      },
+      "parity": true
+    },
+    {
+      "id": "cue_reselect_reference",
+      "description": "reference profile (F209 quirk): OUT 3-4 -> OUT 5-6, OUT 3-4 again during the fade-out: the fade-out ends and the selector stays at gain 0 (monitors still added) until mono 5, which fades in from 0",
+      "blocks": 16,
+      "params": {
+        "mode": 0,
+        "cue": 2,
+        "level": 127,
+        "profile": "reference",
+        "events": [
+          {"block": 3, "cue": 3},
+          {"block": 4, "cue": 2},
+          {"block": 10, "cue": 9}
+        ]
+      },
+      "stimuli": {
+        "out12.L": {"type": "noise", "seed": 100, "amplitude": 0.4},
+        "out12.R": {"type": "noise", "seed": 101, "amplitude": 0.4},
+        "out34.L": {"type": "noise", "seed": 102, "amplitude": 0.4},
+        "out34.R": {"type": "noise", "seed": 103, "amplitude": 0.4},
+        "out56.L": {"type": "noise", "seed": 104, "amplitude": 0.4},
+        "out56.R": {"type": "noise", "seed": 105, "amplitude": 0.4},
+        "out78.L": {"type": "noise", "seed": 106, "amplitude": 0.4},
+        "out78.R": {"type": "noise", "seed": 107, "amplitude": 0.4},
+        "aux.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.2},
+        "aux.R": {"type": "sine", "freq": 1000.0, "amplitude": 0.2, "phase": 0.25},
+        "input.L": {"type": "noise", "seed": 120, "amplitude": 0.1},
+        "input.R": {"type": "noise", "seed": 121, "amplitude": 0.1}
+      },
+      "parity": true
+    },
+    {
+      "id": "cue_reselect_app",
+      "description": "app profile (the fix of F209): the same re-selection fades back in from the gain reached over 128 samples",
+      "blocks": 12,
+      "params": {
+        "mode": 0,
+        "cue": 2,
+        "level": 127,
+        "profile": "app",
+        "events": [
+          {"block": 3, "cue": 3},
+          {"block": 4, "cue": 2}
+        ]
+      },
+      "stimuli": {
+        "out12.L": {"type": "noise", "seed": 100, "amplitude": 0.4},
+        "out12.R": {"type": "noise", "seed": 101, "amplitude": 0.4},
+        "out34.L": {"type": "noise", "seed": 102, "amplitude": 0.4},
+        "out34.R": {"type": "noise", "seed": 103, "amplitude": 0.4},
+        "out56.L": {"type": "noise", "seed": 104, "amplitude": 0.4},
+        "out56.R": {"type": "noise", "seed": 105, "amplitude": 0.4},
+        "out78.L": {"type": "noise", "seed": 106, "amplitude": 0.4},
+        "out78.R": {"type": "noise", "seed": 107, "amplitude": 0.4},
+        "aux.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.2},
+        "aux.R": {"type": "sine", "freq": 1000.0, "amplitude": 0.2, "phase": 0.25},
+        "input.L": {"type": "noise", "seed": 120, "amplitude": 0.1},
+        "input.R": {"type": "noise", "seed": 121, "amplitude": 0.1}
+      },
+      "parity": true
+    },
+    {
+      "id": "cue_change_in_fade_in",
+      "description": "a cue change during the fade-in of the previous one: 128 samples down from the gain reached (0.5), switch, 128 in",
+      "blocks": 14,
+      "params": {
+        "mode": 0,
+        "cue": 2,
+        "level": 127,
+        "events": [
+          {"block": 2, "cue": 3},
+          {"block": 5, "cue": 4}
+        ]
+      },
+      "stimuli": {
+        "out12.L": {"type": "noise", "seed": 100, "amplitude": 0.4},
+        "out12.R": {"type": "noise", "seed": 101, "amplitude": 0.4},
+        "out34.L": {"type": "noise", "seed": 102, "amplitude": 0.4},
+        "out34.R": {"type": "noise", "seed": 103, "amplitude": 0.4},
+        "out56.L": {"type": "noise", "seed": 104, "amplitude": 0.4},
+        "out56.R": {"type": "noise", "seed": 105, "amplitude": 0.4},
+        "out78.L": {"type": "noise", "seed": 106, "amplitude": 0.4},
+        "out78.R": {"type": "noise", "seed": 107, "amplitude": 0.4},
+        "aux.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.2},
+        "aux.R": {"type": "sine", "freq": 1000.0, "amplitude": 0.2, "phase": 0.25},
+        "input.L": {"type": "noise", "seed": 120, "amplitude": 0.1},
+        "input.R": {"type": "noise", "seed": 121, "amplitude": 0.1}
+      },
+      "parity": true
+    },
+    {
+      "id": "level_law",
+      "description": "HEADPHONES level = the app's gain law x 0.5 (127 = unity, 100 = -6 dB, low range interpolated) with 100-sample ramps, also across a cue dip",
+      "blocks": 22,
+      "params": {
+        "mode": 0,
+        "cue": 3,
+        "level": 127,
+        "events": [
+          {"block": 2, "level": 100},
+          {"block": 5, "level": 0},
+          {"block": 8, "level": 64},
+          {"block": 11, "level": 1},
+          {"block": 13, "level": 9},
+          {"block": 15, "cue": 4},
+          {"block": 16, "level": 127}
+        ]
+      },
+      "stimuli": {
+        "out12.L": {"type": "noise", "seed": 100, "amplitude": 0.4},
+        "out12.R": {"type": "noise", "seed": 101, "amplitude": 0.4},
+        "out34.L": {"type": "noise", "seed": 102, "amplitude": 0.4},
+        "out34.R": {"type": "noise", "seed": 103, "amplitude": 0.4},
+        "out56.L": {"type": "noise", "seed": 104, "amplitude": 0.4},
+        "out56.R": {"type": "noise", "seed": 105, "amplitude": 0.4},
+        "out78.L": {"type": "noise", "seed": 106, "amplitude": 0.4},
+        "out78.R": {"type": "noise", "seed": 107, "amplitude": 0.4},
+        "aux.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.2},
+        "aux.R": {"type": "sine", "freq": 1000.0, "amplitude": 0.2, "phase": 0.25},
+        "input.L": {"type": "noise", "seed": 120, "amplitude": 0.1},
+        "input.R": {"type": "noise", "seed": 121, "amplitude": 0.1}
+      },
+      "parity": true
+    },
+    {
+      "id": "mode_correction",
+      "description": "MASTER in M + 6CH -> 8CH plays OUT 1-2: the same selector input as in the reference (CueMaster and Cue12 = in2/3), so no headphone dip, only the gates open; mono 1 requested in 8CH is corrected to MASTER in M + 6CH (our choice)",
+      "blocks": 22,
+      "params": {
+        "mode": 0,
+        "cue": 0,
+        "level": 127,
+        "events": [
+          {"block": 3, "mode": 1},
+          {"block": 8, "mode": 0},
+          {"block": 11, "mode": 1},
+          {"block": 12, "cue": 5},
+          {"block": 17, "mode": 0}
+        ]
+      },
+      "stimuli": {
+        "out12.L": {"type": "noise", "seed": 100, "amplitude": 0.4},
+        "out12.R": {"type": "noise", "seed": 101, "amplitude": 0.4},
+        "out34.L": {"type": "noise", "seed": 102, "amplitude": 0.4},
+        "out34.R": {"type": "noise", "seed": 103, "amplitude": 0.4},
+        "out56.L": {"type": "noise", "seed": 104, "amplitude": 0.4},
+        "out56.R": {"type": "noise", "seed": 105, "amplitude": 0.4},
+        "out78.L": {"type": "noise", "seed": 106, "amplitude": 0.4},
+        "out78.R": {"type": "noise", "seed": 107, "amplitude": 0.4},
+        "aux.L": {"type": "sine", "freq": 1000.0, "amplitude": 0.2},
+        "aux.R": {"type": "sine", "freq": 1000.0, "amplitude": 0.2, "phase": 0.25},
+        "input.L": {"type": "noise", "seed": 120, "amplitude": 0.1},
+        "input.R": {"type": "noise", "seed": 121, "amplitude": 0.1}
+      },
+      "parity": true
+    }
+  ]
+}

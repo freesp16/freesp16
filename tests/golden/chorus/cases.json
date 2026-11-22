@@ -1,0 +1,1535 @@
+{
+  "model": "chorus",
+  "subject": "fx.mod",
+  "local_only": false,
+  "sample_rate": 44100,
+  "block": 64,
+  "tolerance": {
+    "max_rel": 1e-05,
+    "residual_dbfs": -100.0,
+    "floor": 1e-30
+  },
+  "cases": [
+    {
+      "id": "defaults",
+      "description": "app defaults (Mix 0: out = in, FX-163), noise",
+      "blocks": 40,
+      "params": {
+        "effect": "chorus"
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "defaults_mix1",
+      "description": "defaults with Mix 1 (wet check): start-up mute blocks 0-76 then the 2 Hz sweep (FX-180)",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "width100_delay10",
+      "description": "width 100, delay x10 (sweep 0.2-441.2 samples, FX-120), sine + noise",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "phase90",
+      "description": "phase 90 degrees (divisor 380, FX-181), delay x5",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "2": 0.5,
+          "3": 0.5,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "phase180",
+      "description": "phase 180 degrees (max 170.5 in the reference, FX-181), delay x5",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "2": 1.0,
+          "3": 0.5,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_87_5",
+      "description": "SYNC, 1 beat per cycle at 87.5 BPM",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "bpm": 87.5,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.4444444444444444,
+          "3": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_120",
+      "description": "SYNC, 1/4 beat per cycle at 120 BPM",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "bpm": 120.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.7777777777777778,
+          "3": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_200",
+      "description": "SYNC, 3/4 beat per cycle at 200 BPM",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "bpm": 200.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.5555555555555556,
+          "3": 0.3,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_999",
+      "description": "SYNC at 999 BPM: 1/4, 1/8, 1/16 clamp to 64 Hz (FX-121), then 16 beats",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "bpm": 999.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.7777777777777778,
+          "3": 0.2,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 100,
+            "k": 0,
+            "v": 0.8888888888888888
+          },
+          {
+            "block": 120,
+            "k": 0,
+            "v": 1.0
+          },
+          {
+            "block": 140,
+            "k": 0,
+            "v": 0.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sync_tempo_ramp",
+      "description": "SYNC 1 beat, the tempo changing every block (FX-049) and SYNC toggled",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "bpm": 90.0,
+        "options": {
+          "0": 1
+        },
+        "init": {
+          "0": 0.4444444444444444,
+          "3": 0.4,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 1,
+            "bpm": 90.75
+          },
+          {
+            "block": 2,
+            "bpm": 91.5
+          },
+          {
+            "block": 3,
+            "bpm": 92.25
+          },
+          {
+            "block": 4,
+            "bpm": 93.0
+          },
+          {
+            "block": 5,
+            "bpm": 93.75
+          },
+          {
+            "block": 6,
+            "bpm": 94.5
+          },
+          {
+            "block": 7,
+            "bpm": 95.25
+          },
+          {
+            "block": 8,
+            "bpm": 96.0
+          },
+          {
+            "block": 9,
+            "bpm": 96.75
+          },
+          {
+            "block": 10,
+            "bpm": 97.5
+          },
+          {
+            "block": 11,
+            "bpm": 98.25
+          },
+          {
+            "block": 12,
+            "bpm": 99.0
+          },
+          {
+            "block": 13,
+            "bpm": 99.75
+          },
+          {
+            "block": 14,
+            "bpm": 100.5
+          },
+          {
+            "block": 15,
+            "bpm": 101.25
+          },
+          {
+            "block": 16,
+            "bpm": 102.0
+          },
+          {
+            "block": 17,
+            "bpm": 102.75
+          },
+          {
+            "block": 18,
+            "bpm": 103.5
+          },
+          {
+            "block": 19,
+            "bpm": 104.25
+          },
+          {
+            "block": 20,
+            "bpm": 105.0
+          },
+          {
+            "block": 21,
+            "bpm": 105.75
+          },
+          {
+            "block": 22,
+            "bpm": 106.5
+          },
+          {
+            "block": 23,
+            "bpm": 107.25
+          },
+          {
+            "block": 24,
+            "bpm": 108.0
+          },
+          {
+            "block": 25,
+            "bpm": 108.75
+          },
+          {
+            "block": 26,
+            "bpm": 109.5
+          },
+          {
+            "block": 27,
+            "bpm": 110.25
+          },
+          {
+            "block": 28,
+            "bpm": 111.0
+          },
+          {
+            "block": 29,
+            "bpm": 111.75
+          },
+          {
+            "block": 30,
+            "bpm": 112.5
+          },
+          {
+            "block": 31,
+            "bpm": 113.25
+          },
+          {
+            "block": 32,
+            "bpm": 114.0
+          },
+          {
+            "block": 33,
+            "bpm": 114.75
+          },
+          {
+            "block": 34,
+            "bpm": 115.5
+          },
+          {
+            "block": 35,
+            "bpm": 116.25
+          },
+          {
+            "block": 36,
+            "bpm": 117.0
+          },
+          {
+            "block": 37,
+            "bpm": 117.75
+          },
+          {
+            "block": 38,
+            "bpm": 118.5
+          },
+          {
+            "block": 39,
+            "bpm": 119.25
+          },
+          {
+            "block": 40,
+            "bpm": 120.0
+          },
+          {
+            "block": 41,
+            "bpm": 120.75
+          },
+          {
+            "block": 42,
+            "bpm": 121.5
+          },
+          {
+            "block": 43,
+            "bpm": 122.25
+          },
+          {
+            "block": 44,
+            "bpm": 123.0
+          },
+          {
+            "block": 45,
+            "bpm": 123.75
+          },
+          {
+            "block": 46,
+            "bpm": 124.5
+          },
+          {
+            "block": 47,
+            "bpm": 125.25
+          },
+          {
+            "block": 48,
+            "bpm": 126.0
+          },
+          {
+            "block": 49,
+            "bpm": 126.75
+          },
+          {
+            "block": 50,
+            "bpm": 127.5
+          },
+          {
+            "block": 51,
+            "bpm": 128.25
+          },
+          {
+            "block": 52,
+            "bpm": 129.0
+          },
+          {
+            "block": 53,
+            "bpm": 129.75
+          },
+          {
+            "block": 54,
+            "bpm": 130.5
+          },
+          {
+            "block": 55,
+            "bpm": 131.25
+          },
+          {
+            "block": 56,
+            "bpm": 132.0
+          },
+          {
+            "block": 57,
+            "bpm": 132.75
+          },
+          {
+            "block": 58,
+            "bpm": 133.5
+          },
+          {
+            "block": 59,
+            "bpm": 134.25
+          },
+          {
+            "block": 60,
+            "bpm": 135.0
+          },
+          {
+            "block": 61,
+            "bpm": 135.75
+          },
+          {
+            "block": 62,
+            "bpm": 136.5
+          },
+          {
+            "block": 63,
+            "bpm": 137.25
+          },
+          {
+            "block": 64,
+            "bpm": 138.0
+          },
+          {
+            "block": 65,
+            "bpm": 138.75
+          },
+          {
+            "block": 66,
+            "bpm": 139.5
+          },
+          {
+            "block": 67,
+            "bpm": 140.25
+          },
+          {
+            "block": 68,
+            "bpm": 141.0
+          },
+          {
+            "block": 69,
+            "bpm": 141.75
+          },
+          {
+            "block": 70,
+            "bpm": 142.5
+          },
+          {
+            "block": 71,
+            "bpm": 143.25
+          },
+          {
+            "block": 72,
+            "bpm": 144.0
+          },
+          {
+            "block": 73,
+            "bpm": 144.75
+          },
+          {
+            "block": 74,
+            "bpm": 145.5
+          },
+          {
+            "block": 75,
+            "bpm": 146.25
+          },
+          {
+            "block": 76,
+            "bpm": 147.0
+          },
+          {
+            "block": 77,
+            "bpm": 147.75
+          },
+          {
+            "block": 78,
+            "bpm": 148.5
+          },
+          {
+            "block": 79,
+            "bpm": 149.25
+          },
+          {
+            "block": 80,
+            "bpm": 150.0
+          },
+          {
+            "block": 81,
+            "bpm": 150.75
+          },
+          {
+            "block": 82,
+            "bpm": 151.5
+          },
+          {
+            "block": 83,
+            "bpm": 152.25
+          },
+          {
+            "block": 84,
+            "bpm": 153.0
+          },
+          {
+            "block": 85,
+            "bpm": 153.75
+          },
+          {
+            "block": 86,
+            "bpm": 154.5
+          },
+          {
+            "block": 87,
+            "bpm": 155.25
+          },
+          {
+            "block": 88,
+            "bpm": 156.0
+          },
+          {
+            "block": 89,
+            "bpm": 156.75
+          },
+          {
+            "block": 90,
+            "bpm": 157.5
+          },
+          {
+            "block": 91,
+            "bpm": 158.25
+          },
+          {
+            "block": 92,
+            "bpm": 159.0
+          },
+          {
+            "block": 93,
+            "bpm": 159.75
+          },
+          {
+            "block": 94,
+            "bpm": 160.5
+          },
+          {
+            "block": 95,
+            "bpm": 161.25
+          },
+          {
+            "block": 96,
+            "bpm": 162.0
+          },
+          {
+            "block": 97,
+            "bpm": 162.75
+          },
+          {
+            "block": 98,
+            "bpm": 163.5
+          },
+          {
+            "block": 99,
+            "bpm": 164.25
+          },
+          {
+            "block": 100,
+            "bpm": 165.0
+          },
+          {
+            "block": 101,
+            "bpm": 165.75
+          },
+          {
+            "block": 102,
+            "bpm": 166.5
+          },
+          {
+            "block": 103,
+            "bpm": 167.25
+          },
+          {
+            "block": 104,
+            "bpm": 168.0
+          },
+          {
+            "block": 105,
+            "bpm": 168.75
+          },
+          {
+            "block": 106,
+            "bpm": 169.5
+          },
+          {
+            "block": 107,
+            "bpm": 170.25
+          },
+          {
+            "block": 108,
+            "bpm": 171.0
+          },
+          {
+            "block": 109,
+            "bpm": 171.75
+          },
+          {
+            "block": 110,
+            "bpm": 172.5
+          },
+          {
+            "block": 111,
+            "bpm": 173.25
+          },
+          {
+            "block": 112,
+            "bpm": 174.0
+          },
+          {
+            "block": 113,
+            "bpm": 174.75
+          },
+          {
+            "block": 114,
+            "bpm": 175.5
+          },
+          {
+            "block": 115,
+            "bpm": 176.25
+          },
+          {
+            "block": 116,
+            "bpm": 177.0
+          },
+          {
+            "block": 117,
+            "bpm": 177.75
+          },
+          {
+            "block": 118,
+            "bpm": 178.5
+          },
+          {
+            "block": 119,
+            "bpm": 179.25
+          },
+          {
+            "block": 120,
+            "bpm": 180.0
+          },
+          {
+            "block": 121,
+            "bpm": 180.75
+          },
+          {
+            "block": 122,
+            "bpm": 181.5
+          },
+          {
+            "block": 123,
+            "bpm": 182.25
+          },
+          {
+            "block": 124,
+            "bpm": 183.0
+          },
+          {
+            "block": 125,
+            "bpm": 183.75
+          },
+          {
+            "block": 126,
+            "bpm": 184.5
+          },
+          {
+            "block": 127,
+            "bpm": 185.25
+          },
+          {
+            "block": 128,
+            "bpm": 186.0
+          },
+          {
+            "block": 129,
+            "bpm": 186.75
+          },
+          {
+            "block": 130,
+            "bpm": 187.5
+          },
+          {
+            "block": 131,
+            "bpm": 188.25
+          },
+          {
+            "block": 132,
+            "bpm": 189.0
+          },
+          {
+            "block": 133,
+            "bpm": 189.75
+          },
+          {
+            "block": 134,
+            "bpm": 190.5
+          },
+          {
+            "block": 135,
+            "bpm": 191.25
+          },
+          {
+            "block": 136,
+            "bpm": 192.0
+          },
+          {
+            "block": 137,
+            "bpm": 192.75
+          },
+          {
+            "block": 138,
+            "bpm": 193.5
+          },
+          {
+            "block": 139,
+            "bpm": 194.25
+          },
+          {
+            "block": 140,
+            "bpm": 195.0
+          },
+          {
+            "block": 141,
+            "bpm": 195.75
+          },
+          {
+            "block": 142,
+            "bpm": 196.5
+          },
+          {
+            "block": 143,
+            "bpm": 197.25
+          },
+          {
+            "block": 144,
+            "bpm": 198.0
+          },
+          {
+            "block": 145,
+            "bpm": 198.75
+          },
+          {
+            "block": 146,
+            "bpm": 199.5
+          },
+          {
+            "block": 147,
+            "bpm": 200.25
+          },
+          {
+            "block": 148,
+            "bpm": 201.0
+          },
+          {
+            "block": 149,
+            "bpm": 201.75
+          },
+          {
+            "block": 150,
+            "bpm": 202.5
+          },
+          {
+            "block": 151,
+            "bpm": 203.25
+          },
+          {
+            "block": 152,
+            "bpm": 204.0
+          },
+          {
+            "block": 153,
+            "bpm": 204.75
+          },
+          {
+            "block": 154,
+            "bpm": 205.5
+          },
+          {
+            "block": 155,
+            "bpm": 206.25
+          },
+          {
+            "block": 156,
+            "bpm": 207.0
+          },
+          {
+            "block": 157,
+            "bpm": 207.75
+          },
+          {
+            "block": 158,
+            "bpm": 208.5
+          },
+          {
+            "block": 159,
+            "bpm": 209.25
+          },
+          {
+            "block": 110,
+            "option": 0,
+            "value": 0
+          },
+          {
+            "block": 130,
+            "option": 0,
+            "value": 1
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "free_tempo_changes",
+      "description": "free rate, tempo changes every 4 blocks (each re-applies the rate)",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "0": 0.6,
+          "3": 0.4,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 4,
+            "bpm": 104.0
+          },
+          {
+            "block": 8,
+            "bpm": 101.0
+          },
+          {
+            "block": 12,
+            "bpm": 105.0
+          },
+          {
+            "block": 16,
+            "bpm": 102.0
+          },
+          {
+            "block": 20,
+            "bpm": 106.0
+          },
+          {
+            "block": 24,
+            "bpm": 103.0
+          },
+          {
+            "block": 28,
+            "bpm": 100.0
+          },
+          {
+            "block": 32,
+            "bpm": 104.0
+          },
+          {
+            "block": 36,
+            "bpm": 101.0
+          },
+          {
+            "block": 40,
+            "bpm": 105.0
+          },
+          {
+            "block": 44,
+            "bpm": 102.0
+          },
+          {
+            "block": 48,
+            "bpm": 106.0
+          },
+          {
+            "block": 52,
+            "bpm": 103.0
+          },
+          {
+            "block": 56,
+            "bpm": 100.0
+          },
+          {
+            "block": 60,
+            "bpm": 104.0
+          },
+          {
+            "block": 64,
+            "bpm": 101.0
+          },
+          {
+            "block": 68,
+            "bpm": 105.0
+          },
+          {
+            "block": 72,
+            "bpm": 102.0
+          },
+          {
+            "block": 76,
+            "bpm": 106.0
+          },
+          {
+            "block": 80,
+            "bpm": 103.0
+          },
+          {
+            "block": 84,
+            "bpm": 100.0
+          },
+          {
+            "block": 88,
+            "bpm": 104.0
+          },
+          {
+            "block": 92,
+            "bpm": 101.0
+          },
+          {
+            "block": 96,
+            "bpm": 105.0
+          },
+          {
+            "block": 100,
+            "bpm": 102.0
+          },
+          {
+            "block": 104,
+            "bpm": 106.0
+          },
+          {
+            "block": 108,
+            "bpm": 103.0
+          },
+          {
+            "block": 112,
+            "bpm": 100.0
+          },
+          {
+            "block": 116,
+            "bpm": 104.0
+          },
+          {
+            "block": 120,
+            "bpm": 101.0
+          },
+          {
+            "block": 124,
+            "bpm": 105.0
+          },
+          {
+            "block": 128,
+            "bpm": 102.0
+          },
+          {
+            "block": 132,
+            "bpm": 106.0
+          },
+          {
+            "block": 136,
+            "bpm": 103.0
+          },
+          {
+            "block": 140,
+            "bpm": 100.0
+          },
+          {
+            "block": 144,
+            "bpm": 104.0
+          },
+          {
+            "block": 148,
+            "bpm": 101.0
+          },
+          {
+            "block": 152,
+            "bpm": 105.0
+          },
+          {
+            "block": 156,
+            "bpm": 102.0
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "rate_changes",
+      "description": "rate changes mid-run (next block, FX-160), width/phase/delay at once",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "0": 0.1,
+          "3": 0.5,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 80,
+            "k": 0,
+            "v": 0.9
+          },
+          {
+            "block": 95,
+            "k": 0,
+            "v": 0.33
+          },
+          {
+            "block": 100,
+            "k": 1,
+            "v": 0.4
+          },
+          {
+            "block": 110,
+            "k": 2,
+            "v": 0.7
+          },
+          {
+            "block": 120,
+            "k": 3,
+            "v": 0.9
+          },
+          {
+            "block": 130,
+            "k": 0,
+            "v": 0.0
+          },
+          {
+            "block": 140,
+            "k": 0,
+            "v": 1.0
+          },
+          {
+            "block": 150,
+            "k": 5,
+            "v": 0.5
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "rate_trap",
+      "description": "a first RATE of 0.5 = the constructor's last value: the 0.1 Hz of the kernel stays (F026)",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "0": 0.5,
+          "3": 0.6,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 120,
+            "k": 0,
+            "v": 0.51
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "retrigger",
+      "description": "LFO restarts at phase 0 at the next block (FX-162)",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "0": 0.3,
+          "3": 0.5,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 90,
+            "op": "retrigger"
+          },
+          {
+            "block": 117,
+            "op": "retrigger"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "reset",
+      "description": "stop + re-activation: rings and LFO buffers zeroed, index/phase/g kept (FX-161)",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "0": 0.3,
+          "3": 0.5,
+          "5": 1.0
+        },
+        "events": [
+          {
+            "block": 95,
+            "op": "stop"
+          },
+          {
+            "block": 105,
+            "op": "activate"
+          }
+        ]
+      },
+      "stimuli": {
+        "L": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 441.0,
+              "amplitude": 0.4,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 3,
+              "amplitude": 0.2
+            }
+          ]
+        },
+        "R": {
+          "type": "sum",
+          "parts": [
+            {
+              "type": "sine",
+              "freq": 1234.5,
+              "amplitude": 0.3,
+              "phase": 0.0
+            },
+            {
+              "type": "noise",
+              "seed": 4,
+              "amplitude": 0.2
+            }
+          ]
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "impulses",
+      "description": "160 blocks of impulses, width 60, delay x8",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "0": 0.7,
+          "1": 0.6,
+          "3": 0.8,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "impulse",
+          "at": [
+            0,
+            1000,
+            4474,
+            5000,
+            7001,
+            9000
+          ],
+          "amplitude": 1.0
+        },
+        "R": {
+          "type": "impulse",
+          "at": [
+            10,
+            4500,
+            6000,
+            8000
+          ],
+          "amplitude": 1.0
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "sine",
+      "description": "160 blocks of sine, phase 45, delay x2",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "init": {
+          "2": 0.25,
+          "3": 0.1111111111111111,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "sine",
+          "freq": 300.0,
+          "amplitude": 0.5,
+          "phase": 0.0
+        },
+        "R": {
+          "type": "sine",
+          "freq": 3000.0,
+          "amplitude": 0.7,
+          "phase": 0.25
+        }
+      },
+      "parity": true
+    },
+    {
+      "id": "fs48k",
+      "description": "48 kHz engine: the reference kernel still runs at 44.1 kHz (FX-182)",
+      "blocks": 160,
+      "params": {
+        "effect": "chorus",
+        "fs": 48000,
+        "init": {
+          "0": 0.4,
+          "3": 0.5,
+          "5": 1.0
+        }
+      },
+      "stimuli": {
+        "L": {
+          "type": "noise",
+          "seed": 1,
+          "amplitude": 0.5
+        },
+        "R": {
+          "type": "noise",
+          "seed": 2,
+          "amplitude": 0.5
+        }
+      },
+      "parity": true
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "scene": 1,
+  "patterns": [
+    {
+      "index": 1,
+      "steps": [
+        { "track": 1, "step": 1, "trigger": 0, "velocity": 120 },
+        { "track": 3, "step": 1, "trigger": 0, "velocity": 100 },
+        { "track": 3, "step": 3, "trigger": 0, "velocity": 70 },
+        { "track": 1, "step": 5, "trigger": 0, "velocity": 120 },
+        { "track": 2, "step": 5, "trigger": 0 },
+        { "track": 3, "step": 5, "trigger": 0, "velocity": 100 },
+        { "track": 3, "step": 7, "trigger": 0, "velocity": 70 },
+        { "track": 1, "step": 9, "trigger": 0, "velocity": 120 },
+        { "track": 3, "step": 9, "trigger": 0, "velocity": 100 },
+        { "track": 3, "step": 11, "trigger": 0, "velocity": 70 },
+        { "track": 1, "step": 13, "trigger": 0, "velocity": 120 },
+        { "track": 2, "step": 13, "trigger": 0 },
+        { "track": 3, "step": 13, "trigger": 0, "velocity": 100 },
+        { "track": 3, "step": 15, "trigger": 0, "velocity": 70 }
+      ]
+    }
+  ]
+}

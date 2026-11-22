@@ -1,0 +1,1612 @@
+{
+  "format": { "name": "sixteen-project", "version": 2 },
+  "settings": {
+    "padQuantize": "Step",
+    "monitorVolume": 100
+  },
+  "scenes": [
+    {
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 1,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 2,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 3,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 4,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 5,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 6,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 7,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 8,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 9,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 10,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 11,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 12,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 13,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 14,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 15,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    }
+  ],
+  "ribbon": {
+    "pitchTopCents": 200,
+    "pitchBottomCents": -200
+  }
+}

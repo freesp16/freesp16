@@ -1,0 +1,68 @@
+{
+  "format": "golden-case/1",
+  "name": "oscillator",
+  "case": "pulse50_10hz",
+  "description": "pulse50 10 Hz, stride 4, phase 0.5",
+  "subject": "fx.oscillator",
+  "model": "oscillator",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 32,
+  "frames": 2048,
+  "params": {"wave": 3, "freq": 10.0, "stride": 4, "phase": 0.5},
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 2048],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "pulse50_10hz.in.f32",
+    "channels": [],
+    "stimuli": {},
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "expected": {
+    "file": "pulse50_10hz.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "b8ff3fd3e169c07082f70baed9a0a2183c3669516dc7f77cf955c4e5226a9115"
+  },
+  "tables": {
+    "osc_random": {
+      "source": "engine/fx/effects/OscillatorRandomTable.h (FX-1305: xorshift32, seed 0x5EED1600, (x >> 8) * 2^-23 - 1); 8193rd word = table[0]",
+      "count": 8192,
+      "fnv1a32": 1419887172
+    }
+  },
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fdlibm_sincosf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "f31de1f124893baec9000ddb0bd9648109d34b0b22eb36508bb1eb5335f2f1f2"
+    },
+    {
+      "file": "tools/fx/fdlibm_tanf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b3a22338aa75a0125a41cfb22d86c782daf5afd4b4e2cac51ac2709bb346d130"
+    },
+    {
+      "file": "tools/fx/osc.py",
+      "licence": "MIT",
+      "sha256": "322c964ab4d5ac7417f7b40e4a13c9d79184acc374f5b708185ee7cfd5c7bf5f"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

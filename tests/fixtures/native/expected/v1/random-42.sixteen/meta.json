@@ -1,0 +1,15 @@
+{
+  "format": { "name": "sixteen-project", "version": 2 },
+  "app": { "name": "fixture-writer", "version": "1" },
+  "created": "2026-11-21T00:00:00Z",
+  "modified": "2026-11-21T00:00:00Z",
+  "samplePool": {
+    "entries": [
+      { "id": "sha256:d725a3e12040c04650be36a657367bc46b6503ddba79abdb5f50cacec3be089b", "location": "absolute", "path": "$Lib", "name": "a/b" },
+      { "id": "sha256:cab673a17da6ba1e1350600e1581105d4a2559154e49f66861138536c86ffbec", "location": "absolute", "path": "$Ext:/x.wav", "name": "tab\tx" },
+      { "id": "sha256:604473b19343b5c11d46ad5f7a7b39fbb3a758754a774f9dae80dd9495aed01a", "location": "$Bundle", "path": "snare 2.wav" },
+      { "id": "sha256:983e93549019e0475dba352880174f8a85c08d40d3b84e328bfb39cd0954b18c", "location": "$Ext:USB1", "path": "loops/a.wav", "name": "x\ny\"q\"" },
+      { "id": "sha256:d791a9d6c001bcd9940f9c3703a6dcb6a1d5fb6a75af2a12f7e808936222b8c4", "location": "absolute", "path": "/abs/path/x.wav", "name": "\"q\"tab\tx" }
+    ]
+  }
+}

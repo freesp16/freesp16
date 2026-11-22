@@ -1,0 +1,75 @@
+{
+  "format": "golden-case/1",
+  "name": "phaser_48k",
+  "case": "width_05",
+  "description": "Width 0.5 (0: no sweep), Frequency 0.6",
+  "subject": "fx.mod",
+  "model": "phaser",
+  "sample_rate": 48000.0,
+  "block": 64,
+  "blocks": 100,
+  "frames": 6400,
+  "params": {
+    "effect": "phaser",
+    "fs": 48000,
+    "parity_maths": true,
+    "init": {"0": 0.5, "1": 0.5, "3": 0.6, "5": 1.0}
+  },
+  "tolerance": {"max_rel": 1e-05, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 6400],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "width_05.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+      "R": {"type": "noise", "seed": 2, "amplitude": 0.5}
+    },
+    "sha256": "10c16065eaec0b7a70c54fa642f6bff4ac02e1fb708f6f6e1b57b59dbd13b459"
+  },
+  "expected": {
+    "file": "width_05.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "955077bc86c712a0288f5f2226d439b955e31ffc23030d0e897ed69f9d96541c"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/effectbase.py",
+      "licence": "MIT",
+      "sha256": "b1a177958d6c2018a9bde8ef7a4afe619b4452f3b1ad20943e81097635ea5476"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fdlibm_tanf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "b3a22338aa75a0125a41cfb22d86c782daf5afd4b4e2cac51ac2709bb346d130"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/phaser.py",
+      "licence": "MIT",
+      "sha256": "3d276ad1976363526516d99b93922438f979298a6647775dd07e79dbb6714cb7"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

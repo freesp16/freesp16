@@ -1,0 +1,108 @@
+{
+  "format": "golden-case/1",
+  "name": "routing",
+  "case": "sixteen_tracks",
+  "description": "16 tracks over every assignment in 8CH, then a mode change: the sums follow the app's track order",
+  "subject": "routing.router",
+  "model": "routing_router",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 10,
+  "frames": 640,
+  "params": {
+    "mode": 1,
+    "assign": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 2, 7, 4],
+    "events": [
+      {"block": 4, "mode": 0}
+    ]
+  },
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -100.0, "floor": 1e-30},
+  "window": [0, 640],
+  "parity": true,
+  "fault_tests": [],
+  "input": {
+    "file": "sixteen_tracks.in.f32",
+    "channels": ["master.L", "master.R", "t0.L", "t0.R", "t1.L", "t1.R", "t2.L", "t2.R", "t3.L", "t3.R", "t4.L", "t4.R", "t5.L", "t5.R", "t6.L", "t6.R", "t7.L", "t7.R", "t8.L", "t8.R", "t9.L", "t9.R", "t10.L", "t10.R", "t11.L", "t11.R", "t12.L", "t12.R", "t13.L", "t13.R", "t14.L", "t14.R", "t15.L", "t15.R"],
+    "stimuli": {
+      "master.L": {"type": "noise", "seed": 1, "amplitude": 0.5},
+      "master.R": {"type": "noise", "seed": 2, "amplitude": 0.5},
+      "t0.L": {"type": "noise", "seed": 20, "amplitude": 0.125},
+      "t0.R": {"type": "noise", "seed": 21, "amplitude": 0.125},
+      "t1.L": {"type": "noise", "seed": 22, "amplitude": 0.125},
+      "t1.R": {"type": "noise", "seed": 23, "amplitude": 0.125},
+      "t2.L": {"type": "noise", "seed": 24, "amplitude": 0.125},
+      "t2.R": {"type": "noise", "seed": 25, "amplitude": 0.125},
+      "t3.L": {"type": "noise", "seed": 26, "amplitude": 0.125},
+      "t3.R": {"type": "noise", "seed": 27, "amplitude": 0.125},
+      "t4.L": {"type": "noise", "seed": 28, "amplitude": 0.125},
+      "t4.R": {"type": "noise", "seed": 29, "amplitude": 0.125},
+      "t5.L": {"type": "noise", "seed": 30, "amplitude": 0.125},
+      "t5.R": {"type": "noise", "seed": 31, "amplitude": 0.125},
+      "t6.L": {"type": "noise", "seed": 32, "amplitude": 0.125},
+      "t6.R": {"type": "noise", "seed": 33, "amplitude": 0.125},
+      "t7.L": {"type": "noise", "seed": 34, "amplitude": 0.125},
+      "t7.R": {"type": "noise", "seed": 35, "amplitude": 0.125},
+      "t8.L": {"type": "noise", "seed": 36, "amplitude": 0.125},
+      "t8.R": {"type": "noise", "seed": 37, "amplitude": 0.125},
+      "t9.L": {"type": "noise", "seed": 38, "amplitude": 0.125},
+      "t9.R": {"type": "noise", "seed": 39, "amplitude": 0.125},
+      "t10.L": {"type": "noise", "seed": 40, "amplitude": 0.125},
+      "t10.R": {"type": "noise", "seed": 41, "amplitude": 0.125},
+      "t11.L": {"type": "noise", "seed": 42, "amplitude": 0.125},
+      "t11.R": {"type": "noise", "seed": 43, "amplitude": 0.125},
+      "t12.L": {"type": "noise", "seed": 44, "amplitude": 0.125},
+      "t12.R": {"type": "noise", "seed": 45, "amplitude": 0.125},
+      "t13.L": {"type": "noise", "seed": 46, "amplitude": 0.125},
+      "t13.R": {"type": "noise", "seed": 47, "amplitude": 0.125},
+      "t14.L": {"type": "noise", "seed": 48, "amplitude": 0.125},
+      "t14.R": {"type": "noise", "seed": 49, "amplitude": 0.125},
+      "t15.L": {"type": "noise", "seed": 50, "amplitude": 0.125},
+      "t15.R": {"type": "noise", "seed": 51, "amplitude": 0.125}
+    },
+    "sha256": "76b1d52820775f35e4271d9238e1fb94100fed25dd66ed6f9a2f1f82833a690a"
+  },
+  "expected": {
+    "file": "sixteen_tracks.out.f32",
+    "channels": ["out12.L", "out12.R", "out34.L", "out34.R", "out56.L", "out56.R", "out78.L", "out78.R"],
+    "sha256": "7091281de40d1ca5d7d0dddb17c51df5df5ab24c0c61efaef3783e3a25b07bde"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/crmath.py",
+      "licence": "MIT",
+      "sha256": "04efc66fd8346eb27f629724e452f516349b9a85782bb0873773228b244b44ca"
+    },
+    {
+      "file": "tools/fx/fdlibm_powf.py",
+      "licence": "MIT + fdlibm notice (Sun Microsystems)",
+      "sha256": "d10f86cbdebb57906ab26aa9dbff6d5f94e68a63f29c4dcb85797df7ce77b635"
+    },
+    {
+      "file": "tools/fx/fx_processors.py",
+      "licence": "MIT",
+      "sha256": "cc621f42389318b2bc50641ec8e99197cece954b904f768ab4697775a76aba20"
+    },
+    {
+      "file": "tools/fx/headphone_mix.py",
+      "licence": "MIT",
+      "sha256": "987b5db83a80998199843cb590b8a3b449156d1c0b7da8cb5d466d463d73aff4"
+    },
+    {
+      "file": "tools/fx/lofi.py",
+      "licence": "MIT",
+      "sha256": "37a9877108bbe7411292f6d8a372c0e85879c216da8d715b1ae041c802d7fec5"
+    },
+    {
+      "file": "tools/fx/track_mix.py",
+      "licence": "MIT",
+      "sha256": "42f6c106ba465227d86e23149d442fb330b9e7492e8fb5d8089f0bdc18b79353"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

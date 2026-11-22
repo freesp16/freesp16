@@ -1,0 +1,733 @@
+{
+  "$description": "Button-role table and wire map of the imx6 platform's hardware panel (subucom SPI panel MCU, /dev/subucom_spi0.1, and the CDC touch strip, /dev/cdc_spi2.0). Logical ids are 03-ui/control-surface.md \u00a72.1. Written from the sp16-emulator's documentation (emulator/panel_map.py E1-E11, its 1.60 compatibility profile panel.*, hardware_stub.c, protocol.py), never from firmware code. platform/imx6/panel/PanelRoles.h compiles the same table; tests/unit/panel/test_panel_roles.cpp keeps them equal.",
+  "schema": 1,
+  "id": "panel",
+  "rx": {
+    "bytes": 128,
+    "header": 1,
+    "crc": {
+      "algorithm": "CRC-16/X-25",
+      "over": [
+        0,
+        123
+      ],
+      "offset": 124,
+      "order": "little"
+    }
+  },
+  "buttons": {
+    "sel.push": [
+      1,
+      1
+    ],
+    "back": [
+      1,
+      2
+    ],
+    "home": [
+      1,
+      3
+    ],
+    "padmode.track": [
+      1,
+      4
+    ],
+    "padmode.mute": [
+      1,
+      5
+    ],
+    "padmode.slice": [
+      1,
+      6
+    ],
+    "padmode.scale": [
+      1,
+      7
+    ],
+    "shift": [
+      2,
+      0
+    ],
+    "rec": [
+      2,
+      1
+    ],
+    "stop": [
+      2,
+      2
+    ],
+    "play": [
+      2,
+      3
+    ],
+    "strip.hold": [
+      2,
+      4
+    ],
+    "strip.mode": [
+      2,
+      5
+    ],
+    "scene": [
+      2,
+      6
+    ],
+    "pattern": [
+      2,
+      7
+    ],
+    "step.1": [
+      3,
+      0
+    ],
+    "step.2": [
+      3,
+      1
+    ],
+    "step.3": [
+      3,
+      2
+    ],
+    "step.4": [
+      3,
+      3
+    ],
+    "step.5": [
+      3,
+      4
+    ],
+    "step.6": [
+      3,
+      5
+    ],
+    "step.7": [
+      3,
+      6
+    ],
+    "step.8": [
+      3,
+      7
+    ],
+    "step.9": [
+      4,
+      0
+    ],
+    "step.10": [
+      4,
+      1
+    ],
+    "step.11": [
+      4,
+      2
+    ],
+    "step.12": [
+      4,
+      3
+    ],
+    "step.13": [
+      4,
+      4
+    ],
+    "step.14": [
+      4,
+      5
+    ],
+    "step.15": [
+      4,
+      6
+    ],
+    "step.16": [
+      4,
+      7
+    ],
+    "bar.1": [
+      5,
+      0
+    ],
+    "bar.2": [
+      5,
+      1
+    ],
+    "bar.3": [
+      5,
+      2
+    ],
+    "bar.4": [
+      5,
+      3
+    ],
+    "afs.active": [
+      5,
+      5
+    ]
+  },
+  "system_buttons": {
+    "usb_stop": [
+      5,
+      6
+    ],
+    "power": [
+      5,
+      4
+    ]
+  },
+  "inert_bits": [
+    [
+      1,
+      0
+    ],
+    [
+      5,
+      7
+    ]
+  ],
+  "counters": {
+    "enc.1": [
+      48,
+      1
+    ],
+    "enc.2": [
+      50,
+      1
+    ],
+    "enc.3": [
+      52,
+      1
+    ],
+    "enc.4": [
+      54,
+      1
+    ],
+    "enc.5": [
+      56,
+      1
+    ],
+    "enc.6": [
+      58,
+      1
+    ],
+    "sel": [
+      60,
+      1
+    ]
+  },
+  "analog": {
+    "afs.drive": [
+      38,
+      true
+    ],
+    "main.volume": [
+      40,
+      false
+    ],
+    "afs.hpCutoff": [
+      42,
+      true
+    ]
+  },
+  "analog_full_scale": 1023,
+  "no_wire_field": [
+    "afs.cutoff",
+    "afs.resonance"
+  ],
+  "pads": {
+    "pressure_offset": 6,
+    "contact_offset": 63,
+    "contact_min": 60,
+    "threshold": 169,
+    "floor": 172,
+    "ceiling": 874
+  },
+  "touch": {
+    "x_offset": 44,
+    "y_offset": 46,
+    "raw_x": [
+      940,
+      72
+    ],
+    "raw_y": [
+      87,
+      866
+    ],
+    "span": [
+      720,
+      405
+    ],
+    "screen_offset": [
+      40,
+      29
+    ],
+    "contact": [
+      45,
+      967,
+      45,
+      908
+    ]
+  },
+  "strip": {
+    "device": "/dev/cdc_spi2.0",
+    "bytes": 4,
+    "position": "(0x7f - b0) & 0x7f",
+    "contact": "b1 bit 7"
+  },
+  "tx": {
+    "bytes": 128,
+    "header": 2,
+    "marker": [
+      119,
+      170
+    ],
+    "brightness_offset": 110,
+    "crc_offset": 124,
+    "rgb": {
+      "first_channel_16_offset": 1,
+      "first_channel_0_offset": 49,
+      "full_scale": 74
+    },
+    "mono": {
+      "0": [
+        99,
+        4,
+        106
+      ],
+      "1": [
+        99,
+        1,
+        106
+      ],
+      "2": [
+        99,
+        2,
+        106
+      ],
+      "3": [
+        99,
+        3,
+        106
+      ],
+      "4": [
+        99,
+        7,
+        null
+      ],
+      "5": [
+        99,
+        6,
+        106
+      ],
+      "6": [
+        99,
+        5,
+        106
+      ],
+      "7": [
+        100,
+        4,
+        107
+      ],
+      "8": [
+        100,
+        6,
+        107
+      ],
+      "9": [
+        100,
+        5,
+        107
+      ],
+      "10": [
+        99,
+        0,
+        106
+      ],
+      "11": [
+        100,
+        1,
+        null
+      ],
+      "12": [
+        100,
+        0,
+        null
+      ],
+      "13": [
+        100,
+        2,
+        null
+      ],
+      "14": [
+        100,
+        3,
+        null
+      ],
+      "15": [
+        98,
+        0,
+        null
+      ],
+      "16": [
+        98,
+        1,
+        null
+      ],
+      "17": [
+        98,
+        2,
+        null
+      ],
+      "18": [
+        98,
+        3,
+        null
+      ],
+      "19": [
+        98,
+        4,
+        null
+      ],
+      "20": [
+        98,
+        5,
+        null
+      ],
+      "21": [
+        98,
+        6,
+        null
+      ],
+      "22": [
+        98,
+        7,
+        null
+      ],
+      "23": [
+        101,
+        3,
+        null
+      ],
+      "24": [
+        101,
+        2,
+        null
+      ],
+      "25": [
+        101,
+        0,
+        null
+      ],
+      "26": [
+        97,
+        4,
+        105
+      ],
+      "27": [
+        97,
+        5,
+        105
+      ],
+      "28": [
+        97,
+        6,
+        105
+      ],
+      "29": [
+        97,
+        7,
+        105
+      ],
+      "30": [
+        97,
+        0,
+        105
+      ],
+      "31": [
+        97,
+        1,
+        105
+      ],
+      "32": [
+        97,
+        2,
+        105
+      ],
+      "33": [
+        97,
+        3,
+        105
+      ],
+      "34": [
+        101,
+        1,
+        null
+      ]
+    }
+  },
+  "lamps": {
+    "pad.1": [
+      "rgb",
+      16
+    ],
+    "pad.2": [
+      "rgb",
+      17
+    ],
+    "pad.3": [
+      "rgb",
+      18
+    ],
+    "pad.4": [
+      "rgb",
+      19
+    ],
+    "pad.5": [
+      "rgb",
+      20
+    ],
+    "pad.6": [
+      "rgb",
+      21
+    ],
+    "pad.7": [
+      "rgb",
+      22
+    ],
+    "pad.8": [
+      "rgb",
+      23
+    ],
+    "pad.9": [
+      "rgb",
+      24
+    ],
+    "pad.10": [
+      "rgb",
+      25
+    ],
+    "pad.11": [
+      "rgb",
+      26
+    ],
+    "pad.12": [
+      "rgb",
+      27
+    ],
+    "pad.13": [
+      "rgb",
+      28
+    ],
+    "pad.14": [
+      "rgb",
+      29
+    ],
+    "pad.15": [
+      "rgb",
+      30
+    ],
+    "pad.16": [
+      "rgb",
+      31
+    ],
+    "step.1": [
+      "rgb",
+      0
+    ],
+    "step.2": [
+      "rgb",
+      1
+    ],
+    "step.3": [
+      "rgb",
+      2
+    ],
+    "step.4": [
+      "rgb",
+      3
+    ],
+    "step.5": [
+      "rgb",
+      4
+    ],
+    "step.6": [
+      "rgb",
+      5
+    ],
+    "step.7": [
+      "rgb",
+      6
+    ],
+    "step.8": [
+      "rgb",
+      7
+    ],
+    "step.9": [
+      "rgb",
+      8
+    ],
+    "step.10": [
+      "rgb",
+      9
+    ],
+    "step.11": [
+      "rgb",
+      10
+    ],
+    "step.12": [
+      "rgb",
+      11
+    ],
+    "step.13": [
+      "rgb",
+      12
+    ],
+    "step.14": [
+      "rgb",
+      13
+    ],
+    "step.15": [
+      "rgb",
+      14
+    ],
+    "step.16": [
+      "rgb",
+      15
+    ],
+    "padmode.track": [
+      "mono",
+      0
+    ],
+    "padmode.mute": [
+      "mono",
+      1
+    ],
+    "padmode.slice": [
+      "mono",
+      2
+    ],
+    "padmode.scale": [
+      "mono",
+      3
+    ],
+    "rec": [
+      "mono",
+      5
+    ],
+    "stop": [
+      "mono",
+      6
+    ],
+    "play": [
+      "mono",
+      7
+    ],
+    "scene": [
+      "mono",
+      8
+    ],
+    "pattern": [
+      "mono",
+      9
+    ],
+    "strip.hold": [
+      "mono",
+      10
+    ],
+    "stripmode.repeat": [
+      "mono",
+      11
+    ],
+    "stripmode.pitch": [
+      "mono",
+      12
+    ],
+    "stripmode.user1": [
+      "mono",
+      13
+    ],
+    "stripmode.user2": [
+      "mono",
+      14
+    ],
+    "strip.led.1": [
+      "mono",
+      15
+    ],
+    "strip.led.2": [
+      "mono",
+      16
+    ],
+    "strip.led.3": [
+      "mono",
+      17
+    ],
+    "strip.led.4": [
+      "mono",
+      18
+    ],
+    "strip.led.5": [
+      "mono",
+      19
+    ],
+    "strip.led.6": [
+      "mono",
+      20
+    ],
+    "strip.led.7": [
+      "mono",
+      21
+    ],
+    "strip.led.8": [
+      "mono",
+      22
+    ],
+    "afs.active": [
+      "mono",
+      23
+    ],
+    "bar.1": [
+      "mono",
+      26
+    ],
+    "bar.2": [
+      "mono",
+      27
+    ],
+    "bar.3": [
+      "mono",
+      28
+    ],
+    "bar.4": [
+      "mono",
+      29
+    ],
+    "bar.position.1": [
+      "mono",
+      30
+    ],
+    "bar.position.2": [
+      "mono",
+      31
+    ],
+    "bar.position.3": [
+      "mono",
+      32
+    ],
+    "bar.position.4": [
+      "mono",
+      33
+    ],
+    "afs.over": [
+      "mono",
+      34
+    ]
+  },
+  "system_lamps": {
+    "usb_stop": [
+      "mono",
+      24
+    ],
+    "usb": [
+      "mono",
+      25
+    ]
+  }
+}

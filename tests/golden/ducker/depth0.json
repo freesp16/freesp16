@@ -1,0 +1,51 @@
+{
+  "format": "golden-case/1",
+  "name": "ducker",
+  "case": "depth0",
+  "description": "depth 0: a trigger changes nothing",
+  "subject": "fx.ducker",
+  "model": "ducker",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 24,
+  "frames": 1536,
+  "params": {
+    "depth": 0.0,
+    "triggers": [
+      {"block": 2, "offset": 10}
+    ],
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -120.0, "floor": 1e-30},
+  "window": [0, 1536],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "depth0.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "dc", "level": 0.5},
+      "R": {"type": "dc", "level": -0.25}
+    },
+    "sha256": "001a2907f62ef3301448f3cce8f78687ad75c5a0c93bfc2d9a528d3d450f8832"
+  },
+  "expected": {
+    "file": "depth0.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "001a2907f62ef3301448f3cce8f78687ad75c5a0c93bfc2d9a528d3d450f8832"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/ducker.py",
+      "licence": "MIT",
+      "sha256": "c6c859dae972da899d5eabcb200dd06deb6a522dd13f5d4de178c219b683d9bc"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

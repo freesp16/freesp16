@@ -1,0 +1,57 @@
+{
+  "format": "golden-case/1",
+  "name": "ducker",
+  "case": "curves_mid",
+  "description": "attack curve 50, release curve -50, then linear (0) for the second hit",
+  "subject": "fx.ducker",
+  "model": "ducker",
+  "sample_rate": 44100.0,
+  "block": 64,
+  "blocks": 80,
+  "frames": 5120,
+  "params": {
+    "attack_curve": 0.75,
+    "release_curve": 0.25,
+    "triggers": [
+      {"block": 2, "offset": 31},
+      {"block": 40, "offset": 0}
+    ],
+    "events": [
+      {"block": 38, "k": 1, "v": 0.5},
+      {"block": 38, "k": 3, "v": 0.5}
+    ],
+    "fs": 44100
+  },
+  "tolerance": {"max_rel": 1e-06, "residual_dbfs": -120.0, "floor": 1e-30},
+  "window": [0, 5120],
+  "parity": false,
+  "fault_tests": [],
+  "input": {
+    "file": "curves_mid.in.f32",
+    "channels": ["L", "R"],
+    "stimuli": {
+      "L": {"type": "noise", "seed": 5, "amplitude": 0.5},
+      "R": {"type": "noise", "seed": 6, "amplitude": 0.5}
+    },
+    "sha256": "7a057d8e09fb4778b5a0c6b92a531c0970ad2085885c5c3a9946051943692727"
+  },
+  "expected": {
+    "file": "curves_mid.out.f32",
+    "channels": ["L", "R"],
+    "sha256": "5ea1478edcd73411643bec479fb82d50429cadfd2ca56cc8504c5a6fcd5cd601"
+  },
+  "tables": {},
+  "models": [
+    {
+      "file": "tools/fx/ducker.py",
+      "licence": "MIT",
+      "sha256": "c6c859dae972da899d5eabcb200dd06deb6a522dd13f5d4de178c219b683d9bc"
+    }
+  ],
+  "research": {
+    "repository": "PioneerSP16FirmwareResearch",
+    "pinned_commit": "8901c970a277b45fd7e12967d533b69dcbd0588c",
+    "allowed": "docs/ and tools/fx/*.py only"
+  },
+  "generator": "tools/golden-gen/gen.py"
+}

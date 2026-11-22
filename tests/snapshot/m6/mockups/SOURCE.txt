@@ -1,0 +1,3 @@
+Copies of sixteen-spec spec/07-ui-design/mockups/*.svg (the same working tree as resources/design/SPEC_VERSION) that resources/design/mockups/ does not pin yet; references of the UTILITY snapshot tests only (never device captures). They may later move into resources/design/mockups/ and SPEC_VERSION.
+ce7fe97244fe35004c1bb575b14b758b39bd68969bdc1c72dff429deefb1d879  channel-mapping.svg
+ceb1d739606ec1f22304e95c80aab51adde2e2dc049f4049e75e2ade91b20796  utility.svg

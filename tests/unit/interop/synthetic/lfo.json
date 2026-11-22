@@ -1,0 +1,18 @@
+{
+  "name": "Lfo",
+  "schema": "observed",
+  "project": {"projectBpm": 120.0},
+  "scenes": {
+    "1": {
+      "props": {"name": "LFO", "bpm": 120.0},
+      "tracks": {
+        "1": {"LfoData": {"destination": 100}},
+        "2": {"LfoData": {"destination": 212}},
+        "3": {"LfoData": {"destination": 154}},
+        "4": {"LfoData": {"destination": 0}},
+        "5": {"LfoData": {"destination": 155}},
+        "6": {"LfoData": {"destination": 7}}
+      }
+    }
+  }
+}
