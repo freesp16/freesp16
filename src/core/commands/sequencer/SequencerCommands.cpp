@@ -211,6 +211,20 @@ std::uint64_t stripKey(int track, int slot) noexcept
     return 3ull << 56 | static_cast<std::uint64_t>(slot) << 8 | static_cast<std::uint64_t>(track & 0xFF);
 }
 std::uint64_t shiftKey(int track) noexcept { return 4ull << 56 | static_cast<std::uint64_t>(track & 0xFF); }
+std::uint64_t motionKey(int track, int slot) noexcept
+{
+    return 5ull << 56 | static_cast<std::uint64_t>(slot & 0xFF) << 8 | static_cast<std::uint64_t>(track & 0xFF);
+}
+
+// A PARAM step whose last lock went is empty again (it would only cost a cell otherwise).
+void dropEmptyLockOnly(Pattern& p, Step& c) noexcept
+{
+    if (c.triggerType != model::TriggerType::LockOnly || c.trigger == Step::kEmpty)
+        return;
+    const StepLocks* l = locksOf(p, c);
+    if (l == nullptr || l->mask == 0)
+        clearCell(c);
+}
 
 std::unique_ptr<core::Command> edit(int scene, int pattern, std::string_view label, EditFn fn, EditArgs args,
                                     std::uint64_t key = 0)
@@ -509,6 +523,56 @@ std::unique_ptr<core::Command> setLocks(int scene, int pattern, int track, std::
                 putLock(p, c, x.slot, x.values[i]);
         }
     }, std::move(a), stripKey(track, slot));
+}
+
+std::unique_ptr<core::Command> editMotion(int scene, int pattern, int track, std::span<const int> steps, LockSlot slot,
+                                          std::span<const float> values)
+{
+    EditArgs a;
+    a.track = track & 15;
+    const std::size_t n = std::min(steps.size(), values.size());
+    a.steps.assign(steps.begin(), steps.begin() + static_cast<std::ptrdiff_t>(n));
+    a.values.assign(values.begin(), values.begin() + static_cast<std::ptrdiff_t>(n));
+    a.slot = slot;
+    return edit(scene, pattern, "MOTION", [](Pattern& p, const EditArgs& x) {
+        if (! validSlot(x.slot))
+            return;
+        for (std::size_t i = 0; i < x.steps.size(); ++i)
+        {
+            if (! validStep(x.steps[i]))
+                continue;
+            Step& c = cellOf(p, x.steps[i], x.track);
+            if (std::isnan(x.values[i]))
+            {
+                dropLock(p, c, x.slot);
+                dropEmptyLockOnly(p, c);
+                continue;
+            }
+            if (c.trigger == Step::kEmpty)
+                setTrigger(c, model::TriggerType::LockOnly, 127);
+            putLock(p, c, x.slot, x.values[i]);
+        }
+    }, std::move(a), motionKey(track, slot));
+}
+
+std::unique_ptr<core::Command> clearMotion(int scene, int pattern, int track, std::uint64_t slotMask)
+{
+    EditArgs a;
+    a.track = track & 15;
+    for (int s = 0; s < model::kLockSlots; ++s)
+        if (slotMask >> s & 1u)
+            a.steps.push_back(s); // here: the slots to clear (every step of the track is visited)
+    return edit(scene, pattern, "CLEAR MOTION", [](Pattern& p, const EditArgs& x) {
+        for (int step = 0; step < model::kSteps; ++step)
+        {
+            Step& c = cellOf(p, step, x.track);
+            if (c.lockIndex == Step::kNoLocks)
+                continue;
+            for (const int slot : x.steps)
+                dropLock(p, c, static_cast<LockSlot>(slot));
+            dropEmptyLockOnly(p, c);
+        }
+    }, std::move(a));
 }
 
 std::unique_ptr<core::Command> shiftSteps(int scene, int pattern, int track, int first, int count, int detents)

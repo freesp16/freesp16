@@ -12,6 +12,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdint>
+#include <limits>
 #include <memory>
 
 namespace cmd = core::commands::sequencer;
@@ -279,4 +281,42 @@ TEST_CASE("seq.params: sequencer.cpp registers the sequencer ids with their CCs 
     CHECK(spec("seq.recordQuantize").defaultValue == 3.0f); // 1/16
     CHECK(spec("seq.swing").maxValue == 50.0f);
     CHECK(spec("seq.erase").isPreference()); // internal, never saved in a project
+}
+
+TEST_CASE("seq.commands: editMotion writes and removes motion, clearMotion clears lanes; PARAM steps left empty go",
+          "[seq][commands][motion]")
+{
+    Bus b;
+    const auto before = std::make_unique<core::model::Pattern>(b.pat());
+    b.bus.execute(cmd::toggleStep(0, 0, 3, 4, TriggerType::Full, 100));
+    const int steps[] = {2, 4, 6};
+    const float values[] = {10.0f, 20.0f, 30.0f};
+    b.bus.execute(cmd::editMotion(0, 0, 3, steps, 0, values));
+    float v = 0;
+    REQUIRE(cmd::lockOf(b.pat(), 2, 3, 0, v));
+    CHECK(v == 10.0f);
+    CHECK(b.cell(2, 3).triggerType == TriggerType::LockOnly); // an empty step became a PARAM step
+    CHECK(b.cell(4, 3).triggerType == TriggerType::Full);     // a trigger keeps its type
+    b.bus.execute(cmd::editMotion(0, 0, 3, steps, 5, values));
+
+    // NaN removes; a PARAM step left without locks is empty again, a trigger stays.
+    const int one[] = {6};
+    const float gone[] = {std::numeric_limits<float>::quiet_NaN()};
+    b.bus.execute(cmd::editMotion(0, 0, 3, one, 0, gone));
+    CHECK_FALSE(cmd::lockOf(b.pat(), 6, 3, 0, v));
+    CHECK(cmd::lockOf(b.pat(), 6, 3, 5, v)); // the other slot's lock stays
+    CHECK_FALSE(b.cell(6, 3).empty());
+
+    b.bus.execute(cmd::clearMotion(0, 0, 3, std::uint64_t {1} << 5));
+    CHECK(b.cell(6, 3).empty());
+    CHECK(cmd::lockOf(b.pat(), 2, 3, 0, v));
+    b.bus.execute(cmd::clearMotion(0, 0, 3, ~std::uint64_t {0}));
+    CHECK(b.cell(2, 3).empty());
+    CHECK(b.cell(4, 3).trigger != core::model::Step::kEmpty); // the hit stays, without locks
+    CHECK(b.cell(4, 3).lockIndex == core::model::Step::kNoLocks);
+
+    while (b.bus.undo())
+    {
+    }
+    CHECK(b.pat() == *before);
 }

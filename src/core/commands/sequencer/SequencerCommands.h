@@ -54,6 +54,14 @@ std::unique_ptr<core::Command> quantizeOffsets(int scene, int pattern, int track
 std::unique_ptr<core::Command> setLocks(int scene, int pattern, int track, std::span<const int> steps,
                                         model::LockSlot, std::span<const float> values, float removeAt,
                                         std::string_view label);
+// MOTION (TRACK MENU › MOTION): the motion of one slot on `steps` — values[i] on steps[i], NaN removes the lock there.
+// A lock on an empty step makes it a PARAM step; a PARAM step left without locks becomes empty again. Consecutive
+// edits of one track and slot coalesce (a finger drawing a lane is one undo step).
+std::unique_ptr<core::Command> editMotion(int scene, int pattern, int track, std::span<const int> steps,
+                                          model::LockSlot, std::span<const float> values);
+// MOTION CLEAR: every lock of the slots in `slotMask` (bit s = slot s) on every step of the track; PARAM steps left
+// without locks become empty.
+std::unique_ptr<core::Command> clearMotion(int scene, int pattern, int track, std::uint64_t slotMask);
 // SEQ-036 step shift: rotates the cells (with their locks) of `track` by `detents` inside [first, first + count).
 std::unique_ptr<core::Command> shiftSteps(int scene, int pattern, int track, int first, int count, int detents);
 
