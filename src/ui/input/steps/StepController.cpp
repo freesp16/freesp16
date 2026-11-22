@@ -40,7 +40,6 @@ StepController::StepController(core::CommandBus& bus, engine::EngineBridge* brid
     recordId_ = idOf(params_, "seq.record");
     eraseId_ = idOf(params_, "seq.erase");
     recordedAt_.fill(-1e12);
-    motionAt_.fill(-1e12);
     moveAt_.fill(-1e12);
 }
 
@@ -55,8 +54,7 @@ void StepController::setContext(int scene, int pattern, int track) noexcept
     if (track != track_ || pattern != pattern_ || scene != scene_)
     {
         recordedAt_.fill(-1e12);
-        motionAt_.fill(-1e12);
-        moveAt_.fill(-1e12);
+            moveAt_.fill(-1e12);
     }
     scene_ = scene & 15;
     pattern_ = pattern & 15;
@@ -241,8 +239,6 @@ bool StepController::recordEncoder(const core::ParamSpec& spec, float value, int
     openGroup(); // the encoder turns of a pass join its group: one pattern copy per pass (SEQ-023, EDT-U3)
     bus_.execute(seqcmd::recordLocks(scene_, pattern_, track_, std::span<const int>(steps.data(), static_cast<std::size_t>(n)),
                                      static_cast<core::model::LockSlot>(slot), spec.clamp(value)));
-    for (int i = 0; i < n; ++i)
-        motionAt_[static_cast<std::size_t>(steps[static_cast<std::size_t>(i)])] = nowMs_;
     return true;
 }
 
@@ -280,21 +276,7 @@ void StepController::paintStepLamps(io::LampSink& sink, const engine::PlayheadFe
         std::uint32_t rgb = colour;
         std::uint8_t level = 0;
         const Step* c = p != nullptr ? cellAt(*p, scene_, pattern_, track_, step) : nullptr;
-        if (motionView_) // the track's motion: the steps holding locks, nothing else
-        {
-            if (c != nullptr && c->lockIndex != Step::kNoLocks)
-            {
-                rgb = theme::lockedTint(colour);
-                level = 255;
-            }
-            const double since = nowMs_ - motionAt_[static_cast<std::size_t>(step)];
-            if (since < io::kFlashMs)
-            {
-                rgb = std::fmod(since, 250.0) < 125.0 ? io::lampcolour::white : theme::lockedTint(colour);
-                level = 255;
-            }
-        }
-        else if (c != nullptr && c->trigger != Step::kEmpty)
+        if (c != nullptr && c->trigger != Step::kEmpty)
         {
             level = c->triggerType == core::model::TriggerType::Full   ? 255
                     : c->triggerType == core::model::TriggerType::Half ? io::kDimLevel
@@ -302,7 +284,7 @@ void StepController::paintStepLamps(io::LampSink& sink, const engine::PlayheadFe
             if (c->lockIndex != Step::kNoLocks) // a locked step: a lighter tint of the track colour
                 rgb = theme::lockedTint(colour);
         }
-        if (! motionView_ && nowMs_ - recordedAt_[static_cast<std::size_t>(step)] < io::kFlashMs)
+        if (nowMs_ - recordedAt_[static_cast<std::size_t>(step)] < io::kFlashMs)
         {
             const bool on = std::fmod(nowMs_ - recordedAt_[static_cast<std::size_t>(step)], 250.0) < 125.0;
             rgb = on ? io::lampcolour::white : colour;

@@ -1060,14 +1060,12 @@ void Document::Impl::syncSequencer(double nowMs)
     // REC armed = the transport controller's (UiState::recArmed, published after the model each frame); the
     // metronome is not forced on for recording passes (SEQ-045 names no mode; the pre-count clicks anyway, SEQ-044).
     steps.setTransport(ph.playing, st.recArmed);
-    // MOTION REC (requested feature): the selected track's switch gates knob recording; TRACK SETTING with it ON turns
-    // the step keys into the track's motion view (never the default step view elsewhere).
+    // MOTION REC: the selected track's switch gates knob recording (TRACK MENU › MOTION REC, TRACK SETTING).
     static const auto* motionRec = core::builtinParams().find("track.motionRec");
     const bool motion = motionRec != nullptr &&
                         values.get(*motionRec, static_cast<std::uint16_t>((p.settings.currentScene & 15) << 4 |
                                                                           ((st.selectedTrack - 1) & 15))) >= 0.5f;
     steps.setMotionRec(motion);
-    steps.setMotionView(motion && selection.shell->current().id == "trackSetting");
     steps.tick(nowMs);
 }
 

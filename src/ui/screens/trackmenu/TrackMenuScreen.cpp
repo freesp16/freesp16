@@ -1,7 +1,9 @@
 // TRACK MENU (07-ui-design/screens/track-menu.md; UI-220…225, UI-258/259, UID-650…666). Template full, context bar
 // TRACK TYPE + BYPASS. The TrackPanel: identity block (chip, type / stretch / loop badges, name — the HOME tile
 // header), four header action slots, six fixed ModuleCard slots per track type with connectors only between chain
-// neighbours, and the wide SEQUENCE card. Nothing moves when a later package registers its screen (UID-665): every
+// neighbours, the wide SEQUENCE card and under it the MOTION bar (the track's recorded motion; a tap opens the
+// MOTION page, ui/screens/motion). A SAMPLE track's first header action is MOTION RECORD (track.motionRec: knob turns
+// while recording write motion; red LED = enabled). Nothing moves when a later package registers its screen (UID-665): every
 // card is drawn at its fixed slot from the start; cards whose screen is not registered (FX1/FX2, LFO, SEQUENCE,
 // NOTE/CC) are focusable and bind their strip tab, and the second tap does nothing until the screen exists.
 //   - First tap / rotary focus binds the strip to the focused item (UI-223, UID-155), the second tap or a push opens
@@ -19,6 +21,7 @@
 #include "ui/screens/effects/FxCatalogue.h"
 #include "ui/screens/effects/FxSlots.h"
 #include "ui/screens/home/TrackInfo.h"
+#include "ui/screens/motion/MotionLanes.h"
 #include "ui/screens/playback/SampleViews.h"
 #include "ui/shell/Layout.h"
 #include "ui/shell/Popup.h"
@@ -48,7 +51,7 @@ using Kind = io::ControlEvent::Kind;
 using Thumb = ModuleCardModel::Thumb;
 
 constexpr float kActionX[] = {584, 752, 920, 1088};
-constexpr RectF kSequence{48, 448, 1184, 144};
+constexpr RectF kSequence{48, 448, 1184, 88}, kMotion{48, 544, 1184, 48};
 constexpr RectF actionRect(int slot) noexcept
 {
     return {kActionX[slot], 168, 160, 72};
@@ -69,7 +72,8 @@ constexpr StripSpec kBrowseStrip{"BROWSE", {}}, kLiveStrip{"LIVE SAMPLING", {}},
     kBankStrip{"BANK SELECT", {"midi.bankMsb", "midi.bankLsb", "", "", "", ""}},
     kProgStrip{"PROG CHANGE", {"midi.program", "", "", "", "", ""}},
     kScaleStrip{"SET SCALE", {"scaleMidi.area", "scaleMidi.root", "", "", "", ""}},
-    kLimiterStrip{"SOFT LIMITER", {"mixer.softLimiter", "", "", "", "", ""}};
+    kLimiterStrip{"SOFT LIMITER", {"mixer.softLimiter", "", "", "", "", ""}},
+    kMotionRecStrip{"MOTION RECORD", {"track.motionRec", "", "", "", "", ""}}, kMotionStrip{"MOTION", {}};
 
 // --- the six slots and four header actions per track type (track-menu.md "The six slots per track type") ---
 struct Card
@@ -119,7 +123,8 @@ const Chain kChains[4] = {
     {{kPlayback, kAmp, kFx1, kFx2, kMixer, kLfo},
      0b0111,
      true,
-     {Action{}, Action{AK::Button, "LIVE SAMPLING", "sampling.live", {}, &kLiveStrip},
+     {Action{AK::Toggle, "MOTION RECORD", {}, {}, &kMotionRecStrip, "track.motionRec"},
+      Action{AK::Button, "LIVE SAMPLING", "sampling.live", {}, &kLiveStrip},
       Action{AK::Button, "BROWSE", "track.browse", {}, &kBrowseStrip},
       Action{AK::Button, "SAMPLING/EDIT", "sampling.edit", {}, &kEditStrip}},
      2},
@@ -151,8 +156,8 @@ const Chain kChains[4] = {
 };
 constexpr std::string_view kTypeBadges[] = {"SMPL", "MIDI", "THRU", "AS-1"};
 
-// Focus items: 0–3 header actions, 4–9 cards, 10 SEQUENCE.
-constexpr int kCard0 = 4, kSeqItem = 10;
+// Focus items: 0–3 header actions, 4–9 cards, 10 SEQUENCE, 11 MOTION.
+constexpr int kCard0 = 4, kSeqItem = 10, kMotionItem = 11, kLastItem = kMotionItem;
 int s_returnFocus = -1; // the module page opened last (BACK lands on it)
 
 class TrackPanel final : public Widget
@@ -200,6 +205,7 @@ public:
             if (c.links & (1u << s))
                 ModuleCard::connector(dl, ctx, s);
         sequence(dl, ctx, c.sequence);
+        motionBar(dl, ctx, c.sequence, colour);
     }
 
     bool dirty(double) const override
@@ -225,10 +231,10 @@ public:
         if (! touch::isTouch(e) || e.value != touch::kDown)
             return false;
         const float x = touch::x(e), y = touch::y(e);
-        for (int i = 0; i <= kSeqItem; ++i)
+        for (int i = 0; i <= kLastItem; ++i)
             if (focusable(i) && contains(itemRect(i), x, y))
             {
-                const bool card = i >= kCard0;
+                const bool card = i >= kCard0 && i != kMotionItem; // the MOTION bar opens on the first tap
                 if (toggleBypass(i))
                     return true;         // BYPASS mode: the tap toggles the module's bypass (UI-221)
                 if (card && focus_ != i) // first tap focuses and binds the strip (UI-223)
@@ -244,16 +250,19 @@ private:
     const Chain& chain() const noexcept { return kChains[mode_ & 3]; }
     static RectF itemRect(int i) noexcept
     {
-        return i < kCard0 ? actionRect(i) : (i == kSeqItem ? kSequence : ModuleCard::rect(i - kCard0));
+        return i < kCard0       ? actionRect(i)
+               : i == kSeqItem    ? kSequence
+               : i == kMotionItem ? kMotion
+                                  : ModuleCard::rect(i - kCard0);
     }
     bool focusable(int i) const noexcept
     {
         const auto& c = chain();
-        if (i < 0 || i > kSeqItem)
+        if (i < 0 || i > kLastItem)
             return false;
         if (i < kCard0)
             return c.actions[static_cast<std::size_t>(i)].kind != AK::None;
-        if (i == kSeqItem)
+        if (i == kSeqItem || i == kMotionItem)
             return c.sequence;
         const auto& cd = c.cards[static_cast<std::size_t>(i - kCard0)];
         return ! cd.id.empty() && ! cd.disabled;
@@ -266,8 +275,8 @@ private:
             int next = i;
             do
                 next += d > 0 ? 1 : -1;
-            while (next >= 0 && next <= kSeqItem && ! focusable(next));
-            if (next < 0 || next > kSeqItem)
+            while (next >= 0 && next <= kLastItem && ! focusable(next));
+            if (next < 0 || next > kLastItem)
                 break;
             i = next;
         }
@@ -282,6 +291,8 @@ private:
             return c.actions[static_cast<std::size_t>(i)].strip;
         if (i == kSeqItem)
             return &kSeqStrip;
+        if (i == kMotionItem)
+            return &kMotionStrip;
         const auto& cd = c.cards[static_cast<std::size_t>(i - kCard0)];
         if (cd.id == "fx1" || cd.id == "fx2")
             return fxStrip(cd.id == "fx1" ? fx::Slot::Fx1 : fx::Slot::Fx2);
@@ -410,8 +421,9 @@ private:
                 shell_->open(a.opens);
             return;
         }
-        const auto opens =
-            i == kSeqItem ? std::string_view("track.sequence") : c.cards[static_cast<std::size_t>(i - kCard0)].opens;
+        const auto opens = i == kSeqItem      ? std::string_view("track.sequence")
+                           : i == kMotionItem ? std::string_view("track.motion")
+                                              : c.cards[static_cast<std::size_t>(i - kCard0)].opens;
         if (! opens.empty() && shell_->open(opens))
             s_returnFocus = i; // BACK returns with the focus on this module
     }
@@ -579,10 +591,19 @@ private:
                 draw::focusRing(dl, p, r, tk::radiusM);
             return;
         case AK::Toggle:
-            Toggle::draw(
-                dl, ctx, r,
-                {a.label, m1::trackFlag(*shell_, a.binds, state_->selectedTrack), false, false, focused, p.warn});
+        {
+            const bool on = m1::trackFlag(*shell_, a.binds, state_->selectedTrack);
+            if (a.binds == "track.motionRec") // MOTION RECORD: the label raised, ENABLED (rec) / DISABLED under it
+            {
+                Toggle::draw(dl, ctx, r, {{}, on, false, false, focused, p.rec});
+                dl.text(r.x + r.w / 2, r.y + 36, Align::Centre, TextStyleId::Label, p.text1, a.label);
+                dl.text(r.x + r.w / 2, r.y + 56, Align::Centre, TextStyleId::Caption, on ? p.rec : p.text3,
+                        on ? "ENABLED" : "DISABLED");
+                return;
+            }
+            Toggle::draw(dl, ctx, r, {a.label, on, false, false, focused, p.warn});
             return;
+        }
         }
     }
 
@@ -617,22 +638,72 @@ private:
             return;
         }
         dl.fill(r, p.surface2, tk::radiusM);
-        dl.text(r.x + r.w / 2, r.y + 20, Align::Centre, TextStyleId::Label, p.text1, "SEQUENCE");
-        dl.fill({r.x + 16, r.y + 40, r.w - 32, 88}, p.surface1, tk::radiusS);
+        dl.text(r.x + r.w / 2, r.y + 14, Align::Centre, TextStyleId::Label, p.text1, "SEQUENCE");
+        dl.fill({r.x + 16, r.y + 26, r.w - 32, 54}, p.surface1, tk::radiusS);
         const float ix = r.x + 32, iw = r.w - 64;
         static constexpr std::string_view steps[] = {"1", "2",  "3",  "4",  "5",  "6",  "7",  "8",
                                                      "9", "10", "11", "12", "13", "14", "15", "16"};
         for (int i = 0; i < 16; ++i)
-            dl.text(ix + iw * (static_cast<float>(i) + 0.5f) / 16, r.y + 58, Align::Centre, TextStyleId::Caption,
+            dl.text(ix + iw * (static_cast<float>(i) + 0.5f) / 16, r.y + 40, Align::Centre, TextStyleId::Caption,
                     p.text2, steps[i]);
         for (int k = 0; k <= 96; ++k)
         {
             const bool tall = k % 6 == 0;
-            draw::vline(dl, ix + iw * static_cast<float>(k) / 96, r.y + (tall ? 92 : 102), r.y + 118,
+            draw::vline(dl, ix + iw * static_cast<float>(k) / 96, r.y + (tall ? 56 : 62), r.y + 72,
                         tall ? p.borderStrong : p.border);
         }
         // The triggers of the shown bar come from the pattern; none are drawn here.
         if (focus_ == kSeqItem)
+        {
+            draw::focusRing(dl, p, r, tk::radiusM);
+            ModuleCard::cornerTriangle(dl, r, p.accent);
+        }
+    }
+
+    // MOTION bar: the parameters and steps holding motion in the current pattern, one tick per step that holds
+    // some (the pattern's length across the bar), MOTION RECORD's state; a tap opens the MOTION page.
+    void motionBar(DrawList& dl, const UiContext& ctx, bool present, std::uint32_t colour) const
+    {
+        const auto& p = ctx.palette;
+        const auto r = kMotion;
+        if (! present)
+        {
+            ModuleCard::dashedRect(dl, r, p.border);
+            return;
+        }
+        dl.fill(r, p.surface2, tk::radiusM);
+        const float cy = r.y + r.h / 2;
+        dl.text(r.x + 24, cy, Align::Left, TextStyleId::Label, p.text1, "MOTION");
+        const auto* pat = motion::pattern(*shell_);
+        const int t0 = state_->selectedTrack - 1;
+        const int length = motion::patternLength(*shell_);
+        const std::uint64_t lanes = motion::lanes(*shell_);
+        const int params = __builtin_popcountll(lanes);
+        const int steps = pat != nullptr ? motion::stepsWithMotion(*pat, t0, length) : 0;
+        if (params == 0)
+            motionText_.set("NO MOTION");
+        else
+            motionText_.format("%d PARAM%s \xC2\xB7 %d STEP%s", params, params == 1 ? "" : "S", steps, steps == 1 ? "" : "S");
+        dl.text(r.x + 128, cy, Align::Left, TextStyleId::Caption, params == 0 ? p.text3 : p.text2, motionText_.view());
+        // The steps holding motion, across the pattern.
+        const float x0 = r.x + 360, w = r.w - 360 - 200;
+        dl.fill({x0, cy - 1, w, 2}, p.border);
+        if (pat != nullptr)
+            for (int s = 0; s < length; ++s)
+            {
+                const auto& c = pat->steps[static_cast<std::size_t>(s)][static_cast<std::size_t>(t0 & 15)];
+                if (c.lockIndex == core::model::Step::kNoLocks || c.lockIndex >= pat->locks.size() ||
+                    pat->locks[c.lockIndex].mask == 0)
+                    continue;
+                const float sx = x0 + w * static_cast<float>(s) / static_cast<float>(length);
+                dl.fill({sx, cy - 10, std::max(2.0f, w / static_cast<float>(length) - 2), 20}, colour, 2);
+            }
+        const bool rec = m1::trackFlag(*shell_, "track.motionRec", state_->selectedTrack);
+        dl.fill({r.right() - 176, cy - 4, 8, 8}, rec ? p.rec : p.borderStrong, 4);
+        dl.text(r.right() - 160, cy, Align::Left, TextStyleId::Caption, rec ? p.rec : p.text3,
+                rec ? "REC ENABLED" : "REC DISABLED");
+        dl.text(r.right() - 24, cy, Align::Right, TextStyleId::Label, p.text2, "\xE2\x80\xBA"); // ›
+        if (focus_ == kMotionItem)
         {
             draw::focusRing(dl, p, r, tk::radiusM);
             ModuleCard::cornerTriangle(dl, r, p.accent);
@@ -648,6 +719,7 @@ private:
     mutable std::array<std::array<char, 40>, 2> fxTitle_ {};
     mutable m1::SampleView view_{};
     mutable std::array<FixedText<16>, 4> values_{}; // BANK SELECT / PROG CHANGE value texts
+    mutable FixedText<40> motionText_{};
 };
 
 std::unique_ptr<Widget> makeTrackPanel(const ScreenSpec&, const WidgetArgs& a)

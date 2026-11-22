@@ -175,21 +175,6 @@ TEST_CASE("seq.steps: MOTION REC overwrites the steps the playhead passes while 
     CHECK(f.cell(3, 2).triggerType == TriggerType::LockOnly);
     f.sc.setTransport(false, true);
     CHECK(core::commands::history(f.bus).undoDepth() == depth + 1); // one undo step, one pattern copy
-
-    // The motion view: locked steps lit in the locked tint, a plain trigger dark; the default view is unchanged.
-    f.bus.execute(core::commands::sequencer::toggleStep(0, 0, 2, 12, TriggerType::Full, 127));
-    engine::PlayheadFeed ph;
-    f.sc.tick(10000);
-    Lamps normal;
-    f.sc.paintStepLamps(normal, ph);
-    CHECK(normal.lit[io::step(13)].second == 255);
-    f.sc.setMotionView(true);
-    Lamps motion;
-    f.sc.paintStepLamps(motion, ph);
-    CHECK(motion.lit[io::step(13)].second == 0);
-    CHECK(motion.lit[io::step(4)].second == 255);
-    CHECK(motion.lit[io::step(4)].first == normal.lit[io::step(4)].first);
-    CHECK(motion.lit[io::step(7)].second == 0);
 }
 
 TEST_CASE("seq.steps: step lamps show triggers in the track colour, HALF dim, the playing and held steps white",

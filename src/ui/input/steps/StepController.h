@@ -16,9 +16,8 @@
 //                step, wrapping at the pattern length (core::edit::StepCopyGesture on the session's SceneEditor);
 //                the step keys enter nothing meanwhile
 //   lamps        the shown bar of the selected track: FULL in the track colour, HALF dim, PARAM low, the playing step
-//                white, steps recorded in the last second flash (SEQ-013, UI-150/151); the motion view
-//                (setMotionView: TRACK SETTING with MOTION REC ON) shows the steps holding motion instead, in the locked
-//                tint, motion written in the last second flashing
+//                white, steps recorded in the last second flash (SEQ-013, UI-150/151). The recorded motion is shown
+//                on TRACK MENU › MOTION (ui/screens/motion), not on the step keys
 //   scene keys   while ScenePatternKeys::ownsStepKeys() is true (setStepKeysOwned), the step handler and
 //                the lamp painter do nothing
 //
@@ -64,9 +63,7 @@ public:
     void setContext(int scene, int pattern, int track) noexcept;
     void setEntryType(core::model::TriggerType t) noexcept { entryType_ = t; }
     void setStepKeysOwned(bool sceneKeysOwnThem) noexcept { scenesOwn_ = sceneKeysOwnThem; }
-    void setMotionRec(bool on) noexcept { motionRec_ = on; }   // the selected track's track.motionRec
-    void setMotionView(bool on) noexcept { motionView_ = on; } // the step lamps show the track's motion
-    bool motionView() const noexcept { return motionView_; }
+    void setMotionRec(bool on) noexcept { motionRec_ = on; } // the selected track's track.motionRec
     void tick(double nowMs) noexcept { nowMs_ = nowMs; }
     // Transport state: REC armed and playing. Posts seq.record on a change; ends the recording group on stop / disarm.
     void setTransport(bool playing, bool armed);
@@ -117,13 +114,12 @@ private:
     int scene_ = 0, pattern_ = 0, track_ = 0;
     core::model::TriggerType entryType_ = core::model::TriggerType::Full;
     bool scenesOwn_ = false, playing_ = false, armed_ = false, erase_ = false, groupOpen_ = false;
-    bool motionRec_ = false, motionView_ = false;
+    bool motionRec_ = false;
     int held_ = 0;
     bool turned_ = false;
     double nowMs_ = 0;
     std::unique_ptr<core::edit::StepCopyGesture> copyGesture_;
     std::array<double, 64> recordedAt_ {}; // per pattern step of the selected track: last recorded hit (flash)
-    std::array<double, 64> motionAt_ {};   // per pattern step of the selected track: last recorded motion (flash)
     std::array<double, core::model::kLockSlots> moveAt_ {}; // per lock slot: the last recorded knob move
     std::array<int, core::model::kLockSlots> moveStep_ {};  // per lock slot: the step it wrote
 };
