@@ -41,6 +41,8 @@ constexpr std::string_view kMenuTargets[] = {"trackSetting", "mixer", "arranger"
 constexpr std::string_view kProject = "project", kSceneManager = "sceneManager", kBpmQuantize = "bpmQuantize",
                            kTrackType = "track.type", kUtility = "utility";
 constexpr int kMaxPopupDepth = 2; // UID-914 (a Message may stack above, errors only)
+constexpr double kCpuIntervalMs = 1000; // CPU USAGE refresh: one kernel accounting interval per readout
+constexpr float kCpuHighPercent = 85;   // the readout turns `warn` at or above this
 
 // UI-102, UI-403: the screen an extension jump key opens; SHIFT gives the neighbouring fixed-area screen
 // that has no key of its own (SHIFT + ext.mixer = ARRANGER, SHIFT + ext.utility = TRACK SETTING). Empty = not
@@ -71,6 +73,7 @@ Shell::Shell(ShellConfig cfg)
     router_.setPresenter(this);
     feeds_.attach(cfg.bridge);
     padColourSpec_ = params_.find("track.padColor");
+    showCpuSpec_ = params_.find("ui.showCpu");
     rail_.reserve(L::railCompactMax);
     slideList_.reserve(2048, 16384);
     popups_.reserve(4);
@@ -364,9 +367,24 @@ void Shell::pollFeeds(double nowMs)
 void Shell::updateFrameModels(double nowMs)
 {
     const auto& s = router_.current();
+    // CPU USAGE: the machine's busy share over the last second (core::CpuUsage), "--" until the first interval ends.
+    const bool showCpu = showCpuSpec_ != nullptr && values_->get(*showCpuSpec_, 0) >= 0.5f;
+    if (! showCpu)
+    {
+        cpu_.reset();
+        cpuSampledMs_ = -1e18;
+    }
+    else if (nowMs - cpuSampledMs_ >= kCpuIntervalMs)
+    {
+        cpuSampledMs_ = nowMs;
+        if (cpu_.sample() && cpu_.percent() >= 0)
+            cpuText_.format("%d%%", static_cast<int>(std::lround(cpu_.percent())));
+        else
+            cpuText_.set("--");
+    }
     statusRow_.set({router_.breadcrumb(), state_.playing, state_.recArmed || state_.samplerRec, state_.midiInAtMs,
-                    state_.midiOutAtMs,
-                    state_.syncBadge, state_.syncLost});
+                    state_.midiOutAtMs, state_.syncBadge, state_.syncLost,
+                    showCpu ? cpuText_.view() : std::string_view{}, showCpu && cpu_.percent() >= kCpuHighPercent});
     ContextBarModel cb = contextBar_.model();
     cb.kind = s.contextBar;
     bool projectPage = false;
@@ -589,6 +607,8 @@ bool Shell::dirty(double nowMs) const
     if (changedSinceFrame_ || nowMs - screenSinceMs_ < tk::motionSlowMs + 20 || strip_.dirty(nowMs) ||
         statusRow_.dirty(nowMs))
         return true;
+    if (showCpuSpec_ != nullptr && values_->get(*showCpuSpec_, 0) >= 0.5f && nowMs - cpuSampledMs_ >= kCpuIntervalMs)
+        return true; // the CPU readout is due
     if ((body_ && body_->dirty(nowMs)) || (meter_ && meter_->dirty(nowMs)) || (toast_ && ! toast_->closed))
         return true;
     for (const auto& p : popups_)

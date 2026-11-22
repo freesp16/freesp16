@@ -9,6 +9,7 @@
 //   lamps.brightness                       PAD/BUTTON BRIGHTNESS → io::LampBrightness (app/App.cpp io::apply)
 //   settings.autosave                      AUTOSAVE OFF / 1 min / 5 min (PRJ-030) → ProjectSession autosave
 //   ui.theme / ui.scale                    THEME (UID-051) → UiState::dark; UI SCALE (UID-253, host windows only)
+//   ui.showCpu                             CPU USAGE OFF / ON → the status row's CPU readout (ui/shell/Shell.cpp)
 //   settings.linkStartStop                 LINK SETTING START/STOP SYNC (SYN-014, P2; disabled until Link exists)
 //   audio.stretchBackend                   MASTER TEMPO backend (wsola: provisional default) → StretcherBank
 //   audio.bufferSize / audio.parityMode    AUDIO DEVICE page; applied at the next start (the ALSA device is fixed on
@@ -68,6 +69,8 @@ void addSettingsParams(ParamRegistry& r)
     // AMP ENVELOPE's time axis re-fits itself (animated) after every change only when this is ON;
     // OFF (default) = fitted on entry / track change, widened at once only if the envelope outgrows it.
     r.add(pref("ui.envAutoZoom", "AMP ENV AUTO ZOOM", "AUTOZOOM", "DISPLAY", offOnLabels, 0));
+    // The whole machine's CPU usage in the status row of every screen (ui::StatusRow), refreshed once a second.
+    r.add(pref("ui.showCpu", "CPU USAGE", "CPU", "DISPLAY", offOnLabels, 0));
     r.add({.id = "ui.scale", .label = "UI SCALE", .shortLabel = "SCALE", .group = "DISPLAY", .type = ParamType::Integer,
            .minValue = 100, .maxValue = 200, .defaultValue = 100, .coarseStep = 25, .fineStep = 5,
            .format = formatPercent, .scope = ParamScope::Global});

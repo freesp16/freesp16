@@ -17,6 +17,7 @@
 #pragma once
 
 #include "core/params/ParamRegistry.h"
+#include "core/util/CpuUsage.h"
 #include "engine/EngineApi.h"
 #include "ui/shell/FeatureFlags.h"
 #include "ui/shell/Feeds.h"
@@ -219,6 +220,10 @@ private:
     mutable double lampsAtMs_ = -1e18;
     double frameMs_ = 0;
     const core::ParamSpec* padColourSpec_ = nullptr; // track.padColor, looked up once (lamp colours per frame)
+    const core::ParamSpec* showCpuSpec_ = nullptr;   // ui.showCpu (UTILITY › CPU USAGE), looked up once
+    core::CpuUsage cpu_;                             // sampled once a second while CPU USAGE is ON
+    double cpuSampledMs_ = -1e18;
+    FixedText<8> cpuText_;                           // "37%", the status row's readout
     double nowMs_ = 0;
     bool changedSinceFrame_ = true;
 };

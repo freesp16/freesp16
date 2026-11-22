@@ -140,6 +140,7 @@ TEST_CASE("m6.utility: every row of utility.md §Rows is present in 1.60 order w
         {"THEME", "DARK", K::Value},
         {"UI SCALE", "100 %", K::Value},
         {"AMP ENV AUTO ZOOM", "OFF", K::Value}, // requested default: OFF
+        {"CPU USAGE", "OFF", K::Value},
         // appended Sixteen rows, our own (UID-220)
         {"PATTERN SWITCH", nullptr, K::Value},
         {"SONG END", nullptr, K::Value},

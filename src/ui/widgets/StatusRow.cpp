@@ -12,6 +12,7 @@ constexpr std::string_view kChevron = "\xE2\x80\xBA";  // ›
 constexpr std::string_view kEllipsis = "\xE2\x80\xA6"; // …
 // A 12 lpx (glyph size) chevron with 8 lpx gaps on both sides (frame.md Breadcrumb), as the mockups place it.
 constexpr float kGap = tk::space[2];
+constexpr float kCpuGap = tk::space[1]; // between the CPU label and its value
 
 float chevronW(const TextMeasure& m)
 {
@@ -99,7 +100,18 @@ void StatusRow::build(DrawList& dl, const UiContext& ctx) const
             now - model_.midiInAtMs < timing::midiActivityMs ? p.accent : p.text3, "IN");
     ix -= layout::indicatorPitch;
     if (! model_.syncBadge.empty())
+    {
         dl.text(ix, cy, Align::Right, TextStyleId::Caption, model_.syncLost ? p.warn : p.text2, model_.syncBadge);
+        ix -= layout::indicatorPitch;
+    }
+    // CPU: the value left-aligned in a fixed "100%" field ending at the slot, so the label does not move as the digits
+    // change.
+    if (! model_.cpu.empty())
+    {
+        const float field = ctx.measure ? ctx.measure(TextStyleId::Caption, "100%") : 32.0f;
+        dl.text(ix - field, cy, Align::Left, TextStyleId::Caption, model_.cpuHigh ? p.warn : p.text2, model_.cpu);
+        dl.text(ix - field - kCpuGap, cy, Align::Right, TextStyleId::Caption, p.text3, "CPU");
+    }
 }
 
 bool StatusRow::dirty(double nowMs) const

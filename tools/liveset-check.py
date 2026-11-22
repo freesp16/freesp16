@@ -134,8 +134,8 @@ def utility_rows():
              "metronomeVolume", "countIn", "brightness", "audioDevice", "outputMap"]
     if ctrl:
         rows += ["controllers"] + ([] if DEVICE else ["keyboardMap"])
-    rows += ["sceneBpm", "resume", "autosave", "theme", "uiScale", "envAutoZoom", "patternSwitch", "songEnd", "stripActsOn",
-             "fxLfoRestart", "extensions", "libraryLocations", "version", "diskSpace"]
+    rows += ["sceneBpm", "resume", "autosave", "theme", "uiScale", "envAutoZoom", "showCpu", "patternSwitch", "songEnd",
+             "stripActsOn", "fxLfoRestart", "extensions", "libraryLocations", "version", "diskSpace"]
     return rows
 
 
