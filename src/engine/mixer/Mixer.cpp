@@ -241,25 +241,38 @@ StripParams Mixer::effective(int track) const noexcept
         p.send = static_cast<std::uint8_t>(clampi(roundIndex(l.send), 0, 127));
     if (l.mask & 8u)
         p.mute = l.mute;
-    const auto& m = mod_[static_cast<std::size_t>(track)]; // modulation on top of the stored or locked value
-    if (m[0] != 0.0f)
-        p.volume = static_cast<std::uint8_t>(clampi(p.volume + roundIndex(m[0]), 0, 127));
-    if (m[1] != 0.0f)
-        p.pan = static_cast<std::int8_t>(clampi(p.pan + roundIndex(m[1]), -64, 64));
-    if (m[2] != 0.0f)
-        p.send = static_cast<std::uint8_t>(clampi(p.send + roundIndex(m[2]), 0, 127));
+    // Modulation on top of the stored or locked value: an override replaces it, the offsets add, one clamp.
+    const auto ti = static_cast<std::size_t>(track);
+    const auto& m = mod_[ti];
+    const auto& o = override_[ti];
+    const std::uint8_t ov = overridden_[ti];
+    const auto modded = [&](int w, int base, int lo, int hi) noexcept {
+        const auto wi = static_cast<std::size_t>(w);
+        if ((ov >> w) & 1u)
+            return clampi(roundIndex(o[wi] + m[wi]), lo, hi);
+        return m[wi] != 0.0f ? clampi(base + roundIndex(m[wi]), lo, hi) : base;
+    };
+    p.volume = static_cast<std::uint8_t>(modded(0, p.volume, 0, 127));
+    p.pan = static_cast<std::int8_t>(modded(1, p.pan, -64, 64));
+    p.send = static_cast<std::uint8_t>(modded(2, p.send, 0, 127));
     return p;
 }
 
-void Mixer::setModulation(int track, StripMod which, float offset) noexcept
+void Mixer::setModulation(int track, StripMod which, float offset, bool hasOverride, float override) noexcept
 {
     const auto w = static_cast<std::size_t>(which);
     if (track < 0 || track >= kTracks || w >= 3)
         return;
-    float& m = mod_[static_cast<std::size_t>(track)][w];
-    if (m == offset)
+    const auto ti = static_cast<std::size_t>(track);
+    const auto bit = static_cast<std::uint8_t>(1u << w);
+    const bool had = (overridden_[ti] & bit) != 0;
+    float& m = mod_[ti][w];
+    float& o = override_[ti][w];
+    if (m == offset && had == hasOverride && (! hasOverride || o == override))
         return;
     m = offset;
+    o = hasOverride ? override : 0.0f;
+    overridden_[ti] = static_cast<std::uint8_t>(hasOverride ? overridden_[ti] | bit : overridden_[ti] & ~bit);
     retarget(track, 0);
 }
 

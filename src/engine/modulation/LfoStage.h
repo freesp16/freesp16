@@ -144,7 +144,8 @@ private:
 //                         ribbon + bend) in one slot, clamped against the stored pitch (−24…+24 st)
 //   env.velocity/attack/hold/release → the envelope lane's parameters (AmpEnvelopeBank::setParams; from its next
 //                         segment, ENV docs)
-//   track.volume/pan/sendAmount → mixer::Mixer::setModulation (index offsets; MIX-002's 100-sample ramps)
+//   track.volume/pan/sendAmount → mixer::Mixer::setModulation (index offset, absolute override; MIX-002's 100-sample
+//                         ramps; the mixer holds the stored-or-locked value)
 // Any other id: not a track destination (modulate() returns false).
 class TrackModSink final : public ParamStateSink
 {

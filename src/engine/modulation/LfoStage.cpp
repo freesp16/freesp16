@@ -262,30 +262,27 @@ bool TrackModSink::apply(int track, core::ParamId dest, const ModValue* v) noexc
     if (mixer_ == nullptr)
         return false;
     mixer::Mixer::StripMod which {};
-    float lo = 0.0f, range = 127.0f, stored = 0.0f;
-    const auto& strip = mixer_->strip(scene_, track);
+    float lo = 0.0f, range = 127.0f;
     switch (target)
     {
         case T::TrackVolume:
             which = mixer::Mixer::StripMod::Volume;
-            stored = strip.volume;
             break;
         case T::TrackPan:
             which = mixer::Mixer::StripMod::Pan;
             lo = -64.0f;
             range = 128.0f;
-            stored = strip.pan;
             break;
         case T::TrackSendAmount:
             which = mixer::Mixer::StripMod::Send;
-            stored = strip.send;
             break;
         default: return false;
     }
-    float offset = 0.0f;
-    if (v != nullptr)
-        offset = v->hasOverride ? (v->override01 + v->offset01) * range + lo - stored : v->offset01 * range;
-    mixer_->setModulation(track, which, offset); // the mixer clamps stored-or-locked + offset to the range
+    // The mixer applies (override or its stored-or-locked value) + offset, clamped to the range: an override is
+    // absolute, never relative to the stored value (a USER item on a locked step lands on its value).
+    const float offset = v != nullptr ? v->offset01 * range : 0.0f;
+    const bool overridden = v != nullptr && v->hasOverride;
+    mixer_->setModulation(track, which, offset, overridden, overridden ? v->override01 * range + lo : 0.0f);
     return true;
 }
 } // namespace engine::modulation

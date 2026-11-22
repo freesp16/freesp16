@@ -14,6 +14,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cmath>
 #include <memory>
 #include <vector>
@@ -370,4 +371,61 @@ TEST_CASE("lfo.stage: restarts per Mode / Trigger On, bypass, destination change
     stage->process(ctx, 3, {&locked, 1}, m);
     stage->process(ctx, 3, {&plain, 1}, m);
     CHECK(stage->lfo(0).depth() == 1.0f);
+}
+
+// Several sources on one destination (FX-084): base = the stored value or the step's lock; an Override (touch strip
+// USER item) replaces that base, the Offsets (LFO, transpose, strip PITCH, bend) add, one clamp to the range.
+namespace
+{
+struct MotionStep // track 2 with a motion step locking VOLUME 40 and PITCH +12 st (trigless: a PARAM step)
+{
+    static constexpr int track = 2;
+    engine::bridge::ParamBindings bindings;
+    std::unique_ptr<engine::trigger::SourceSet> sources = std::make_unique<engine::trigger::SourceSet>();
+    std::unique_ptr<engine::mixer::Mixer> mixer = std::make_unique<engine::mixer::Mixer>();
+    engine::modulation::TrackModSink sink;
+    std::array<float, 64> values {};
+    engine::trigger::LockSet locks;
+    MotionStep()
+    {
+        using T = engine::bridge::ParamTarget;
+        bindings.bind(id("playback.pitch"), static_cast<T>(static_cast<int>(T::PlaybackFirst)));
+        bindings.bind(id("env.velocity"), static_cast<T>(static_cast<int>(T::EnvFirst)));
+        bindings.bind(id("track.volume"), T::TrackVolume);
+        for (int t = 0; t < engine::kTracks; ++t)
+            sources->sources[static_cast<std::size_t>(t)].attach(&sources->env, t);
+        sink.attach(&bindings, sources.get(), mixer.get());
+        sink.beginBlock(0, 120.0);
+        values[engine::mixer::kLockVolume] = 40.0f;
+        values[engine::voice::lockslot::Pitch] = 12.0f;
+        locks.mask = std::uint64_t {1} << engine::mixer::kLockVolume | std::uint64_t {1} << engine::voice::lockslot::Pitch;
+        locks.values = values.data();
+        mixer->applyLocks(track, &locks, 0);
+        engine::trigger::TriggerEvent e {static_cast<std::uint8_t>(track), 100, 0, engine::trigger::TriggerKind::LockOnly,
+                                         engine::trigger::TriggerSource::Sequencer, 0, false, &locks};
+        source().onEvent(e, core::model::TriggerMode::OneShot);
+    }
+    engine::trigger::TrackSource& source() { return sources->sources[static_cast<std::size_t>(track)]; }
+};
+} // namespace
+
+TEST_CASE("modulation.sink: a strip value with a step lock, an LFO and a touch strip USER item", "[modulation][motion]")
+{
+    MotionStep f;
+    const int track = MotionStep::track;
+    REQUIRE(f.mixer->applied(track).volume == 40);
+    ModValue lfo; // +10/127 of the range
+    lfo.offset01 = 10.0f / 127.0f;
+    f.sink.modulate(track, id("track.volume"), lfo);
+    CHECK(f.mixer->applied(track).volume == 50); // around the lock, not the stored 100
+    ModValue user = lfo; // + a USER item at the middle: absolute, then the LFO on top
+    user.hasOverride = true;
+    user.override01 = 0.5f;
+    f.sink.modulate(track, id("track.volume"), user);
+    CHECK(f.mixer->applied(track).volume == 74); // round(63.5 + 10), whatever the lock or the stored value
+    user.offset01 = 1.0f;
+    f.sink.modulate(track, id("track.volume"), user);
+    CHECK(f.mixer->applied(track).volume == 127); // one clamp
+    f.sink.release(track, id("track.volume"));
+    CHECK(f.mixer->applied(track).volume == 40); // back to the lock
 }

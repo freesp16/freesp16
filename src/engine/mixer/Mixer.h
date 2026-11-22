@@ -123,9 +123,10 @@ public:
     template <class LockSet> void applyLocks(int track, const LockSet* locks, int frame) noexcept;
     // per-block modulation of a strip value (engine::modulation::ModMatrix track destinations), an offset in
     // the value's index units added to the stored or locked value and clamped to its range (FX-084 law); ramps from
-    // frame 0 over MIX-002's lengths. 0 = unmodulated.
+    // frame 0 over MIX-002's lengths. 0 = unmodulated. With `hasOverride`, `override` (index units) replaces the stored
+    // or locked value before the offset is added (a touch strip USER item), so it lands on its value on a locked step.
     enum class StripMod : std::uint8_t { Volume, Pan, Send };
-    void setModulation(int track, StripMod which, float offset) noexcept;
+    void setModulation(int track, StripMod which, float offset, bool hasOverride = false, float override = 0.0f) noexcept;
     // Cuts the track at once (tails included, no ramp) for the current block; it fades back in over 128 samples from
     // the next block if it is still audible (audio-engine.md "Hard mute"). For choke / mode changes.
     void hardMute(int track) noexcept;
@@ -145,6 +146,8 @@ public:
 
     const MeterBlock& meters() const noexcept { return meters_; } // copied into MeterFeed by the engine
     const StripParams& strip(int scene, int track) const noexcept;
+    // What the strip plays now: the stored value, the step's lock over it, then the modulation (tests, UI).
+    StripParams applied(int track) const noexcept { return effective(track); }
     int global(GlobalParam p) const noexcept { return globals_[static_cast<std::size_t>(p)]; }
     // MUTE MODE = STOP STEPS: track t is muted (or not soloed) — its sequencer steps do not trigger, its strip sounds.
     bool stepsMuted(int t) const noexcept { return ((stepMuted_ >> (t & 15)) & 1u) != 0; }
@@ -183,6 +186,8 @@ private:
     std::array<std::array<StripParams, kTracks>, kScenes> params_ {};
     std::array<LockState, kTracks> locks_ {};
     std::array<std::array<float, 3>, kTracks> mod_ {}; // StripMod offsets (index units)
+    std::array<std::array<float, 3>, kTracks> override_ {}; // StripMod overrides (index units), when overridden_
+    std::array<std::uint8_t, kTracks> overridden_ {};        // bit w = StripMod w has an override
     int scene_ = 0;
 
     // Strip state, structure of arrays: lane k of track t = ramps_[t][k] (PanL, PanR, Send, Fader).
