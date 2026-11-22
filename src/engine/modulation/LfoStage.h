@@ -141,7 +141,8 @@ private:
 // The engine's track destinations (ModMatrix::applyBlock → ParamStateSink), applied on top of their stored or locked
 // base and clamped to the ParamSpec range (FX-084 / LFO-003):
 //   playback.pitch      → TrackVoice::setModCents(voice::ModSource::Lfo, …): the matrix sum (LFO + transpose +
-//                         ribbon + bend) in one slot, clamped against the stored pitch (−24…+24 st)
+//                         ribbon + bend) in one slot, clamped against the pitch the notes play (TrackSource::
+//                         basePitchCents: the stored pitch or the step's lock)
 //   env.velocity/attack/hold/release → the envelope lane's parameters (AmpEnvelopeBank::setParams; from its next
 //                         segment, ENV docs)
 //   track.volume/pan/sendAmount → mixer::Mixer::setModulation (index offset, absolute override; MIX-002's 100-sample

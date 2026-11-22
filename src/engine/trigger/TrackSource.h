@@ -71,6 +71,9 @@ public:
     float playPosition() const noexcept { return voice_.playPosition(); } // PlayheadFeed (PLY-045)
     voice::TrackVoice& voice() noexcept { return voice_; }
     const voice::TrackVoice& voice() const noexcept { return voice_; }
+    // The pitch (cents) the track's notes play before modulation: the stored pitch or the last trigger's step lock
+    // (the ModMatrix's base for playback.pitch, FX-084: "the stored or locked value").
+    float basePitchCents() const noexcept { return basePitch_; }
 
 private:
     struct Start
@@ -92,6 +95,7 @@ private:
     voice::TrackVoice voice_;
     voice::PlaybackLocks locks_;
     voice::PlaybackParams base_ {};
+    float basePitch_ = 0.0f; // basePitchCents()
     TrackMode mode_ = TrackMode::Sample;
     InputSource input_ = InputSource::Stereo;
     bool thruEnvelope_ = false; // the bank lane is in its Thru (no envelope) state

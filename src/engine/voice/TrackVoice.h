@@ -67,6 +67,10 @@ public:
     void start(const PlaybackParams&, float modCents, int frame, float tailGain) noexcept;
     void stop(int frame, float fadeMs = kFadeMs) noexcept; // choke, hard stop, mode change
     void setModCents(int source, float cents) noexcept;   // ModSource index
+    float modCents(int source) const noexcept
+    {
+        return source >= 0 && source < static_cast<int>(ModSource::Count) ? mod_[static_cast<std::size_t>(source)] : 0.0f;
+    }
     // The track's current parameters for the sounding note: pitch, region and loop apply at once (position kept),
     // reverse at the next start; bypass fades the note out.
     void update(const PlaybackParams&) noexcept;

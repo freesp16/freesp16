@@ -429,3 +429,23 @@ TEST_CASE("modulation.sink: a strip value with a step lock, an LFO and a touch s
     f.sink.release(track, id("track.volume"));
     CHECK(f.mixer->applied(track).volume == 40); // back to the lock
 }
+
+TEST_CASE("modulation.sink: pitch with a step lock — a USER item lands on its value, an Offset clamps against the lock",
+          "[modulation][motion]")
+{
+    MotionStep f;
+    const int track = MotionStep::track;
+    REQUIRE(f.source().basePitchCents() == 1200.0f);
+    using VS = engine::voice::ModSource;
+    ModValue mid;
+    mid.hasOverride = true;
+    mid.override01 = 0.5f; // 0 st
+    f.sink.modulate(track, id("playback.pitch"), mid);
+    CHECK(f.source().voice().modCents(static_cast<int>(VS::Lfo)) == -1200.0f);
+    ModValue up;
+    up.offset01 = 1.0f;
+    f.sink.modulate(track, id("playback.pitch"), up);
+    CHECK(f.source().voice().modCents(static_cast<int>(VS::Lfo)) == 1200.0f); // +12 locked + 12 = the +24 st top
+    f.sink.release(track, id("playback.pitch"));
+    CHECK(f.source().voice().modCents(static_cast<int>(VS::Lfo)) == 0.0f);
+}

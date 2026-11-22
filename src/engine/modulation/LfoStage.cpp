@@ -225,11 +225,12 @@ bool TrackModSink::apply(int track, core::ParamId dest, const ModValue* v) noexc
     const int pitch = static_cast<int>(T::PlaybackFirst) + static_cast<int>(voice::PlaybackField::Pitch);
     if (static_cast<int>(target) == pitch)
     {
-        // −24…+24 st normalised (playback.pitch); the clamp against the stored pitch, the sum in one voice slot.
+        // −24…+24 st normalised (playback.pitch); the sum in one voice slot, clamped against the pitch the notes play
+        // (the stored pitch or the step's lock), so an Override lands on its value and an Offset stays in range.
         float cents = 0.0f;
         if (v != nullptr)
         {
-            const float base = sources_->playback.at(scene_, track).pitchCents;
+            const float base = sources_->sources[static_cast<std::size_t>(track)].basePitchCents();
             const float base01 = (base + kPitchSpanCents * 0.5f) / kPitchSpanCents;
             cents = v->apply(clampF(base01, 0.0f, 1.0f)) * kPitchSpanCents - kPitchSpanCents * 0.5f - base;
         }

@@ -60,7 +60,9 @@ void TrackSource::setMode(TrackMode m) noexcept
 void TrackSource::setPlayback(const voice::PlaybackParams& p) noexcept
 {
     base_ = p;
-    voice_.update(withNoteSlice(locks_.resolve(base_, 0, nullptr, nullptr))); // held locks stay on the sounding note
+    const auto resolved = locks_.resolve(base_, 0, nullptr, nullptr); // held locks stay on the sounding note
+    basePitch_ = resolved.pitchCents;
+    voice_.update(withNoteSlice(resolved));
 }
 
 // the slice a Full trigger plays (−1 = the track's region). A slice lock with change Hold / Glide stays
@@ -122,6 +124,7 @@ void TrackSource::onEvent(const TriggerEvent& e, TriggerMode triggerMode) noexce
         case TriggerKind::Full:
         {
             voice::PlaybackParams params = locks_.resolve(base_, mask, values, change);
+            basePitch_ = params.pitchCents;
             const int slice = resolveSlice(e, mask, values, change);
             if (! applySlice(params, slice))
                 return; // the slice does not exist on this grid: no note
@@ -140,12 +143,20 @@ void TrackSource::onEvent(const TriggerEvent& e, TriggerMode triggerMode) noexce
                 return;
             bank_->trigger(e, gate);
             if (mask != 0)
-                voice_.update(withNoteSlice(locks_.resolve(base_, mask, values, change)));
+            {
+                const auto resolved = locks_.resolve(base_, mask, values, change);
+                basePitch_ = resolved.pitchCents;
+                voice_.update(withNoteSlice(resolved));
+            }
             return;
         case TriggerKind::LockOnly:
             bank_->trigger(e, false);
             if (mask != 0)
-                voice_.update(withNoteSlice(locks_.resolve(base_, mask, values, change)));
+            {
+                const auto resolved = locks_.resolve(base_, mask, values, change);
+                basePitch_ = resolved.pitchCents;
+                voice_.update(withNoteSlice(resolved));
+            }
             return;
         case TriggerKind::Release:
             bank_->release(lane_, frame); // ignored unless the running envelope was started gated
