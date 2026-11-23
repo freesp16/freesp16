@@ -37,7 +37,8 @@ struct PanelStats
 class PanelLink final : public io::ControlSource
 {
 public:
-    PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace);
+    // `powerActiveLow`: the power key's bit reads 0 when pressed (the hardware; false for the emulator).
+    PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace, bool powerActiveLow = true);
     ~PanelLink() override;
     std::string_view id() const override { return "panel"; }
     bool start(std::string& info) override; // opens and configures the link, starts the reader thread
@@ -61,6 +62,9 @@ private:
     int fd_ = -1, wakeRead_ = -1, wakeWrite_ = -1;
     std::thread thread_;
     std::atomic<bool> quit_ {false}, running_ {false};
+    std::atomic<int> powerLevel_ {-1}; // the power key's raw bit (reader → poll's trace)
+    int powerTraced_ = -1;
+    bool powerActiveLow_;
     std::atomic<long> frames_ {0}, badCrc_ {0}, shortReads_ {0}, txFrames_ {0}, txErrors_ {0}, dropped_ {0};
 };
 } // namespace platform::imx6

@@ -39,9 +39,12 @@ double nowMs() noexcept
 }
 } // namespace
 
-PanelLink::PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace)
-    : triggers_(triggers), lamps_(std::move(lamps)), trace_(trace)
+PanelLink::PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace, bool powerActiveLow)
+    : triggers_(triggers), lamps_(std::move(lamps)), trace_(trace), powerActiveLow_(powerActiveLow)
 {
+    auto config = decoder_.config();
+    config.powerActiveLow = powerActiveLow;
+    decoder_.configure(config);
     decoder_.setTriggers(triggers_);
 }
 
@@ -175,6 +178,7 @@ void PanelLink::run()
                 const double t = nowMs();
                 decoder_.decode(frame, t, batch_); // pad hits reach the TriggerSink inside (UI-118)
                 frames_.fetch_add(1, std::memory_order_relaxed);
+                powerLevel_.store(decoder_.powerLevel(), std::memory_order_relaxed);
                 if (decoder_.takePowerRelease()) // the POWER/STANDBY key on the back: the app powers off
                     io::requestStandby();
                 for (int i = 0; i < batch_.count; ++i)
@@ -193,6 +197,15 @@ void PanelLink::run()
 
 void PanelLink::poll(std::vector<io::ControlEvent>& out)
 {
+    // The power key's raw bit, at its first frame and at every change (no control event: diagnostics only).
+    if (const int level = powerLevel_.load(std::memory_order_relaxed); trace_ && level != powerTraced_)
+    {
+        powerTraced_ = level;
+        const bool pressed = (level == 0) == powerActiveLow_;
+        std::printf("[sp16-mod] %s INPUT panel power raw %d (%s, %s)\n", identity::envPrefix, level,
+                    pressed ? "pressed" : "up", powerActiveLow_ ? "active-low" : "active-high");
+        std::fflush(stdout);
+    }
     io::ControlEvent e;
     while (queue_.pop(e))
     {

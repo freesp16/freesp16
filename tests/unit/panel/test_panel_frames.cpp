@@ -289,25 +289,27 @@ TEST_CASE("panel frames: the first frame reports held buttons and pads but no co
     CHECK(turns == 0);
 }
 
-TEST_CASE("panel frames: the power key (either polarity, debounced) is a standby request on its release")
+TEST_CASE("panel frames: the power key (active-low on the hardware, debounced) is a standby request on its release")
 {
     using platform::imx6::panel::kPowerKeyBit;
     using platform::imx6::panel::kPowerKeyByte;
-    // The hardware's bit is active-low (idle 1), the emulator's active-high (idle 0): the idle level is learnt.
-    for (const bool activeLow : {true, false})
+    for (const bool activeLow : {true, false}) // the hardware; the emulator (power_key=high)
     {
         INFO("active-low " << activeLow);
         paneltest::RxFrame f;
         auto key = [&](bool pressed) { f.button(kPowerKeyByte, kPowerKeyBit, pressed != activeLow); };
-        PanelDecoder d;
+        platform::imx6::panel::DecoderConfig config;
+        config.powerActiveLow = activeLow;
+        PanelDecoder d(config);
         double t = 0;
         auto frames = [&](double ms) { // one frame every 3 ms (the driver's interval) for `ms`
             for (const double end = t + ms; t < end; t += 3)
                 CHECK(run(d, f, t).size() <= 3); // the first frame reports the pots; never a power event
         };
         key(false);
-        frames(100); // idle learnt
+        frames(100);
         CHECK_FALSE(d.takePowerRelease());
+        CHECK(d.powerLevel() == (activeLow ? 1 : 0));
 
         key(true);
         frames(30); // a 30 ms glitch: below the debounce
@@ -329,25 +331,25 @@ TEST_CASE("panel frames: the power key (either polarity, debounced) is a standby
     }
 }
 
-TEST_CASE("panel frames: the power key's idle level comes from the first frames, and other byte-5 keys never arm it")
+TEST_CASE("panel frames: power key frames that read pressed when the link opens never fire, the next press does")
 {
     using platform::imx6::panel::kPowerKeyBit;
     using platform::imx6::panel::kPowerKeyByte;
+    // Seen on a unit: the first frames read the pressed level (bit 0), then idle (1). Learning the idle level from them
+    // swapped press and release; with the fixed active-low polarity they are a press that was never armed.
     paneltest::RxFrame f;
-    f.button(kPowerKeyByte, kPowerKeyBit, true); // idle 1 (the hardware)
-    PanelDecoder d;
+    PanelDecoder d; // the hardware's default: active-low
     double t = 0;
     auto frames = [&](double ms) {
         for (const double end = t + ms; t < end; t += 3)
             run(d, f, t);
     };
-    frames(20); // not yet stable: no idle level, so a change now is no press
-    f.button(kPowerKeyByte, kPowerKeyBit, false);
-    frames(10);
-    f.button(kPowerKeyByte, kPowerKeyBit, true);
-    frames(100);
-    CHECK_FALSE(d.takePowerRelease());
-    // BAR 1 and ACTIVE share byte 5.
+    f.button(kPowerKeyByte, kPowerKeyBit, false); // reads "pressed"
+    frames(200);
+    f.button(kPowerKeyByte, kPowerKeyBit, true); // idle
+    frames(200);
+    CHECK_FALSE(d.takePowerRelease()); // that "release" is not a standby request
+    // BAR 1 and ACTIVE share byte 5 and never arm it.
     f.button(5, 0, true);
     f.button(5, 5, true);
     frames(100);
@@ -355,9 +357,10 @@ TEST_CASE("panel frames: the power key's idle level comes from the first frames,
     f.button(5, 5, false);
     frames(100);
     CHECK_FALSE(d.takePowerRelease());
-    // The real press and release.
+    // The real press (0) and release (1).
     f.button(kPowerKeyByte, kPowerKeyBit, false);
     frames(100);
+    CHECK_FALSE(d.takePowerRelease());
     f.button(kPowerKeyByte, kPowerKeyBit, true);
     frames(100);
     CHECK(d.takePowerRelease());

@@ -88,6 +88,9 @@ public:
             audioDevice_ = it->second;
         if (auto it = settings.find("input_trace"); it != settings.end()) // INPUT log lines, default on
             inputTrace_ = it->second != "0";
+        // The POWER key's bit: low = 0 when pressed (the hardware, default), high = 1 when pressed (the emulator).
+        if (auto it = settings.find("power_key"); it != settings.end())
+            powerActiveLow_ = it->second != "high";
         // phones_device=<PCM> (default hw:ak4452audio,0; "none" = no headphone stream) and
         // audio_map=<port>:<L>/<R>,… over the codec map (MIX-032).
         if (auto it = settings.find("phones_device"); it != settings.end())
@@ -161,7 +164,7 @@ public:
     std::vector<std::unique_ptr<io::ControlSource>> controlSources(const ControlEnv& env) override
     {
         std::vector<std::unique_ptr<io::ControlSource>> sources;
-        sources.push_back(std::make_unique<PanelLink>(env.triggers, lampBus_, inputTrace_)); // + LCD touch
+        sources.push_back(std::make_unique<PanelLink>(env.triggers, lampBus_, inputTrace_, powerActiveLow_)); // + LCD touch
         sources.push_back(std::make_unique<StripSource>(lampBus_, inputTrace_, env.triggers)); // /dev/cdc_spi2.0
         return sources;
     }
@@ -219,6 +222,7 @@ private:
     common::AlsaPortMap map_ = kCodecMap;
     std::string mapNote_;
     bool inputTrace_ = true;
+    bool powerActiveLow_ = true; // power_key=low|high
     bool lampLog_ = false;
     unsigned period_ = 0, periods_ = 0; // 0 = AudioConfig's (256 × 3)
     std::shared_ptr<panel::LampBus> lampBus_ = std::make_shared<panel::LampBus>(); // panel link + lamps + strip echo

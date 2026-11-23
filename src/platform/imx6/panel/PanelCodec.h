@@ -44,6 +44,7 @@ struct DecoderConfig
     int touchStableFrames = 3; // frames in the contact rectangle before a touch is down (firmware: 4 samples)
     int touchJumpMax = 48;     // raw units between those frames
     int touchReleaseFrames = 2;
+    bool powerActiveLow = true; // the power key's bit: 0 = pressed on the hardware; false for the emulator
 };
 
 // RX frame → events, stateful (counters are cumulative, buttons and pads report levels). Reader thread only.
@@ -63,15 +64,16 @@ public:
     void decode(const std::uint8_t* frame, double timeMs, EventBatch& out) noexcept;
     void reset() noexcept;
     // The POWER/STANDBY key (kPowerKeyByte/Bit, no logical control): true once after it was pressed and released, like
-    // the stock app, which goes to standby on the release. Polarity-free: the idle level is the one the bit holds for
-    // kPowerDebounceMs from the first frame (the app starts from the boot menu with the key up); a press is the other
-    // level held that long, its release the idle level held that long again. Reader thread.
+    // the stock app, which goes to standby on the release. Each level counts once it held kPowerDebounceMs; a press
+    // counts only after the released level was seen (a key held, or misread, when the link opens never fires). Reader
+    // thread.
     bool takePowerRelease() noexcept
     {
         const bool r = powerReleased_;
         powerReleased_ = false;
         return r;
     }
+    int powerLevel() const noexcept { return powerLevel_; } // the bit's raw level (-1 before the first frame)
 
     // LCD touch raw point → logical 800 × 480 point (exposed for tests).
     static void touchToScreen(const TouchCalibration&, int rawX, int rawY, int& x, int& y) noexcept;
@@ -85,9 +87,9 @@ private:
     bool haveFrame_ = false;
     std::array<std::uint16_t, 7> counters_ {};
     std::array<std::uint8_t, 6> buttons_ {};
-    int powerLevel_ = -1, powerIdle_ = -1; // the bit's raw level and its idle level (-1 = not known yet)
-    double powerSinceMs_ = 0;              // when powerLevel_ last changed
-    bool powerPressed_ = false, powerReleased_ = false;
+    int powerLevel_ = -1;       // the bit's raw level
+    double powerSinceMs_ = 0;   // when powerLevel_ last changed
+    bool powerUpSeen_ = false, powerPressed_ = false, powerReleased_ = false;
     std::array<bool, 16> padDown_ {};
     std::array<std::uint8_t, 16> padPressure_ {};
     std::array<int, 3> analog_ {-1, -1, -1};

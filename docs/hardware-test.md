@@ -223,8 +223,10 @@ exists. Switch the unit on again: the stock software starts, then the boot menu,
 switched off — the screen, and the unsaved changes without the "Restore unsaved changes?" question (still unsaved:
 SAVE keeps them, UNDO returns to the saved version). Send the tail of `<name>.log`.
 
-If nothing happens on the press, the power bit did not change (RX byte 5 bit 4; the app takes its idle level from
-the first 50 ms, so either polarity works): send `04-trace` lines while pressing it. If the unit stays on, the log goes
+The key's raw bit is logged at start and at every change: `INPUT panel power raw 1 (up, active-low)` at rest, `raw 0
+(pressed, …)` while held (RX byte 5 bit 4, active-low on the unit: the app acts on the release after a press of at
+least 50 ms). If the log shows `pressed` at rest and `up` while held, the polarity is the other way round:
+`power_key=high` in the settings swaps it (the emulator needs that setting). Send those `INPUT panel power` lines. If the unit stays on, the log goes
 on with `STANDBY the power stayed on for 20.0 s: quitting` and the boot menu comes back: the power MCU did not act on
 the standby flag. Send the log and say whether the lamps went dark and the sound stopped.
 

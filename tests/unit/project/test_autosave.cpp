@@ -181,7 +181,7 @@ TEST_CASE("project.device: losing the audio device pauses, autosaves at once and
     session.shutdown();
 }
 
-TEST_CASE("project.power: a power-off shutdown autosaves unsaved changes; a plain quit does not", "[project]")
+TEST_CASE("project.power: a power-off shutdown autosaves unsaved changes, a plain quit does not", "[project]")
 {
     for (const bool powerOff : {false, true})
     {
