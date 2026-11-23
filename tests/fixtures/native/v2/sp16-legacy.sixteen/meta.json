@@ -1,0 +1,12 @@
+{
+  "format": { "name": "sixteen-project", "version": 2 },
+  "app": { "name": "fixture-writer", "version": "legacy-importer" },
+  "created": "2026-11-21T00:00:00Z",
+  "modified": "2026-11-21T00:00:00Z",
+  "samplePool": {
+    "entries": [
+      { "id": "sp16:$Ext0/%Smp/Kit/kick.wav", "location": "absolute", "path": "/fixture/PIONEER DJ SAMPLER/Samples/Kit/kick.wav", "name": "kick.wav" },
+      { "id": "sp16:$Ext0/%Smp/Kit/tone.wav", "location": "absolute", "path": "/fixture/PIONEER DJ SAMPLER/Samples/Kit/tone.wav", "name": "tone.wav" }
+    ]
+  }
+}

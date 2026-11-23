@@ -71,8 +71,27 @@ Result<int> MigrationRunner::run(juce::var& root, int fromVersion, std::vector<s
         setSchemaVersion(root, v);
         if (applied != nullptr)
             applied->emplace_back(m->summary);
+        // Per-project details a migration left in root.migrationNotes (Migrations.h), after its summary.
+        if (auto* object = root.getDynamicObject(); object != nullptr && object->hasProperty(kMigrationNotes))
+        {
+            if (const auto* notes = object->getProperty(kMigrationNotes).getArray(); notes != nullptr && applied)
+                for (const auto& n : *notes)
+                    applied->push_back(std::string(m->summary) + ": " + n.toString().toStdString());
+            object->removeProperty(kMigrationNotes);
+        }
     }
     return v;
+}
+
+void appendMigrationNote(juce::var& root, const std::string& note)
+{
+    auto* object = root.getDynamicObject();
+    if (object == nullptr)
+        return;
+    if (! object->getProperty(kMigrationNotes).isArray())
+        object->setProperty(kMigrationNotes, juce::var(juce::Array<juce::var>()));
+    if (auto* notes = object->getProperty(kMigrationNotes).getArray())
+        notes->add(juce::String::fromUTF8(note.c_str()));
 }
 
 int schemaVersionOf(const juce::var& root)

@@ -7,8 +7,9 @@
 // model's range, an enum string no table knows, a lock ordinal the map does not import, a node of an unknown type
 // are kept in the entity's Extras ("sp16.<Node>.<prop>", step cells "sp16.step[s].track[t]", whole unknown subtrees
 // "sp16.node.<type>" as base64 tree bytes) and listed in the ImportLog (FMT-042). Patterns are placed by their node
-// suffix, never by position (OQ-03); absent patterns stay default. A step matrix that the model cannot reproduce
-// byte for byte (encodePattern) is also kept verbatim ("sp16.PatternData.Steps") and reported.
+// suffix, never by position (OQ-03); absent patterns stay default. Step records are read track-major and a programmed
+// record becomes a model cell with the trigger code of its type and full velocity (StepMatrix.h). A step matrix that the
+// model cannot reproduce byte for byte (encodePattern) is also kept verbatim ("sp16.PatternData.Steps") and reported.
 //
 // Pure: no file access (samples are resolved by the caller's resolver). Worker threads only.
 #pragma once
@@ -18,6 +19,7 @@
 #include "services/interop/sp16/StepMatrix.h"
 #include "services/interop/sp16/ValueTreeCodec.h"
 
+#include <array>
 #include <functional>
 #include <optional>
 #include <string>
@@ -38,8 +40,8 @@ struct MapStats
 {
     int scenes = 0, tracks = 0, patterns = 0;
     int triggers = 0, lockCells = 0, locks = 0;
-    int verbatimPatterns = 0; // step matrices kept verbatim
-    int value2Kept = 0;       // triggered steps whose value2 was not read as a velocity (kept per cell)
+    int verbatimPatterns = 0;     // step matrices kept verbatim
+    int coordinateMismatches = 0; // programmed records that name another track / step than their position (kept)
     int samples = 0, samplesMissing = 0;
     std::vector<std::string> patternList; // "s.p" per present pattern (1-based)
 };
@@ -48,7 +50,13 @@ struct MapStats
 Result<void> mapProject(const Node& root, core::model::Project& out, const MapOptions&, ImportLog&,
                         MapStats* stats = nullptr);
 
-// The model → step records encoder (canonical reference form + the cell overrides kept in Pattern::extras). The
-// import's round-trip check and the exporter (FMT-044) use it.
-std::vector<StepRecord> encodePattern(const core::model::Pattern&, const ParamIndexMap&);
+// The insert effect types per track (16 × FX1 / FX2) of the pattern's scene: they decide the FX lock words' index bytes.
+using FxLockTypes = std::array<std::array<core::model::EffectType, 2>, 16>;
+FxLockTypes insertTypesOf(const core::model::Scene&);
+
+// The model → step records encoder (canonical reference form + the cell overrides kept in Pattern::extras), records in
+// file order (track-major, StepMatrix.h). The import's round-trip check and the exporter (FMT-044) use it. `fxTypes`
+// null = every effect Off (FX locks get the type-independent index bytes; those without one are not written).
+std::vector<StepRecord> encodePattern(const core::model::Pattern&, const ParamIndexMap&,
+                                      const FxLockTypes* fxTypes = nullptr);
 } // namespace services::interop::sp16

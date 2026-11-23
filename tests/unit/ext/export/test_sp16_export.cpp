@@ -302,6 +302,11 @@ TEST_CASE("ext export: a native project exports, samples become 44.1 kHz WAV <= 
     pat.length = 32;
     pat.steps[0][0].trigger = 100;
     pat.steps[0][0].value2 = 100;
+    pat.steps[4][2].trigger = 11; // step 5 track 3, Half
+    pat.steps[4][2].value2 = 90;
+    pat.steps[4][2].triggerType = m::TriggerType::Half;
+    pat.steps[31][15].trigger = 15; // step 32 track 16
+    pat.steps[31][15].value2 = 127;
     const int pitchSlot = core::commands::sequencer::lockSlotOf(*core::builtinParams().find("playback.pitch"));
     REQUIRE(pitchSlot >= 0);
     m::StepLocks l;
@@ -357,7 +362,38 @@ TEST_CASE("ext export: a native project exports, samples become 44.1 kHz WAV <= 
     CHECK(bt.insertFx[0].params[0] == 0.5);
     const auto& bp = b->scenes[0].patterns[0];
     CHECK(bp.length == 32);
-    CHECK(bp.steps[0][0].trigger == 100);
+    CHECK(bp.steps[0][0].trigger == 15); // the model's Full code: the record holds coordinates, not a trigger value
+    CHECK(bp.steps[4][2].trigger == 11);
+    CHECK(bp.steps[4][2].triggerType == m::TriggerType::Half);
+    CHECK(bp.steps[2][4].trigger == m::Step::kEmpty); // not transposed
+    CHECK(bp.steps[31][15].trigger == 15);
+    {
+        // The written records: track-major, each programmed one naming its own track and step.
+        auto tree = readContainer(interop_test::bytesOf(report.projectFile));
+        REQUIRE(tree);
+        const Node* patNode = nullptr;
+        for (const auto& sc : tree.value().children)
+            if (sc.type == "SceneData0")
+                for (const auto& pn : sc.children)
+                    if (pn.type == "PatternData0")
+                        patNode = &pn;
+        REQUIRE(patNode != nullptr);
+        auto recs = decodeSteps(patNode->prop("Steps")->bin);
+        REQUIRE(recs);
+        int programmed = 0;
+        for (std::size_t k = 0; k < recs.value().size(); ++k)
+            if (recs.value()[k].programmed())
+            {
+                ++programmed;
+                CHECK(recs.value()[k].namesPosition(stepOfRecord(k), trackOfRecord(k)));
+            }
+        CHECK(programmed == 3);
+        CHECK(recs.value()[recordIndex(4, 2)].trigger == 2);
+        CHECK(recs.value()[recordIndex(4, 2)].value2 == 4);
+        CHECK(recs.value()[recordIndex(4, 2)].typeFlags == 11);
+        CHECK(recs.value()[recordIndex(31, 15)].trigger == 15);
+        CHECK(recs.value()[recordIndex(31, 15)].value2 == 31);
+    }
     REQUIRE(bp.steps[0][0].lockIndex != m::Step::kNoLocks);
     CHECK(bp.locks[bp.steps[0][0].lockIndex].values[static_cast<std::size_t>(pitchSlot)] == -7.0f);
     CHECK(b->sampleRefs.entries.size() == 3);

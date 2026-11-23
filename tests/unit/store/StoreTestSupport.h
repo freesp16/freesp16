@@ -319,6 +319,15 @@ inline std::unique_ptr<m::Project> randomProject(std::uint32_t seed, double dens
     p->midi.input.clock = r.chance(0.5);
     p->midi.output.channels[5] = r.range(0, 16);
     randomExtras(r, p->extras);
+    if (r.chance(0.5)) // last: the draws above stay those of the fixtures written before the field existed
+    {
+        p->origin.format = "sp16-prj";
+        p->origin.file = "rnd \"" + std::to_string(r.range(0, 99)) + "\".PRJ";
+        p->origin.contentId = "0123456789abcdef";
+        p->origin.sourceVersion = r.range(0, 9);
+        p->origin.sourceMinorVersion = r.range(0, 99);
+        p->origin.importer = r.range(1, 3);
+    }
     return p;
 }
 

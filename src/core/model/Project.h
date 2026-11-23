@@ -89,9 +89,24 @@ struct MidiSettings // per project; device selections are global preferences (se
     friend bool operator== (const MidiSettings&, const MidiSettings&) = default;
 };
 
+// Where a project came from when an importer made it (FMT-046): the native format keeps it, so a project saved from an
+// import can be recognised later — e.g. re-imported once the importer reads the source differently
+// (services/interop/sp16 kImporterVersion). Default (empty `format`) = made in this app.
+struct ProjectOrigin
+{
+    std::string format {};        // "" = native; "sp16-prj" = a reference project / resume file
+    std::string file {};          // the source file's name (no folder: it moves between disks)
+    std::string contentId {};     // "sha256:<hex>" of the source file's bytes ("" = unknown)
+    int sourceVersion = 0, sourceMinorVersion = 0; // the source's own version fields (versionNo / minorVersionNo)
+    int importer = 0;             // the importer's version (0 = unknown: saved before the field existed)
+    friend bool operator== (const ProjectOrigin&, const ProjectOrigin&) = default;
+    bool imported() const noexcept { return ! format.empty(); }
+};
+
 struct Project
 {
     ProjectSettings settings {};
+    ProjectOrigin origin {};
     std::array<Scene, kScenes> scenes; // no {}: GCC 11 expands it element-wise
     Arrangement arrangement {};
     RibbonSettings ribbon {};

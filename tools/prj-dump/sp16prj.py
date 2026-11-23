@@ -9,6 +9,9 @@ Tree:  node = type NUL · compressed count · (name NUL · var)* · compressed c
        var = compressed N (1 + payload); N = 0 void; marker 1 int, 2/3 bool, 4 double, 5 string (UTF-8 + NUL),
              6 int64, 7 array (count + vars), 8 binary, 9 undefined
 Container: b"vltrgzip" + zlib level 1. Steps / Sections blobs: zlib level 6.
+Steps: 1024 records of 152 bytes in TRACK-major order (record index = track * 64 + step); a programmed record's first
+two int32 are its own track (0-15) and step (0-63), an empty record holds -127 / -126 there. Confirmed against two
+real 1.63 projects (every programmed record, 2,759 of 2,759); the research page's step-major reading is wrong.
 """
 import base64
 import struct
@@ -244,13 +247,23 @@ def empty_record():
     return [-127, -126, 15] + [none_word(s) for s in range(WORDS)]
 
 
+def record_index(step, track):
+    """The file position of the record of (step, track), both 0-based: track-major."""
+    return track * STEPS + step
+
+
+def programmed_record(step, track, typ=15):
+    """A programmed record without locks: its first two ints are its own track and step."""
+    return [track, step, typ] + [none_word(s) for s in range(WORDS)]
+
+
 def steps_blob(records):
-    """records: dict (step, track) -> [trigger, value2, type, 35 words] (0-based); others empty."""
+    """records: dict (step, track) -> [first, second, type, 35 words] (0-based); others empty. Written track-major."""
     out = bytearray()
-    for s in range(STEPS):
-        for t in range(TRACKS):
-            r = records.get((s, t)) or empty_record()
-            out += struct.pack("<iii", *r[:3]) + struct.pack("<35I", *r[3:])
+    for k in range(STEPS * TRACKS):
+        t, s = divmod(k, STEPS)
+        r = records.get((s, t)) or empty_record()
+        out += struct.pack("<iii", *r[:3]) + struct.pack("<35I", *r[3:])
     assert len(out) == STEPS_BYTES
     return zlib.compress(bytes(out), 6)
 
@@ -264,7 +277,7 @@ def decode_steps(blob):
         o = k * RECORD
         trig, v2, typ = struct.unpack_from("<iii", raw, o)
         words = struct.unpack_from("<35I", raw, o + 12)
-        cells[(k // TRACKS, k % TRACKS)] = (trig, v2, typ, words)
+        cells[(k % STEPS, k // STEPS)] = (trig, v2, typ, words)  # track-major: k = track * 64 + step
     return cells
 
 

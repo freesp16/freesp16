@@ -15,6 +15,8 @@
 // The migration root (one object):
 //     { "meta": <meta.json>, "project": <project.json>, "patterns": [ <patterns/scene-01.json> … <scene-16.json> ] }
 // A missing pattern file is a void var in "patterns". The runner updates root.meta.format.version after each step.
+// A migration may leave per-project details in root.migrationNotes (an array of strings, appendMigrationNote): the
+// runner reports each after the migration's summary and removes the member, so it never reaches the decoder.
 //
 // Worker threads only (allocates; never the audio thread).
 #pragma once
@@ -29,7 +31,12 @@ namespace services::store
 {
 // The schema version this build writes and the newest it understands. Readers accept every older version (FMT-003);
 // a newer file opens read-only (ImportReport::readOnly, PRJ-052).
-inline constexpr int kSchemaVersion = 2; // 2: MIDI enables default to ENABLE (MigrationV2.cpp)
+// 2: MIDI enables default to ENABLE (MigrationV2.cpp)
+// 3: project "origin" (import provenance); legacy SP-16 imports unscrambled, envelope k/127 → k/128 (MigrationV3.cpp)
+inline constexpr int kSchemaVersion = 3;
+
+inline constexpr const char* kMigrationNotes = "migrationNotes";
+void appendMigrationNote(juce::var& root, const std::string& note);
 
 class MigrationRunner
 {

@@ -2,6 +2,8 @@
 
 #include <juce_core/juce_core.h>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <mutex>
@@ -170,7 +172,7 @@ std::string ParamIndexMap::toJson() const
         first = false;
         out += "    " + jq(volume) + ": " + jq(dir);
     }
-    out += "\n  },\n  \"stepValue2\": " + jq(stepValue2AsVelocity ? "velocity" : "ignore") + "\n}\n";
+    out += "\n  }\n}\n";
     return out;
 }
 
@@ -231,11 +233,80 @@ Result<ParamIndexMap> ParamIndexMap::parse(std::string_view json)
         for (const auto& p : volumes->getProperties())
             m.volumes[p.name.toString().toStdString()] = p.value.toString().toStdString();
     }
-    const auto v2 = root.getProperty("stepValue2", "ignore").toString();
-    if (v2 != "ignore" && v2 != "velocity")
-        return R::failure("\"stepValue2\" must be \"ignore\" or \"velocity\"");
-    m.stepValue2AsVelocity = v2 == "velocity";
-    return m;
+    return m; // "stepValue2" (older files) is ignored: the record's second field is its step number
+}
+
+std::uint8_t envIndexFromReference(core::ampenv::EnvStage stage, double norm) noexcept
+{
+    if (! (norm > 0.0))
+        return 0;
+    if (norm >= 1.0)
+        return core::ampenv::hasInfinity(stage) ? core::ampenv::kInfinityIndex : core::ampenv::kMaxFiniteIndex;
+    const double k = std::floor(norm * 127.0 + 0.5);
+    return static_cast<std::uint8_t>(std::clamp(k, 0.0, static_cast<double>(core::ampenv::kMaxFiniteIndex)));
+}
+
+double envReferenceFromIndex(core::ampenv::EnvStage stage, std::uint8_t index, bool* lossy) noexcept
+{
+    if (lossy != nullptr)
+        *lossy = false;
+    const bool inf = core::ampenv::hasInfinity(stage);
+    if (inf && index >= core::ampenv::kInfinityIndex)
+        return 1.0;
+    int k = std::min<int>(index, core::ampenv::kMaxFiniteIndex);
+    if (inf && k == core::ampenv::kMaxFiniteIndex)
+    {
+        k = core::ampenv::kMaxFiniteIndex - 1; // 127/127 = 1.0 is INFINITY there
+        if (lossy != nullptr)
+            *lossy = true;
+    }
+    // The reference's fields are float32 widened to double: k/127 rounded to float first (byte-identical re-export).
+    return static_cast<double>(static_cast<float>(k) / 127.0f);
+}
+
+namespace
+{
+// FxParamIndex per insert effect and sub-slot 0–5 (−1 = none); research docs/effects/parameters.md "FxParamIndex".
+struct FxRow
+{
+    core::model::EffectType type;
+    std::array<int, 6> idx;
+};
+constexpr std::array<int, 6> kGenericFx {11, 12, 13, -1, -1, 16};
+constexpr FxRow kFxRows[] = {
+    {core::model::EffectType::Chorus, {0, 1, 2, 3, -1, 4}}, // observed: sub-slot 5 is stored as 4
+    {core::model::EffectType::Flanger, {5, 6, 7, 8, 9, 10}},
+    {core::model::EffectType::LoFi, {23, 24, 25, 26, 27, 28}},
+    {core::model::EffectType::ParametricEq2, {29, 30, 31, 32, 33, 34}},
+    {core::model::EffectType::Distortion, {35, 36, 37, 38, 39, 40}},
+    {core::model::EffectType::MultiModeFilter, {41, 42, 43, 44, -1, 45}},
+    {core::model::EffectType::InsertDelay, kGenericFx}, // observed: sub-slot 5 is stored as 16 (research row 46–49)
+    {core::model::EffectType::Compressor, {50, 51, 52, 53, 54, 55}},
+    {core::model::EffectType::Phaser, {61, 62, 63, 64, 65, 66}},
+    {core::model::EffectType::Ducker, {69, 70, 67, 68, -1, 71}},
+};
+} // namespace
+
+int fxLockIndex(core::model::EffectType type, int sub) noexcept
+{
+    if (sub < 0 || sub > 5)
+        return -1;
+    for (const auto& r : kFxRows)
+        if (r.type == type)
+            return r.idx[static_cast<std::size_t>(sub)];
+    return kGenericFx[static_cast<std::size_t>(sub)];
+}
+
+bool knownFxLockIndex(int idx, int sub) noexcept
+{
+    if (sub < 0 || sub > 5 || idx < 0)
+        return false;
+    if (kGenericFx[static_cast<std::size_t>(sub)] == idx)
+        return true;
+    for (const auto& r : kFxRows)
+        if (r.idx[static_cast<std::size_t>(sub)] == idx)
+            return true;
+    return idx == 46 + (sub == 5 ? 3 : sub) && sub != 3 && sub != 4; // the research's delay row (46–49)
 }
 
 void setUserMapFile(const juce::File& f)

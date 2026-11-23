@@ -1,5 +1,5 @@
 {
-  "format": { "name": "sixteen-project", "version": 2 },
+  "format": { "name": "sixteen-project", "version": 3 },
   "app": { "name": "fixture-writer", "version": "1" },
   "created": "2026-11-21T00:00:00Z",
   "modified": "2026-11-21T00:00:00Z"

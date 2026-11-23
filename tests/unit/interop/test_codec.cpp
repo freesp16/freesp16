@@ -1,5 +1,6 @@
 // The registered codec, `.wav.dat` sidecars, the disk importer (LIB-040) and FMT-045 (sources never modified).
 #include "core/model/ModelOps.h"
+#include "services/interop/sp16/Sp16Mapping.h"
 #include "services/interop/sp16/Sp16ProjectCodec.h"
 #include "services/interop/sp16/ValueTreeCodec.h"
 #include "services/store/CodecRegistry.h"
@@ -65,7 +66,16 @@ TEST_CASE("prj codec: registered read-only, sniffed by its header, opened throug
     CHECK_FALSE(report.warnings.empty());
     auto rsm = store::openProject(g.diskRoot.getChildFile("System/data.rsm"));
     REQUIRE(rsm);
-    CHECK(*rsm.value() == *p.value());
+    // Provenance (ProjectOrigin): the format, the importer version, the source file and its content id.
+    const auto& o = p.value()->origin;
+    CHECK(o.format == "sp16-prj");
+    CHECK(o.importer == services::interop::sp16::kImporterVersion);
+    CHECK(o.file == g.prj.getFileName().toStdString()); // the name only: no local path in the document
+    CHECK(o.contentId.size() >= 16);
+    CHECK(o.sourceVersion == p.value()->settings.formatVersion);
+    CHECK(rsm.value()->origin.file != o.file); // the resume file is another source …
+    rsm.value()->origin = o;
+    CHECK(*rsm.value() == *p.value()); // … of the same project
     // The pool entries resolve as they are (absolute paths into the source tree).
     store::SampleRoots roots;
     CHECK(store::resolvePool(p.value()->sampleRefs, roots) == 0);

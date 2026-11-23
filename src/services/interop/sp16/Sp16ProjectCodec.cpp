@@ -504,10 +504,13 @@ Result<std::unique_ptr<m::Project>> importProjectFile(const juce::File& file, co
     if (auto r = mapProject(tree.value(), *project, mo, log, &stats); ! r)
         return R::failure(file.getFileName().toStdString() + ": " + r.error().message);
     const double tMap = juce::Time::getMillisecondCounterHiRes();
+    project->origin.file = file.getFileName().toStdString();
+    project->origin.contentId = services::store::contentIdOf(bytes.value().data(), bytes.value().size());
 
     const auto& s = project->settings;
     log.line("version versionNo=" + std::to_string(s.formatVersion) + " minorVersionNo=" +
-             std::to_string(s.formatMinorVersion) + " (the numbering is not documented)");
+             std::to_string(s.formatMinorVersion) + " (the numbering is not documented); importer " +
+             std::to_string(kImporterVersion));
     std::string list;
     for (const auto& p : stats.patternList)
         list += (list.empty() ? "" : ",") + p;
@@ -515,7 +518,7 @@ Result<std::unique_ptr<m::Project>> importProjectFile(const juce::File& file, co
              " patterns=" + std::to_string(stats.patterns) + " [" + (list.empty() ? "-" : list) + "] triggers=" +
              std::to_string(stats.triggers) + " lockCells=" + std::to_string(stats.lockCells) + " locks=" +
              std::to_string(stats.locks) + " verbatimPatterns=" + std::to_string(stats.verbatimPatterns) +
-             " value2Kept=" + std::to_string(stats.value2Kept));
+             " coordinateMismatches=" + std::to_string(stats.coordinateMismatches));
     log.line("samples referenced=" + std::to_string(stats.samples) + " found=" + std::to_string(finder.found) +
              " missing=" + std::to_string(stats.samplesMissing) + " byName=" + std::to_string(finder.byName) +
              " copied=" + std::to_string(finder.copied) + " wavdat=" + std::to_string(finder.datOk) +

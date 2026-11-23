@@ -326,6 +326,7 @@ TEST_CASE("store: the current schema's header defaults are pinned by a fixture",
         enc.object("section", core::model::Section {}, core::model::Section {}, detail::Layout::Lines);
         enc.object("ribbon", d.ribbon, d.ribbon, detail::Layout::Lines);
         enc.object("midi", d.midi, d.midi, detail::Layout::Lines);
+        enc.object("origin", d.origin, d.origin, detail::Layout::Lines);
         enc.object("pattern", detail::defaultPatternValue(), detail::defaultPatternValue(), detail::Layout::Lines);
         enc.object("sampleRef", core::model::SampleRef {}, core::model::SampleRef {}, detail::Layout::Lines);
         enc.popFrame();

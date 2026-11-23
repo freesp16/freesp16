@@ -15,6 +15,7 @@
 #include <initializer_list>
 #include <limits>
 #include <map>
+#include <optional>
 
 namespace services::interop::sp16
 {
@@ -404,6 +405,19 @@ bool integral(const core::ParamSpec& s) noexcept
            s.type == core::ParamType::Note;
 }
 
+// The envelope stages (ENV-001): their lock values are display indices 0–127 (+ INFINITY 128 for HOLD / RELEASE);
+// a 0–127 reference value is that index directly, 127 being INFINITY where the stage has one (Sp16Mapping.h).
+std::optional<core::ampenv::EnvStage> envStageOf(const core::ParamSpec& spec) noexcept
+{
+    if (spec.id == "env.attack")
+        return core::ampenv::EnvStage::Attack;
+    if (spec.id == "env.hold")
+        return core::ampenv::EnvStage::Hold;
+    if (spec.id == "env.release")
+        return core::ampenv::EnvStage::Release;
+    return std::nullopt;
+}
+
 // A lock word's value in the parameter's units, and back (the canonical writer).
 double decodeValue(const OrdinalMap& o, const core::ParamSpec& spec, std::int32_t value22)
 {
@@ -415,7 +429,10 @@ double decodeValue(const OrdinalMap& o, const core::ParamSpec& spec, std::int32_
             if (value22 < 0 || value22 % kK127 != 0) // an index (12-step form), not a 0–127 value
                 return value22;
             [[fallthrough]];
-        case ValueClass::Norm: return lo + static_cast<double>(value22) / kValueFull * (hi - lo);
+        case ValueClass::Norm:
+            if (const auto stage = envStageOf(spec); stage && value22 >= 0)
+                return envIndexFromReference(*stage, static_cast<double>(value22) / kValueFull);
+            return lo + static_cast<double>(value22) / kValueFull * (hi - lo);
         case ValueClass::Frames: break;
     }
     return value22;
@@ -428,7 +445,15 @@ int encodeValue(const OrdinalMap& o, const core::ParamSpec& spec, float nativeF)
     {
         case ValueClass::Raw: v = native / o.scale; break;
         case ValueClass::Norm:
-        case ValueClass::NormOrIndex: v = range > 0 ? (native - lo) / range * kValueFull : 0.0; break;
+        case ValueClass::NormOrIndex:
+            if (const auto stage = envStageOf(spec))
+            {
+                const auto index = static_cast<std::uint8_t>(std::clamp(std::round(native), 0.0, 128.0));
+                v = std::round(envReferenceFromIndex(*stage, index) * 127.0) * kK127;
+                break;
+            }
+            v = range > 0 ? (native - lo) / range * kValueFull : 0.0;
+            break;
         case ValueClass::Frames: v = native; break;
     }
     return static_cast<int>(std::clamp<double>(std::round(v), -(1 << 21), (1 << 21) - 1));
@@ -544,60 +569,24 @@ struct CellRaw
     }
 };
 
-constexpr std::int16_t kImportVelocity = 127; // the velocity of an imported step whose value2 is not read as one
-constexpr const char* kValue2Key = "sp16.PatternData.value2";
-
-std::int16_t toInt16(std::int32_t v)
-{
-    return static_cast<std::int16_t>(std::clamp<std::int32_t>(v, std::numeric_limits<std::int16_t>::min(),
-                                                              std::numeric_limits<std::int16_t>::max()));
-}
+constexpr std::int16_t kImportVelocity = 127; // the reference step record holds no velocity: full
 
 std::string cellKey(int s, int t)
 {
     return "sp16.step[" + std::to_string(s) + "].track[" + std::to_string(t) + "]";
 }
 
-std::int16_t toInt16(std::int32_t v, std::optional<std::int32_t>& raw)
-{
-    if (v < std::numeric_limits<std::int16_t>::min() || v > std::numeric_limits<std::int16_t>::max())
-    {
-        raw = v;
-        return static_cast<std::int16_t>(std::clamp<std::int32_t>(v, std::numeric_limits<std::int16_t>::min(),
-                                                                  std::numeric_limits<std::int16_t>::max()));
-    }
-    return static_cast<std::int16_t>(v);
-}
-
-void mapSteps(const std::vector<StepRecord>& records, m::Pattern& pat, Ctx& c, const std::string& at)
+void mapSteps(const std::vector<StepRecord>& records, m::Pattern& pat, Ctx& c, const std::string& at,
+              const FxLockTypes& fxTypes)
 {
     pat.locks.clear();
-    // value2 of the triggered steps that are not read as velocities: one blob per pattern (1024 × int32 LE, base64,
-    // "sp16.PatternData.value2"), not one entry per cell — cheap on the A9 and small in the native file.
-    std::vector<std::int32_t> keptValue2(static_cast<std::size_t>(kStepCount * kTrackCount), 0);
-    bool anyValue2 = false;
     for (int s = 0; s < kStepCount; ++s)
         for (int t = 0; t < kTrackCount; ++t)
         {
-            const auto& rec = records[static_cast<std::size_t>(s * kTrackCount + t)];
+            // Track-major (StepMatrix.h): the record of (s, t) is at t × 64 + s and names its own track and step.
+            const auto& rec = records[recordIndex(s, t)];
             auto& cell = pat.steps[static_cast<std::size_t>(s)][static_cast<std::size_t>(t)];
             CellRaw raw;
-            cell.trigger = toInt16(rec.trigger, raw.trigger);
-            cell.value2 = toInt16(rec.value2, raw.value2);
-            if (cell.trigger != m::Step::kEmpty)
-            {
-                // value2 → the step velocity (model 1–127). Default ("ignore"): a real project holds only 0–63 there,
-                // low values most common — no velocity: full velocity, the stored value kept for the exporter.
-                const bool asVelocity = c.map.stepValue2AsVelocity && rec.value2 >= 1 && rec.value2 <= 127;
-                if (! asVelocity)
-                {
-                    raw.value2.reset();
-                    cell.value2 = kImportVelocity;
-                    keptValue2[static_cast<std::size_t>(s * kTrackCount + t)] = rec.value2;
-                    anyValue2 = true;
-                    ++c.stats.value2Kept;
-                }
-            }
             if (const auto tt = m::triggerTypeFromReferenceCode(rec.typeFlags))
                 cell.triggerType = *tt;
             else
@@ -606,8 +595,31 @@ void mapSteps(const std::vector<StepRecord>& records, m::Pattern& pat, Ctx& c, c
                 raw.type = rec.typeFlags;
                 c.log.issue(Kind::EnumUnmapped, "step type code " + std::to_string(rec.typeFlags) + " (OQ-09)", at);
             }
-            if (cell.trigger != m::Step::kEmpty)
+            if (rec.programmed())
+            {
+                // The model's own form of a programmed cell (core/commands/sequencer setTrigger): the trigger code of
+                // its type and a velocity — the record has none, so full.
+                cell.trigger = static_cast<std::int16_t>(m::referenceTriggerCode(cell.triggerType));
+                cell.value2 = kImportVelocity;
                 ++c.stats.triggers;
+                if (! rec.namesPosition(s, t))
+                {
+                    raw.trigger = rec.trigger; // kept for the exporter (written back while the cell stays programmed)
+                    raw.value2 = rec.value2;
+                    ++c.stats.coordinateMismatches;
+                    c.log.issue(Kind::Structure, "step record names another track / step (fields kept)", at);
+                }
+            }
+            else
+            {
+                cell.trigger = m::Step::kEmpty;
+                cell.value2 = m::Step::kNoValue2;
+                if (rec.value2 != kEmptyValue2)
+                {
+                    raw.value2 = rec.value2;
+                    c.log.issue(Kind::Opaque, "empty step record with a second field (kept)", at);
+                }
+            }
 
             m::StepLocks locks;
             std::array<bool, kLockWords> consumed {};
@@ -691,7 +703,8 @@ void mapSteps(const std::vector<StepRecord>& records, m::Pattern& pat, Ctx& c, c
                     raw.words[k] = w.pack(); // not reproducible from the model value: keep the word
                 put(slot, static_cast<float>(native), k);
             }
-            // FX1 / FX2 internal parameters 0–5: 0–1 fractions.
+            // FX1 / FX2 internal parameters 0–5: 0–1 fractions. The index byte is the FxParamIndex (Sp16Mapping.h): the
+            // word is kept when it is not the one the exporter writes for the track's effect.
             for (int k = 23; k < kLockWords; ++k)
             {
                 const auto& w = rec.slots[static_cast<std::size_t>(k)];
@@ -704,10 +717,14 @@ void mapSteps(const std::vector<StepRecord>& records, m::Pattern& pat, Ctx& c, c
                     v = std::clamp(v, 0.0, 1.0);
                     raw.words[k] = w.pack();
                 }
-                if (w.idx != k)
+                const int unit = (k - 23) / 6, sub = (k - 23) % 6;
+                const int expected =
+                    fxLockIndex(fxTypes[static_cast<std::size_t>(t)][static_cast<std::size_t>(unit)], sub);
+                if (w.idx != expected)
                 {
                     raw.words[k] = w.pack();
-                    c.log.issue(Kind::Opaque, "FX lock index byte (FxParamIndex table unknown, raw kept)", at);
+                    if (! knownFxLockIndex(w.idx, sub))
+                        c.log.issue(Kind::Opaque, "FX lock index byte " + std::to_string(w.idx) + " (raw kept)", at);
                 }
                 put(k, static_cast<float>(v), k);
             }
@@ -723,15 +740,6 @@ void mapSteps(const std::vector<StepRecord>& records, m::Pattern& pat, Ctx& c, c
             if (! raw.empty()) // keys are unique per cell: no search
                 pat.extras.entries.push_back({cellKey(s, t), m::Extras::Encoding::Json, raw.json()});
         }
-    if (anyValue2)
-    {
-        std::vector<std::byte> blob(keptValue2.size() * 4);
-        for (std::size_t k = 0; k < keptValue2.size(); ++k)
-            for (int b = 0; b < 4; ++b)
-                blob[4 * k + static_cast<std::size_t>(b)] =
-                    static_cast<std::byte>(static_cast<std::uint32_t>(keptValue2[k]) >> (8 * b));
-        pat.extras.entries.push_back({kValue2Key, m::Extras::Encoding::Base64, toBase64(blob)});
-    }
 }
 
 // The first difference between two record lists ("step 3 track 2 slot 7"), "" when equal.
@@ -741,7 +749,7 @@ std::string firstDifference(const std::vector<StepRecord>& a, const std::vector<
     {
         if (a[k] == b[k])
             continue;
-        std::string at = "step " + std::to_string(k / kTrackCount + 1) + " track " + std::to_string(k % kTrackCount + 1);
+        std::string at = "step " + std::to_string(stepOfRecord(k) + 1) + " track " + std::to_string(trackOfRecord(k) + 1);
         if (a[k].trigger != b[k].trigger || a[k].value2 != b[k].value2 || a[k].typeFlags != b[k].typeFlags)
             return at + " header";
         for (int s = 0; s < kLockWords; ++s)
@@ -973,9 +981,16 @@ void mapTrack(const Node& n, m::Track& tr, Ctx& c, int scene, int track)
             Props p(cn, "AmpEnvelopeData", e.extras, c.log, at);
             // Observed names first (attackNorm …, bVelocityEffective, bRetriggerMode, *CurveType, bSync, bBypass), then
             // the spec data model's [S] names.
-            p.doubleIn({"attackNorm", "attack"}, e.attack, 0.0, 1.0);
-            p.doubleIn({"holdNorm", "hold"}, e.hold, 0.0, 1.0);
-            p.doubleIn({"releaseNorm", "release"}, e.release, 0.0, 1.0);
+            // The reference's k/127 → the model's k/128 form (Sp16Mapping.h envIndexFromReference; ENV-001).
+            auto envNorm = [&p](Names names, double& field, core::ampenv::EnvStage stage) {
+                double norm = std::numeric_limits<double>::quiet_NaN();
+                p.doubleIn(names, norm, 0.0, 1.0);
+                if (! std::isnan(norm))
+                    field = core::ampenv::storedFromIndex(envIndexFromReference(stage, norm));
+            };
+            envNorm({"attackNorm", "attack"}, e.attack, core::ampenv::EnvStage::Attack);
+            envNorm({"holdNorm", "hold"}, e.hold, core::ampenv::EnvStage::Hold);
+            envNorm({"releaseNorm", "release"}, e.release, core::ampenv::EnvStage::Release);
             p.intIn({"volumeIndex"}, e.volumeIndex, 0, 127);
             p.flag({"bSync", "sync"}, e.sync);
             p.flag({"bVelocityEffective", "velocitySensitive"}, e.velocitySensitive);
@@ -1200,7 +1215,7 @@ void mapTrack(const Node& n, m::Track& tr, Ctx& c, int scene, int track)
     }
 }
 
-void mapPattern(const Node& n, m::Pattern& pat, Ctx& c, int scene, int index)
+void mapPattern(const Node& n, m::Pattern& pat, Ctx& c, int scene, int index, const FxLockTypes& fxTypes)
 {
     const std::string at = where(scene) + " pattern " + std::to_string(index + 1);
     Props p(n, "PatternData", pat.extras, c.log, at);
@@ -1232,8 +1247,8 @@ void mapPattern(const Node& n, m::Pattern& pat, Ctx& c, int scene, int index)
             p.keep(h, Kind::Opaque, "(unreadable: " + records.error().message + ")");
             return;
         }
-        mapSteps(records.value(), pat, c, at);
-        const auto again = encodePattern(pat, c.map);
+        mapSteps(records.value(), pat, c, at, fxTypes);
+        const auto again = encodePattern(pat, c.map, &fxTypes);
         if (const auto diff = firstDifference(again, records.value()); ! diff.empty())
         {
             pat.extras.set("sp16.PatternData.Steps", toBase64(h.v->bin), m::Extras::Encoding::Base64);
@@ -1357,7 +1372,7 @@ void mapScene(const Node& n, m::Scene& sc, Ctx& c, int scene)
             patternSeen[static_cast<std::size_t>(q)] = true;
             ++c.stats.patterns;
             c.stats.patternList.push_back(std::to_string(scene + 1) + "." + std::to_string(q + 1));
-            mapPattern(cn, sc.patterns[static_cast<std::size_t>(q)], c, scene, q);
+            mapPattern(cn, sc.patterns[static_cast<std::size_t>(q)], c, scene, q, insertTypesOf(sc));
         }
         else if (ch.base == "SendFx" && ! send)
         {
@@ -1683,12 +1698,29 @@ Result<void> mapProject(const Node& root, m::Project& out, const MapOptions& opt
     if (! m::validate(out, problems, 20))
         for (const auto& pr : problems)
             log.issue(Kind::Structure, "validate: " + pr, "project");
+    // Provenance (FMT-046): the format, the source's version fields and this importer's version; the file name and
+    // content id are the caller's (it has the file).
+    out.origin.format = "sp16-prj";
+    out.origin.sourceVersion = out.settings.formatVersion;
+    out.origin.sourceMinorVersion = out.settings.formatMinorVersion;
+    out.origin.importer = kImporterVersion;
     if (statsOut != nullptr)
         *statsOut = std::move(stats);
     return {};
 }
 
-std::vector<StepRecord> encodePattern(const m::Pattern& pat, const ParamIndexMap& map)
+// The insert effect types of a scene's tracks: the FX lock words' index bytes depend on them (fxLockIndex).
+FxLockTypes insertTypesOf(const core::model::Scene& sc)
+{
+    FxLockTypes out {};
+    for (int t = 0; t < kTrackCount; ++t)
+        for (int u = 0; u < 2; ++u)
+            out[static_cast<std::size_t>(t)][static_cast<std::size_t>(u)] =
+                sc.tracks[static_cast<std::size_t>(t)].insertFx[static_cast<std::size_t>(u)].type;
+    return out;
+}
+
+std::vector<StepRecord> encodePattern(const m::Pattern& pat, const ParamIndexMap& map, const FxLockTypes* fxTypes)
 {
     std::vector<StepRecord> out(static_cast<std::size_t>(kStepCount * kTrackCount), StepRecord::emptyRecord());
     std::array<const core::ParamSpec*, 23> specs {};
@@ -1709,9 +1741,11 @@ std::vector<StepRecord> encodePattern(const m::Pattern& pat, const ParamIndexMap
         for (int t = 0; t < kTrackCount; ++t)
         {
             const auto& cell = pat.steps[static_cast<std::size_t>(s)][static_cast<std::size_t>(t)];
-            auto& r = out[static_cast<std::size_t>(s * kTrackCount + t)];
-            r.trigger = cell.trigger;
-            r.value2 = cell.value2;
+            auto& r = out[recordIndex(s, t)];
+            // A programmed record names its own track and step; the velocity has no place in the record.
+            const bool programmed = cell.trigger != m::Step::kEmpty;
+            r.trigger = programmed ? t : kEmptyTrigger;
+            r.value2 = programmed ? s : kEmptyValue2;
             r.typeFlags = m::referenceTriggerCode(cell.triggerType);
             if (cell.lockIndex == m::Step::kNoLocks || cell.lockIndex >= pat.locks.size())
                 continue;
@@ -1743,27 +1777,23 @@ std::vector<StepRecord> encodePattern(const m::Pattern& pat, const ParamIndexMap
                 }
             }
             for (int k = 23; k < kLockWords; ++k)
-                if ((l.mask >> k & 1u) != 0)
-                    r.slots[static_cast<std::size_t>(k)] = word(
-                        static_cast<int>(std::lround(std::clamp(static_cast<double>(l.values[static_cast<std::size_t>(k)]),
-                                                                0.0, 1.0) *
-                                                     kValueFull)),
-                        k);
-        }
-    // value2 of imported triggers (kept per pattern): applies while the step still has the import's full velocity.
-    if (const auto* e = pat.extras.find(kValue2Key))
-        if (auto blob = fromBase64(e->value); blob && blob->size() == static_cast<std::size_t>(kStepCount * kTrackCount * 4))
-            for (std::size_t k = 0; k < static_cast<std::size_t>(kStepCount * kTrackCount); ++k)
             {
-                const auto& cell = pat.steps[k / kTrackCount][k % kTrackCount];
-                if (cell.trigger == m::Step::kEmpty || cell.value2 != kImportVelocity)
+                if ((l.mask >> k & 1u) == 0)
                     continue;
-                std::uint32_t v = 0;
-                for (int b = 0; b < 4; ++b)
-                    v |= static_cast<std::uint32_t>(static_cast<std::uint8_t>((*blob)[4 * k + static_cast<std::size_t>(b)]))
-                         << (8 * b);
-                out[k].value2 = static_cast<std::int32_t>(v);
+                // The index byte is the FxParamIndex of the track's effect (Sp16Mapping.h); without one the lock cannot
+                // be written (the exporter reports it, fxLockExportable).
+                const int unit = (k - 23) / 6, sub = (k - 23) % 6;
+                const auto type = fxTypes != nullptr ? (*fxTypes)[static_cast<std::size_t>(t)][static_cast<std::size_t>(unit)]
+                                                     : m::EffectType::Off;
+                const int idx = fxLockIndex(type, sub);
+                if (idx < 0)
+                    continue;
+                r.slots[static_cast<std::size_t>(k)] = word(
+                    static_cast<int>(std::lround(
+                        std::clamp(static_cast<double>(l.values[static_cast<std::size_t>(k)]), 0.0, 1.0) * kValueFull)),
+                    idx);
             }
+        }
     // Cell overrides kept by the import (sp16.step[s].track[t]).
     constexpr std::string_view kPrefix = "sp16.step[";
     for (const auto& e : pat.extras.entries)
@@ -1774,16 +1804,22 @@ std::vector<StepRecord> encodePattern(const m::Pattern& pat, const ParamIndexMap
         if (std::sscanf(e.key.c_str(), "sp16.step[%d].track[%d]", &s, &t) != 2 || s < 0 || s >= kStepCount || t < 0 ||
             t >= kTrackCount)
             continue;
-        auto& r = out[static_cast<std::size_t>(s * kTrackCount + t)];
+        auto& r = out[recordIndex(s, t)];
         const auto& cell = pat.steps[static_cast<std::size_t>(s)][static_cast<std::size_t>(t)];
         const m::StepLocks* l =
             cell.lockIndex != m::Step::kNoLocks && cell.lockIndex < pat.locks.size() ? &pat.locks[cell.lockIndex] : nullptr;
         const auto raw = CellRaw::parse(e.value);
         // An override applies only while the model still holds what the import made of it (an edited cell is
-        // written from the model).
-        if (raw.trigger && cell.trigger == toInt16(*raw.trigger))
+        // written from the model): the odd first / second fields of a programmed record while the cell is programmed,
+        // the odd second field of an empty record while the cell is empty.
+        const bool programmed = cell.trigger != m::Step::kEmpty;
+        if (raw.trigger && programmed)
+        {
             r.trigger = *raw.trigger;
-        if (raw.value2 && cell.value2 == toInt16(*raw.value2))
+            if (raw.value2)
+                r.value2 = *raw.value2;
+        }
+        else if (! raw.trigger && raw.value2 && ! programmed)
             r.value2 = *raw.value2;
         if (raw.type && cell.triggerType == m::TriggerType::Full)
             r.typeFlags = *raw.type;

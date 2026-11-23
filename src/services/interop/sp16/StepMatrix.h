@@ -1,11 +1,16 @@
 // The reference's binary blobs inside the project tree (spec sp16-interop.md "Step matrix", "Arrangement"; research
 // docs/project-format.md "PatternData.Steps — the step matrix (decoded)" and "ArrangementData.Sections").
 //
-//   PatternData.Steps        zlib (level 6, 78 9c) → 155,648 bytes = 64 steps × 16 tracks × 152-byte records,
-//                            step-major (offset = step × 2432 + track × 152). Record: int32 trigger (empty −127) ·
-//                            int32 value2 (empty −126) · int32 type/flags (15 Full, 11 Half, 8 lock-only) · 35 × uint32
-//                            lock words [vct:2 | value:22 signed | idx:8]; no lock = 0x3f800000 | idx (the packed
-//                            −32768 sentinel). All little-endian.
+//   PatternData.Steps        zlib (level 6, 78 9c) → 155,648 bytes = 16 tracks × 64 steps × 152-byte records,
+//                            TRACK-major (offset = track × 9728 + step × 152; record index track × 64 + step). Record:
+//                            int32 track · int32 step (a programmed record names its own position; empty −127 / −126) ·
+//                            int32 type/flags (15 in every record seen; 11 / 8 kept from the spec for HALF / PARAM) ·
+//                            35 × uint32 lock words [vct:2 | value:22 signed | idx:8]; no lock = 0x3f800000 | idx (the
+//                            packed −32768 sentinel). All little-endian.
+//                            The layout was established from two real 1.63 projects (versionNo 3, minorVersionNo 1): all
+//                            2,759 programmed records sit at track × 64 + step and hold exactly that (track, step), and
+//                            1908 of 1909 fall inside their pattern's Length. The research page reads the matrix
+//                            step-major with a "trigger" and a "value2" field; that reading scrambles every pattern.
 //   ArrangementData.Sections zlib (level 6) → 7,992 bytes = 999 × 8-byte records (two int32; default 65536, 0; field
 //                            meanings unknown, OQ-02).
 //
@@ -25,6 +30,14 @@ constexpr int kStepCount = 64, kTrackCount = 16, kLockWords = 35;
 constexpr std::size_t kRecordBytes = 12 + 4 * kLockWords;                         // 152
 constexpr std::size_t kStepsBytes = kStepCount * kTrackCount * kRecordBytes;       // 155,648
 constexpr std::int32_t kEmptyTrigger = -127, kEmptyValue2 = -126, kEmptyTypeFlags = 15;
+
+// The file position of the record of (step, track), both 0-based: the matrix is track-major.
+constexpr std::size_t recordIndex(int step, int track) noexcept
+{
+    return static_cast<std::size_t>(track) * kStepCount + static_cast<std::size_t>(step);
+}
+constexpr int stepOfRecord(std::size_t index) noexcept { return static_cast<int>(index % kStepCount); }
+constexpr int trackOfRecord(std::size_t index) noexcept { return static_cast<int>(index / kStepCount); }
 constexpr std::int32_t kNoLockValue = -32768;     // the 22-bit "no lock" sentinel
 constexpr std::int32_t kValueFull = 2097151;      // 2^21 − 1: continuous value = value / kValueFull
 constexpr std::int32_t kK127 = 16513;             // kValueFull / 127: one step of a 0–127 value
@@ -54,15 +67,20 @@ struct LockWord
 
 struct StepRecord
 {
+    // `trigger` / `value2`: the spec's names for the first two fields. A programmed record holds its own track (0–15)
+    // and step (0–63) there; an empty one −127 / −126.
     std::int32_t trigger = kEmptyTrigger, value2 = kEmptyValue2, typeFlags = kEmptyTypeFlags;
     std::array<LockWord, kLockWords> slots {};
 
     static StepRecord emptyRecord() noexcept; // trigger −127, value2 −126, type 15, slot s = none(noneIndex(s))
     bool hasLocks() const noexcept;
+    bool programmed() const noexcept { return trigger != kEmptyTrigger; }
+    // A programmed record whose first two fields name the position it is stored at.
+    bool namesPosition(int step, int track) const noexcept { return trigger == track && value2 == step; }
     friend bool operator== (const StepRecord&, const StepRecord&) = default;
 };
 
-// 1024 records in file order (index = step × 16 + track).
+// 1024 records in file order (index = recordIndex(step, track) = track × 64 + step).
 Result<std::vector<StepRecord>> decodeSteps(std::span<const std::byte> zlibBlob);
 Result<std::vector<StepRecord>> decodeStepsRaw(std::span<const std::byte> inflated); // the 155,648 bytes
 std::vector<std::byte> encodeStepsRaw(std::span<const StepRecord>);                  // 155,648 bytes
