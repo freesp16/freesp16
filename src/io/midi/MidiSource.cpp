@@ -10,6 +10,7 @@
 //   midi_virtual=<script>    add the scripted virtual port (io/midi/VirtualPort.h), first in slot order
 //   midi_virtual_out=<file>  write what the virtual output received at the end
 //   midi_spin_us=N           the sender's busy-wait before each deadline (default 100)
+//   midi_usb=0|1             1 (default): on the unit, put USB-B into USB MIDI mode once if it was left in storage mode
 // Log lines ("[sp16-mod] <PREFIX> MIDI …"): the start line (ports, sender), a stats line every 10 s and at stop:
 //   MIDI stats in=<messages> sent=<n> clocks=<n> late=<n> dropped=<n> forwarded=<n> jitter_p50=<µs> jitter_p99=<µs>
 //   jitter_max=<µs> samples=<n> tempo=<followed BPM> reconnects=<n>

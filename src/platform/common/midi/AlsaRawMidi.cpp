@@ -14,12 +14,16 @@
 //     waits behind note bytes in the raw MIDI buffer (31.25 kbit/s: 0.32 ms a byte); a song position is drained out
 //     before the Continue that follows it can overtake it. Without /dev/din_midi (or when its ioctl fails) everything
 //     goes through the raw MIDI device.
+// The USB port is put into USB MIDI mode once per run if the unit was left in USB storage mode (UsbMidiMode.h; the
+// setting midi_usb=0 leaves it as found).
 // The desktop: every raw MIDI device of the sound cards (USB interfaces, snd-virmidi).
 //
 // Port name = "<card name> <device>:<subdevice> <subdevice name>" (the reconnect key; the unit's own cards read "MIDI
 // DIN" / "MIDI USB"); id = "hw:C,D,S".
 #include "io/midi/MidiPort.h"
+#include "io/midi/MidiSettings.h"
 #include "platform/common/midi/UnitMidi.h"
+#include "platform/common/midi/UsbMidiMode.h"
 
 #include <alsa/asoundlib.h>
 #include <fcntl.h>
@@ -218,6 +222,12 @@ public:
             }
             snd_ctl_close(ctl);
         }
+        if (unitSeen_ && io::midi::setting("midi_usb", "1") != "0") // USB-B in MIDI mode (once per run)
+        {
+            if (! usbMode_)
+                usbMode_ = std::make_unique<unitmidi::UsbMidiMode>(unitmidi::UsbMidiMode::unitEnv());
+            usbMode_->tick();
+        }
         // The unit's ports first (DIN, then USB), whatever their card numbers.
         std::stable_sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
             return static_cast<unsigned>(a.slot) < static_cast<unsigned>(b.slot); // −1 (any other port) sorts last
@@ -261,6 +271,7 @@ public:
 
 private:
     bool unitSeen_ = false;
+    std::unique_ptr<unitmidi::UsbMidiMode> usbMode_; // the unit only
 };
 
 std::unique_ptr<io::midi::PortProvider> makeAlsaRawMidi() { return std::make_unique<AlsaRawMidiProvider>(); }

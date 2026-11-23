@@ -26,8 +26,8 @@ bool postMidiSettings(const core::model::Project&, engine::EngineBridge&, const 
 
 // The app's settings (platform::Settings: the settings file's key=value lines + <PREFIX>_<KEY> environment
 // overrides), handed over by the composition root before the control sources are created. The MIDI source reads
-// midi, midi_providers, midi_virtual, midi_virtual_out, midi_spin_us from here; an environment variable
-// <PREFIX>_<KEY> still wins (the app's rule), so tests and the smoke check need no settings file.
+// midi, midi_providers, midi_virtual, midi_virtual_out, midi_spin_us from here, the ALSA provider midi_usb; an
+// environment variable <PREFIX>_<KEY> still wins (the app's rule), so tests and the smoke check need no settings file.
 using SettingsMap = std::map<std::string, std::string, std::less<>>;
 void configure(const SettingsMap& settings);
 std::string setting(std::string_view key, std::string_view fallback = {});

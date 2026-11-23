@@ -2,9 +2,10 @@
 // the /dev/din_midi real-time codes, the /proc/midi_through switch; DIN = slot 0 and USB = slot 1 whatever the ALSA
 // card order, slot 1 kept for the USB gadget while the unit is in storage mode; THRU A on the DIN port switches the
 // socket in hardware and the sender stops forwarding to it, while a THRU port fed by another input forwards in
-// software.
+// software. USB-B: storage mode → the unit's usb_gadget.sh, no gadget → modprobe, once, after a grace period.
 #if defined(__linux__)
 #include "platform/common/midi/UnitMidi.h"
+#include "platform/common/midi/UsbMidiMode.h"
 
 #include "io/midi/MidiService.h"
 #include "io/midi/MidiSettings.h"
@@ -258,5 +259,122 @@ TEST_CASE("midi.unit: DIN = slot 0, USB = slot 1 in card order, kept in storage 
         sleepMs(5);
     CHECK(writtenOf(usb) == std::vector<std::uint8_t> {0xB0, 0x07, 0x40});
     service.stop();
+}
+
+TEST_CASE("midi.unit: USB-B into MIDI mode — the gadget, the command, the runner", "[midi]")
+{
+    const auto dir = std::filesystem::temp_directory_path() / ("sys-module-test-" + std::to_string(::getpid()));
+    std::filesystem::create_directories(dir);
+    CHECK(um::usbGadget(dir.string()) == um::UsbGadget::None);
+    std::filesystem::create_directory(dir / "g_mass_storage2");
+    CHECK(um::usbGadget(dir.string()) == um::UsbGadget::Storage);
+    std::filesystem::remove(dir / "g_mass_storage2");
+    std::filesystem::create_directory(dir / "g_midi2");
+    CHECK(um::usbGadget(dir.string()) == um::UsbGadget::Midi);
+    std::filesystem::remove_all(dir);
+
+    CHECK(um::midiModeCommand(um::UsbGadget::Midi, true).empty());
+    CHECK(um::midiModeCommand(um::UsbGadget::Storage, true) ==
+          std::vector<std::string> {"/root/pdj/usb_gadget.sh", "midi", "probe"});
+    CHECK(um::midiModeCommand(um::UsbGadget::Storage, false).empty()); // only the unit's script remounts the disk
+    CHECK(um::midiModeCommand(um::UsbGadget::None, false) == std::vector<std::string> {"modprobe", "g_midi2"});
+
+    CHECK(um::runCommand({"sh", "-c", "exit 3"}, "/", 5000) == 3);
+    CHECK(um::runCommand({"sh", "-c", "test \"$(pwd)\" = /tmp"}, "/tmp", 5000) == 0); // in cwd
+    CHECK(um::runCommand({"/nonexistent/command"}, "/", 5000) != 0);
+    const auto t0 = std::chrono::steady_clock::now();
+    CHECK(um::runCommand({"sleep", "5"}, "/", 100) == -1); // killed at the timeout
+    CHECK(std::chrono::steady_clock::now() - t0 < std::chrono::seconds(3));
+}
+
+namespace
+{
+struct FakeUnit
+{
+    std::mutex m;
+    um::UsbGadget gadget = um::UsbGadget::Storage;
+    bool script = true;
+    std::vector<std::vector<std::string>> runs;
+    std::vector<std::string> logs;
+    um::UsbMidiMode::Env env()
+    {
+        um::UsbMidiMode::Env e;
+        e.probe = [this] {
+            std::lock_guard<std::mutex> lock(m);
+            return gadget;
+        };
+        e.exists = [this](const char*) { return script; };
+        e.run = [this](const std::vector<std::string>& argv) {
+            std::lock_guard<std::mutex> lock(m);
+            runs.push_back(argv);
+            gadget = um::UsbGadget::Midi;
+            return 0;
+        };
+        e.log = [this](const std::string& t) {
+            std::lock_guard<std::mutex> lock(m);
+            logs.push_back(t);
+        };
+        return e;
+    }
+};
+} // namespace
+
+TEST_CASE("midi.unit: USB-B into MIDI mode once, after the grace period", "[midi]")
+{
+    SECTION("storage mode: the script, once; a later storage mode is left alone")
+    {
+        FakeUnit u;
+        um::UsbMidiMode mode(u.env(), 3);
+        mode.tick();
+        mode.tick();
+        CHECK(u.runs.empty()); // the grace period
+        mode.tick();
+        mode.wait();
+        CHECK(mode.settled());
+        REQUIRE(u.runs.size() == 1);
+        CHECK(u.runs[0] == std::vector<std::string> {"/root/pdj/usb_gadget.sh", "midi", "probe"});
+        CHECK(u.logs.back().find(" ok") != std::string::npos);
+        u.gadget = um::UsbGadget::Storage; // switched by hand afterwards
+        for (int i = 0; i < 10; ++i)
+            mode.tick();
+        mode.wait();
+        CHECK(u.runs.size() == 1);
+    }
+    SECTION("no gadget: modprobe")
+    {
+        FakeUnit u;
+        u.gadget = um::UsbGadget::None;
+        um::UsbMidiMode mode(u.env(), 2);
+        mode.tick();
+        mode.tick();
+        mode.wait();
+        REQUIRE(u.runs.size() == 1);
+        CHECK(u.runs[0] == std::vector<std::string> {"modprobe", "g_midi2"});
+    }
+    SECTION("the gadget shows up during the grace period: nothing runs")
+    {
+        FakeUnit u;
+        u.gadget = um::UsbGadget::None;
+        um::UsbMidiMode mode(u.env(), 3);
+        mode.tick();
+        u.gadget = um::UsbGadget::Midi;
+        for (int i = 0; i < 5; ++i)
+            mode.tick();
+        mode.wait();
+        CHECK(u.runs.empty());
+        CHECK(mode.settled());
+    }
+    SECTION("storage mode without the unit's script: logged, nothing runs")
+    {
+        FakeUnit u;
+        u.script = false;
+        um::UsbMidiMode mode(u.env(), 1);
+        mode.tick();
+        mode.wait();
+        CHECK(u.runs.empty());
+        CHECK(mode.settled());
+        REQUIRE_FALSE(u.logs.empty());
+        CHECK(u.logs.back().find("impossible") != std::string::npos);
+    }
 }
 #endif

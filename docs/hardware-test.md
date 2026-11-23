@@ -168,8 +168,12 @@ tempo=…` line. **HUMAN:** connect a keyboard to MIDI IN (notes → `in=` grows
 MIDI OUT (the clock: `clocks=` grows while playing, `late=0`; this works even if the official software was left on MIDI
 THRU), then set UTILITY › MIDI PORTS port 1 OUT MODE to THRU A: what the keyboard plays must now come out of MIDI OUT
 unchanged (the socket is switched in hardware; SysEx passes too), and back on OUT the receiver gets the clock again.
-Send a song position + Continue from SET (locate, then play) and check the receiver resumes at the same bar. Send
-`report midi` with the port names, and say what played. `midi=0` in a variant turns MIDI off (to isolate it); the MIDI benches
+Send a song position + Continue from SET (locate, then play) and check the receiver resumes at the same bar. USB MIDI:
+leave the official software in its USB storage mode, then start this app from the boot menu: within ~5 s the log shows
+`MIDI USB gadget=storage switching to midi: /root/pdj/usb_gadget.sh midi probe` and `MIDI USB switch status=0
+gadget=midi ok`, the computer sees the TSP-16 MIDI device instead of the disk, port 2 = MIDI USB connects, and the
+library's INTERNAL location is back (`midi_usb=0` leaves the port as found). Send `report midi` with the port names,
+and say what played. `midi=0` in a variant turns MIDI off (to isolate it); the MIDI benches
 (`bench_midi*`, step 10) carry the A9 numbers.
 
 ## 8. LINE IN sampling — `07-linein` (HUMAN: a signal into LINE IN)
