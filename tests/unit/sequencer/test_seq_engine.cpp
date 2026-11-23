@@ -217,6 +217,33 @@ TEST_CASE("seq.engine: real-time hits at 1/16T land on step + offset 16/24; a re
     CHECK(rig.sequenced(3).size() == 2u); // overdub kept track 4
 }
 
+TEST_CASE("seq.engine: a recorded MIDI note carries its semitones; a PLAY pad hit is unpitched",
+          "[seq][engine][record]")
+{
+    Rig rig;
+    auto p = pattern(16);
+    REQUIRE(rig.install(*p));
+    REQUIRE(rig.param("seq.record", 1.0f));
+    REQUIRE(rig.play());
+    const double st = stepFrames();
+    rig.until(static_cast<long>(2.0 * st));
+    REQUIRE(rig.e->triggers().push({5, 100, 67, -1})); // a MIDI note 7 semitones up on track 6
+    rig.block();
+    auto ev = rig.events();
+    REQUIRE(ev.size() == 1u);
+    CHECK(ev[0].kind == engine::EngineEvent::Kind::RecordedHit);
+    CHECK(ev[0].track == 5);
+    CHECK(ev[0].pitched);
+    CHECK(ev[0].semitones == 7);
+    rig.until(static_cast<long>(4.0 * st));
+    REQUIRE(rig.e->triggers().push({5, 100, 60, 5})); // pad 6 in PLAY mode
+    rig.block();
+    ev = rig.events();
+    REQUIRE(ev.size() == 1u);
+    CHECK_FALSE(ev[0].pitched);
+    CHECK(ev[0].semitones == 0);
+}
+
 TEST_CASE("seq.engine: quantize OFF stores the exact timing; nothing is recorded while not armed", "[seq][engine][record]")
 {
     Rig rig;

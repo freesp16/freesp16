@@ -24,10 +24,12 @@ struct Sink final : LiveHitSink
 {
     int hits = 0;
     TriggerEvent last {};
-    void onLiveHit(const TriggerEvent& e) noexcept override
+    bool pitched = false;
+    void onLiveHit(const TriggerEvent& e, bool p) noexcept override
     {
         ++hits;
         last = e;
+        pitched = p;
     }
 };
 } // namespace
@@ -207,6 +209,7 @@ TEST_CASE("trigger.router: pad modes route pad hits (PAD-001/004), releases foll
     CHECK(r->router.blockEvents()[0].semitones == 12);
     CHECK(sink.hits == 1);
     CHECK(sink.last.track == 6);
+    CHECK(sink.pitched); // a SCALE pad: the recorder keeps its semitones
 
     // The mode changes while pad 8 is held: its release still goes to track 7 (index 6), with its pitch.
     r->router.setPadParam(PadField::Mode, static_cast<float>(PadMode::Play));
@@ -233,9 +236,44 @@ TEST_CASE("trigger.router: pad modes route pad hits (PAD-001/004), releases foll
     CHECK(r->router.blockEvents().empty()); // SHIFT + pad selects, no sound
 }
 
+TEST_CASE("trigger.router: SCALE pads of a MIDI track play SET SCALE (MIDI) from its root over NOTE 1 (PAD-020)",
+          "[trigger]")
+{
+    auto r = makeRig();
+    Sink sink;
+    r->router.setLiveHitSink(&sink);
+    r->router.setPadParam(PadField::Selected, 3.0f);
+    r->router.setPadParam(PadField::Mode, static_cast<float>(PadMode::Scale));
+    r->param(3, TrackField::ScaleType, 1.0f);       // SET SCALE (Sample) MAJOR: not used by a MIDI track
+    r->param(3, TrackField::Mode, 1.0f);            // MIDI
+    r->param(3, TrackField::MidiScaleType, 2.0f);   // MINOR (C D Eb F G Ab Bb)
+    r->param(3, TrackField::MidiScaleRoot, 62.0f);  // D4
+    r->router.setMidiNote1(0, 3, 60);               // NOTE 1 = C4
+    r->router.pushLive(TriggerNow {2, 100, 60, 2}); // pad 3 = degree 2 = a minor third over the root: F4 (65)
+    r->block();
+    REQUIRE(r->router.blockEvents().size() == 1);
+    CHECK(r->router.blockEvents()[0].track == 3);
+    CHECK(r->router.blockEvents()[0].semitones == 65 - 60); // NOTE 1 (C4) + 5 = F4; harmony notes follow
+    CHECK(sink.pitched);
+
+    r->param(3, TrackField::MidiScaleArea, 1.0f);   // window 1: pad 1 = degree 16 = two octaves + a 3rd
+    r->router.pushLive(TriggerNow {0, 100, 60, 0});
+    r->block();
+    REQUIRE(r->router.blockEvents().size() == 1);
+    CHECK(r->router.blockEvents()[0].semitones == 62 + 24 + 3 - 60);
+
+    r->param(3, TrackField::Mode, 0.0f);            // back to SAMPLE: SET SCALE (Sample) again
+    r->router.pushLive(TriggerNow {7, 100, 60, 7}); // MAJOR, pad 8 = the octave
+    r->block();
+    REQUIRE(r->router.blockEvents().size() == 1);
+    CHECK(r->router.blockEvents()[0].semitones == 12);
+}
+
 TEST_CASE("trigger.router: MIDI notes (pad -1) play their track; note offset and note off", "[trigger]")
 {
     auto r = makeRig();
+    Sink sink;
+    r->router.setLiveHitSink(&sink);
     r->router.pushLive(TriggerNow {9, 80, 67, -1});
     r->block();
     REQUIRE(r->router.blockEvents().size() == 1);
@@ -244,6 +282,8 @@ TEST_CASE("trigger.router: MIDI notes (pad -1) play their track; note offset and
     CHECK(e.source == TriggerSource::Midi);
     CHECK(e.semitones == 7);
     CHECK(e.velocity == 80);
+    CHECK(sink.hits == 1);
+    CHECK(sink.pitched); // a MIDI note: the recorder keeps its semitones
     r->router.pushLive(TriggerNow {9, 0, 67, -1});
     r->block();
     REQUIRE(r->router.blockEvents().size() == 1);

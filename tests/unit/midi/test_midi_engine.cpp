@@ -9,6 +9,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <random>
@@ -105,6 +106,39 @@ TEST_CASE("midi.engine: notes 24-72 play the receive channel's tracks chromatica
     const std::vector<std::pair<int, int>> want {{0, -24}, {5, -12}, {0, -1}, {5, -1}, {0, 0}, {5, 0}, {0, 12},
                                                  {5, 12},  {0, 24}, {5, 12}};
     CHECK(got == want);
+}
+
+TEST_CASE("midi.engine: a note recorded while REC is armed keeps its semitones; a track note is pitched at 0",
+          "[midi][record]")
+{
+    auto e = miditest::make();
+    miditest::Driver d {*e, 64};
+    d.param("seq.record", 0, 1.0f);
+    e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+    d.blocks(4);
+    engine::EngineEvent ev;
+    while (e->bridge().popEvent(ev)) {}
+    std::vector<engine::EngineEvent> got;
+    auto drain = [&] {
+        while (e->bridge().popEvent(ev))
+            if (ev.kind == engine::EngineEvent::Kind::RecordedHit)
+                got.push_back(ev);
+    };
+    push(*e, 0x90, 55, 100, static_cast<double>(d.frame()) - 1); // G3 on channel 1: track 1, +7 st (MID-021)
+    d.blocks(3);
+    drain();
+    REQUIRE(got.size() == 1u);
+    CHECK(got[0].track == 0);
+    CHECK(got[0].value == 100);
+    CHECK(got[0].pitched);
+    CHECK(got[0].semitones == 55 - 48);
+    push(*e, 0x90, 3, 90, static_cast<double>(d.frame()) - 1); // note 3: track 4 at its own pitch (MID-020)
+    d.blocks(3);
+    drain();
+    REQUIRE(got.size() == 2u);
+    CHECK(got[1].track == 3);
+    CHECK(got[1].pitched);
+    CHECK(got[1].semitones == 0);
 }
 
 TEST_CASE("midi.engine: CC 46 at 0/64/127 hits the start, middle (half-even) and end of the FX1 grid (FX-086)", "[midi]")
@@ -261,6 +295,53 @@ TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends
     CHECK((out[0].bytes[0] == 0xB4 && out[0].bytes[1] == 0 && out[0].bytes[2] == 3));
     CHECK((out[1].bytes[0] == 0xB4 && out[1].bytes[1] == 32 && out[1].bytes[2] == 4));
     CHECK((out[2].bytes[0] == 0xC4 && out[2].bytes[1] == 5));
+}
+
+TEST_CASE("midi.engine: SCALE pads of a MIDI track send SET SCALE (MIDI)'s notes; a step's PITCH lock transposes",
+          "[midi][record]")
+{
+    auto e = miditest::make();
+    miditest::Driver d {*e, 64};
+    e->midi().hub().setOutputConnected(0, true);
+    d.param("track.mode", 2, 1.0f);       // track 3 → MIDI
+    d.param("midi.out.channel", 2, 1.0f);
+    d.param("midi.note1", 2, 57.0f);      // NOTE 1 = A3
+    d.param("midi.note2", 2, 61.0f);      // + a major third
+    d.param("midi.velocity", 2, 100.0f);
+    d.param("scaleMidi.type", 2, 1.0f);   // MAJOR
+    d.param("scaleMidi.root", 2, 62.0f);  // root D4
+    d.param("pads.selected", 0xFFFF, 2.0f);
+    d.param("pads.mode", 0xFFFF, 4.0f);   // SCALE
+    d.blocks(1);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 = degree 2 = F#4 (66)
+    d.blocks(2);
+    auto out = miditest::drainOut(*e);
+    REQUIRE(out.size() == 2);
+    CHECK((out[0].bytes[0] == 0x90 && out[0].bytes[1] == 66)); // NOTE 1 plays the pad's note (PAD-020)
+    CHECK((out[1].bytes[0] == 0x90 && out[1].bytes[1] == 70)); // the harmony note keeps its interval
+    e->triggers().push(engine::TriggerNow {2, 0, 60, 2});
+    d.blocks(1);
+
+    // A recorded step: its PITCH lock (slot 4, semitones) transposes the track's notes.
+    std::array<float, 35> values {};
+    values[4] = 9.0f;
+    const engine::trigger::LockSet locks {1ull << 4, values.data(), nullptr};
+    engine::trigger::TriggerEvent step {};
+    step.track = 2;
+    step.velocity = 100;
+    step.kind = engine::trigger::TriggerKind::Full;
+    step.source = engine::trigger::TriggerSource::Sequencer;
+    step.locks = &locks;
+    miditest::drainOut(*e);
+    REQUIRE(e->triggerRouter().push(step));
+    d.blocks(1);
+    out = miditest::drainOut(*e);
+    std::vector<int> on;
+    for (const auto& o : out)
+        if (o.bytes[0] == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {57 + 9, 61 + 9});
 }
 
 TEST_CASE("midi.engine: CC1 / CC2 values are sent when changed and Active (MID-041…044)", "[midi]")

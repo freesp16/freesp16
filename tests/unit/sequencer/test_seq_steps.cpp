@@ -151,6 +151,57 @@ TEST_CASE("seq.steps: recorded hits and erased steps of a pass are one undo step
     CHECK_FALSE(f.sc.recordEncoder(spec("track.volume"), 70.0f, 6)); // not recording now
 }
 
+TEST_CASE("seq.steps: a recorded MIDI note or SCALE pad keeps the pitch it played at as the step's PITCH lock",
+          "[seq][steps][record]")
+{
+    Fixture f;
+    ui::LocalParamValues values(core::builtinParams());
+    values.set(spec("playback.pitch"), 0x02, 2.0f); // track 3 is tuned +2 st
+    steps::StepController sc {f.bus, &f.bridge, &values};
+    sc.setContext(0, 0, 2);
+    sc.setTransport(true, true);
+    using E = engine::EngineEvent;
+    namespace seqcmd = core::commands::sequencer;
+    constexpr int kPitch = 4; // PITCH's lock slot
+    E hit {E::Kind::RecordedHit, 2, 4, 100, 0};
+    hit.pitched = true;
+    hit.semitones = 7; // MIDI note 55 (G3) on a Sample track
+    sc.onEngineEvent(hit);
+    float v = 0;
+    REQUIRE(seqcmd::lockOf(f.pat(), 4, 2, kPitch, v));
+    CHECK(v == 9.0f); // the track's pitch + the note's semitones: what was heard
+    CHECK(f.cell(4, 2).value2 == 100);
+
+    hit.semitones = 0; // the root note (48) overdubbed on that step: it played at the track's own pitch
+    sc.onEngineEvent(hit);
+    CHECK_FALSE(seqcmd::lockOf(f.pat(), 4, 2, kPitch, v));
+
+    hit.semitones = 30; // clamped to PITCH's range
+    sc.onEngineEvent(hit);
+    REQUIRE(seqcmd::lockOf(f.pat(), 4, 2, kPitch, v));
+    CHECK(v == 24.0f);
+
+    E pad {E::Kind::RecordedHit, 2, 4, 90, 0}; // an unpitched pad hit (PLAY / TRACK mode) leaves the lock alone
+    sc.onEngineEvent(pad);
+    REQUIRE(seqcmd::lockOf(f.pat(), 4, 2, kPitch, v));
+    CHECK(v == 24.0f);
+    CHECK(f.cell(4, 2).value2 == 90);
+
+    // A MIDI track: the lock is the transposition of its notes, whatever its (unused) sample pitch says.
+    core::commands::project(f.bus).scenes[0].tracks[5].mode = core::model::TrackMode::Midi;
+    values.set(spec("playback.pitch"), 0x05, 3.0f);
+    E midi {E::Kind::RecordedHit, 5, 8, 110, 0};
+    midi.pitched = true;
+    midi.semitones = -5; // a SCALE pad a fourth under NOTE 1
+    sc.onEngineEvent(midi);
+    REQUIRE(seqcmd::lockOf(f.pat(), 8, 5, kPitch, v));
+    CHECK(v == -5.0f);
+    sc.setTransport(false, true);
+    REQUIRE(f.bus.undo()); // the whole pass, locks included, is one undo step
+    CHECK(f.cell(4, 2).empty());
+    CHECK(f.cell(8, 5).empty());
+}
+
 TEST_CASE("seq.steps: recorded touch strip locks need REC and play, and join the pass's undo step (RIB-008)",
           "[seq][steps][record][ribbon]")
 {

@@ -84,7 +84,7 @@ bool TriggerRouter::pushLive(const TriggerNow& t) noexcept
                 break;
             case PadMode::Scale:
                 e.track = pads_.selected;
-                semis += settings_[scene_][pads_.selected].padSemitones[static_cast<std::size_t>(pad)];
+                semis += scalePadSemitones(settings_[scene_][pads_.selected], pad);
                 break;
         }
         e.semitones = clampSemis(semis);
@@ -217,7 +217,8 @@ void TriggerRouter::process(BlockContext& ctx) noexcept
             sources_[t].onEvent(e, ts.triggerMode);
         if (liveHits_ != nullptr && e.kind == TriggerKind::Full
             && (e.source == TriggerSource::Pad || e.source == TriggerSource::Midi || e.source == TriggerSource::Repeat))
-            liveHits_->onLiveHit(e);
+            liveHits_->onLiveHit(e, e.source == TriggerSource::Midi
+                                        || (e.source == TriggerSource::Pad && pads_.mode == PadMode::Scale));
     }
     numApplied_ = numEvents_;
     numEvents_ = 0;

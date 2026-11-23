@@ -87,7 +87,8 @@ TEST_CASE("trigger.engine: playback, envelope, track, scale and pad parameters a
                           "playback.timeStretch", "playback.reverse", "playback.bypass", "env.velocity", "env.attack",
                           "env.hold", "env.release", "env.sync", "env.attackCurve", "env.releaseCurve",
                           "env.retrigger", "env.bypass", "track.padVelocity", "track.mode", "track.triggerMode",
-                          "track.chokeGroup", "track.inputSource", "scale.type", "scale.keyShift", "scale.area"})
+                          "track.chokeGroup", "track.inputSource", "scale.type", "scale.keyShift", "scale.area",
+                          "scaleMidi.type", "scaleMidi.root", "scaleMidi.area"})
     {
         INFO(p);
         CHECK(e->bridge().post(engine::ParamChange {id(p), 0x21, 1.0f, 0}));
@@ -95,7 +96,7 @@ TEST_CASE("trigger.engine: playback, envelope, track, scale and pad parameters a
     for (const char* p : {"pads.mode", "pads.selected", "pads.shift"})
         CHECK(e->bridge().post(engine::ParamChange {id(p), 0xFFFF, 0.0f, 0}));
     // Message-thread-only ids are refused (the engine does not implement them).
-    for (const char* p : {"track.padColor", "pads.velocityCurve", "pads.fixedVelocity", "scaleMidi.root"})
+    for (const char* p : {"track.padColor", "pads.velocityCurve", "pads.fixedVelocity"})
         CHECK_FALSE(e->bridge().post(engine::ParamChange {id(p), 0, 1.0f, 0}));
     enginetest::render(*e, 1024, 256);
     const auto& r = e->triggerRouter();

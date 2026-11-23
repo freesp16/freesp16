@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace ui::input::steps
 {
@@ -262,7 +263,24 @@ void StepController::onEngineEvent(const engine::EngineEvent& e)
     openGroup();
     if (e.kind == K::RecordedHit)
     {
-        bus_.execute(seqcmd::recordHit(scene_, pattern_, e.track, e.step, e.value, e.offset24));
+        // A MIDI note / SCALE pad hit keeps the pitch it played at as the step's PITCH lock: the track's pitch + the
+        // hit's semitones on a Sample track, the transposition of its notes on a MIDI track; none for the track's
+        // own pitch (an older pass's lock on that step goes).
+        int pitchSlot = -1;
+        float pitch = std::numeric_limits<float>::quiet_NaN();
+        const auto* pitchSpec = params_.find("playback.pitch");
+        const auto* p = project();
+        if (e.pitched && pitchSpec != nullptr && p != nullptr)
+        {
+            pitchSlot = seqcmd::lockSlotOf(*pitchSpec, params_);
+            const auto scope = static_cast<std::uint16_t>(scene_ << 4 | (e.track & 15));
+            const bool midi = p->scenes[static_cast<std::size_t>(scene_)].tracks[static_cast<std::size_t>(e.track & 15)]
+                                  .mode == core::model::TrackMode::Midi;
+            const float base = midi || values_ == nullptr ? 0.0f : values_->get(*pitchSpec, scope);
+            if (e.semitones != 0)
+                pitch = pitchSpec->clamp(base + static_cast<float>(e.semitones));
+        }
+        bus_.execute(seqcmd::recordHit(scene_, pattern_, e.track, e.step, e.value, e.offset24, pitchSlot, pitch));
         if ((e.track & 15) == track_)
             recordedAt_[static_cast<std::size_t>(e.step & 63)] = nowMs_;
     }

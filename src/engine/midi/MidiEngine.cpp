@@ -18,6 +18,7 @@ using F = MidiField;
 constexpr int kSteerFrames = 2048;   // the phase error is steered out over ~46 ms of the clock's tempo
 constexpr double kMaxSteer = 0.05;   // ±5 % rate while steering
 constexpr std::uint8_t kNotOurs = static_cast<std::uint8_t>(MidiField::Count);
+constexpr int kPitchLockSlot = 4; // PITCH (core::ParamIndex 4, engine::voice::lockslot::Pitch), semitones
 
 inline int toInt(float v) noexcept { return static_cast<int>(v < 0.0f ? v - 0.5f : v + 0.5f); }
 inline int clampi(int v, int lo, int hi) noexcept { return v < lo ? lo : (v > hi ? hi : v); }
@@ -142,7 +143,11 @@ bool MidiEngine::onParam(const ParamChange& c) noexcept
     };
     switch (field)
     {
-        case F::Note1: s.notes[0] = static_cast<std::int8_t>(clampi(iv, 0, 127)); break;
+        case F::Note1:
+            s.notes[0] = static_cast<std::int8_t>(clampi(iv, 0, 127));
+            if (w_.router != nullptr) // the reference of the track's SCALE pads (SET SCALE (MIDI), PAD-020)
+                w_.router->setMidiNote1(scene, track, s.notes[0]);
+            break;
         case F::Note2:
         case F::Note3:
         case F::Note4:
@@ -569,7 +574,10 @@ void MidiEngine::trackOut(const BlockContext& ctx, const stages::BlockBuffers& b
         const auto& s = tracks_[scene][t];
         if (s.noteBypass)
             continue;
-        const int transpose = w_.perf != nullptr ? w_.perf->transpose(t) : 0;
+        int transpose = w_.perf != nullptr ? w_.perf->transpose(t) : 0;
+        // A step's PITCH lock transposes the notes (a recorded MIDI-scale pad or played note keeps its pitch, SEQ-041).
+        if (float lock = 0.0f; e.locks != nullptr && e.locks->values != nullptr && e.locks->get(kPitchLockSlot, lock))
+            transpose += toInt(lock);
         const int vel = s.velocity > 0 ? s.velocity : (e.velocity > 0 ? e.velocity : 100);
         const auto length = static_cast<std::int64_t>(std::llround(static_cast<double>(s.length) * framesPerStep));
         const std::int64_t at = blockStart_ + e.frame;

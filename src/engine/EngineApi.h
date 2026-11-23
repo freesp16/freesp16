@@ -99,6 +99,10 @@ struct EngineEvent
     std::int8_t offset24 = 0; // micro-timing of a recorded hit, −24…+24 = ±1 step (SEQ-005)
     std::uint8_t origin = 0;  // RecordedHit: kOriginLive (a pad / MIDI hit) or kOriginRepeat (touch strip REPEAT)
     static constexpr std::uint8_t kOriginLive = 0, kOriginRepeat = 1;
+    // RecordedHit: a pitched hit (a MIDI note, a SCALE pad) and the semitones it played at (TriggerEvent::semitones);
+    // the recorder stores them as the step's PITCH lock (SEQ-041: the step replays what was heard).
+    std::int8_t semitones = 0;
+    bool pitched = false;
 };
 
 namespace fx

@@ -6,8 +6,8 @@
 //   pad routing   a pad hit (TriggerNow::pad ≥ 0) plays by the pad mode (PAD-001): PLAY = track n, TRACK / MUTE =
 //                 no sound (the message thread selects / mutes), SLICE = the selected track playing the pad's slice
 //                 (a slice-number lock, engine/voice/SliceMapPads.h), SCALE = the selected track at the pad's scale
-//                 degree (PAD-010…013); SHIFT held = select only (PAD-004). A pad release goes to the track its press
-//                 played, whatever the mode is by then.
+//                 degree (PAD-010…013; a MIDI track: SET SCALE (MIDI)'s note, PAD-020); SHIFT held = select only
+//                 (PAD-004). A pad release goes to the track its press played, whatever the mode is by then.
 //   MIDI          TriggerNow::pad < 0: track = TriggerNow::track, semitones = note − 60, velocity 0 = note off (TRK-011)
 //   choke         a Full trigger stops every other track of its choke group in the current scene with the voice's
 //                 2 ms fade (TRK-020); groups are one 16-bit mask per scene and group
@@ -15,7 +15,8 @@
 //   locks         the mixer's volume/pan/send/mute lock slots per trigger (Mixer::applyLocks, null = revert)
 //   ducks         Full/Half from any source on an unmuted track (SEQ-027, consumed by the Ducker)
 //   live hits     Full pad/MIDI hits also go to the LiveHitSink (the sequencer records them, PAD-005), and the touch
-//                 strip's REPEAT hits (recorded onto the steps while REC is armed; the reference does not, RIB-008)
+//                 strip's REPEAT hits (recorded onto the steps while REC is armed; the reference does not, RIB-008);
+//                 MIDI notes and SCALE pads are "pitched": the recorder keeps their semitones
 //
 // blockEvents() lists the block's applied events (with `ducks` set) for the Ducker; hits(t) counts track t's
 // Full / Half triggers for the pad-flash feed (PlayheadFeed::trackHits).
@@ -40,7 +41,8 @@ class LiveHitSink
 {
 public:
     virtual ~LiveHitSink() = default;
-    virtual void onLiveHit(const TriggerEvent&) noexcept = 0; // the sequencer records (PAD-005)
+    // The sequencer records (PAD-005). `pitched`: a MIDI note or a SCALE pad, whose semitones are the note played.
+    virtual void onLiveHit(const TriggerEvent&, bool pitched) noexcept = 0;
 };
 
 class TriggerRouter
@@ -73,6 +75,12 @@ public:
     // current scene at once (TRK-002).
     void setTrackParam(int scene, int track, TrackField, float value) noexcept;
     void setPadParam(PadField, float value) noexcept;
+    // NOTE 1 of a MIDI track (midi.note1, from the MIDI engine): the reference of its SCALE pads (scalePadSemitones).
+    void setMidiNote1(int scene, int track, int note) noexcept
+    {
+        settings_[scene & 15][track & 15].midiNote1 =
+            static_cast<std::int8_t>(note < 0 ? 0 : (note > 127 ? 127 : note));
+    }
     void setScene(int scene) noexcept;
     void process(BlockContext&) noexcept; // sort by frame, choke, drive the 16 TrackSources
 

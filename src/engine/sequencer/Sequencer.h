@@ -23,8 +23,9 @@
 //   recording  armed (`seq.record`) and playing: every live Full pad / MIDI hit (the router's LiveHitSink, PAD-005,
 //              SEQ-041/048) — and every touch strip REPEAT hit of the running pass (origin kOriginRepeat, ours,
 //              RIB-008) — is placed at its exact PPQ, quantised (core/util/sequencer/RecordQuantize.h, SEQ-042) and
-//              sent to the UI as EngineEvent::RecordedHit {track, step, velocity, offset24} (lossless queue); the
-//              message thread writes it with recordHit inside the pass's CommandGroup (EDT-U3). A hit whose stored
+//              sent to the UI as EngineEvent::RecordedHit {track, step, velocity, offset24; a MIDI note's or SCALE
+//              pad's semitones} (lossless queue); the message thread writes it with recordHit inside the pass's
+//              CommandGroup (EDT-U3), the semitones as the step's PITCH lock. A hit whose stored
 //              trigger plays later in the pass sets a per-track "recorded this pass" bit, so that step does not sound
 //              a second time (the live hit already did) whether or not the new pattern object arrived. ERASE held
 //              (`seq.erase`, SEQ-046) removes the track's triggers as the playhead passes: EngineEvent::ErasedStep,
@@ -50,6 +51,12 @@
 namespace engine::sequencer
 {
 using core::sequencer::RecordQuantize;
+
+struct RecordPitch // a pitched hit's semitones (EngineEvent::pitched / semitones)
+{
+    bool pitched = false;
+    std::int8_t semitones = 0;
+};
 
 class Sequencer final : public trigger::LiveHitSink
 {
@@ -87,7 +94,7 @@ public:
     // `timing` = BlockBuffers::timing (scene / pattern / patternStartPpq / boundary / preCount, from the switcher and
     // the transport; the frozen BlockContext cannot carry them).
     void collect(const BlockContext&, const stages::BlockBuffers::Timing& timing, trigger::TriggerRouter&) noexcept;
-    void onLiveHit(const trigger::TriggerEvent&) noexcept override; // record capture → EngineEvent
+    void onLiveHit(const trigger::TriggerEvent&, bool pitched) noexcept override; // record capture → EngineEvent
     bool takeStartRequest() noexcept // padStartsSequence: the engine posts Play to the transport
     {
         const bool r = startRequest_;
@@ -122,9 +129,9 @@ private:
     Where follow(const BlockContext& ctx, const stages::BlockBuffers::Timing& timing) const noexcept;
     void emit(const Where& w, double a, double b, bool current, trigger::TriggerRouter& router, int frameEnd) noexcept;
     void record(int track, int velocity, double hitPpq, const Where& w, bool current,
-                std::uint8_t origin = EngineEvent::kOriginLive) noexcept;
+                std::uint8_t origin = EngineEvent::kOriginLive, RecordPitch pitch = {}) noexcept;
     void push(EngineEvent::Kind kind, int track, int step, int value, int offset24,
-              std::uint8_t origin = EngineEvent::kOriginLive) noexcept;
+              std::uint8_t origin = EngineEvent::kOriginLive, RecordPitch pitch = {}) noexcept;
 
     feeds::EngineFeeds* feeds_ = nullptr;
     std::array<std::array<const PatternData*, kPatterns>, kScenes> patterns_ {};

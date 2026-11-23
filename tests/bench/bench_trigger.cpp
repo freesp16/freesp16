@@ -30,7 +30,7 @@ constexpr int kTracks = engine::kTracks;
 struct Hits final : LiveHitSink
 {
     int n = 0;
-    void onLiveHit(const TriggerEvent&) noexcept override { ++n; }
+    void onLiveHit(const TriggerEvent&, bool) noexcept override { ++n; }
 };
 
 struct Rig
