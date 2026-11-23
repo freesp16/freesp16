@@ -236,3 +236,55 @@ TEST_CASE("ui.model: MUTE MODE is a saved, undoable, per-track model field poste
     CHECK(w.values->get(spec, scope) == 0);
     CHECK(w.project().scenes[0].tracks[4].extras.empty()); // STOP SOUND leaves no trace in the file
 }
+
+TEST_CASE("ui.model: a MIDI track's NOTE, CC, BANK / PROG and SELECT CH edits are saved with the project",
+          "[ui][model][midi]")
+{
+    World w;
+    const std::uint16_t scope = (1 << 4) | 3; // scene 2, track 4
+    for (const char* id : {"midi.note1", "midi.note2", "midi.velocity", "midi.length", "midi.cc1.value3",
+                           "midi.cc2.active6", "midi.bankMsb", "midi.program"})
+    {
+        INFO(id);
+        CHECK(w.values->modelBacked(w.spec(id)));
+    }
+    w.values->set(w.spec("midi.note1"), scope, 65.0f);
+    w.values->set(w.spec("midi.note2"), scope, -5.0f); // NOTE2: 5 semitones under NOTE
+    w.values->set(w.spec("midi.velocity"), scope, 90.0f);
+    w.values->set(w.spec("midi.cc1.value3"), scope, 33.0f);
+    w.values->set(w.spec("midi.program"), scope, 12.0f);
+    const auto& m = w.project().scenes[1].tracks[3].midi;
+    CHECK(m.notes[0] == 65);
+    CHECK(m.notes[1] == -5);
+    CHECK(m.velocity == 90);
+    CHECK(m.cc1[0].value == 33);
+    CHECK(m.program == 12);
+    float v = 0;
+    CHECK(w.posts("midi.note1", scope, &v) == 1); // and the engine hears it
+    CHECK(v == 65.0f);
+
+    // SELECT CH: the track's send channel is UTILITY's project value (CHANNEL MAPPING (MIDI OUT)).
+    const auto& ch = w.spec("midi.out.channel");
+    CHECK(w.values->get(ch, 3) == 4.0f); // default channel n = track n
+    w.values->set(ch, 3, 9.0f);
+    CHECK(w.project().midi.output.channels[3] == 9);
+    CHECK(w.values->get(ch, 3) == 9.0f);
+
+    // Saved and read back.
+    const auto dir = juce::File::getSpecialLocation(juce::File::tempDirectory)
+                         .getChildFile("midi-track-" + juce::String(juce::Time::currentTimeMillis()));
+    const auto bundle = dir.getChildFile("Midi.sixteen");
+    REQUIRE(dir.createDirectory());
+    REQUIRE(services::store::NativeCodec::save(w.project(), bundle).ok());
+    auto back = std::make_unique<core::model::Project>();
+    services::store::ImportReport report;
+    REQUIRE(services::store::NativeCodec::readInto(bundle, *back, report).ok());
+    CHECK(back->scenes[1].tracks[3].midi == m);
+    CHECK(back->midi.output.channels[3] == 9);
+    dir.deleteRecursively();
+
+    REQUIRE(w.bus.undo()); // SELECT CH
+    CHECK(w.project().midi.output.channels[3] == 4);
+    REQUIRE(w.bus.undo()); // PROG CHANGE
+    CHECK(w.project().scenes[1].tracks[3].midi.program == -1);
+}
