@@ -60,7 +60,8 @@ The app still reads the projects and samples made with the stock software, on th
 5. Plug the stick in. The boot menu appears after a few seconds: turn **SELECT** to choose freesp16, push it to start.
 
 To switch the instrument off, press the **POWER** button on the back, as with the stock software: freesp16 saves its
-state and preferences, flushes the stick and asks the instrument to power down.
+state, unsaved changes and preferences, flushes the stick and asks the instrument to power down. At the next start
+the project reopens where you left it, unsaved changes included (they stay unsaved until you SAVE).
 
 To update freesp16, copy a new `freesp16` over the old one; `freesp16-data/` stays. To go back to the stock software,
 choose it in the boot menu, or remove the stick and switch the instrument off and on. The

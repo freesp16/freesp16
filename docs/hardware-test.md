@@ -218,9 +218,10 @@ Last, because it ends the session: press and release the **POWER** button on the
 variant; a press shorter than 50 ms is ignored). Expected: the outputs go silent at once (HardMute, TX 0x66), the
 lamps go dark and the unit switches off, as after the stock software's standby. The log on the stick ends with
 `DIAG STOP reason=standby`, `STOP`, `PREFS flushed …` and `STANDBY panel standby flag set (TX 0x67 bit 0, HardMute
-0x66), lamps dark; waiting for the power to go`. Unsaved changes are in `System/autosave/`. Switch the unit on again:
-the stock software starts, then the boot menu, and the project resumes (with the "Restore unsaved changes?" offer
-when there were any). Send the tail of `<name>.log`.
+0x66), lamps dark; waiting for the power to go`. Unsaved changes are in `System/autosave/` and `System/poweroff`
+exists. Switch the unit on again: the stock software starts, then the boot menu, and the project reopens where it was
+switched off — the screen, and the unsaved changes without the "Restore unsaved changes?" question (still unsaved:
+SAVE keeps them, UNDO returns to the saved version). Send the tail of `<name>.log`.
 
 If nothing happens on the press, the power bit did not change (RX byte 5 bit 4; the app takes its idle level from
 the first 50 ms, so either polarity works): send `04-trace` lines while pressing it. If the unit stays on, the log goes

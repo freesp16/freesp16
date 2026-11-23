@@ -229,3 +229,65 @@ TEST_CASE("project.resume: a newer autosave is offered and restored as an undoab
     env.startup();
     CHECK(asked == 2);
 }
+
+TEST_CASE("project.resume: after the power key the last project reopens with its unsaved changes, unasked", "[project]")
+{
+    auto d = disk("poweroff");
+    {
+        Env env(d);
+        env.startup();
+        REQUIRE(env.store().create("Live").ok());
+        setTempo(env.bus, 100.0);
+        REQUIRE(env.save(SaveKind::Save, {}).ok());
+        juce::Thread::sleep(1100); // file times have 1 s resolution on some file systems
+        setTempo(env.bus, 140.0);  // unsaved, younger than the autosave interval
+        env.selection = {2, 0, 5, "SEQUENCE"};
+        env.session->shutdown(true); // the power key: autosave now, mark the restore as automatic
+        CHECK(env.session->powerOffMarker().existsAsFile());
+    }
+    int asked = 0;
+    {
+        Env env(d);
+        env.session->askRestore = [&](const juce::File&, std::function<void(bool)> answer)
+        {
+            ++asked;
+            answer(false);
+        };
+        const auto result = env.startup();
+        CHECK(result.resumed);
+        CHECK(result.message.isEmpty());
+        CHECK(asked == 0); // no question: back where the unit was switched off
+        CHECK(result.selection == st::Selection {2, 0, 5, "SEQUENCE"});
+        CHECK(env.project().settings.tempo == 140.0);
+        CHECK(env.store().dirty()); // still unsaved: SAVE writes it, UNDO returns to the saved version
+        CHECK(st::openProject(env.store().file()).value()->settings.tempo == 100.0); // the user's file is untouched
+        CHECK_FALSE(env.session->powerOffMarker().exists()); // used once
+    } // a crash this time (no shutdown): the next start asks again
+    Env env(d);
+    env.session->askRestore = [&](const juce::File&, std::function<void(bool)> answer)
+    {
+        ++asked;
+        answer(true);
+    };
+    env.startup();
+    CHECK(asked == 1);
+    CHECK(env.project().settings.tempo == 140.0);
+}
+
+TEST_CASE("project.resume: an untitled project switched off with the power key comes back too", "[project]")
+{
+    auto d = disk("poweroff-untitled");
+    {
+        Env env(d);
+        env.startup();
+        setTempo(env.bus, 133.0); // never saved
+        env.session->shutdown(true);
+    }
+    int asked = 0;
+    Env env(d);
+    env.session->askRestore = [&](const juce::File&, std::function<void(bool)>) { ++asked; };
+    env.startup();
+    CHECK(asked == 0);
+    CHECK(env.store().name() == st::kUntitledName);
+    CHECK(env.project().settings.tempo == 133.0);
+}
