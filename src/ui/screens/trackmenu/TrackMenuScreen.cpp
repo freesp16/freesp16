@@ -1,7 +1,8 @@
 // TRACK MENU (07-ui-design/screens/track-menu.md; UI-220…225, UI-258/259, UID-650…666). Template full, context bar
 // TRACK TYPE + BYPASS. The TrackPanel: identity block (chip, type / stretch / loop badges, name — the HOME tile
-// header; at its right end the small MUTE button: a tap toggles the track's MUTE MODE, track.muteMode, between
-// SOUND = STOP SOUND, the default, and STEPS = STOP STEPS), four header action slots, six fixed ModuleCard slots per
+// header; at its right end the small MUTE button: a tap, or the rotary on it and a push, toggles the track's MUTE
+// MODE, track.muteMode, between SOUND = STOP SOUND, the default, and STEPS = STOP STEPS; focused, the knob strip
+// binds it too), four header action slots, six fixed ModuleCard slots per
 // track type with connectors only between chain neighbours, the wide SEQUENCE card and under it the MOTION bar (the
 // track's recorded motion; a tap opens the MOTION page, ui/screens/motion). A SAMPLE track's first header action is MOTION RECORD (track.motionRec: knob turns
 // while recording write motion; red LED = enabled). Nothing moves when a later package registers its screen (UID-665): every
@@ -53,7 +54,7 @@ using Thumb = ModuleCardModel::Thumb;
 
 constexpr float kActionX[] = {584, 752, 920, 1088};
 constexpr RectF kSequence{48, 448, 1184, 88}, kMotion{48, 544, 1184, 48};
-constexpr RectF kMuteMode{456, 170, 112, 28}; // the identity row's MUTE MODE button (touch; ≥ 44 lpx hit, kMuteModeHit)
+constexpr RectF kMuteMode{456, 170, 112, 28}; // the identity row's MUTE MODE button (≥ 44 lpx hit, kMuteModeHit)
 constexpr RectF kMuteModeHit{448, 160, 128, 48};
 constexpr RectF actionRect(int slot) noexcept
 {
@@ -76,7 +77,8 @@ constexpr StripSpec kBrowseStrip{"BROWSE", {}}, kLiveStrip{"LIVE SAMPLING", {}},
     kProgStrip{"PROG CHANGE", {"midi.program", "", "", "", "", ""}},
     kScaleStrip{"SET SCALE", {"scaleMidi.area", "scaleMidi.root", "", "", "", ""}},
     kLimiterStrip{"SOFT LIMITER", {"mixer.softLimiter", "", "", "", "", ""}},
-    kMotionRecStrip{"MOTION RECORD", {"track.motionRec", "", "", "", "", ""}}, kMotionStrip{"MOTION", {}};
+    kMotionRecStrip{"MOTION RECORD", {"track.motionRec", "", "", "", "", ""}}, kMotionStrip{"MOTION", {}},
+    kMuteModeStrip{"MUTE MODE", {"track.muteMode", "", "", "", "", ""}};
 
 // --- the six slots and four header actions per track type (track-menu.md "The six slots per track type") ---
 struct Card
@@ -159,8 +161,10 @@ const Chain kChains[4] = {
 };
 constexpr std::string_view kTypeBadges[] = {"SMPL", "MIDI", "THRU", "AS-1"};
 
-// Focus items: 0–3 header actions, 4–9 cards, 10 SEQUENCE, 11 MOTION.
-constexpr int kCard0 = 4, kSeqItem = 10, kMotionItem = 11, kLastItem = kMotionItem;
+// Focus items: 0–3 header actions, 4–9 cards, 10 SEQUENCE, 11 MOTION, 12 the MUTE MODE button. The rotary visits them
+// in screen order: the MUTE button (left of the header actions) first.
+constexpr int kCard0 = 4, kSeqItem = 10, kMotionItem = 11, kMuteItem = 12, kLastItem = kMuteItem;
+constexpr int kFocusOrder[] = {kMuteItem, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, kSeqItem, kMotionItem};
 int s_returnFocus = -1; // the module page opened last (BACK lands on it)
 
 class TrackPanel final : public Widget
@@ -234,12 +238,6 @@ public:
         if (! touch::isTouch(e) || e.value != touch::kDown)
             return false;
         const float x = touch::x(e), y = touch::y(e);
-        if (contains(kMuteModeHit, x, y)) // MUTE MODE: STOP SOUND ↔ STOP STEPS, on the first tap
-        {
-            const int t = state_->selectedTrack;
-            m1::setTrackParam(*shell_, "track.muteMode", t, m1::trackFlag(*shell_, "track.muteMode", t) ? 0.0f : 1.0f);
-            return true;
-        }
         for (int i = 0; i <= kLastItem; ++i)
             if (focusable(i) && contains(itemRect(i), x, y))
             {
@@ -262,6 +260,7 @@ private:
         return i < kCard0       ? actionRect(i)
                : i == kSeqItem    ? kSequence
                : i == kMotionItem ? kMotion
+               : i == kMuteItem   ? kMuteModeHit
                                   : ModuleCard::rect(i - kCard0);
     }
     bool focusable(int i) const noexcept
@@ -269,6 +268,8 @@ private:
         const auto& c = chain();
         if (i < 0 || i > kLastItem)
             return false;
+        if (i == kMuteItem)
+            return true;
         if (i < kCard0)
             return c.actions[static_cast<std::size_t>(i)].kind != AK::None;
         if (i == kSeqItem || i == kMotionItem)
@@ -278,18 +279,23 @@ private:
     }
     void moveFocus(int d)
     {
-        int i = focus_;
-        for (int n = 0; n < std::abs(d); ++n)
+        constexpr int n = static_cast<int>(std::size(kFocusOrder));
+        int at = 0; // focus_'s place in kFocusOrder
+        while (at < n && kFocusOrder[at] != focus_)
+            ++at;
+        if (at == n)
+            at = 0;
+        for (int k = 0; k < std::abs(d); ++k)
         {
-            int next = i;
+            int next = at;
             do
                 next += d > 0 ? 1 : -1;
-            while (next >= 0 && next <= kLastItem && ! focusable(next));
-            if (next < 0 || next > kLastItem)
+            while (next >= 0 && next < n && ! focusable(kFocusOrder[next]));
+            if (next < 0 || next >= n)
                 break;
-            i = next;
+            at = next;
         }
-        focus_ = i;
+        focus_ = kFocusOrder[at];
     }
     const StripSpec* stripOf(int i) const noexcept
     {
@@ -302,6 +308,8 @@ private:
             return &kSeqStrip;
         if (i == kMotionItem)
             return &kMotionStrip;
+        if (i == kMuteItem)
+            return &kMuteModeStrip;
         const auto& cd = c.cards[static_cast<std::size_t>(i - kCard0)];
         if (cd.id == "fx1" || cd.id == "fx2")
             return fxStrip(cd.id == "fx1" ? fx::Slot::Fx1 : fx::Slot::Fx2);
@@ -420,6 +428,12 @@ private:
             return; // BYPASS mode: the push toggles the module's bypass (UI-221)
         focus_ = i;
         const auto& c = chain();
+        if (i == kMuteItem) // MUTE MODE: STOP SOUND ↔ STOP STEPS
+        {
+            const int t = state_->selectedTrack;
+            m1::setTrackParam(*shell_, "track.muteMode", t, m1::trackFlag(*shell_, "track.muteMode", t) ? 0.0f : 1.0f);
+            return;
+        }
         if (i < kCard0)
         {
             const auto& a = c.actions[static_cast<std::size_t>(i)];
@@ -580,7 +594,8 @@ private:
             dl.text(32, 224, Align::Left, TextStyleId::Title, p.text3, "----");
     }
 
-    // MUTE MODE: "MUTE" and the mode, SOUND (default) in text-1, STEPS in accent (the MIXER's MUTE colour).
+    // MUTE MODE: "MUTE" and the mode, SOUND (default) in text-1, STEPS in accent (the MIXER's MUTE colour); the focus
+    // ring while the rotary is on it.
     void muteModeButton(DrawList& dl, const UiContext& ctx, int t) const
     {
         const auto& p = ctx.palette;
@@ -593,6 +608,8 @@ private:
         dl.text(r.x + 10, cy, Align::Left, TextStyleId::Caption, p.text3, "MUTE");
         dl.text(r.x + r.w - 10, cy, Align::Right, TextStyleId::Caption, steps ? p.accent : p.text1,
                 steps ? "STEPS" : "SOUND");
+        if (focus_ == kMuteItem)
+            draw::focusRing(dl, p, r, tk::radiusS);
     }
 
     void action(DrawList& dl, const UiContext& ctx, int slot, const Action& a, bool focused) const
