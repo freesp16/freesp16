@@ -79,6 +79,10 @@ struct AlsaOutputConfig
     // A fixed gain on the loop's send (imx6: 0.5, the reference's FixedAttenuator −6 dB, which is also on its filter
     // send pair, F111): the drive's +5.1 dBFS OVER threshold then sits just under the send DAC's full scale.
     float loopGain = 1.0f;
+    // A fixed gain on every port of the main PCM (imx6: 0.5, the reference's FixedAttenuator −6 dB on its main and
+    // assignable DAC pairs, F111; setting main_gain). The engine's float full scale is then +6 dBFS: a track at
+    // VELOCITY 127 (×2) with a full-scale sample reaches the DAC's full scale instead of clipping it.
+    float mainGain = 1.0f;
 };
 
 class AlsaOutput final : public AudioDevice

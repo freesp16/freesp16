@@ -993,7 +993,9 @@ void Document::lamps(io::LampFrame& frame) const
     d.padLamps.overlay(frame, d.pads.effectiveMode());
     d.strip.lamps(frame);
     // UI-156/158: ANALOG FILTER ACTIVE (red) from afs.active; OVER (amber) while the drive output passed +5.1 dBFS
-    // (AFS-011, the slot's own detector, held 0.5 s there) or the master clipped, latched 2 s like the meters.
+    // (AFS-011, the slot's own detector, held 0.5 s there), latched 2 s like the meters. As on the reference this is
+    // the only source: the main DAC pair has a fixed −6 dB (F111), so the DAC's full scale is +6 dBFS in the engine and
+    // a master peak at 0 dBFS is 6 dB below clipping. The detector watches the master output with ACTIVE off too.
     const auto afsValue = [&](std::string_view id, float fallback) {
         const auto* spec = core::builtinParams().find(id);
         return spec != nullptr ? d.values.get(*spec, 0) : fallback;
@@ -1004,7 +1006,7 @@ void Document::lamps(io::LampFrame& frame) const
     frame.analogFilter.inUse = afsOn && std::lround(afsValue("afs.processor", 1.0f)) == 1;
     frame.analogFilter.hpCutoff = static_cast<int>(std::lround(afsValue("afs.hpCutoff", 0.0f)));
     const auto& m = d.bridge.meters();
-    if (m.masterPeak[0] >= 1.0f || m.masterPeak[1] >= 1.0f || m.afsOverLevel >= engine::kAfsOverThreshold)
+    if (m.afsOverLevel >= engine::kAfsOverThreshold)
         d.overAtMs = d.frameMs;
     frame[io::Control::AfsOver] = {d.frameMs - d.overAtMs < 2000.0 ? io::LampMode::On : io::LampMode::Off,
                                    io::lampcolour::amber, 0};

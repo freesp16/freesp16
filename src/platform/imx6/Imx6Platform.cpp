@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -54,9 +55,12 @@ public:
     std::string describe() const override
     {
         const auto why = detectReason();
+        char gains[64];
+        std::snprintf(gains, sizeof gains, "main gain %.2f, phones gain %.2f, filter send gain %.2f",
+                      static_cast<double>(mainGain_), static_cast<double>(phonesGain_), static_cast<double>(loopGain_));
         return "i.MX6 board (" + (why.empty() ? std::string("not detected") : why) + "), audio " + audioDevice_
              + " (MAIN = ch 12/14 of 16; OUT3-4 8/10, OUT5-6 4/6, OUT7-8 0/2" + (mapNote_.empty() ? "" : "; " + mapNote_)
-             + "), phones " + (phonesDevice_.empty() ? std::string("off") : phonesDevice_) + ", filter loop "
+             + "), " + gains + ", phones " + (phonesDevice_.empty() ? std::string("off") : phonesDevice_) + ", filter loop "
              + (loopDevice_.empty() ? std::string("off (digital model)") : loopDevice_ + loopNote_) + ", filter board "
              + (board_->enabled() ? "on" : "off") + ", panel " + panelDevice
              + " (+ lamps" + (lampLog_ ? ", logged" : "") + ", LCD touch), input trace " + (inputTrace_ ? "on" : "off")
@@ -91,6 +95,8 @@ public:
         phonesS16_ = false; // phones_format=s16: the 16-bit stream of the first builds (default S24_LE, the reference's)
         if (auto it = settings.find("phones_format"); it != settings.end())
             phonesS16_ = it->second == "s16" || it->second == "S16_LE";
+        if (auto it = settings.find("main_gain"); it != settings.end()) // linear, default 0.5 (−6 dB, F111)
+            mainGain_ = std::clamp(static_cast<float>(std::strtod(it->second.c_str(), nullptr)), 0.0f, 1.0f);
         if (auto it = settings.find("phones_gain"); it != settings.end()) // linear, default 0.5 (−6 dB, F111)
             phonesGain_ = std::clamp(static_cast<float>(std::strtod(it->second.c_str(), nullptr)), 0.0f, 1.0f);
         // The unit's analog filter is an insert loop on the second AK4452 ("Send & Return", hw:ak4452audio,1), for
@@ -147,7 +153,7 @@ public:
         // Direct ALSA first; the codec's 16 channels (MAIN = 12/14, the assignable pairs) + PHONES
         devices.push_back(std::make_unique<common::AlsaOutput>(
             common::AlsaOutputConfig {audioDevice_, 16, period_, periods_, map_, phonesDevice_, 2, AudioPort::Phones,
-                                      phonesGain_, phonesS16_, loopDevice_, loopGain_}));
+                                      phonesGain_, phonesS16_, loopDevice_, loopGain_, mainGain_}));
         devices.push_back(std::make_unique<AudioOut>());                                    // JUCE ALSA fallback
         return devices;
     }
@@ -188,6 +194,7 @@ private:
 
     std::string audioDevice_ = "hw:ak4458audio,0";
     std::string phonesDevice_ = "hw:ak4452audio,0";
+    float mainGain_ = 0.5f;                         // F111's fixed −6 dB on the main and assignable DAC pairs
     float phonesGain_ = 0.5f;                       // F111's fixed −6 dB on the headphone DAC
     bool phonesS16_ = false;
     std::string loopDevice_;                        // the analog filter's send/return (default hw:ak4452audio,1)
