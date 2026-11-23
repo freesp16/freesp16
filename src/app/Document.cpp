@@ -39,6 +39,7 @@
 #include "services/render/RenderService.h"
 #include "services/sampling/SamplingSession.h"
 #include "services/store/ProjectStoreSession.h"
+#include "services/settings/MidiPortLayout.h"
 #include "services/settings/Preferences.h"
 #include "services/settings/ProjectSettings.h"
 #include "io/controllers/PanelPads.h"
@@ -2056,6 +2057,9 @@ void Document::Impl::loadPreferences(const juce::File& dataDir)
     const auto r = prefs.load(file);
     prefs.setProfilesFolder(dataDir.getChildFile("Controllers")); // the controllers' user profiles (SET-012 export)
     st::install(&prefs);
+    // The unit: DIN is port 1 and USB port 2 now (they were in ALSA card order): the saved port settings follow once.
+    if (config.device && st::migrateMidiPortLayout(prefs))
+        log("PREFS midi ports: the settings of ports 1 and 2 swapped (DIN is port 1, USB port 2)");
     // Every stored preference ParamSpec into the shell's values and the engine (pad curve, browse, render, …).
     const int applied = ui::utility::applyPreferences(prefs, recording);
     if (r)

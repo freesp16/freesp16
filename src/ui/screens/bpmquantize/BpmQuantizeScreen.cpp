@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 
 namespace ui
@@ -80,7 +81,8 @@ public:
         if (flash)
             dl.text(kTap.x + kTap.w / 2, kTap.y + kTap.h / 2 + 1, Align::Centre, TextStyleId::Label, p.text1, "TAP");
 
-        const float bpm = value(tempo_, 120.0f);
+        // Under an external clock the followed tempo (the context bar's text), not the project's stored one.
+        const float bpm = external ? std::strtof(state_->bpm.text, nullptr) : value(tempo_, 120.0f);
         const long tenths = std::lround(static_cast<double>(bpm) * 10.0);
         whole_.format("%ld", tenths / 10);
         fraction_.format(".%ld", tenths % 10);

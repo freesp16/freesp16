@@ -374,3 +374,87 @@ TEST_CASE("midi.engine: the transport phase-locks to an external clock (SYN-012:
     CHECK(jittered.maxErr <= 44.1); // the jitter itself, filtered: well inside 1 ms
     CHECK(jittered.shownBpm == 120.0);
 }
+
+namespace
+{
+// A clock at `clockBpm` into an engine whose own tempo is `internalBpm`: Start from the clock (or none: the unit's own
+// PLAY), then 8 bars of ticks; returns the playhead's quarters per minute over the last 4 bars and the shown BPM.
+struct FollowResult
+{
+    double ppqRateBpm = 0, shownBpm = 0, ppq = 0;
+    bool external = false, lostWhileRunning = true, lostAfter = false;
+    double shownAfterLoss = 0, rateAfterLoss = 0;
+};
+FollowResult followAt(double clockBpm, double internalBpm, bool clockStart, bool playFirst = false)
+{
+    auto e = miditest::make(kRate);
+    miditest::Driver d {*e, 64};
+    d.param("transport.tempo", 0, static_cast<float>(internalBpm));
+    d.param("midi.syncSource", 0, 1.0f);
+    if (playFirst)
+        e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+    d.blocks(4);
+    const double P = 60.0 * kRate / (24.0 * clockBpm);
+    const double t0 = static_cast<double>(d.frame()) + 2000.0;
+    const int ticks = 8 * 96;
+    int next = 0;
+    bool started = false;
+    double ppqA = -1, frameA = 0;
+    FollowResult r;
+    while (next < ticks)
+    {
+        const double now = static_cast<double>(d.frame());
+        if (! started && t0 - P / 2 < now)
+        {
+            if (clockStart)
+                push(*e, 0xFA, 0, 0, t0 - P / 2);
+            else if (! playFirst)
+                e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+            started = true;
+        }
+        while (next < ticks && t0 + next * P < now)
+            push(*e, 0xF8, 0, 0, t0 + (next++) * P);
+        d.blocks(1);
+        if (ppqA < 0 && next >= 4 * 96)
+        {
+            ppqA = e->bridge().playhead().ppq;
+            frameA = static_cast<double>(d.frame());
+        }
+    }
+    const double ppqB = e->bridge().playhead().ppq, frameB = static_cast<double>(d.frame());
+    r.ppqRateBpm = (ppqB - ppqA) / ((frameB - frameA) / kRate) * 60.0;
+    r.shownBpm = e->bridge().playhead().bpm;
+    r.ppq = ppqB;
+    r.external = e->bridge().playhead().externalClock;
+    r.lostWhileRunning = e->bridge().playhead().clockLost;
+    // The clock stops (the cable pulled): lost after 500 ms, the tempo kept (CLOCK LOSS = KEEP TEMPO, SYN-013).
+    d.blocks(static_cast<int>(0.6 * kRate / 64));
+    const double ppqC = e->bridge().playhead().ppq, frameC = static_cast<double>(d.frame());
+    d.blocks(static_cast<int>(1.0 * kRate / 64));
+    r.lostAfter = e->bridge().playhead().clockLost;
+    r.shownAfterLoss = e->bridge().playhead().bpm;
+    r.rateAfterLoss = (e->bridge().playhead().ppq - ppqC) / ((static_cast<double>(d.frame()) - frameC) / kRate) * 60.0;
+    return r;
+}
+} // namespace
+
+TEST_CASE("midi.engine: the transport takes the external clock's tempo, not the project's (SYN-012)", "[midi]")
+{
+    for (const double clock : {90.0, 140.0, 174.0})
+        for (const bool start : {true, false})
+            for (const bool playFirst : {false, true})
+            {
+                if (start && playFirst)
+                    continue;
+                const auto r = followAt(clock, 120.0, start, playFirst);
+                INFO("clock " << clock << " start " << start << " playFirst " << playFirst << ": playhead "
+                              << r.ppqRateBpm << " BPM, shown " << r.shownBpm << ", ppq " << r.ppq);
+                CHECK(std::fabs(r.ppqRateBpm - clock) < 0.5);
+                CHECK(std::fabs(r.shownBpm - clock) < 0.15);
+                CHECK(r.external); // the UI's MIDI badge and followed BPM
+                CHECK_FALSE(r.lostWhileRunning);
+                CHECK(r.lostAfter);
+                CHECK(std::fabs(r.shownAfterLoss - clock) < 0.15);
+                CHECK(std::fabs(r.rateAfterLoss - clock) < 0.5);
+            }
+}

@@ -181,6 +181,7 @@ public:
     const MidiOutScheduler& out() const noexcept { return out_; }
     const AudioClock& clock() const noexcept { return clock_; }
     bool following() const noexcept { return following_; }
+    bool clockLost() const noexcept { return following_ && follower_.lost(blockStart_); } // SYN-013 (or no clock yet)
     int inputLatency() const noexcept { return MidiInScheduler::latencyFor(clock_.periodFrames()); }
     const MidiTrackState& track(int scene, int t) const noexcept { return tracks_[scene & 15][t & 15]; }
     int receiveChannel(int track) const noexcept { return rxChannel_[static_cast<std::size_t>(track & 15)]; }

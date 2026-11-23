@@ -217,3 +217,57 @@ TEST_CASE("transport.controller: follows the engine's playhead and writes the sh
     CHECK(s.recArmed);
     CHECK(std::string(s.position.view()) == "-02:02:01");
 }
+
+TEST_CASE("transport.controller: under MIDI clock the followed BPM, the MIDI badge, no TAP / NUDGE (SYN-010/012/013)",
+          "[transport]")
+{
+    fakes::FakeEngineBridge bridge;
+    ui::LocalParamValues values(core::builtinParams(), &bridge);
+    TransportController t(bridge, &values);
+    const auto* tempo = core::builtinParams().find("transport.tempo");
+    values.set(*tempo, 0, 120.0f);
+    engine::PlayheadFeed feed {};
+    feed.blockIndex = 100;
+    feed.bpm = 120.0;
+    t.sync(feed);
+    ui::UiState s;
+    t.publish(s);
+    CHECK(std::string(s.bpm.text) == "120.0");
+    CHECK(s.syncBadge.empty());
+
+    // Following, no tick yet: the project tempo until the clock is measured, the badge in the warning colour.
+    feed.externalClock = true;
+    feed.clockLost = true;
+    t.sync(feed);
+    t.publish(s);
+    CHECK(s.syncBadge == "MIDI");
+    CHECK(s.syncLost);
+    // The clock is measured at 140.0: the context bar shows it, the project's tempo stays.
+    feed.bpm = 140.0;
+    feed.clockLost = false;
+    t.sync(feed);
+    t.publish(s);
+    CHECK(std::string(s.bpm.text) == "140.0");
+    CHECK(t.tempo() == 140.0);
+    CHECK_FALSE(s.syncLost);
+    CHECK(values.get(*tempo, 0) == 120.0f);
+
+    // TAP and NUDGE do nothing under the clock.
+    const auto posted = bridge.posted.size();
+    t.onTap(1000);
+    t.onTap(1400);
+    t.onTap(1800);
+    t.handle(press(io::Control::ExtNudgeUp));
+    CHECK(values.get(*tempo, 0) == 120.0f);
+    CHECK(t.nudge() == 0);
+    CHECK(bridge.posted.size() == posted);
+
+    // Back to INTERNAL: the project's tempo and no badge again.
+    feed.externalClock = false;
+    feed.bpm = 120.0;
+    t.sync(feed);
+    t.publish(s);
+    CHECK(std::string(s.bpm.text) == "120.0");
+    CHECK(s.syncBadge.empty());
+    CHECK_FALSE(s.syncLost);
+}

@@ -206,7 +206,7 @@ void Engine::prepare(double sampleRate, int maxDeviceFrames)
         auto& src = sources_[static_cast<std::size_t>(t)];
         src.prepare(sampleRate_, kBlockFrames);
         src.setPlayback(m1_.playback.at(scene, t));
-        env_.setParams(t, m1_.envParams[scene][t], transport_.bpm());
+        env_.setParams(t, m1_.envParams[scene][t], transport_.effectiveBpm());
     }
     triggerRouter_.prepare(sampleRate_, kBlockFrames);
     ribbon_.prepare(sampleRate_);
@@ -322,6 +322,8 @@ void Engine::process(const AudioIO& io) noexcept
     p.ppq = transport_.ppq();
     p.bpm = midi_.displayTempo(transport_.bpm()); // the followed clock's tempo (SYN-012 display)
     p.playing = transport_.playing();
+    p.externalClock = midi_.following();
+    p.clockLost = midi_.clockLost();
     sceneSwitch_.publish(p, transport_.ppq()); // scene, pattern, step, pending scene/pattern
     p.preCount = transport_.preCount();
     for (int t = 0; t < kTracks; ++t) // PLY-045: play position 0–1, negative = idle; the hits for the pad flashes
@@ -587,7 +589,7 @@ void Engine::applyTrackSourceParam(bridge::ParamTarget target, const ParamChange
     {
         const auto f = static_cast<modulation::AmpEnvField>(fieldOf(target, T::EnvFirst));
         if (trackScope && modulation::applyParam(m1_.envParams[scene][track], f, c.value) && current)
-            env_.setParams(track, m1_.envParams[scene][track], transport_.bpm());
+            env_.setParams(track, m1_.envParams[scene][track], transport_.effectiveBpm());
     }
     else if (target >= T::TrackFirst && target < T::PadFirst)
     {
@@ -669,7 +671,7 @@ void Engine::switchScene(int scene) noexcept
     {
         auto& src = sources_[static_cast<std::size_t>(t)];
         src.setPlayback(m1_.playback.at(scene, t));
-        env_.setParams(t, m1_.envParams[scene][t], transport_.bpm());
+        env_.setParams(t, m1_.envParams[scene][t], transport_.effectiveBpm());
         src.setSample(voice::asSampleBuffer(swaps_.get(voice::trackSampleSlot(scene, t))));
     }
     if (fxScenes_.types == 0)
