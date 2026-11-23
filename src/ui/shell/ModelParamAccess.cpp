@@ -123,6 +123,24 @@ void setMotionRec(core::model::Track& t, float v) noexcept
         e.erase(std::remove_if(e.begin(), e.end(), [](const auto& x) { return x.key == kMotionRecKey; }), e.end());
 }
 
+// ---- MUTE MODE (track.muteMode) -------------------------------------------------------------------------------------
+// Per track, in the track's extras like MOTION REC: "native.muteMode" = 1 (a JSON value: the native codec writes it
+// back as the track's "muteMode") for STOP STEPS; absent = STOP SOUND.
+constexpr std::string_view kMuteModeKey = "native.muteMode";
+float muteModeOf(const core::model::Track& t) noexcept
+{
+    const auto* e = t.extras.find(kMuteModeKey);
+    return e != nullptr && e->value == "1" ? 1.0f : 0.0f;
+}
+void setMuteMode(core::model::Track& t, float v) noexcept
+{
+    auto& e = t.extras.entries;
+    if (v >= 0.5f)
+        t.extras.set(std::string(kMuteModeKey), "1");
+    else
+        e.erase(std::remove_if(e.begin(), e.end(), [](const auto& x) { return x.key == kMuteModeKey; }), e.end());
+}
+
 // ---- LFO (lfo.* in the frozen model's Lfo) --------------------------------------------------------------------------
 // The model's enums predate the catalogue: LfoShape has no PULSE25 / PULSE12 and two saws, Lfo::destination is the
 // reference format's int. The table keeps the catalogue's values without a model change: SAW = SawDown, PULSE25 /
@@ -304,6 +322,7 @@ const ModelField kFields[] = {
                     x.routing.output = static_cast<core::model::OutputAssign>(std::clamp(toInt(v), 0, 12))),
     APP_TRACK_FIELD("routing.thruBypass", false, thruBypassOf(x.routing), setThruBypass(x.routing, v)),
     APP_TRACK_FIELD("track.motionRec", true, motionRecOf(x), setMotionRec(x, v)), // never posted: the UI's alone
+    APP_TRACK_FIELD("track.muteMode", false, muteModeOf(x), setMuteMode(x, v)), // the mixer's strip (STOP STEPS)
     APP_SCENE_FIELD("routing.assignMode", static_cast<int>(x.routing.assignMode),
                     x.routing.assignMode = static_cast<core::model::AssignMode>(std::clamp(toInt(v), 0, 1))),
     APP_SCENE_FIELD("routing.headphoneCue", x.routing.headphoneSource,

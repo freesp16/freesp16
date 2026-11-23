@@ -1,8 +1,9 @@
 // TRACK MENU (07-ui-design/screens/track-menu.md; UI-220…225, UI-258/259, UID-650…666). Template full, context bar
 // TRACK TYPE + BYPASS. The TrackPanel: identity block (chip, type / stretch / loop badges, name — the HOME tile
-// header), four header action slots, six fixed ModuleCard slots per track type with connectors only between chain
-// neighbours, the wide SEQUENCE card and under it the MOTION bar (the track's recorded motion; a tap opens the
-// MOTION page, ui/screens/motion). A SAMPLE track's first header action is MOTION RECORD (track.motionRec: knob turns
+// header; at its right end the small MUTE button: a tap toggles the track's MUTE MODE, track.muteMode, between
+// SOUND = STOP SOUND, the default, and STEPS = STOP STEPS), four header action slots, six fixed ModuleCard slots per
+// track type with connectors only between chain neighbours, the wide SEQUENCE card and under it the MOTION bar (the
+// track's recorded motion; a tap opens the MOTION page, ui/screens/motion). A SAMPLE track's first header action is MOTION RECORD (track.motionRec: knob turns
 // while recording write motion; red LED = enabled). Nothing moves when a later package registers its screen (UID-665): every
 // card is drawn at its fixed slot from the start; cards whose screen is not registered (FX1/FX2, LFO, SEQUENCE,
 // NOTE/CC) are focusable and bind their strip tab, and the second tap does nothing until the screen exists.
@@ -52,6 +53,8 @@ using Thumb = ModuleCardModel::Thumb;
 
 constexpr float kActionX[] = {584, 752, 920, 1088};
 constexpr RectF kSequence{48, 448, 1184, 88}, kMotion{48, 544, 1184, 48};
+constexpr RectF kMuteMode{456, 170, 112, 28}; // the identity row's MUTE MODE button (touch; ≥ 44 lpx hit, kMuteModeHit)
+constexpr RectF kMuteModeHit{448, 160, 128, 48};
 constexpr RectF actionRect(int slot) noexcept
 {
     return {kActionX[slot], 168, 160, 72};
@@ -231,6 +234,12 @@ public:
         if (! touch::isTouch(e) || e.value != touch::kDown)
             return false;
         const float x = touch::x(e), y = touch::y(e);
+        if (contains(kMuteModeHit, x, y)) // MUTE MODE: STOP SOUND ↔ STOP STEPS, on the first tap
+        {
+            const int t = state_->selectedTrack;
+            m1::setTrackParam(*shell_, "track.muteMode", t, m1::trackFlag(*shell_, "track.muteMode", t) ? 0.0f : 1.0f);
+            return true;
+        }
         for (int i = 0; i <= kLastItem; ++i)
             if (focusable(i) && contains(itemRect(i), x, y))
             {
@@ -546,12 +555,14 @@ private:
             x = badge(x, s.stretchBadge, p.surface3, p.text2, 0);
             x = badge(x, s.loopGlyph, p.surface3, colour, 32);
         }
-        if (mode_ == 2) // THRU input meters (horizontal, L / R)
+        if (mode_ == 2) // THRU input meters (horizontal, L / R), up to the MUTE MODE button
         {
+            const float w = std::min(360.0f, kMuteMode.x - 40 - x);
             for (int k = 0; k < 2; ++k)
-                dl.fill({x, 174 + 12.0f * static_cast<float>(k), 360, 6}, p.surface3, 3);
-            dl.text(x + 368, 183, Align::Left, TextStyleId::Caption, p.text3, "IN");
+                dl.fill({x, 174 + 12.0f * static_cast<float>(k), w, 6}, p.surface3, 3);
+            dl.text(x + w + 8, 183, Align::Left, TextStyleId::Caption, p.text3, "IN");
         }
+        muteModeButton(dl, ctx, t);
         const float loading = m1::loadProgress()[t - 1];
         if (loading >= 0) // UI-410: a 4 lpx accent bar 536 wide instead of the name
         {
@@ -567,6 +578,21 @@ private:
         }
         else
             dl.text(32, 224, Align::Left, TextStyleId::Title, p.text3, "----");
+    }
+
+    // MUTE MODE: "MUTE" and the mode, SOUND (default) in text-1, STEPS in accent (the MIXER's MUTE colour).
+    void muteModeButton(DrawList& dl, const UiContext& ctx, int t) const
+    {
+        const auto& p = ctx.palette;
+        const bool steps = m1::trackFlag(*shell_, "track.muteMode", t);
+        const auto& r = kMuteMode;
+        dl.fill(r, p.surface2, tk::radiusS);
+        if (steps)
+            dl.stroke(r, p.accent, 1, tk::radiusS);
+        const float cy = r.y + r.h / 2;
+        dl.text(r.x + 10, cy, Align::Left, TextStyleId::Caption, p.text3, "MUTE");
+        dl.text(r.x + r.w - 10, cy, Align::Right, TextStyleId::Caption, steps ? p.accent : p.text1,
+                steps ? "STEPS" : "SOUND");
     }
 
     void action(DrawList& dl, const UiContext& ctx, int slot, const Action& a, bool focused) const

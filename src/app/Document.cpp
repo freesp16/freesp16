@@ -940,6 +940,13 @@ void Document::frame(double nowMs)
     d.pads.sync();
     d.pads.tick(nowMs); // PAD MODE SELECT RESPONSE OVER 1sec (PAD-007)
     d.pads.observeHits(d.bridge.playhead(), nowMs); // the engine's hits (sequencer, MIDI, repeat) flash the pads
+    if (d.selection.shell != nullptr) // the status row's MUTE / SOLO badge
+    {
+        using View = ui::UiState::PadMuteView;
+        d.selection.shell->state().padMuteView = d.pads.soloHeld() ? View::Solo
+                                                 : d.pads.mode() == ui::input::pads::PadMode::Mute ? View::Mute
+                                                                                                    : View::None;
+    }
     d.syncSequencer(nowMs);
     d.recordStrip();
     d.frameMs = nowMs;

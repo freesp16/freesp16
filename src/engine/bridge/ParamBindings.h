@@ -23,13 +23,13 @@ enum class ParamTarget : std::uint8_t
     TrackMute,         // "track.mute" 0/1
     TrackSolo,         // "track.solo" 0/1
     TrackSendChannel,  // "track.sendChannel" 0/1
+    TrackMuteMode,     // "track.muteMode" 0 STOP SOUND / 1 STOP STEPS
     MasterVolume,      // "mixer.masterVolume" 0–127
     SendReturnVolume,  // "mixer.sendReturnVolume" 0–127
     HeadphoneVolume,   // "mixer.headphoneVolume" 0–127
     InputSoftLimiter,  // "mixer.softLimiter" 0/1
     MasterLimiter,     // "mixer.masterLimiter" 0/1
     OutputTrim,        // "mixer.outputTrim" 0–1023
-    MuteMode,          // "mixer.muteMode" 0 STOP SOUND / 1 STOP STEPS
     // The voice, envelope, track/scale and pad-routing ids (bound in engine/Engine.cpp). Each family is
     // contiguous in its field enum's order, so field = target − first (static_asserts in Engine.cpp).
     PlaybackFirst,                // engine::voice::PlaybackField (playback.pitch … playback.bypass), 8

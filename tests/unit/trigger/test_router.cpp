@@ -349,16 +349,21 @@ TEST_CASE("trigger.router: MUTE MODE STOP STEPS skips a muted track's steps; pad
     CHECK((r->block() & 1u) != 0);
     r->src[0].choke(0);
     r->blocks(4);
-    // STOP STEPS: the muted track's sequencer step does nothing; a pad hit on it plays.
-    r->mixer.setGlobal(engine::mixer::GlobalParam::MuteMode, 1.0f, 0);
+    // STOP STEPS (this track's own mode): the muted track's sequencer step does nothing; a pad hit on it plays, and
+    // its strip stays open.
+    muted.stopSteps = true;
+    r->mixer.setStrip(0, 0, muted, 0);
     CHECK(r->mixer.stepsMuted(0));
     CHECK_FALSE(r->mixer.stepsMuted(1));
+    CHECK((r->mixer.audibleMask() & 1u) != 0);
     r->router.push(Rig::event(0, TriggerKind::Full, 0, TriggerSource::Sequencer));
     CHECK((r->block() & 1u) == 0);
     r->router.pushLive(TriggerNow {0, 127, 60, 0});
     CHECK((r->block() & 1u) != 0);
     // Unmuted: the steps play again.
-    r->mixer.setStrip(0, 0, engine::mixer::StripParams {}, 0);
+    engine::mixer::StripParams open;
+    open.stopSteps = true;
+    r->mixer.setStrip(0, 0, open, 0);
     CHECK_FALSE(r->mixer.stepsMuted(0));
 }
 
@@ -385,9 +390,35 @@ TEST_CASE("trigger.router: hits(t) counts each track's applied hits for the pad 
     CHECK(r->router.hits(1) == 1);
     engine::mixer::StripParams muted;
     muted.mute = true;
+    muted.stopSteps = true; // STOP STEPS: the step is skipped
     r->mixer.setStrip(0, 0, muted, 0);
-    r->mixer.setGlobal(engine::mixer::GlobalParam::MuteMode, 1.0f, 0); // STOP STEPS: the step is skipped
     r->router.push(Rig::event(0, TriggerKind::Full, 0, TriggerSource::Sequencer));
     r->block();
     CHECK(r->router.hits(0) == 2);
+}
+
+TEST_CASE("mixer: MUTE MODE is per track — STOP SOUND and STOP STEPS tracks side by side, under mute and solo",
+          "[mixer]")
+{
+    engine::mixer::Mixer m;
+    engine::mixer::StripParams sound, steps;
+    steps.stopSteps = true;
+    // Track 1 STOP SOUND muted: gated, steps run. Track 2 STOP STEPS muted: open, steps skipped.
+    sound.mute = steps.mute = true;
+    m.setStrip(0, 0, sound, 0);
+    m.setStrip(0, 1, steps, 0);
+    CHECK((m.audibleMask() & 0b11u) == 0b10u);
+    CHECK_FALSE(m.stepsMuted(0));
+    CHECK(m.stepsMuted(1));
+    // Unmuted, track 3 soloed: track 1 (STOP SOUND) gated, track 2 (STOP STEPS) sounds with its steps skipped.
+    sound.mute = steps.mute = false;
+    m.setStrip(0, 0, sound, 0);
+    m.setStrip(0, 1, steps, 0);
+    engine::mixer::StripParams solo;
+    solo.solo = true;
+    m.setStrip(0, 2, solo, 0);
+    CHECK((m.audibleMask() & 0b111u) == 0b110u);
+    CHECK_FALSE(m.stepsMuted(0));
+    CHECK(m.stepsMuted(1));
+    CHECK_FALSE(m.stepsMuted(2));
 }

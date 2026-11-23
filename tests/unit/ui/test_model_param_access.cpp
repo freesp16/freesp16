@@ -192,3 +192,41 @@ TEST_CASE("ui.model: THRU BYPASS is a saved, undoable model field (MIX-051)", "[
     CHECK(w.values->get(spec, scope) == 0);
     CHECK(w.project().scenes[2].tracks[9].routing.extras.empty()); // OFF leaves no trace in the file
 }
+
+TEST_CASE("ui.model: MUTE MODE is a saved, undoable, per-track model field posted to the mixer", "[ui][model]")
+{
+    World w;
+    const auto& spec = w.spec("track.muteMode");
+    const std::uint16_t scope = (0 << 4) | 4; // scene 1, track 5
+    REQUIRE(w.values->modelBacked(spec));
+    CHECK(w.values->get(spec, scope) == 0); // STOP SOUND by default
+    w.values->set(spec, scope, 1);          // STOP STEPS
+    CHECK(w.values->get(spec, scope) == 1);
+    CHECK(w.values->get(spec, (0 << 4) | 5) == 0); // per track
+    float v = 0;
+    CHECK(w.posts("track.muteMode", scope, &v) == 1);
+    CHECK(v == 1);
+
+    // Saved with the project (the track's "muteMode") and read back, then posted on open.
+    const auto dir = juce::File::getSpecialLocation(juce::File::tempDirectory)
+                         .getChildFile("mute-mode-" + juce::String(juce::Time::currentTimeMillis()));
+    const auto bundle = dir.getChildFile("MuteMode.sixteen");
+    REQUIRE(dir.createDirectory());
+    const auto saved = services::store::NativeCodec::save(w.project(), bundle);
+    INFO(saved.error().message << " " << saved.error().detail);
+    REQUIRE(saved.ok());
+    auto back = std::make_unique<core::model::Project>();
+    services::store::ImportReport report;
+    REQUIRE(services::store::NativeCodec::readInto(bundle, *back, report).ok());
+    w.bridge.posted.clear();
+    ui::forwardAllModel(*back, w.bridge, core::builtinParams(), 0);
+    CHECK(w.posts("track.muteMode", scope, &v) == 1);
+    CHECK(v == 1);
+    CHECK(w.posts("track.muteMode", (0 << 4) | 5, &v) == 1);
+    CHECK(v == 0);
+    dir.deleteRecursively();
+
+    REQUIRE(w.bus.undo());
+    CHECK(w.values->get(spec, scope) == 0);
+    CHECK(w.project().scenes[0].tracks[4].extras.empty()); // STOP SOUND leaves no trace in the file
+}

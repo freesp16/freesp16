@@ -59,6 +59,9 @@ struct StripParams // per [scene][track]
     std::int8_t pan = 0;
     bool mute = false, solo = false;
     std::uint8_t sendChannel = 0; // MIX-011: 1 = analog-filter send; the mixer feeds the send bus either way
+    // track.muteMode (our addition): false = STOP SOUND (mute / solo gate the strip), true = STOP STEPS (the strip
+    // sounds; the sequencer's steps of the track are skipped while mute / solo would silence it, TriggerRouter)
+    bool stopSteps = false;
 };
 
 // Per block. peak = max |x|, sumSq = Σ x² of the block's 64 frames, per channel; clip bit m = peak of meter m ≥ 1.0.
@@ -77,9 +80,7 @@ enum class GlobalParam : std::uint8_t
     HeadphoneVolume,  // 0–127, kept for the output router (GainLaw × 0.5)
     SoftLimiter,      // input soft limiter on/off (bSoftLimitter, OQ-13): kept for the sampling input stage
     MasterLimiter,    // master soft limiter on/off (default off)
-    OutputTrim,       // 0–1023 (MIX-060)
-    MuteMode          // 0 STOP SOUND (mute/solo gate the strip), 1 STOP STEPS (the strip sounds; the sequencer's steps of
-                      // those tracks are skipped, TriggerRouter) — our addition
+    OutputTrim        // 0–1023 (MIX-060)
 };
 
 // Static soft-knee waveshaper (MIX-021, our design): y = x for |x| ≤ −3 dBFS; above,
@@ -149,7 +150,8 @@ public:
     // What the strip plays now: the stored value, the step's lock over it, then the modulation (tests, UI).
     StripParams applied(int track) const noexcept { return effective(track); }
     int global(GlobalParam p) const noexcept { return globals_[static_cast<std::size_t>(p)]; }
-    // MUTE MODE = STOP STEPS: track t is muted (or not soloed) — its sequencer steps do not trigger, its strip sounds.
+    // Track t's MUTE MODE is STOP STEPS and it is muted (or not soloed): its sequencer steps do not trigger, its strip
+    // sounds.
     bool stepsMuted(int t) const noexcept { return ((stepMuted_ >> (t & 15)) & 1u) != 0; }
     std::uint16_t audibleMask() const noexcept { return audible_; } // MIX-003 rule result (tests, UI)
     // bit t = track t's block in BlockBuffers::track holds its post-fader, post-pan signal this block
@@ -197,8 +199,8 @@ private:
     std::uint16_t audible_ = 0xFFFF, patternMute_ = 0, patternSolo_ = 0, hardCut_ = 0;
 
     // Buses.
-    std::array<int, 7> globals_ {100, 100, 100, 0, 0, 1023, 0};
-    std::uint16_t stepMuted_ = 0; // STOP STEPS: the tracks mute / solo would silence, whose steps are skipped
+    std::array<int, 6> globals_ {100, 100, 100, 0, 0, 1023};
+    std::uint16_t stepMuted_ = 0; // STOP STEPS tracks that mute / solo would silence: their steps are skipped
     GainRamp returnRamp_, masterRamp_, trimRamp_;
     SoftLimiter limiter_;
     stages::StereoBlock return_ {};

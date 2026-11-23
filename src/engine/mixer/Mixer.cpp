@@ -295,29 +295,24 @@ void Mixer::updateGates(int frame) noexcept
 {
     // MIX-003 / SCN-012 (OQ-11): a track feeds the buses only if it is muted at neither the track nor the pattern level
     // and, when any solo is set at either level, it is soloed at either level. Changes go through the mute ramp.
-    std::uint16_t mute = patternMute_, solo = patternSolo_, baseMute = patternMute_, lockMute = 0;
+    std::uint16_t mute = patternMute_, solo = patternSolo_, baseMute = patternMute_, lockMute = 0, steps = 0;
     for (int t = 0; t < kTracks; ++t)
     {
         const StripParams p = effective(t);
-        const bool own = params_[static_cast<std::size_t>(scene_)][static_cast<std::size_t>(t)].mute;
+        const auto& own = params_[static_cast<std::size_t>(scene_)][static_cast<std::size_t>(t)];
         mute = static_cast<std::uint16_t>(mute | (p.mute ? 1u << t : 0u));
         solo = static_cast<std::uint16_t>(solo | (p.solo ? 1u << t : 0u));
-        baseMute = static_cast<std::uint16_t>(baseMute | (own ? 1u << t : 0u));
-        if (p.mute && ! own)
+        baseMute = static_cast<std::uint16_t>(baseMute | (own.mute ? 1u << t : 0u));
+        steps = static_cast<std::uint16_t>(steps | (own.stopSteps ? 1u << t : 0u));
+        if (p.mute && ! own.mute)
             lockMute = static_cast<std::uint16_t>(lockMute | 1u << t); // a step's MUTE lock (it silences its step)
     }
     const std::uint16_t soloMask = solo != 0 ? solo : 0xFFFFu;
-    auto audible = static_cast<std::uint16_t>(~mute & soloMask);
-    // MUTE MODE = STOP STEPS: the muted / unsoloed tracks keep sounding (their ringing notes, live hits) and the router
-    // skips their sequencer steps instead (the track's own and the pattern's mutes, solo — not a step's MUTE lock,
-    // which still silences its own step).
-    if (globals_[static_cast<std::size_t>(GlobalParam::MuteMode)] != 0)
-    {
-        stepMuted_ = static_cast<std::uint16_t>(~(~baseMute & soloMask));
-        audible = static_cast<std::uint16_t>(~lockMute);
-    }
-    else
-        stepMuted_ = 0;
+    // A track whose MUTE MODE is STOP STEPS keeps sounding when muted / unsoloed (its ringing notes, live hits) and the
+    // router skips its sequencer steps instead (the track's own and the pattern's mutes, solo — not a step's MUTE lock,
+    // which still silences its own step). The other tracks (STOP SOUND) are gated here.
+    stepMuted_ = static_cast<std::uint16_t>(steps & ~(~baseMute & soloMask));
+    const auto audible = static_cast<std::uint16_t>((~mute & soloMask & ~steps) | (~lockMute & steps));
     std::uint32_t changed = static_cast<std::uint16_t>(audible ^ audible_);
     for (std::uint32_t t = 0; changed != 0; ++t, changed >>= 1)
         if (changed & 1u)
@@ -355,10 +350,6 @@ void Mixer::setGlobal(GlobalParam p, float value, int frame) noexcept
         case GlobalParam::HeadphoneVolume: globals_[i] = clampi(v, 0, 127); break;
         case GlobalParam::SoftLimiter:
         case GlobalParam::MasterLimiter: globals_[i] = value >= 0.5f ? 1 : 0; break;
-        case GlobalParam::MuteMode:
-            globals_[i] = value >= 0.5f ? 1 : 0;
-            updateGates(frame);
-            break;
         case GlobalParam::OutputTrim:
             globals_[i] = clampi(v, 0, 1023);
             trimRamp_.setTarget(outputTrimGain(globals_[i]), frame);

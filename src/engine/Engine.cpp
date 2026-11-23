@@ -53,13 +53,13 @@ Engine::Engine(const EngineSetup& setup, const EngineOptions& options) : options
             {"track.mute", T::TrackMute},
             {"track.solo", T::TrackSolo},
             {"track.sendChannel", T::TrackSendChannel},
+            {"track.muteMode", T::TrackMuteMode},
             {"mixer.masterVolume", T::MasterVolume},
             {"mixer.sendReturnVolume", T::SendReturnVolume},
             {"mixer.headphoneVolume", T::HeadphoneVolume},
             {"mixer.softLimiter", T::InputSoftLimiter},
             {"mixer.masterLimiter", T::MasterLimiter},
             {"mixer.outputTrim", T::OutputTrim},
-            {"mixer.muteMode", T::MuteMode},
             {"scene.queue", T::SceneQueue}, // scene.* (scene.cpp)
             {"project.patternQuantize", T::PatternQuantize},
             {"scene.switchMode", T::SceneSwitchMode},
@@ -489,14 +489,14 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
             case T::TrackSendAmount:
             case T::TrackMute:
             case T::TrackSolo:
-            case T::TrackSendChannel: applyStrip(target, *c); break;
+            case T::TrackSendChannel:
+            case T::TrackMuteMode: applyStrip(target, *c); break;
             case T::MasterVolume:
             case T::SendReturnVolume:
             case T::HeadphoneVolume:
             case T::InputSoftLimiter:
             case T::MasterLimiter:
-            case T::OutputTrim:
-            case T::MuteMode: applyMixerGlobal(target, c->value); break;
+            case T::OutputTrim: applyMixerGlobal(target, c->value); break;
             case T::SceneQueue:
                 if (arrangement_.refusesSwitch(c->value)) // no manual switch in song mode (ARR-007)
                     break;
@@ -811,6 +811,7 @@ void Engine::applyStrip(bridge::ParamTarget target, const ParamChange& c) noexce
         case bridge::ParamTarget::TrackMute: p.mute = v >= 0.5f; break;
         case bridge::ParamTarget::TrackSolo: p.solo = v >= 0.5f; break;
         case bridge::ParamTarget::TrackSendChannel: p.sendChannel = static_cast<std::uint8_t>(index(0, 1)); break;
+        case bridge::ParamTarget::TrackMuteMode: p.stopSteps = v >= 0.5f; break;
         default: return;
     }
     mixer_.setStrip(scene, track, p, 0);
@@ -829,7 +830,6 @@ void Engine::applyMixerGlobal(bridge::ParamTarget target, float value) noexcept
             break;
         case bridge::ParamTarget::InputSoftLimiter: mixer_.setGlobal(G::SoftLimiter, value); break;
         case bridge::ParamTarget::MasterLimiter: mixer_.setGlobal(G::MasterLimiter, value); break;
-        case bridge::ParamTarget::MuteMode: mixer_.setGlobal(G::MuteMode, value); break;
         case bridge::ParamTarget::OutputTrim:
             mixer_.setGlobal(G::OutputTrim, value);
             router_.setOutputTrim(value); // every logical output (MIX-023)

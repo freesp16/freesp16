@@ -74,6 +74,7 @@ Shell::Shell(ShellConfig cfg)
     feeds_.attach(cfg.bridge);
     padColourSpec_ = params_.find("track.padColor");
     showCpuSpec_ = params_.find("ui.showCpu");
+    muteModeSpec_ = params_.find("track.muteMode");
     rail_.reserve(L::railCompactMax);
     slideList_.reserve(2048, 16384);
     popups_.reserve(4);
@@ -365,6 +366,22 @@ void Shell::pollFeeds(double nowMs)
     feeds_.poll(nowMs, &state_); // levels, playhead and this frame's engine events for the widgets
 }
 
+// The status row's MUTE badge detail: the current scene's tracks' MUTE MODE — one name when they agree, else the split.
+std::string_view Shell::muteModeSummary()
+{
+    if (state_.padMuteView != UiState::PadMuteView::Mute || muteModeSpec_ == nullptr)
+        return {};
+    int steps = 0;
+    for (int t = 1; t <= 16; ++t)
+        steps += values_->get(*muteModeSpec_, state_.trackScope(t)) >= 0.5f ? 1 : 0;
+    if (steps == 0)
+        return "STOP SOUND";
+    if (steps == 16)
+        return "STOP STEPS";
+    muteModeText_.format("SOUND %d \xC2\xB7 STEPS %d", 16 - steps, steps); // ·
+    return muteModeText_.view();
+}
+
 void Shell::updateFrameModels(double nowMs)
 {
     const auto& s = router_.current();
@@ -385,7 +402,9 @@ void Shell::updateFrameModels(double nowMs)
     }
     statusRow_.set({router_.breadcrumb(), state_.playing, state_.recArmed || state_.samplerRec, state_.midiInAtMs,
                     state_.midiOutAtMs, state_.syncBadge, state_.syncLost,
-                    showCpu ? cpuText_.view() : std::string_view{}, showCpu && cpu_.percent() >= kCpuHighPercent});
+                    showCpu ? cpuText_.view() : std::string_view{}, showCpu && cpu_.percent() >= kCpuHighPercent,
+                    state_.padMuteView, muteModeSummary()});
+    drawnPadMuteView_ = state_.padMuteView;
     ContextBarModel cb = contextBar_.model();
     cb.kind = s.contextBar;
     bool projectPage = false;
@@ -606,7 +625,7 @@ int Shell::padColourOf(const void* self, int t)
 bool Shell::dirty(double nowMs) const
 {
     if (changedSinceFrame_ || nowMs - screenSinceMs_ < tk::motionSlowMs + 20 || strip_.dirty(nowMs) ||
-        statusRow_.dirty(nowMs))
+        statusRow_.dirty(nowMs) || state_.padMuteView != drawnPadMuteView_)
         return true;
     if (showCpuSpec_ != nullptr && values_->get(*showCpuSpec_, 0) >= 0.5f && nowMs - cpuSampledMs_ >= kCpuIntervalMs)
         return true; // the CPU readout is due

@@ -125,7 +125,6 @@ TEST_CASE("m6.utility: every row of utility.md §Rows is present in 1.60 order w
         {"PAD THRESHOLD", "5 (Default)", K::Value},
         {"PAD SENSITIVITY", "5 (Default)", K::Value},
         {"PAD MODE SELECT RESPONSE", "IMMEDIATELY", K::Value},
-        {"MUTE MODE", "STOP SOUND", K::Value}, // requested: STOP SOUND / STOP STEPS
         {"METRONOME MONITOR", "Master + Headphones", K::Value},
         {"METRONOME VOLUME", "100", K::Value},
         {"COUNT IN", "OFF", K::Value},

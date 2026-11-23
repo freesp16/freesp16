@@ -73,6 +73,9 @@ struct UiState
     // The sampler records / waits (SAMPLING/EDIT, LIVE SAMPLING: UID-777) — the status-row REC shows it too;
     // set by the body each frame (blinking in standby), cleared on every screen entry.
     bool samplerRec = false;
+    // The pads' MUTE key, for the status row's MUTE / SOLO badge: Mute = MUTE pad mode (pads toggle mutes), Solo = the
+    // MUTE key held (pads toggle solos). Set by the composition root every frame from the pad controller.
+    enum class PadMuteView : std::uint8_t { None, Mute, Solo } padMuteView = PadMuteView::None;
 
     const TrackSummary& selected() const noexcept { return tracks[static_cast<std::size_t>((selectedTrack - 1) & 15)]; }
     // engine::ParamChange scope of a track parameter of the selected track in the current scene.

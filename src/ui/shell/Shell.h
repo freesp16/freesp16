@@ -137,6 +137,7 @@ private:
     PopupWidget* pushPopup(std::unique_ptr<PopupWidget>);
     void resolveStrip();
     void updateFrameModels(double nowMs);
+    std::string_view muteModeSummary();
     void updateStripModel(double nowMs);
     void pollFeeds(double nowMs);
     void turnEncoder(int n0, int detents, double nowMs);
@@ -221,6 +222,9 @@ private:
     double frameMs_ = 0;
     const core::ParamSpec* padColourSpec_ = nullptr; // track.padColor, looked up once (lamp colours per frame)
     const core::ParamSpec* showCpuSpec_ = nullptr;   // ui.showCpu (UTILITY › CPU USAGE), looked up once
+    const core::ParamSpec* muteModeSpec_ = nullptr;  // track.muteMode (the status row's MUTE badge detail)
+    FixedText<24> muteModeText_;
+    UiState::PadMuteView drawnPadMuteView_ = UiState::PadMuteView::None;
     core::CpuUsage cpu_;                             // sampled once a second while CPU USAGE is ON
     double cpuSampledMs_ = -1e18;
     FixedText<8> cpuText_;                           // "37%", the status row's readout

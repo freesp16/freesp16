@@ -83,7 +83,6 @@ APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 50, {kValue, "PAD
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 60, {kValue, "PAD SENSITIVITY", "pads.sensitivity"}}))
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 70,
                                          {kValue, "PAD MODE SELECT RESPONSE", "pads.modeSelectResponse"}}))
-APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 75, {kValue, "MUTE MODE", "mixer.muteMode"}}))
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 80,
                                          {kValue, "METRONOME MONITOR", "transport.metronomeMonitor"}}))
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 90,

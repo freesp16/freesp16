@@ -129,7 +129,7 @@ def utility_rows():
     if midi:
         rows.append("syncSource")
     rows += ["midiPorts"]  # LINK SETTING: disabled until SYNC SOURCE offers LINK (P2)
-    rows += ["padVelocity", "padCurve", "padThreshold", "padSensitivity", "padModeSelectResponse", "muteMode",
+    rows += ["padVelocity", "padCurve", "padThreshold", "padSensitivity", "padModeSelectResponse",
              "metronomeMonitor",
              "metronomeVolume", "countIn", "brightness", "audioDevice", "outputMap"]
     if ctrl:
