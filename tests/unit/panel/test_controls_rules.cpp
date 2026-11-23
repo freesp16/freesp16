@@ -207,12 +207,27 @@ TEST_CASE("controls lamp rules: apply() sends every lamp to the sink, then flush
 {
     struct Sink final : io::LampSink
     {
-        int lamps = 0, flushes = 0;
+        int lamps = 0, flushes = 0, filterCalls = 0, hp = -1;
+        bool inUse = false, master = false, filterBeforeFlush = false;
         void setLamp(io::Control, std::uint32_t, std::uint8_t) override { ++lamps; }
+        void setAnalogFilter(bool u, bool m, int h) override
+        {
+            ++filterCalls;
+            inUse = u;
+            master = m;
+            hp = h;
+            filterBeforeFlush = flushes == 0;
+        }
         void flush() override { ++flushes; }
     } sink;
     io::LampFrame f;
+    f.analogFilter = {.inUse = true, .master = true, .hpCutoff = 512};
     io::apply(f, 0, io::LampBrightness::Normal, sink);
     CHECK(sink.lamps == static_cast<int>(io::lampControls().size()));
     CHECK(sink.flushes == 1);
+    CHECK(sink.filterCalls == 1); // the filter board's state, once per frame, before the flush
+    CHECK(sink.filterBeforeFlush);
+    CHECK(sink.inUse);
+    CHECK(sink.master);
+    CHECK(sink.hp == 512);
 }

@@ -91,6 +91,7 @@ void apply(const LampFrame& frame, double nowMs, LampBrightness b, LampSink& sin
         const auto out = resolve(frame[c], nowMs, b);
         sink.setLamp(c, out.rgb, out.level);
     }
+    sink.setAnalogFilter(frame.analogFilter.inUse, frame.analogFilter.master, frame.analogFilter.hpCutoff);
     sink.flush();
 }
 

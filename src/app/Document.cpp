@@ -992,14 +992,20 @@ void Document::lamps(io::LampFrame& frame) const
     d.pads.paintLamps(d.padLamps, d.frameMs, d.bridge.meters());
     d.padLamps.overlay(frame, d.pads.effectiveMode());
     d.strip.lamps(frame);
-    // UI-156/158: ANALOG FILTER ACTIVE (red) from afs.active; OVER (amber) while the master clip latch holds (our
-    // choice: the engine publishes no AFS overload — MeterFeed is frozen — so OVER shows the output clip that a driven
-    // filter causes, latched 2 s like the meters).
-    if (const auto* active = core::builtinParams().find("afs.active"))
-        frame[io::Control::AfsActive] = {d.values.get(*active, 0) >= 0.5f ? io::LampMode::On : io::LampMode::Off,
-                                         io::lampcolour::red, 0};
+    // UI-156/158: ANALOG FILTER ACTIVE (red) from afs.active; OVER (amber) while the drive output passed +5.1 dBFS
+    // (AFS-011, the slot's own detector, held 0.5 s there) or the master clipped, latched 2 s like the meters.
+    const auto afsValue = [&](std::string_view id, float fallback) {
+        const auto* spec = core::builtinParams().find(id);
+        return spec != nullptr ? d.values.get(*spec, 0) : fallback;
+    };
+    const bool afsOn = afsValue("afs.active", 0.0f) >= 0.5f;
+    frame[io::Control::AfsActive] = {afsOn ? io::LampMode::On : io::LampMode::Off, io::lampcolour::red, 0};
+    // The unit's own filter board (its select line and high-pass DAC; the platform decides what it can switch).
+    frame.analogFilter.inUse = afsOn && std::lround(afsValue("afs.processor", 1.0f)) == 1;
+    frame.analogFilter.master = std::lround(afsValue("afs.insertTrack", 0.0f)) == 0;
+    frame.analogFilter.hpCutoff = static_cast<int>(std::lround(afsValue("afs.hpCutoff", 0.0f)));
     const auto& m = d.bridge.meters();
-    if (m.masterPeak[0] >= 1.0f || m.masterPeak[1] >= 1.0f)
+    if (m.masterPeak[0] >= 1.0f || m.masterPeak[1] >= 1.0f || m.afsOverLevel >= engine::kAfsOverThreshold)
         d.overAtMs = d.frameMs;
     frame[io::Control::AfsOver] = {d.frameMs - d.overAtMs < 2000.0 ? io::LampMode::On : io::LampMode::Off,
                                    io::lampcolour::amber, 0};

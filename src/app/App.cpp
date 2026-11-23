@@ -487,6 +487,7 @@ int run()
         setup.paramIds.push_back(spec.id);
     setup.fxInternalIndex = core::fx::internalIndexTable(core::builtinParams());
     setup.testTone = settings["test_tone"] == "1"; // the 440 Hz tone on an empty track 1: smoke checks only
+    setup.analogFilterOnMain = machine->analogFilterOnMain();
     auto engine = engine::createEngine(setup);
     juce::MessageManager::getInstance(); // JUCE's message thread = this thread (JUCE audio devices, juce-gl)
     std::vector<std::unique_ptr<platform::AudioDevice>> audioDevices;

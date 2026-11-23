@@ -74,6 +74,9 @@ public:
     virtual std::unique_ptr<DisplayDevice> display(std::string& error) = 0;
     // Called once with the settings before the factories above (e.g. imx6 audio_device = the codec PCM name).
     virtual void configure(const Settings&) {}
+    // True when the board can switch its own analog filter into the main output path (after configure): the panel's
+    // LP CUTOFF / RESONANCE pots, which the app cannot read, then act on the MASTER route (EngineSetup).
+    virtual bool analogFilterOnMain() const { return false; }
 };
 using PlatformFactory = std::unique_ptr<Platform> (*)();
 void registerPlatform(std::string_view id, PlatformFactory);

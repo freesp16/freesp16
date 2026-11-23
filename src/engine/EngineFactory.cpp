@@ -12,6 +12,7 @@ std::unique_ptr<AudioEngine> createEngine(const EngineSetup& setup)
 {
     EngineOptions options;
     options.testTone = setup.testTone;
+    options.analogFilterOnMain = setup.analogFilterOnMain;
     return std::make_unique<Engine>(setup, options); // rt-ok: message thread, once at start-up
 }
 } // namespace engine

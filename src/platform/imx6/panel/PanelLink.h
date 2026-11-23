@@ -35,9 +35,7 @@ struct PanelStats
 class PanelLink final : public io::ControlSource
 {
 public:
-    // `board` (may be null): every HP CUTOFF pot change also goes to the analog filter's DAC (AnalogBoard.h).
-    PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace,
-              std::shared_ptr<panel::AnalogBoard> board = {});
+    PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace);
     ~PanelLink() override;
     std::string_view id() const override { return "panel"; }
     bool start(std::string& info) override; // opens and configures the link, starts the reader thread
@@ -52,7 +50,6 @@ private:
 
     engine::TriggerSink* triggers_;
     std::shared_ptr<panel::LampBus> lamps_;
-    std::shared_ptr<panel::AnalogBoard> board_;
     bool trace_;
     panel::PanelDecoder decoder_;
     io::PadCalibration padBase_ {}; // the calibration UTILITY's pad preferences apply over (PanelPads.h)

@@ -39,6 +39,11 @@ public:
         first_->setLamp(c, rgb, level);
         second_->setLamp(c, rgb, level);
     }
+    void setAnalogFilter(bool inUse, bool master, int hpCutoff) override
+    {
+        first_->setAnalogFilter(inUse, master, hpCutoff);
+        second_->setAnalogFilter(inUse, master, hpCutoff);
+    }
     void flush() override
     {
         first_->flush();

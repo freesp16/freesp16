@@ -59,7 +59,9 @@ private:
 class PanelLamps final : public io::LampSink
 {
 public:
-    // `board` (may be null): the analog filter's select line follows the ACTIVE lamp (AnalogBoard.h).
+    // `board` (may be null): the analog filter's select line (AnalogBoard.h) is on while the unit's filter is in use on
+    // the MASTER route (after the main DAC), or on a track route through the send/return loop when the loop runs; its
+    // high-pass DAC follows afs.hpCutoff (the HP CUTOFF pot or the popup). Both on change only, at flush().
     explicit PanelLamps(std::shared_ptr<LampBus> bus, std::shared_ptr<AnalogBoard> board = {})
         : bus_(std::move(bus)), board_(std::move(board))
     {
@@ -67,15 +69,20 @@ public:
     void setLamp(io::Control c, std::uint32_t rgb, std::uint8_t level) override
     {
         frame_.setLamp(c, rgb, level);
-        if (c == io::Control::AfsActive)
-            active_ = level > 0 && (rgb & 0xFFFFFFu) != 0;
+    }
+    void setAnalogFilter(bool inUse, bool master, int hpCutoff) override
+    {
+        filterInUse_ = inUse;
+        filterMaster_ = master;
+        hpCutoff_ = hpCutoff;
     }
     void flush() override;
 
 private:
     std::shared_ptr<LampBus> bus_;
     std::shared_ptr<AnalogBoard> board_;
-    bool active_ = false;
+    bool filterInUse_ = false, filterMaster_ = true;
+    int hpCutoff_ = 0;
     TxFrame frame_;
 };
 } // namespace platform::imx6::panel

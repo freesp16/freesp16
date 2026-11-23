@@ -127,6 +127,9 @@ void PanelLamps::flush()
     frame_.finish();
     bus_->publish(frame_);
     if (board_)
-        board_->setActive(active_);
+    {
+        board_->setHpCutoff(hpCutoff_); // before the line goes high: the filter switches in with its high-pass set
+        board_->setActive(filterInUse_ && (filterMaster_ || board_->loop()));
+    }
 }
 } // namespace platform::imx6::panel

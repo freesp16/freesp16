@@ -140,6 +140,7 @@ Engine::Engine(const EngineSetup& setup, const EngineOptions& options) : options
         params_.bind(ribbon_.paramId(i), T::Ribbon);
     perf_.bindParams(setup.resolveParam, params_); // seq.retrigCount / retrigSpeed / transpose
     afs_.bindParams(setup.resolveParam);           // afs.* → ParamTarget::Afs
+    afs_.setAnalogMain(options.analogFilterOnMain); // MASTER route: the unit's own filter after the main DAC
     for (int i = 0; i < afs::AnalogFilterSlot::kParams; ++i)
         params_.bind(afs_.paramId(i), T::Afs);
     router_.bindParams(setup.resolveParam, params_); // routing.* → ParamTarget::Routing
@@ -326,6 +327,7 @@ void Engine::process(const AudioIO& io) noexcept
     p.preCount = transport_.preCount();
     for (int t = 0; t < kTracks; ++t) // PLY-045: play position 0–1, negative = idle
         p.trackPosition[static_cast<std::size_t>(t)] = sources_[static_cast<std::size_t>(t)].playPosition();
+    feeds_.meters().setAfsOverLevel(afs_.overLevel());
     feeds_.publish(blocks, p);
     fxBank_.publish(feeds_.fxWrite()); // the effect panels' feed, same period
     feeds_.fxPublish();

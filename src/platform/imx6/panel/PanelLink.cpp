@@ -38,9 +38,8 @@ double nowMs() noexcept
 }
 } // namespace
 
-PanelLink::PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace,
-                     std::shared_ptr<panel::AnalogBoard> board)
-    : triggers_(triggers), lamps_(std::move(lamps)), board_(std::move(board)), trace_(trace)
+PanelLink::PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace)
+    : triggers_(triggers), lamps_(std::move(lamps)), trace_(trace)
 {
     decoder_.setTriggers(triggers_);
 }
@@ -182,8 +181,6 @@ void PanelLink::run()
                         dropped_.fetch_add(1, std::memory_order_relaxed);
                     if (lamps_)
                         lamps_->echo(e);
-                    if (board_ && e.control == io::Control::AfsHpCutoff && e.kind == io::ControlEvent::Kind::Value)
-                        board_->setHpCutoff(e.value); // the analog high-pass follows the pot (as on the reference)
                 }
             }
         }

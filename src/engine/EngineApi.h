@@ -72,6 +72,9 @@ struct PlayheadFeed
     std::array<float, kTracks> trackPosition {};        // PLY-045: play position 0–1 per track, negative = idle
 };
 
+// The analog filter's OVER lamp threshold on its drive output: +5.1 dBFS (AFS-011 [OBS]).
+inline constexpr float kAfsOverThreshold = 1.7988709f;
+
 // Meter snapshot (linear peak / RMS of the last period; the UI converts to dB and decays, threading.md "Timing").
 struct MeterFeed
 {
@@ -79,6 +82,7 @@ struct MeterFeed
     std::array<float, 2> masterPeak {}, masterRms {};
     std::array<float, 2> sendPeak {}, inputPeak {};
     std::array<std::array<float, 2>, kTracks> trackPeak {};
+    float afsOverLevel = 0.0f; // the analog-filter drive output's held peak, linear (OVER at ≥ kAfsOverThreshold)
 };
 
 // Lossless audio → UI events (recorded steps, live-sampling marks, switch done), SPSC, drained once per UI frame.
@@ -151,6 +155,9 @@ struct EngineSetup
     // The temporary 440 Hz test tone on an empty track 1 and the ping on empty pads (EngineOptions::testTone). The app
     // turns it off unless the `test_tone=1` setting asks for it (the smoke checks); hardware feedback: no sine at start.
     bool testTone = true;
+    // The device can switch its own analog filter into the main output path (Platform::analogFilterOnMain): the
+    // analog-filter slot's MASTER route then leaves the filtering to it (engine::afs::Processor::Analog).
+    bool analogFilterOnMain = false;
 };
 
 // Engine load as the LoadMeter measures it per 64-frame block. Cycles are A9 cycles at

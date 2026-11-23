@@ -54,6 +54,12 @@ LampOutput resolve(const LampState&, double nowMs, LampBrightness = LampBrightne
 struct LampFrame
 {
     std::array<LampState, kLampSlots> lamps {};
+    struct AnalogFilter
+    {
+        bool inUse = false; // afs.active on with afs.processor EXTERNAL (the unit's own filter, not the model)
+        bool master = true; // afs.insertTrack MASTER
+        int hpCutoff = 0;   // afs.hpCutoff 0–1023 (the HP CUTOFF pot or the popup)
+    } analogFilter;         // not a lamp: the filter board's select line (LampSink::setAnalogFilter)
     LampState& operator[](Control c) noexcept { return lamps[static_cast<std::size_t>(lampSlot(c))]; }
     const LampState& operator[](Control c) const noexcept { return lamps[static_cast<std::size_t>(lampSlot(c))]; }
 };

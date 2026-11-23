@@ -513,7 +513,10 @@ AnalogFilterSlot::Config AnalogFilterSlot::wanted() const noexcept
         c.track = static_cast<std::int8_t>(insertTrack_ - 1);
     }
     c.active = active_;
-    c.proc = processor_ == 1 && externalAvailable() ? Processor::External : Processor::Model; // our fallback
+    if (processor_ == 1 && c.route == Route::Master && analogMain_)
+        c.proc = Processor::Analog; // the unit's filter after the main DAC: its LP CUTOFF / RESONANCE pots act there
+    else
+        c.proc = processor_ == 1 && externalAvailable() ? Processor::External : Processor::Model; // our fallback
     return c;
 }
 
@@ -699,7 +702,10 @@ void AnalogFilterSlot::processAt(Route route, int track, float* l, float* r, int
     // ACTIVE off: the DRIVE pot still drives the main output, as on the reference (F107: dsfDriveMaster is always in
     // the main path; hardware feedback: DRIVE did nothing with the filter off). Unity at DRIVE 0, so bit-transparent.
     if (route == Route::Master && ! cur_.active)
+    {
         drive(l, r);
+        meterOver(l, r); // the drive output feeds the DAC here too: OVER watches it whatever ACTIVE says
+    }
     if (dipBlock_)
     {
         const bool master = route == Route::Master && ((dipPaths_ >> kMasterPath) & 1u) != 0;
@@ -712,7 +718,22 @@ void AnalogFilterSlot::processAt(Route route, int track, float* l, float* r, int
 void AnalogFilterSlot::run(float* l, float* r) noexcept
 {
     drive(l, r);
-    // OVER (AFS-011): peak of the filter input, held 0.5 s.
+    meterOver(l, r);
+    if (cur_.proc == Processor::Analog)
+        return; // the analog filter after the main DAC does the rest (LP / RESONANCE pots, HP DAC)
+    if (cur_.proc == Processor::External)
+    {
+        external_.process(l, r, kBlockFrames, control_);
+        sent_ = true;
+    }
+    else
+        models_[static_cast<std::size_t>(live_)].process(l, r, kBlockFrames, control_);
+}
+
+void AnalogFilterSlot::meterOver(const float* l, const float* r) noexcept
+{
+    // OVER (AFS-011): peak of the drive output (the filter input), held 0.5 s.
+    overRan_ = true;
     const float peak = std::max(fx::dsp::vec::peakAbs(l, kBlockFrames), fx::dsp::vec::peakAbs(r, kBlockFrames));
     if (peak >= overPeak_ || overHold_ <= 0)
     {
@@ -721,14 +742,6 @@ void AnalogFilterSlot::run(float* l, float* r) noexcept
     }
     else
         overHold_ -= kBlockFrames;
-
-    if (cur_.proc == Processor::External)
-    {
-        external_.process(l, r, kBlockFrames, control_);
-        sent_ = true;
-    }
-    else
-        models_[static_cast<std::size_t>(live_)].process(l, r, kBlockFrames, control_);
 }
 
 void AnalogFilterSlot::drive(float* l, float* r) noexcept
@@ -800,20 +813,26 @@ void AnalogFilterSlot::endBlock() noexcept
             if (driveLeft_ == 0)
                 driveCur_ = driveTarget_;
         }
-        overHold_ -= kBlockFrames;
-        if (overHold_ <= 0)
-            overPeak_ = 0.0f;
+        if (! overRan_)
+        {
+            overHold_ -= kBlockFrames;
+            if (overHold_ <= 0)
+                overPeak_ = 0.0f;
+        }
     }
     external_.advanceIdle(); // once per block: a ping keeps time / captures / analyses (no-op otherwise)
     overLevel_.store(overPeak_, std::memory_order_relaxed);
     visited_ = false;
     sent_ = false;
     driveRan_ = false;
+    overRan_ = false;
 }
 
 int AnalogFilterSlot::latencySamples() const noexcept
 {
     if (! cur_.active)
+        return 0;
+    if (cur_.proc == Processor::Analog)
         return 0;
     return cur_.proc == Processor::External ? external_.latencySamples() : fx::dsp::afs::kLatency;
 }

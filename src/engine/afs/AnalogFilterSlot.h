@@ -19,6 +19,12 @@
 //             F189). On the device the codec's FilterSend pair feeds the unit's own analog filter (signal-flow.md
 //             device pair 5, channels 10/11; OQ-14); a device without that port, or without return inputs — the Linux
 //             desktop — runs the Model instead (our choice).
+//   Analog    the unit's own analog filter in the main output path (MASTER route on a device whose platform switches
+//             the filter board in: Platform::analogFilterOnMain). Only the drive and OVER run here: the LP CUTOFF and
+//             RESONANCE pots act on the analog filter and are never read by the app, the HP CUTOFF pot sets the board's
+//             high-pass DAC, and the app's filter-select line puts the filter after the main DAC while ACTIVE is on
+//             (research signal-flow.md "DSF drive": dsfDriveMaster feeds the main DAC, the reference's MASTER insert
+//             has no digital send). A digital filter here would add a second high-pass and leave the LP pot dead.
 // ACTIVE off bypasses every stage, bit-transparent (AFS-012, NFR-030), except the DRIVE gain, which stays on the main
 // output as on the reference (F107; unity at DRIVE 0, so still bit-transparent there; hardware feedback). A change of route, insert order, ACTIVE or the
 // processor in use dips the signal 128 samples down and 128 up (AFS-006, F187: "a 256-sample dip, not an overlapping
@@ -60,7 +66,7 @@
 namespace engine::afs
 {
 enum class Route : std::uint8_t { Master, TrackPreFx, TrackPostFx };
-enum class Processor : std::uint8_t { Model, External };
+enum class Processor : std::uint8_t { Model, External, Analog };
 
 // Per-block control of a processor (normalised knob values; the modulation already in octaves).
 struct AfsControl
@@ -211,7 +217,7 @@ inline float driveGain(int index1023) noexcept
     const float x = static_cast<float>(index1023 < 0 ? 0 : (index1023 > 1023 ? 1023 : index1023)) / 1023.0f;
     return 1.0f + 3.0f * (x * x);
 }
-constexpr float kOverThreshold = 1.7988709f; // +5.1 dBFS on the drive output (AFS-011 [OBS])
+constexpr float kOverThreshold = kAfsOverThreshold; // +5.1 dBFS on the drive output (AFS-011 [OBS])
 constexpr int kDipSamples = 128;             // AFS-006
 
 class AnalogFilterSlot
@@ -221,11 +227,19 @@ public:
 
     // ---- message thread ----
     void prepare(double sampleRate, int maxBlock); // both processors prepared; the configuration settles at once
+    // The device switches its analog filter into the main output path (before prepare): the MASTER route with
+    // PROCESSOR EXTERNAL then uses Processor::Analog instead of the digital model.
+    void setAnalogMain(bool on) noexcept
+    {
+        analogMain_ = on;
+        request();
+    }
+    bool analogMain() const noexcept { return analogMain_; }
     void bindParams(const std::function<core::ParamId(std::string_view)>& resolve) noexcept; // rt-ok: set-up only
     core::ParamId paramId(int field) const noexcept { return ids_[static_cast<std::size_t>(field)]; }
     static constexpr int kParams = static_cast<int>(AfsField::Count);
     // Lock-free reads for the UI / app (any thread).
-    float overLevel() const noexcept { return overLevel_.load(std::memory_order_relaxed); } // held peak, linear
+    float overLevel() const noexcept { return overLevel_.load(std::memory_order_relaxed); } // held drive-out peak
     bool over() const noexcept { return overLevel() >= kOverThreshold; }                      // the OVER lamp
     int measuredLatency() const noexcept { return external_.measuredLatency(); }
     std::uint32_t pingCount() const noexcept { return external_.pingCount(); }
@@ -293,6 +307,7 @@ private:
     static std::uint32_t pathBit(const Config& c) noexcept { return c.route == Route::Master ? 1u << kMasterPath : 1u << (c.track & 15); }
     void run(float* l, float* r) noexcept; // drive → OVER → processor, at the current point
     void drive(float* l, float* r) noexcept; // the drive gain and its ramp (sets driveRan_)
+    void meterOver(const float* l, const float* r) noexcept; // OVER: the drive output's peak held 0.5 s (overRan_)
     void warm(const float* l, const float* r) noexcept; // the target's model on a copy (the dip's last block down)
     void applyDip(float* l, float* r) const noexcept;
 
@@ -329,6 +344,7 @@ private:
     alignas(16) float driveGain_[kBlockFrames] {};
     float overPeak_ = 0.0f;
     int overHold_ = 0, overHoldSamples_ = 22050;
+    bool overRan_ = false;
     std::atomic<float> overLevel_ {0.0f};
 
     // External loop: ports of this period, the return adapter (one block late, like the engine's input).
@@ -342,5 +358,6 @@ private:
     const float* retBlockR_ = nullptr;
     bool sent_ = false, visited_ = false, driveRan_ = false;
     bool pingWanted_ = false;
+    bool analogMain_ = false; // Analog processor available on the MASTER route (setAnalogMain)
 };
 } // namespace engine::afs
