@@ -269,3 +269,108 @@ TEST_CASE("sampling.engine: live arm while stopped waits for the start; disarm r
     CHECK(hub->status.liveLength.load() == 22050); // 1/4 bar at 120 BPM
     CHECK(hub->status.latency.load() == 64);
 }
+
+TEST_CASE("sampling.engine: REC QUANTIZE starts the take on the next 1 / 4-beat boundary, latency compensated",
+          "[sampling][engine][quantize]")
+{
+    // 120 BPM: one beat = 22050 frames. REC arrives 1.36 beats into the pattern (30000 frames after PLAY).
+    for (const auto& [index, beats] : {std::pair {1, 1}, std::pair {3, 4}})
+    {
+        INFO("REC QUANTIZE " << beats << " beats");
+        auto e = make();
+        auto hub = installHub(*e);
+        Driver d;
+        d.run(*e, 1024, noise());
+        REQUIRE(param(*e, "sampling.quantize", static_cast<float>(index)));
+        REQUIRE(param(*e, "sampling.length", 1.0f));
+        const std::int64_t playAt = d.pos;
+        REQUIRE(e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0}));
+        d.run(*e, 30000, noise());
+        REQUIRE(param(*e, "sampling.rec", 1.0f, 5));
+        d.run(*e, 256, noise());
+        REQUIRE(state(hub) == RecState::Standby);
+        CHECK(hub->status.takeQuantize.load() == beats);
+        // The countdown: from this block to the boundary (2 − 1.37…, or 4 − 1.37…), in beats.
+        const float left = hub->status.startInBeats.load();
+        CHECK(left > static_cast<float>(beats == 1 ? 0.5 : 2.5));
+        CHECK(left < static_cast<float>(beats == 1 ? 0.65 : 2.65));
+        const std::int64_t boundary = (beats == 1 ? 2 : 4) * 22050;
+        d.run(*e, boundary - 30000 - 256 + 1024, noise());
+        REQUIRE(state(hub) == RecState::Recording);
+        CHECK(hub->status.takeStart.load() == playAt - ringOrigin(*e, hub) + boundary + 64);
+        CHECK(hub->status.takeEnd.load() - hub->status.takeStart.load() == 88200); // REC LENGTH 1 bar from there
+    }
+}
+
+TEST_CASE("sampling.engine: REC QUANTIZE while stopped waits for PLAY (the pattern start), not the threshold",
+          "[sampling][engine][quantize]")
+{
+    auto e = make();
+    auto hub = installHub(*e);
+    Driver d;
+    d.run(*e, 1024, noise());
+    REQUIRE(param(*e, "sampling.threshold", 1.0f)); // −60 dB: the noise would start it at once without the quantize
+    REQUIRE(param(*e, "sampling.quantize", 5.0f));  // 16 beats
+    REQUIRE(param(*e, "sampling.rec", 1.0f, 2));
+    d.run(*e, 4096, noise());
+    REQUIRE(state(hub) == RecState::Standby);
+    CHECK(hub->status.startInBeats.load() == -1.0f); // stopped: the UI shows WAITING FOR PLAY
+    const std::int64_t playAt = d.pos;
+    REQUIRE(e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0}));
+    d.run(*e, 512, noise());
+    REQUIRE(state(hub) == RecState::Recording);
+    CHECK(hub->status.takeStart.load() == playAt - ringOrigin(*e, hub) + 64);
+}
+
+TEST_CASE("sampling.engine: REC QUANTIZE 16 beats on a 1-bar pattern starts at the next pattern start",
+          "[sampling][engine][quantize]")
+{
+    auto e = make();
+    auto hub = installHub(*e);
+    Driver d;
+    d.run(*e, 1024, noise());
+    REQUIRE(param(*e, "sampling.quantize", 5.0f));
+    const std::int64_t playAt = d.pos;
+    REQUIRE(e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0}));
+    d.run(*e, 30000, noise());
+    REQUIRE(param(*e, "sampling.rec", 1.0f));
+    d.run(*e, 4 * 22050 - 30000 + 1024, noise()); // the default pattern is 16 steps = 4 beats
+    REQUIRE(state(hub) == RecState::Recording);
+    CHECK(hub->status.takeStart.load() == playAt - ringOrigin(*e, hub) + 4 * 22050 + 64);
+}
+
+TEST_CASE("sampling.engine: drop throws the take away in standby or recording; another track's drop is ignored",
+          "[sampling][engine][quantize]")
+{
+    auto e = make();
+    auto hub = installHub(*e);
+    Driver d;
+    d.run(*e, 1024, noise());
+    REQUIRE(param(*e, "sampling.quantize", 3.0f));
+    REQUIRE(param(*e, "sampling.rec", 1.0f, (0 << 4) | 6));
+    d.run(*e, 256, noise());
+    REQUIRE(state(hub) == RecState::Standby); // stopped: waits for PLAY
+    REQUIRE(param(*e, "sampling.drop", 1.0f, (0 << 4) | 7)); // pad 8: not this take
+    d.run(*e, 256, noise());
+    CHECK(state(hub) == RecState::Standby);
+    REQUIRE(param(*e, "sampling.drop", 1.0f, (0 << 4) | 6));
+    d.run(*e, 256, noise());
+    CHECK(state(hub) == RecState::Cancelled);
+
+    REQUIRE(param(*e, "sampling.quantize", 0.0f)); // OFF: at once
+    REQUIRE(param(*e, "sampling.rec", 1.0f, (0 << 4) | 6));
+    d.run(*e, 4096, noise());
+    REQUIRE(state(hub) == RecState::Recording);
+    REQUIRE(param(*e, "sampling.drop", 1.0f, (0 << 4) | 6));
+    d.run(*e, 256, noise());
+    CHECK(state(hub) == RecState::Cancelled);
+
+    // A take that already ended is kept.
+    REQUIRE(param(*e, "sampling.length", 1.0f));
+    REQUIRE(param(*e, "sampling.rec", 1.0f, (0 << 4) | 6));
+    d.run(*e, 88200 + 1024, noise());
+    REQUIRE(state(hub) == RecState::Done);
+    REQUIRE(param(*e, "sampling.drop", 1.0f, (0 << 4) | 6));
+    d.run(*e, 256, noise());
+    CHECK(state(hub) == RecState::Done);
+}

@@ -9,11 +9,18 @@
 //   - Editor: recording — the take grows left to right in the track colour (incremental: only the ring frames written
 //     since the last frame are folded into the 280 column buckets), a 2 lpx `rec` write head, the elapsed chip
 //     `● REC 0:02.140 / 2 BARS`, with REC LENGTH the editor spans that length and its end is marked `rec` 60 %; standby —
-//     the chip `WAITING FOR THRESHOLD` / `WAITING FOR PLAY`; afterwards the track's take in the PLAYBACK editor with the
-//     S / E flags (SELECTION START / END); empty — `Press REC to record` (UID-783).
-//   - Knobs SOURCE, REC THRESHOLD (a warn line on the INPUT meter), REC LENGTH, SELECTION START, SELECTION END (the
-//     take's playback.start / playback.start + length: sampling.selStart / selEnd are focus-bound values, see
-//     core/params/catalogue/samplingui.cpp), MONITOR LEVEL. Columns 1–5 are disabled while recording (UI-320).
+//     the chip `WAITING FOR THRESHOLD` / `WAITING FOR PLAY` / `STARTS IN 3 BEATS` (REC QUANTIZE, the engine's
+//     countdown); afterwards the track's take in the PLAYBACK editor with the S / E flags (SELECTION START / END);
+//     empty — `Press REC or hit a pad to record` (UID-783).
+//   - Knobs SOURCE, REC THRESHOLD (a warn line on the INPUT meter; inactive while REC QUANTIZE is on, which replaces
+//     it), REC LENGTH, REC QUANTIZE (ours: OFF, 1 / 2 / 4 / 8 / 16 beats), SELECTION START, SELECTION END (the take's
+//     playback.start / playback.start + length: sampling.selStart / selEnd are focus-bound values, see
+//     core/params/catalogue/samplingui.cpp). MONITOR LEVEL left the strip for REC QUANTIZE (it is on LIVE SAMPLING and
+//     OUTPUT SETTING). Every column is disabled while recording (UI-320).
+//   - Pads (ours; PLAY and TRACK pad mode, no SHIFT): a hit records into that pad's track like REC does — at the next
+//     REC QUANTIZE boundary, at once when it is OFF. The same pad again during the take (standby or recording) drops
+//     it: nothing lands on the track, the part file is deleted. During a take other pads keep the take's track
+//     selected; REC still stops a take and keeps it. SHIFT + pad only selects (PAD-004).
 //   - EDIT list: BAR, BPM (each follows the other, REN-021), SAVE SELECTION ›, NORMALIZE ›, FADE IN ›, FADE OUT ›.
 //   - SAVE SELECTION dialog: `Save selection as:` with a numbered name, CANCEL · SAVE & REPLACE (primary) · SAVE.
 //   - The track box reads `RECORDED TEMP.` until the take is saved (the model's display name, SMP-010); leaving with an
@@ -74,6 +81,7 @@ using core::sampling::RecState;
 
 constexpr RectF kEditor {328, 152, 856, 360}, kOverview {328, 528, 856, 64};
 constexpr int kRailRec = 0, kRailLimiter = 1, kRailEdit = 2, kRailSave = 3;
+constexpr int kColThreshold = 1, kColQuantize = 3, kColSelStart = 4, kColSelEnd = 5; // the knob strip
 constexpr int kColumns = 280; // 840 lpx at a 3 lpx pitch
 constexpr float kPlotX = 336, kPlotW = 840;
 
@@ -137,7 +145,7 @@ public:
         const auto rs = recState();
         state_->samplerRec = rs == RecState::Recording || (rs == RecState::Standby && std::fmod(ctx.nowMs, 1000.0) < 500.0);
         input_.update(hub(), ctx.nowMs);
-        m5::drawInputMeter(dl, ctx, input_, m5::thresholdDb(param("sampling.threshold")));
+        m5::drawInputMeter(dl, ctx, input_, quantized() ? -120.0f : m5::thresholdDb(param("sampling.threshold")));
         if (rs == RecState::Standby || rs == RecState::Recording)
         {
             grow(rs);
@@ -152,7 +160,7 @@ public:
         WaveformEditor::drawZoomGauge(dl, ctx, WaveformEditor::kGaugeX, WaveformEditor::kGaugeY, zoomLevel(m));
         if (m.overview == nullptr)
             dl.text(kEditor.x + kEditor.w / 2, kEditor.y + kEditor.h / 2, Align::Centre, TextStyleId::Body,
-                    ctx.palette.text2, "Press REC to record");
+                    ctx.palette.text2, "Press REC or hit a pad to record");
     }
 
     bool dirty(double) const override { return recording() || hub() != nullptr; }
@@ -173,6 +181,8 @@ public:
             toggleRec();
             return true;
         }
+        if (io::isPad(e.control) && e.kind == Kind::Press)
+            return padHit(io::indexOf(e.control) - 1);
         if (touch::isTouch(e))
             return touchAt(e);
         return false;
@@ -227,27 +237,38 @@ public:
         if (c.spec == nullptr)
             return;
         const bool rec = recording();
-        if (rec && column0 <= 4)
-            c.disabled = true; // UI-320: MONITOR LEVEL stays editable
-        if (column0 == 3 || column0 == 4)
+        if (rec)
+            c.disabled = true; // UI-320
+        if (column0 == kColThreshold && quantized())
         {
+            c.inactive = true; // REC QUANTIZE starts the take, not the level
+            c.subReadout = "QUANTIZE ON";
+        }
+        if (column0 == kColQuantize)
+        {
+            static constexpr std::string_view kBars[] = {"AT ONCE", "", "", "= 1 BAR", "= 2 BARS", "= 4 BARS"};
+            c.subReadout = kBars[std::clamp(asInt(c.value), 0, 5)];
+        }
+        if (column0 == kColSelStart || column0 == kColSelEnd)
+        {
+            const bool first = column0 == kColSelStart;
             const auto s = sample();
             std::int64_t start = 0, end = 0;
             selection(start, end);
-            auto& t = text_[static_cast<std::size_t>(column0 - 3)];
-            if (s.empty() || (rec && column0 == 4))
-                t.set(column0 == 3 ? "0" : "\xE2\x80\x94"); // —
+            auto& t = text_[first ? 0U : 1U];
+            if (s.empty() || (rec && ! first))
+                t.set(first ? "0" : "\xE2\x80\x94"); // —
             else
-                t.format("%lld", static_cast<long long>(column0 == 3 ? start : end));
+                t.format("%lld", static_cast<long long>(first ? start : end));
             c.valueText = t.view();
             c.value = s.empty() ? 0.0f
-                                : static_cast<float>(static_cast<double>(column0 == 3 ? start : end) /
+                                : static_cast<float>(static_cast<double>(first ? start : end) /
                                                      static_cast<double>(s.frames) * static_cast<double>(c.spec->maxValue));
         }
     }
     bool stripTurn(int column0, const core::ParamSpec&, int detents, bool fine) override
     {
-        if (column0 != 3 && column0 != 4)
+        if (column0 != kColSelStart && column0 != kColSelEnd)
             return false;
         if (recording())
             return true;
@@ -260,11 +281,11 @@ public:
         const auto step = fine ? std::int64_t {1}
                                : std::max<std::int64_t>(1, static_cast<std::int64_t>(
                                                                static_cast<double>(s.frames) / zoomX_ / kColumns));
-        if (column0 == 3)
+        if (column0 == kColSelStart)
             start = std::clamp<std::int64_t>(start + detents * step, 0, end - 1);
         else
             end = std::clamp<std::int64_t>(end + detents * step, start + 1, s.frames);
-        active_ = column0 == 3 ? 0 : 2;
+        active_ = column0 == kColSelStart ? 0 : 2;
         setSelection(start, end);
         return true;
     }
@@ -364,6 +385,44 @@ private:
         centre_ = static_cast<double>(active_ == 2 ? m.end : m.start) / static_cast<double>(m.frames);
     }
 
+    bool quantized() const noexcept { return asInt(param("sampling.quantize")) > 0; }
+    // The take in standby or recording, whatever track is selected (−1 = none).
+    int busyTrack() const noexcept
+    {
+        const auto* hb = hub();
+        if (hb == nullptr)
+            return -1;
+        const auto& s = hb->status;
+        const auto st = static_cast<RecState>(s.state.load(std::memory_order_acquire));
+        if ((st != RecState::Standby && st != RecState::Recording) ||
+            s.takeScene.load(std::memory_order_relaxed) != scene())
+            return -1;
+        return s.takeTrack.load(std::memory_order_relaxed) & 15;
+    }
+    // A pad hit (PLAY / TRACK pad mode; the pad controller already selected its track). SHIFT + pad only selects.
+    bool padHit(int pad)
+    {
+        auto* h = m5::SamplingHost::current();
+        if (h == nullptr || state_->shift)
+            return false;
+        const int busy = busyTrack();
+        if (busy == pad)
+        {
+            h->drop(scene(), pad);
+            toast("Take dropped");
+            return true;
+        }
+        if (busy >= 0)
+        {
+            shell_->selectTrack(busy + 1); // a take keeps its track on screen; REC or its own pad ends it
+            return true;
+        }
+        if (track() != pad)
+            shell_->selectTrack(pad + 1);
+        if (! h->record(scene(), pad))
+            toast("REC refused: no memory for the capture ring");
+        return true;
+    }
     void toggleRec()
     {
         auto* h = m5::SamplingHost::current();
@@ -481,11 +540,23 @@ private:
             else
                 chip_.format("\xE2\x97\x8F REC  %d:%06.3f", minutes, sec - minutes * 60);
         }
+        else if (hb != nullptr && hb->status.takeQuantize.load(std::memory_order_relaxed) > 0)
+        {
+            // REC QUANTIZE: the engine's countdown to the boundary, in whole beats (stopped: the take starts at PLAY).
+            const float left = hb->status.startInBeats.load(std::memory_order_relaxed);
+            const int n = std::max(1, static_cast<int>(std::ceil(left - 1e-3f)));
+            if (left < 0.0f)
+                chip_.set("WAITING FOR PLAY");
+            else
+                chip_.format("STARTS IN %d BEAT%s", n, n == 1 ? "" : "S");
+        }
         else
         {
             const int threshold = asInt(param("sampling.threshold"));
             chip_.set(threshold >= 42 ? "WAITING FOR PLAY" : "WAITING FOR THRESHOLD");
         }
+        hint_.format("PAD %d AGAIN DROPS THE TAKE \xC2\xB7 REC STOPS IT", track() + 1);
+        dl.text(x + 16, y + h - 20, Align::Left, TextStyleId::Caption, p.text2, hint_.view());
         if (bars > 0)
         {
             dl.fill({x + w - 12, y + 8, 4, h - 16}, theme::withOpacity(p.rec, 0.6f));
@@ -696,7 +767,7 @@ private:
     mutable m5::InputLevel input_ {};
     mutable m1::SampleView view_ {};
     mutable std::array<FixedText<24>, 2> text_ {};
-    mutable FixedText<48> chip_, end_;
+    mutable FixedText<48> chip_, end_, hint_;
     // the growing take
     mutable std::array<float, kColumns> lo_ {}, hi_ {};
     mutable std::array<float, 1024> l_ {}, r_ {};
@@ -735,4 +806,4 @@ APP_REGISTER_SCREEN((ui::ScreenSpec {.id = "sampling.edit",
                                      .bodyComponent = "SamplingEditor",
                                      .strip = {"SAMPLING/EDIT",
                                                {"sampling.source", "sampling.threshold", "sampling.length",
-                                                "sampling.selStart", "sampling.selEnd", "routing.monitorLevel"}}}))
+                                                "sampling.quantize", "sampling.selStart", "sampling.selEnd"}}}))

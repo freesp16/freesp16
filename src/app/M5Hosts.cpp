@@ -214,6 +214,11 @@ public:
         return true;
     }
     void stop(int scene, int track) override { session_.stopRecord(scene, track); }
+    void drop(int scene, int track) override
+    {
+        session_.dropRecord(scene, track);
+        log("SAMPLING drop track=%d", track + 1);
+    }
 
     bool unsaved(int scene, int track) const override
     {

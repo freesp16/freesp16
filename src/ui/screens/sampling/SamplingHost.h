@@ -34,6 +34,7 @@ public:
     // ---- SAMPLING/EDIT (scene / track 0-based) ----
     virtual bool record(int scene, int track) = 0; // REC: standby (the ring is allocated on first use); false = refused
     virtual void stop(int scene, int track) = 0;   // REC again: stop / leave standby
+    virtual void drop(int scene, int track) = 0;   // the pad again: the take is thrown away (standby or recording)
     virtual bool unsaved(int scene, int track) const = 0; // the track plays an unsaved take (RECORDED TEMP.)
     virtual std::string proposedName(int scene, int track) const = 0; // "Beat_120bpm_2bar_01" (UID-780)
     // SAVE (keep the track's sample) / SAVE & REPLACE (the saved file goes on the track), frames [start, end).
