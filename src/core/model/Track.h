@@ -129,6 +129,18 @@ struct TrackRouting // MIX-031
     friend bool operator== (const TrackRouting&, const TrackRouting&) = default;
 };
 
+struct PluginTrack // Dynamic CLAP plugin hosted on a TrackMode::Plugin track
+{
+    std::string path {};        // relative to <data>/Plugins/ (e.g. "Anvil.clap"), or absolute
+    std::string pluginId {};    // CLAP plugin descriptor id (e.g. "com.hdslave.anvil")
+    std::string name {};        // cached display name (e.g. "Anvil")
+    std::string presetKey {};   // last selected preset key / name
+    std::string stateBase64 {}; // base64-encoded clap_plugin_state_t blob
+    bool bypass = false;
+    Extras extras {};
+    friend bool operator== (const PluginTrack&, const PluginTrack&) = default;
+};
+
 struct Track
 {
     TrackMode mode = TrackMode::Sample;
@@ -150,6 +162,7 @@ struct Track
     Send send {};
     Lfo lfo {};
     MidiTrack midi {};
+    PluginTrack plugin {};
     TrackRouting routing {};
     Extras extras {};
     friend bool operator== (const Track&, const Track&) = default;

@@ -53,7 +53,8 @@ struct DrawCmd
     {
         Fill,   // rounded rectangle, radius may be 0
         Stroke, // rounded rectangle outline of strokeWidth, centred on the rect edge
-        Text
+        Text,
+        Blit // 0xAARRGGBB pixel buffer scaled into rect; argb = tint, textOffset = serial
     };
     Op op = Op::Fill;
     Align align = Align::Left;
@@ -62,6 +63,8 @@ struct DrawCmd
     float radius = 0, strokeWidth = 0;
     std::uint32_t argb = 0;
     std::uint32_t textOffset = 0, textLength = 0;
+    const std::uint32_t* pixels = nullptr; // Blit: 0xAARRGGBB source buffer (must outlive frame)
+    std::uint16_t srcW = 0, srcH = 0, srcStride = 0;
 };
 
 class DrawList
@@ -94,12 +97,12 @@ public:
     void fill(RectF r, std::uint32_t argb, float radius = 0)
     {
         if ((argb >> 24) != 0)
-            cmds_.push_back({DrawCmd::Op::Fill, Align::Left, TextStyleId::Body, r, radius, 0, argb, 0, 0});
+            cmds_.push_back({DrawCmd::Op::Fill, Align::Left, TextStyleId::Body, r, radius, 0, argb, 0, 0, nullptr, 0, 0, 0});
     }
     void stroke(RectF r, std::uint32_t argb, float width, float radius = 0)
     {
         if ((argb >> 24) != 0)
-            cmds_.push_back({DrawCmd::Op::Stroke, Align::Left, TextStyleId::Body, r, radius, width, argb, 0, 0});
+            cmds_.push_back({DrawCmd::Op::Stroke, Align::Left, TextStyleId::Body, r, radius, width, argb, 0, 0, nullptr, 0, 0, 0});
     }
     void text(float x, float yCentre, Align align, TextStyleId style, std::uint32_t argb, std::string_view utf8)
     {
@@ -113,7 +116,31 @@ public:
                          0,
                          argb,
                          offset,
-                         static_cast<std::uint32_t>(utf8.size())});
+                         static_cast<std::uint32_t>(utf8.size()),
+                         nullptr,
+                         0,
+                         0,
+                         0});
+    }
+    void blit(RectF r, const std::uint32_t* pixels, int srcW, int srcH, int srcStride, std::uint32_t serial,
+              std::uint32_t tint = 0xFFFFFFFFu)
+    {
+        if (pixels == nullptr || srcW <= 0 || srcH <= 0 || srcStride < srcW || r.w <= 0 || r.h <= 0 ||
+            (tint >> 24) == 0)
+            return;
+        cmds_.push_back({DrawCmd::Op::Blit,
+                         Align::Left,
+                         TextStyleId::Body,
+                         r,
+                         0,
+                         0,
+                         tint,
+                         serial,
+                         0,
+                         pixels,
+                         static_cast<std::uint16_t>(srcW),
+                         static_cast<std::uint16_t>(srcH),
+                         static_cast<std::uint16_t>(srcStride)});
     }
 
     std::span<const DrawCmd> commands() const noexcept { return cmds_; }

@@ -4,4 +4,5 @@
 # Sources: every *.cpp below this folder is compiled into <prefix>_services automatically (cmake/Modules.cmake); an
 # empty module still produces a library. No exclusions.
 app_add_module(services)
-target_link_libraries(${APP_TARGET_PREFIX}_services PUBLIC app::core app::juce)
+target_include_directories(${APP_TARGET_PREFIX}_services PRIVATE ${CMAKE_SOURCE_DIR}/third_party/clap/include)
+target_link_libraries(${APP_TARGET_PREFIX}_services PUBLIC app::core app::juce ${CMAKE_DL_LIBS})

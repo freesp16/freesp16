@@ -14,10 +14,11 @@ using E = EnumEntry;
 
 // Tracks (enumerations.md "Track type", "Trigger mode").
 constexpr E kTrackMode[] = {
-    {0, "Sample", "SAMPLE", "SMPL"}, // [FMT/MAN]
-    {1, "Midi", "MIDI", "MIDI"},     // [FMT/OBS]
-    {2, "Thru", "THRU", "THRU"},     // [FMT/MAN]
+    {0, "Sample", "SAMPLE", "SMPL"},         // [FMT/MAN]
+    {1, "Midi", "MIDI", "MIDI"},             // [FMT/OBS]
+    {2, "Thru", "THRU", "THRU"},             // [FMT/MAN]
     {3, "Instrument", "INSTRUMENT", "INST"}, // [OBS] fourth mode; the UI shows the profile's name (MID-060, ours)
+    {4, "Plugin", "PLUGIN", "PLUG"},         // dynamic CLAP instrument track (ours)
 };
 constexpr E kTriggerMode[] = {
     {0, "OneShot", "ONE SHOT"}, // [FMT/OBS/MAN]; 1.60 writes `OneShot`
@@ -216,7 +217,7 @@ constexpr bool inValueOrder(const E (&entries)[N])
 #define APP_DETAIL_CHECK(Type, Last)                                                                                   \
     static_assert(inValueOrder(k##Type), #Type ": entries out of value order or empty");                               \
     static_assert(std::size(k##Type) == static_cast<std::size_t>(Type::Last) + 1, #Type ": table size");
-APP_DETAIL_CHECK(TrackMode, Instrument)
+APP_DETAIL_CHECK(TrackMode, Plugin)
 APP_DETAIL_CHECK(TriggerMode, Gate)
 APP_DETAIL_CHECK(StretchMode, MasterTempo)
 APP_DETAIL_CHECK(EnvelopeCurve, Curve)

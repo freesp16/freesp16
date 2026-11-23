@@ -220,7 +220,8 @@ const ModelField kFields[] = {
     APP_TRACK_FIELD("track.sendChannel", false, x.send.channel, x.send.channel = toInt(v)),
     // TRACK (forwarded by forwardTrackChanges)
     APP_TRACK_FIELD("track.mute", true, x.mute ? 1 : 0, x.mute = v >= 0.5f),
-    APP_TRACK_FIELD("track.mode", true, static_cast<int>(x.mode), x.mode = static_cast<TrackMode>(toInt(v) & 3)),
+    APP_TRACK_FIELD("track.mode", true, static_cast<int>(x.mode),
+                    x.mode = static_cast<TrackMode>(std::clamp(toInt(v), 0, 4))),
     APP_TRACK_FIELD("track.triggerMode", true, static_cast<int>(x.triggerMode),
                     x.triggerMode = static_cast<TriggerMode>(toInt(v) & 1)),
     APP_TRACK_FIELD("track.chokeGroup", true, x.chokeGroup, x.chokeGroup = toInt(v)),
@@ -538,17 +539,26 @@ void forwardAllModel(const Project& p, engine::EngineBridge& bridge, const core:
 
 void fillTrackSummaries(UiState& st, const Project& p, bool (*loading)(const void*, int), const void* ctx) noexcept
 {
-    static constexpr std::string_view kTypes[] = {"SMPL", "MIDI", "THRU", "AS-1"};
+    static constexpr std::string_view kTypes[] = {"SMPL", "MIDI", "THRU", "AS-1", "PLUG"};
     static constexpr std::string_view kStretch[] = {"OFF", "RSMPL", "M.TMP"};
     const auto& scene = p.scenes[static_cast<std::size_t>(p.settings.currentScene & 15)];
     for (int t = 0; t < 16; ++t)
     {
         const auto& x = scene.tracks[static_cast<std::size_t>(t)];
         auto& s = st.tracks[static_cast<std::size_t>(t)];
-        s.typeBadge = kTypes[static_cast<int>(x.mode) & 3];
+        const int modeIdx = static_cast<int>(x.mode);
+        s.typeBadge = kTypes[modeIdx >= 0 && modeIdx < 5 ? modeIdx : 0];
         s.muted = x.mute;
         s.soloed = x.solo;
         s.missing = false;
+        if (x.mode == TrackMode::Plugin)
+        {
+            s.hasContent = ! x.plugin.path.empty() || ! x.plugin.pluginId.empty();
+            s.name = ! x.name.empty() ? std::string_view(x.name) : std::string_view(x.plugin.name);
+            s.stretchBadge = {};
+            s.loopGlyph = {};
+            continue;
+        }
         if (x.mode != TrackMode::Sample)
         {
             s.hasContent = true;

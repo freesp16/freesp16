@@ -16,7 +16,7 @@ namespace core
 {
 namespace
 {
-constexpr std::string_view trackModeLabels[] = {"SAMPLE", "MIDI", "THRU", "INSTRUMENT"}; // core::model::TrackMode
+constexpr std::string_view trackModeLabels[] = {"SAMPLE", "MIDI", "THRU", "INSTRUMENT", "PLUGIN"}; // core::model::TrackMode
 constexpr std::string_view triggerLabels[] = {"ONE SHOT", "GATE"};
 constexpr std::string_view chokeLabels[] = {"--", "1", "2", "3", "4", "5", "6", "7", "8"};
 constexpr std::string_view colourLabels[] = {"RED",    "VERMILION", "ORANGE", "AMBER",    "GOLD",       "YELLOW",
@@ -53,7 +53,7 @@ void addTrackParams(ParamRegistry& r)
 {
     // TRK-001/002: track type, changed only in TRACK MENU (TRACK TYPE), undoable (core/commands/track setTrackMode).
     r.add({.id = "track.mode", .label = "TRACK TYPE", .shortLabel = "TYPE", .group = "TRACK", .type = ParamType::Enum,
-           .minValue = 0, .maxValue = 3, .defaultValue = 0, .enumLabels = trackModeLabels, .scope = ParamScope::Track,
+           .minValue = 0, .maxValue = 4, .defaultValue = 0, .enumLabels = trackModeLabels, .scope = ParamScope::Track,
            .storage = {.reference = "trackMode"}});
     // TRK-010…014: ONE SHOT / GATE, CC 16, lockable (slot 9).
     r.add({.id = "track.triggerMode", .label = "TRIGGER MODE", .shortLabel = "TRIGGER", .group = "TRACK",

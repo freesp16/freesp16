@@ -47,6 +47,7 @@
 #include "ui/input/scenes/SceneSync.h"
 #include "ui/input/steps/PatternSync.h"
 #include "ui/input/steps/StepController.h"
+#include "app/PluginAdapter.h"
 #include "ui/screens/effects/ModelFxSlots.h"
 #include "ui/screens/project/StoreProjectSource.h"
 #include "ui/screens/sequence/M2Session.h"
@@ -263,6 +264,8 @@ struct Document::Impl
                                       forwardArrangement(changes, p, bridge);
                                       sync.onChange(changes, p);
                                       slices.onChange(changes, p);
+                                      if (plugins)
+                                          plugins->syncChanges(changes, p);
                                       services::settings::forwardSettingsChanges(changes, p, bridge);
                                       if (extensions)
                                           extensions->onChange(changes, p); // nothing while ext.* is off
@@ -362,6 +365,8 @@ struct Document::Impl
         {
             sync.syncAll(p);
             slices.syncAll(p); // the samples still loading post theirs when installed
+            if (plugins)
+                plugins->syncFromProject(p);
             if (chain)
                 postChain(core::edit::PatternChainBuilder::clear()); // a chain belongs to the project it was built in
             forwardAll(p, bridge); // every scene (resident scenes), patterns, then the scene/pattern switch
@@ -388,6 +393,10 @@ struct Document::Impl
         ui::m2::ProjectSource::install(&*projectLog); // every save logs SAVED (panel and `cmd save-as`)
         ui::fx::environment().slots = &fxSlots;
         fxMeters.install(ui::fx::environment());
+        plugins.emplace(bridge, dataDir.getChildFile("Plugins").getFullPathName().toStdString(), config.sampleRate,
+                        [this](const std::string& line) { log("%s", line.c_str()); });
+        pluginAdapter.emplace(bus, *plugins);
+        ui::plugin::environment().access = &*pluginAdapter;
 
         // Takes go to <library>/Recordings (SMP-007); the ring is allocated on first use.
         sampling.emplace(bridge, workers,
@@ -458,6 +467,9 @@ struct Document::Impl
         ui::fx::environment().slots = nullptr;
         ui::fx::environment().meters = nullptr;
         ui::fx::environment().metersUser = nullptr;
+        ui::plugin::environment().access = nullptr;
+        pluginAdapter.reset();
+        plugins.reset();
         ui::m1::BrowseSource::install(nullptr);
         ui::m2::ProjectSource::install(nullptr);
         ui::m2::Session::instance().install(nullptr);
@@ -621,6 +633,8 @@ struct Document::Impl
     SampleViewsAdapter views;
     ui::fx::ModelFxSlots fxSlots;
     ui::fx::EngineFxMeters fxMeters;
+    std::optional<services::plugin::ClapHostService> plugins;
+    std::optional<PluginUiAdapter> pluginAdapter;
     ui::ModelParamAccess values;
     ShellSelection selection;
     ui::input::pads::PadController pads;
@@ -924,6 +938,8 @@ void Document::frame(double nowMs)
     if (d.sampling)
         d.sampling->frame(); // live takes → the track (worker build, swap, take ready)
     d.session->frame(nowMs);
+    if (d.plugins)
+        d.plugins->pollMainThread();
     d.prefs.tick(nowMs); // the debounced preferences save
     d.pool.collect();
     d.preview.tick();

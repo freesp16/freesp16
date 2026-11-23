@@ -49,12 +49,27 @@ void TrackSource::setMode(TrackMode m) noexcept
         return;
     voice_.stop(0, kFadeMs); // the sounding note fades out (the envelope keeps applying while it does)
     numStarts_ = 0;
+    if (mode_ == TrackMode::Plugin && plugin_ != nullptr)
+    {
+        plugin_->allNotesOff(0);
+        lastPluginNote_ = -1;
+    }
     if (mode_ == TrackMode::Thru && bank_ != nullptr && thruEnvelope_)
     {
         bank_->setThru(lane_, false); // back to an idle envelope; the input fades out below
         thruEnvelope_ = false;
     }
     mode_ = m;
+}
+
+void TrackSource::setPlugin(core::audio::PluginAudioNode* p) noexcept
+{
+    if (p == plugin_)
+        return;
+    if (plugin_ != nullptr)
+        plugin_->allNotesOff(0);
+    plugin_ = p;
+    lastPluginNote_ = -1;
 }
 
 void TrackSource::setPlayback(const voice::PlaybackParams& p) noexcept
@@ -108,6 +123,36 @@ voice::PlaybackParams TrackSource::withNoteSlice(voice::PlaybackParams p) const 
 
 void TrackSource::onEvent(const TriggerEvent& e, TriggerMode triggerMode) noexcept
 {
+    if (mode_ == TrackMode::Plugin)
+    {
+        if (plugin_ == nullptr)
+            return;
+        const int frame = clampFrame(e.frame);
+        const int rawNote = 60 + static_cast<int>(e.semitones);
+        const int note = rawNote < 0 ? 0 : (rawNote > 127 ? 127 : rawNote);
+        const float vel = static_cast<float>(e.velocity) * (1.0f / 127.0f);
+        switch (e.kind)
+        {
+            case TriggerKind::Full:
+            case TriggerKind::Half:
+                plugin_->noteOn(frame, note, vel > 1.0f ? 1.0f : (vel < 0.0f ? 0.0f : vel));
+                lastPluginNote_ = note;
+                return;
+            case TriggerKind::Release:
+                if (lastPluginNote_ >= 0)
+                {
+                    plugin_->noteOff(frame, lastPluginNote_);
+                    lastPluginNote_ = -1;
+                }
+                return;
+            case TriggerKind::Stop:
+                plugin_->allNotesOff(frame);
+                lastPluginNote_ = -1;
+                return;
+            case TriggerKind::LockOnly: return;
+        }
+        return;
+    }
     if (mode_ != TrackMode::Sample || bank_ == nullptr)
         return; // Thru: no envelope; MIDI / Instrument: no audio source (the MIDI stage plays them)
     const int frame = clampFrame(e.frame);
@@ -168,6 +213,13 @@ void TrackSource::onEvent(const TriggerEvent& e, TriggerMode triggerMode) noexce
 void TrackSource::choke(int frame) noexcept
 {
     const int f = clampFrame(frame);
+    if (mode_ == TrackMode::Plugin)
+    {
+        if (plugin_ != nullptr)
+            plugin_->allNotesOff(f);
+        lastPluginNote_ = -1;
+        return;
+    }
     int kept = 0; // starts at or before the choke frame never sound; later ones (a re-hit) still do
     for (int i = 0; i < numStarts_; ++i)
         if (starts_[static_cast<std::size_t>(i)].frame > f)
@@ -220,7 +272,7 @@ bool TrackSource::renderThru(const float* inL, const float* inR, float* l, float
     return true;
 }
 
-bool TrackSource::render(const BlockContext&, const float* inL, const float* inR, float* l, float* r) noexcept
+bool TrackSource::render(const BlockContext& ctx, const float* inL, const float* inR, float* l, float* r) noexcept
 {
     if (numStarts_ != 0 && voice_.sample() == nullptr && ! voice_.active())
         numStarts_ = 0; // nothing to play (no sample): the track stays silent (and inactive) this block
@@ -271,6 +323,22 @@ bool TrackSource::render(const BlockContext&, const float* inL, const float* inR
     }
     if (renderThru(inL, inR, l, r, wrote))
         wrote = true;
+    if (mode_ == TrackMode::Plugin && plugin_ != nullptr)
+    {
+        const core::audio::PluginProcessContext pctx {ctx.sampleRate, ctx.bpm, ctx.ppqStart, ctx.ppqEnd,
+                                                      ctx.frames,     ctx.playing, ctx.startedThisBlock,
+                                                      ctx.stoppedThisBlock};
+        if (wrote)
+        {
+            if (plugin_->process(pctx, tailL_, tailR_))
+            {
+                simd::add(l, tailL_, kBlockFrames);
+                simd::add(r, tailR_, kBlockFrames);
+            }
+        }
+        else if (plugin_->process(pctx, l, r))
+            wrote = true;
+    }
     return wrote;
 }
 } // namespace engine::trigger

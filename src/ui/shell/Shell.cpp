@@ -240,6 +240,7 @@ void Shell::resolveStrip()
         bound_[n] = strip.columns[n].empty() ? nullptr : params_.find(strip.columns[n]);
     groupMask_ = strip.groupMask;
     tab_.set(strip.tab);
+    strip_.model().tab = tab_.view();
 }
 
 std::uint16_t Shell::scopeOf(const core::ParamSpec& s) const noexcept
@@ -260,8 +261,19 @@ void Shell::turnEncoder(int n0, int detents, double nowMs)
 {
     const auto* spec = bound_[static_cast<std::size_t>(n0)];
     const auto& col = strip_.model().columns[static_cast<std::size_t>(n0)];
-    if (spec == nullptr || col.disabled || col.readOnly || detents == 0)
+    if (col.disabled || col.readOnly || detents == 0)
         return; // an empty or disabled column ignores its encoder (UI-002/003)
+    if (spec == nullptr)
+    {
+        if (stripOwner_ != nullptr && ! popupStrip_ && stripOwner_->stripTurnUnbound(n0, detents, state_.shift))
+        {
+            touchedMs_[static_cast<std::size_t>(n0)] = nowMs;
+            strip_.lastTouchMs = nowMs;
+            changedSinceFrame_ = true;
+            log("INPUT knob%d %+d (plugin)", n0 + 1, detents);
+        }
+        return;
+    }
     const auto scope = scopeOf(*spec);
     float v = values_->get(*spec, scope);
     if (stripOwner_ != nullptr && ! popupStrip_ &&
@@ -309,13 +321,27 @@ void Shell::updateStripModel(double nowMs)
     }
     else
         m.tab = t;
+    if (stripOwner_ != nullptr && ! popupStrip_)
+        if (const auto customTab = stripOwner_->stripTab(); ! customTab.empty())
+        {
+            tabShown_.set(customTab);
+            m.tab = tabShown_.view();
+        }
     for (std::size_t n = 0; n < 6; ++n)
     {
         auto& c = m.columns[n];
         c = {};
         const auto* spec = bound_[n];
         if (spec == nullptr || ! flags_.enabled(spec->featureFlag))
+        {
+            if (spec == nullptr && stripOwner_ != nullptr && ! popupStrip_)
+            {
+                c.touched = nowMs - touchedMs_[n] < timing::recentlyTouchedMs;
+                c.fine = state_.shift;
+                stripOwner_->stripColumn(static_cast<int>(n), c);
+            }
             continue;
+        }
         const auto scope = scopeOf(*spec);
         c.spec = spec;
         c.value = values_->get(*spec, scope);
@@ -413,6 +439,16 @@ void Shell::updateFrameModels(double nowMs)
     cb.typeBadge = tr.typeBadge;
     cb.stretchBadge = tr.hasContent ? tr.stretchBadge : std::string_view{};
     cb.loopGlyph = tr.hasContent ? tr.loopGlyph : std::string_view{};
+    static constexpr std::string_view kTrackTypeNames[] = {"SAMPLE", "MIDI", "THRU", "AS-1", "PLUGIN"};
+    const auto* modeSpec = params_.find("track.mode");
+    const int modeVal = modeSpec != nullptr
+                            ? static_cast<int>(std::lround(values_->get(*modeSpec, state_.trackScope())))
+                            : (tr.typeBadge == "MIDI" ? 1
+                               : tr.typeBadge == "THRU" ? 2
+                               : tr.typeBadge == "AS-1" ? 3
+                               : tr.typeBadge == "PLUG" ? 4
+                                                        : 0);
+    cb.trackType = kTrackTypeNames[modeVal >= 0 && modeVal < 5 ? modeVal : 0];
     cb.missing = tr.missing;
     cb.bypass = state_.bypassMode;
     if (nowMs - pressedAtMs_ > tk::motionFastMs)
@@ -516,6 +552,8 @@ void Shell::frame(DrawList& dl, double nowMs)
                 dl.fill(r, c.argb, c.radius);
             else if (c.op == DrawCmd::Op::Stroke)
                 dl.stroke(r, c.argb, c.strokeWidth, c.radius);
+            else if (c.op == DrawCmd::Op::Blit)
+                dl.blit(r, c.pixels, c.srcW, c.srcH, c.srcStride, c.textOffset, c.argb);
             else
                 dl.text(r.x, r.y, c.align, c.style, c.argb, slideList_.textOf(c));
         }
@@ -866,10 +904,12 @@ bool Shell::jumpKey(io::Control c)
     std::string_view target = jumpTarget(c, state_.shift);
     if (c == io::Control::ExtBrowse)
     {
-        // BROWSE of the selected track (UI-403); a track that has no BROWSE (THRU, MIDI) opens its TRACK MENU.
+        // BROWSE of the selected track (UI-403); PLUGIN opens SELECT PLUGIN; THRU/MIDI open TRACK MENU.
         const auto* mode = params_.find("track.mode");
-        const bool sample = mode == nullptr || std::lround(values_->get(*mode, state_.trackScope())) == 0;
-        target = sample ? std::string_view("track.browse") : std::string_view("track.menu");
+        const int m = mode == nullptr ? 0 : static_cast<int>(std::lround(values_->get(*mode, state_.trackScope())));
+        target = m == 0   ? std::string_view("track.browse")
+                 : m == 4 ? std::string_view("plugin.select")
+                          : std::string_view("track.menu");
     }
     if (target.empty())
         return false;

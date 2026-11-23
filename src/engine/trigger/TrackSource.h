@@ -20,6 +20,7 @@
 // Mode changes (TRK-002): the sounding source fades out over 2 ms and the new one fades in over 2 ms (Thru input).
 #pragma once
 
+#include "core/audio/PluginNode.h"
 #include "engine/EngineApi.h"
 #include "engine/modulation/AmpEnvelopeBank.h"
 #include "engine/trigger/TrackParams.h"
@@ -51,6 +52,7 @@ public:
     void setMode(TrackMode) noexcept;                        // TRK-002: stops the sound (2 ms)
     void setInputSource(InputSource s) noexcept { input_ = s; }
     void setSample(const voice::SampleBuffer* b) noexcept { voice_.setSample(b); }
+    void setPlugin(core::audio::PluginAudioNode* p) noexcept;
     void setPlayback(const voice::PlaybackParams& p) noexcept; // the track's current playback parameters
     // The track's installed slice table (null = the default 16-slice grid). A Full trigger with a slice
     // lock (ParamIndex 22: SLICE pad mode, a sequencer step) plays [start, next start) of that slice with the track's
@@ -67,7 +69,11 @@ public:
     // ---- state ----
     TrackMode mode() const noexcept { return mode_; }
     bool hasSample() const noexcept { return voice_.sample() != nullptr; }
-    bool sounding() const noexcept { return voice_.active() || thruGain_ > 0.0f; }
+    bool hasPlugin() const noexcept { return plugin_ != nullptr; }
+    bool sounding() const noexcept
+    {
+        return voice_.active() || thruGain_ > 0.0f || (mode_ == TrackMode::Plugin && plugin_ != nullptr && plugin_->active());
+    }
     float playPosition() const noexcept { return voice_.playPosition(); } // PlayheadFeed (PLY-045)
     voice::TrackVoice& voice() noexcept { return voice_; }
     const voice::TrackVoice& voice() const noexcept { return voice_; }
@@ -103,6 +109,8 @@ private:
     std::array<Start, kMaxStarts> starts_; // written before read (no braces: GCC 11 build time)
     int numStarts_ = 0;
     const voice::SliceMap* sliceMap_ = nullptr;
+    core::audio::PluginAudioNode* plugin_ = nullptr;
+    int lastPluginNote_ = -1;
     int heldSlice_ = -1, liveSlice_ = -1, noteSlice_ = -1; // Hold lock, last pad slice (Repeat hits), sounding
     alignas(16) float gain_[kBlockFrames] {};
     alignas(16) float tailL_[kBlockFrames] {};

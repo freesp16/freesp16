@@ -542,8 +542,11 @@ Node trackNode(const m::Track& tr, const m::Track& def, Ctx& c, int scene, int t
     n.type = "TrackData" + std::to_string(t);
     {
         Props p(n, "TrackData", &tr.extras, c.report, at);
-        p.put("trackMode", S(m::storedName(tr.mode)),
-              [&](const Var& k) { return sameEnum<m::TrackMode>(k, tr.mode, def.mode, "TrackMode_"); });
+        const auto exportMode = tr.mode == m::TrackMode::Plugin ? m::TrackMode::Sample : tr.mode;
+        if (tr.mode == m::TrackMode::Plugin)
+            c.report.drop("plugin track type", at);
+        p.put("trackMode", S(m::storedName(exportMode)),
+              [&](const Var& k) { return sameEnum<m::TrackMode>(k, exportMode, def.mode, "TrackMode_"); });
         p.put("triggerMode", S(m::storedName(tr.triggerMode)), [&](const Var& k) {
             return sameEnum<m::TriggerMode>(k, tr.triggerMode, def.triggerMode, "TriggerMode_");
         });
@@ -559,6 +562,8 @@ Node trackNode(const m::Track& tr, const m::Track& def, Ctx& c, int scene, int t
               [&](const Var& k) { return k.t == T::String && k.s != "Off" && tr.instrument == def.instrument; });
         if (! tr.name.empty())
             c.report.drop("track names", at);
+        if (! tr.plugin.path.empty() || ! tr.plugin.pluginId.empty())
+            c.report.drop("plugin assignment", at);
     }
     // PlaybackData
     {

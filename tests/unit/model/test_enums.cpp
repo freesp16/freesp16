@@ -69,6 +69,9 @@ TEST_CASE("enum display names follow enumerations.md", "[model][enum]")
 {
     CHECK(displayName(TrackMode::Sample) == "SAMPLE");
     CHECK(shortDisplayName(TrackMode::Sample) == "SMPL");
+    CHECK(displayName(TrackMode::Plugin) == "PLUGIN");
+    CHECK(shortDisplayName(TrackMode::Plugin) == "PLUG");
+    CHECK(storedName(TrackMode::Plugin) == "Plugin");
     CHECK(displayName(TriggerMode::OneShot) == "ONE SHOT");
     CHECK(storedName(TriggerMode::OneShot) == "OneShot"); // 1.60 form [OBS]
     CHECK(displayName(StretchMode::MasterTempo) == "MASTER TEMPO");

@@ -327,8 +327,9 @@ void MidiEngine::controlChange(int ch, int cc, int value) noexcept
                 w_.router->push(hit(t, 0, 0, trigger::TriggerKind::Stop, 0));
             continue;
         }
-        if (! (trackIsSample(t) || trackIs(t, static_cast<int>(trigger::TrackMode::Thru))))
-            continue; // MID-030: Sample / Thru tracks only
+        if (! (trackIsSample(t) || trackIs(t, static_cast<int>(trigger::TrackMode::Thru))
+               || trackIs(t, static_cast<int>(trigger::TrackMode::Plugin))))
+            continue; // MID-030: Sample / Thru / Plugin audio tracks only
         if (w_.fx == nullptr || w_.sink == nullptr)
             continue;
         ParamChange applied {};
@@ -362,7 +363,7 @@ void MidiEngine::channelMessage(const MidiEvent& e, int frame) noexcept
             {
                 if (on)
                 {
-                    if (! trackIsSample(d1)) // MID-022
+                    if (! trackIsSample(d1) && ! trackIs(d1, static_cast<int>(trigger::TrackMode::Plugin))) // MID-022
                         return;
                     w_.router->push(hit(d1, d2, 0, trigger::TriggerKind::Full, frame));
                     heldTrackOfNote_[static_cast<std::size_t>(d1)] = static_cast<std::int8_t>(d1);
@@ -379,7 +380,8 @@ void MidiEngine::channelMessage(const MidiEvent& e, int frame) noexcept
                 return;
             for (int t = 0; t < kTracks; ++t) // MID-021: notes 24–72 on the track's receive channel, note − 48
             {
-                if (rxChannel_[static_cast<std::size_t>(t)] != ch + 1 || ! trackIsSample(t))
+                if (rxChannel_[static_cast<std::size_t>(t)] != ch + 1
+                    || (! trackIsSample(t) && ! trackIs(t, static_cast<int>(trigger::TrackMode::Plugin))))
                     continue;
                 int semis = d1 - 48;
                 if (w_.pitchPreserving != nullptr && w_.pitchPreserving(w_.user, t))

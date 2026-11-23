@@ -120,7 +120,9 @@ void ContextBar::build(DrawList& dl, const UiContext& ctx) const
             nameX += 24;
         }
         dl.text(nameX, r.y + 36, Align::Left, TextStyleId::Title, m.trackName.empty() ? p.text3 : p.text1,
-                m.trackName.empty() ? std::string_view("No sample") : m.trackName);
+                m.trackName.empty()
+                    ? (m.typeBadge == "PLUG" ? std::string_view("No plugin") : std::string_view("No sample"))
+                    : m.trackName);
         float right = r.x + r.w - 16;
         if (! m.loopGlyph.empty())
             right = badgeLeft(dl, p, ctx.measure, right, r.y + 25, m.loopGlyph, colour, true) - 6;

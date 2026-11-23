@@ -4,7 +4,7 @@
 // applyPadParam; real-time safe, no allocation.
 //
 // Wire units (ParamChange::value = the ParamSpec units of core/params/catalogue/track.cpp):
-//   track.mode         0 SAMPLE, 1 MIDI, 2 THRU, 3 INSTRUMENT (core::model::TrackMode)
+//   track.mode         0 SAMPLE, 1 MIDI, 2 THRU, 3 INSTRUMENT, 4 PLUGIN (core::model::TrackMode)
 //   track.triggerMode  0 ONE SHOT, 1 GATE (core::model::TriggerMode)
 //   track.chokeGroup   0 = none ("--"), 1–8
 //   track.inputSource  0 STEREO, 1 L, 2 R, 3 MONO (Thru tracks; the sampling input stage owns the input)

@@ -49,6 +49,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -75,6 +76,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -101,6 +103,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -127,6 +130,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -153,6 +157,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -179,6 +184,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -205,6 +211,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -231,6 +238,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -257,6 +265,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -283,6 +292,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -309,6 +319,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -335,6 +346,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -361,6 +373,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -387,6 +400,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -413,6 +427,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       },
       {
@@ -439,6 +454,7 @@
         "send": { "channel": 0, "amount": 0 },
         "lfo": { "speed": 0, "depth": 0, "phaseOffset": 0, "destination": 0, "shape": "Sine", "triggerMode": "Free", "triggerOn": "Pad", "sync": false, "randomSeedCount": 0, "bypass": false },
         "midi": { "notes": [60, -1, -1, -1], "velocity": 100, "length": 1, "noteBypass": false, "pitchBendValue": 0, "pitchBendActive": false, "aftertouchValue": 0, "aftertouchActive": false, "cc1": [{ "cc": 7, "value": 0, "active": false }, { "cc": 1, "value": 0, "active": false }, { "cc": 2, "value": 0, "active": false }, { "cc": 10, "value": 0, "active": false }], "cc1Bypass": false, "cc2": [{ "cc": 71, "value": 0, "active": false }, { "cc": 72, "value": 0, "active": false }, { "cc": 73, "value": 0, "active": false }, { "cc": 74, "value": 0, "active": false }, { "cc": 75, "value": 0, "active": false }, { "cc": 76, "value": 0, "active": false }], "cc2Bypass": false, "bankMsb": -1, "bankLsb": -1, "program": -1, "mode": "Notes" },
+        "plugin": { "path": "", "pluginId": "", "name": "", "presetKey": "", "stateBase64": "", "bypass": false },
         "routing": { "output": "Master" }
       }
     ],

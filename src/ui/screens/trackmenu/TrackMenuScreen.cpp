@@ -23,6 +23,7 @@
 #include "ui/screens/home/TrackInfo.h"
 #include "ui/screens/motion/MotionLanes.h"
 #include "ui/screens/playback/SampleViews.h"
+#include "ui/screens/plugin/PluginSlots.h"
 #include "ui/shell/Layout.h"
 #include "ui/shell/Popup.h"
 #include "ui/theme/Draw.h"
@@ -73,7 +74,8 @@ constexpr StripSpec kBrowseStrip{"BROWSE", {}}, kLiveStrip{"LIVE SAMPLING", {}},
     kProgStrip{"PROG CHANGE", {"midi.program", "", "", "", "", ""}},
     kScaleStrip{"SET SCALE", {"scaleMidi.area", "scaleMidi.root", "", "", "", ""}},
     kLimiterStrip{"SOFT LIMITER", {"mixer.softLimiter", "", "", "", "", ""}},
-    kMotionRecStrip{"MOTION RECORD", {"track.motionRec", "", "", "", "", ""}}, kMotionStrip{"MOTION", {}};
+    kMotionRecStrip{"MOTION RECORD", {"track.motionRec", "", "", "", "", ""}}, kMotionStrip{"MOTION", {}},
+    kPluginStrip{"PLUGIN", {}}, kSelectPluginStrip{"SELECT PLUGIN", {}}, kPluginPresetsStrip{"PRESETS", {}};
 
 // --- the six slots and four header actions per track type (track-menu.md "The six slots per track type") ---
 struct Card
@@ -117,8 +119,9 @@ const Card kLfo{"lfo", "LFO", Thumb::Lfo, "track.lfo", &kLfoStrip};
 const Card kNote{"note", "NOTE", Thumb::Keys, "track.note", &kNoteStrip};
 const Card kCc1{"cc1", "CC1", Thumb::Port, "track.cc1", &kCc1Strip, false, 1};
 const Card kCc2{"cc2", "CC2", Thumb::Port, "track.cc2", &kCc2Strip, false, 2};
+const Card kPlugin{"plugin", "PLUGIN : NONE", Thumb::Plugin, "track.plugin", &kPluginStrip};
 
-const Chain kChains[4] = {
+const Chain kChains[5] = {
     // Sample
     {{kPlayback, kAmp, kFx1, kFx2, kMixer, kLfo},
      0b0111,
@@ -153,8 +156,17 @@ const Chain kChains[4] = {
       Action{AK::Value, "PROG CHANGE", {}, "P01", &kAs1ProgStrip},
       Action{AK::Button, "SET SCALE", "track.setScaleMidi", {}, &kScaleStrip}},
      0},
+    // Plugin (dynamic CLAP synth/instrument)
+    {{kPlugin, kFx1, kFx2, kNoCard, kMixer, kLfo},
+     0b0011,
+     true,
+     {Action{AK::Toggle, "MOTION RECORD", {}, {}, &kMotionRecStrip, "track.motionRec"},
+      Action{AK::Button, "PRESETS", "plugin.presets", {}, &kPluginPresetsStrip},
+      Action{AK::Button, "SELECT PLUGIN", "plugin.select", {}, &kSelectPluginStrip},
+      Action{AK::Button, "OPEN UI", "track.plugin", {}, &kPluginStrip}},
+     2},
 };
-constexpr std::string_view kTypeBadges[] = {"SMPL", "MIDI", "THRU", "AS-1"};
+constexpr std::string_view kTypeBadges[] = {"SMPL", "MIDI", "THRU", "AS-1", "PLUG"};
 
 // Focus items: 0–3 header actions, 4–9 cards, 10 SEQUENCE, 11 MOTION.
 constexpr int kCard0 = 4, kSeqItem = 10, kMotionItem = 11, kLastItem = kMotionItem;
@@ -188,6 +200,7 @@ public:
         {
             mode_ = mode;
             focus_ = chain().openFocus;
+            boundFocus_ = -2;
         }
         bindFocused();
         const auto colour = theme::trackColour(m1::padColour(sh, t));
@@ -247,7 +260,7 @@ public:
     }
 
 private:
-    const Chain& chain() const noexcept { return kChains[mode_ & 3]; }
+    const Chain& chain() const noexcept { return kChains[std::clamp(mode_, 0, 4)]; }
     static RectF itemRect(int i) noexcept
     {
         return i < kCard0       ? actionRect(i)
@@ -374,6 +387,8 @@ private:
             return "midi.cc1Bypass";
         if (id == "cc2")
             return "midi.cc2Bypass";
+        if (id == "plugin")
+            return "plugin";
         return {};
     }
     bool bypassedCard(int i) const
@@ -382,12 +397,14 @@ private:
         const int t = state_->selectedTrack;
         if (id == "fx1" || id == "fx2")
             return fx::environment().slotAccess().bypass(id == "fx1" ? fx::Slot::Fx1 : fx::Slot::Fx2, state_->scene, t);
+        if (id == "plugin")
+            return plugin::environment().pluginAccess().bypass(state_->scene, t);
         return ! id.empty() && m1::trackFlag(*shell_, id, t);
     }
     bool bypassable(int i) const
     {
         const auto id = bypassId(i);
-        return id == "fx1" || id == "fx2" || (! id.empty() && shell_->params().find(id) != nullptr);
+        return id == "fx1" || id == "fx2" || id == "plugin" || (! id.empty() && shell_->params().find(id) != nullptr);
     }
     bool toggleBypass(int i)
     {
@@ -398,6 +415,8 @@ private:
         if (id == "fx1" || id == "fx2")
             fx::environment().slotAccess().setBypass(id == "fx1" ? fx::Slot::Fx1 : fx::Slot::Fx2, state_->scene,
                                                      state_->selectedTrack, on);
+        else if (id == "plugin")
+            plugin::environment().pluginAccess().setBypass(state_->scene, state_->selectedTrack, on);
         else
             m1::setTrackParam(*shell_, id, state_->selectedTrack, on ? 1.0f : 0.0f);
         return true;
@@ -474,6 +493,16 @@ private:
             m.title = buf.data();
             m.effect = d != nullptr ? d->id : std::string_view {};
         }
+        else if (cd.id == "plugin")
+        {
+            const auto& acc = plugin::environment().pluginAccess();
+            const bool loaded = acc.hasLoaded(state_->scene, state_->selectedTrack);
+            const auto pname = loaded ? acc.loadedName(state_->scene, state_->selectedTrack) : std::string_view("NONE");
+            std::snprintf(pluginTitle_.data(), pluginTitle_.size(), "PLUGIN : %.*s", static_cast<int>(pname.size()),
+                          pname.data());
+            m.title = pluginTitle_.data();
+            m.effect = loaded ? acc.loadedId(state_->scene, state_->selectedTrack) : std::string_view {};
+        }
         m.thumb = cd.thumb;
         m.port = cd.port;
         m.state = cd.disabled                                     ? ModuleCardModel::State::Disabled
@@ -540,7 +569,7 @@ private:
         char number[4];
         std::snprintf(number, sizeof number, "%d", t);
         dl.text(48, 185, Align::Centre, TextStyleId::Label, s.hasContent ? p.onAccent : p.text1, number);
-        float x = badge(72, kTypeBadges[mode_ & 3], colour, p.onAccent, 0);
+        float x = badge(72, kTypeBadges[std::clamp(mode_, 0, 4)], colour, p.onAccent, 0);
         if (mode_ == 0 && s.hasContent)
         {
             x = badge(x, s.stretchBadge, p.surface3, p.text2, 0);
@@ -717,6 +746,7 @@ private:
     mutable std::array<StripSpec, 2> fxStrips_ {};
     mutable int fxStripIndex_ = 0;
     mutable std::array<std::array<char, 40>, 2> fxTitle_ {};
+    mutable std::array<char, 40> pluginTitle_ {};
     mutable m1::SampleView view_{};
     mutable std::array<FixedText<16>, 4> values_{}; // BANK SELECT / PROG CHANGE value texts
     mutable FixedText<40> motionText_{};
@@ -734,6 +764,7 @@ void trackTypes(std::string_view, std::vector<ListItem>& out)
     out.push_back({"THRU", {}, {}, 2});
     out.push_back({"MIDI", {}, {}, 1});
     out.push_back({"AS-1", {}, {}, 3});
+    out.push_back({"PLUGIN", {}, {}, 4});
 }
 constexpr ListSpec kTrackTypeList{
     .id = "track.type", .title = "TRACK TYPE", .source = "trackTypes", .binds = "track.mode"};
@@ -758,6 +789,8 @@ APP_REGISTER_MODULE((ui::ModuleChainSpec{core::model::TrackMode::Thru, 0, {"", "
 APP_REGISTER_MODULE((ui::ModuleChainSpec{core::model::TrackMode::Midi, 0, {"note", "cc1", "cc2", "", "mixer", "lfo"}}))
 APP_REGISTER_MODULE((ui::ModuleChainSpec{
     core::model::TrackMode::Instrument, 0, {"note", "cc1", "cc2", "", "mixer", "lfo"}}))
+APP_REGISTER_MODULE((ui::ModuleChainSpec{
+    core::model::TrackMode::Plugin, 0, {"plugin", "fx1", "fx2", "", "mixer", "lfo"}}))
 APP_REGISTER_SCREEN((ui::ScreenSpec{.id = "track.menu",
                                     .title = "TRACK MENU",
                                     .parent = "home",

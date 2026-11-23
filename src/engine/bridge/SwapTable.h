@@ -22,7 +22,7 @@ using DestroyFn = void (*)(const void*) noexcept;
 class SwapTable
 {
 public:
-    static constexpr int kKinds = static_cast<int>(SwapSlot::SliceMap) + 1; // the last kind
+    static constexpr int kKinds = static_cast<int>(SwapSlot::TrackPlugin) + 1; // the last kind
     static constexpr int kPerKind = 16 * 16; // scene 0–15 × index 0–15
 
     SwapTable() = default;

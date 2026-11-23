@@ -28,5 +28,13 @@ public:
         (void)column0, (void)spec, (void)detents, (void)fine;
         return false;
     }
+    // Optional dynamic strip tab name override (empty keeps the StripSpec tab).
+    virtual std::string_view stripTab() const noexcept { return {}; }
+    // Optional encoder turn handler for columns not bound to a static ParamSpec (e.g. dynamic CLAP plugins).
+    virtual bool stripTurnUnbound(int column0, int detents, bool fine)
+    {
+        (void)column0, (void)detents, (void)fine;
+        return false;
+    }
 };
 } // namespace ui

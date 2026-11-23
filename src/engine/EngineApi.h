@@ -48,7 +48,7 @@ constexpr std::size_t kMessageQueueSize = 4096; // threading.md: UI → audio FI
 struct ParamChange { core::ParamId param; std::uint16_t scope; float value; std::uint16_t rampSamples; };
 struct TransportCmd { enum Kind : std::uint8_t { Play, Stop, Pause, HardStop, Continue, SetTempo, Locate } kind; double value; };
 struct SwapSlot { enum Kind : std::uint8_t { TrackSample, Preview, Pattern, SceneConfig, ProjectConfig, LiveTake,
-                                              SliceMap } kind;   // SliceMap: appended (the order is stable)
+                                              SliceMap, TrackPlugin } kind; // appended (the order is stable)
                   std::uint8_t scene, index; };                     // index = track or pattern
 // Prepared off-thread, installed at block start; the replaced object goes to the RetireQueue (core/util). A post the
 // engine does not accept (post() returns false) leaves ownership with the sender.

@@ -266,7 +266,11 @@ void PadController::paintLamps(io::LampSink& sink, double nowMs, const engine::M
             lamp.muted = tr.mute;
             lamp.soloed = tr.solo;
             lamp.anySolo = anySolo;
-            lamp.hasContent = tr.mode != core::model::TrackMode::Sample || ! tr.playback.sample.empty();
+            lamp.hasContent = tr.mode == core::model::TrackMode::Sample
+                                  ? ! tr.playback.sample.empty()
+                                  : (tr.mode == core::model::TrackMode::Plugin
+                                         ? (! tr.plugin.path.empty() || ! tr.plugin.pluginId.empty())
+                                         : true);
             if (mode_ == PadMode::Scale)
                 lamp.root = core::scales::isRootPad(pad, core::scales::scaleMask(tr.padScale.scaleType),
                                                     tr.padScale.windowOffset);

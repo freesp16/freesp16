@@ -1,5 +1,6 @@
 #include "engine/Engine.h"
 
+#include "core/audio/PluginNode.h"
 #include "core/util/GainLaw.h"
 #include "core/util/Realtime.h"
 #include "engine/fx/EffectRegistry.h"
@@ -127,6 +128,7 @@ Engine::Engine(const EngineSetup& setup, const EngineOptions& options) : options
     arrangement_.bindParams(setup.resolveParam, params_); // arrangement.play / loop / start
     voice::acceptVoiceSwaps(*this); // SwapSlot::TrackSample / Preview (the sample library posts them)
     voice::acceptSliceSwaps(*this); // SwapSlot::SliceMap (the app posts one table per edit)
+    acceptSwaps(SwapSlot::TrackPlugin, &core::audio::releasePluginNode); // SwapSlot::TrackPlugin (hosted CLAP)
     for (int t = 0; t < kTracks; ++t)
         sources_[static_cast<std::size_t>(t)].attach(&env_, t);
     triggerRouter_.attach(sources_, &mixer_);
@@ -610,7 +612,8 @@ void Engine::renderSources(BlockContext& ctx) noexcept
         if (e.kind != trigger::TriggerKind::Full)
             continue;
         const auto& src = sources_[static_cast<std::size_t>(e.track)];
-        if (src.hasSample() && src.mode() == model::TrackMode::Sample)
+        if ((src.hasSample() && src.mode() == model::TrackMode::Sample)
+            || (src.hasPlugin() && src.mode() == model::TrackMode::Plugin))
             ++starts;
         else if (testToneAllowed_ && (e.source == trigger::TriggerSource::Pad || e.source == trigger::TriggerSource::Midi))
             testTone_.trigger(e.velocity); // TEMPORARY: a live hit on an empty track pings (walking-skeleton behaviour)
@@ -667,6 +670,8 @@ void Engine::switchScene(int scene) noexcept
         src.setPlayback(m1_.playback.at(scene, t));
         env_.setParams(t, m1_.envParams[scene][t], transport_.bpm());
         src.setSample(voice::asSampleBuffer(swaps_.get(voice::trackSampleSlot(scene, t))));
+        src.setPlugin(core::audio::asPluginNode(
+            swaps_.get({SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene), static_cast<std::uint8_t>(t)})));
     }
     if (fxScenes_.types == 0)
         return; // no FX bank (EngineSetup without ids)
@@ -783,6 +788,9 @@ void Engine::installSwaps() noexcept
         sources_[static_cast<std::size_t>(t)].setSliceMap(map);
         slicePads_.setMap(t, map);
     }
+    for (int t = 0; t < kTracks; ++t)
+        sources_[static_cast<std::size_t>(t)].setPlugin(core::audio::asPluginNode(
+            swaps_.get({SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene), static_cast<std::uint8_t>(t)})));
     preview_.install(voice::asSampleBuffer(swaps_.get(voice::previewSlot())));
 }
 

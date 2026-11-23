@@ -25,7 +25,7 @@ bool applyTrackParam(TrackSettings& s, TrackField field, float value) noexcept
     bool scale = false;
     switch (field)
     {
-        case TrackField::Mode: return store(s.mode, roundIndex(value, 0, 3));
+        case TrackField::Mode: return store(s.mode, roundIndex(value, 0, 4));
         case TrackField::TriggerMode: return store(s.triggerMode, roundIndex(value, 0, 1));
         case TrackField::ChokeGroup: return store(s.chokeGroup, roundIndex(value, 0, 8));
         case TrackField::InputSource: return store(s.input, roundIndex(value, 0, 3));
