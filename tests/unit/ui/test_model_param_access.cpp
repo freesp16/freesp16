@@ -84,10 +84,16 @@ TEST_CASE("ui.model: model conversions and the track fields forwardTrackChanges 
     CHECK(w.values->get(w.spec("env.release"), scope) == 128);
     w.values->set(w.spec("env.attack"), scope, 64);
     CHECK(w.values->get(w.spec("env.attack"), scope) == 64);
-    // track.mute: forwarded once (by forwardTrackChanges), not twice.
+    // track.mute: the MIXER toggle is the current pattern's mute (TrackCommands.h); the track-level field and the
+    // engine's track.mute stay as they were (SceneSync posts pattern.mutes).
     w.values->set(w.spec("track.mute"), scope, 1);
-    CHECK(w.project().scenes[0].tracks[2].mute);
-    CHECK(w.posts("track.mute", scope) == 1);
+    CHECK(w.project().scenes[0].patterns[0].trackMutes[2]);
+    CHECK_FALSE(w.project().scenes[0].tracks[2].mute);
+    CHECK(w.values->get(w.spec("track.mute"), scope) == 1);
+    CHECK(w.posts("track.mute", scope) == 0);
+    w.project().settings.currentPattern = 1;
+    CHECK(w.values->get(w.spec("track.mute"), scope) == 0); // another pattern, its own mutes
+    w.project().settings.currentPattern = 0;
     // A project parameter.
     w.values->set(w.spec("mixer.masterVolume"), 0, 64);
     CHECK(w.project().settings.masterVolume == 64);

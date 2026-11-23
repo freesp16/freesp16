@@ -4,7 +4,8 @@
 //   mode keys  TRACK / MUTE / SLICE / SCALE are one-hot; pressing the lit key turns it off; none lit = PLAY (PAD-001)
 //   PLAY       pad n plays track n and selects it          TRACK  pad n selects track n, no sound (PAD-004)
 //   MUTE       pad n toggles track n's mute; SHIFT + pad n mutes every other track, the same again unmutes all — one
-//              undoable CommandGroup (PAD-006), the same `track.mute` model field as the MIXER toggle (UI-271)
+//              undoable CommandGroup (PAD-006), the same per-pattern mute as the MIXER toggle (UI-271): it lands in the
+//              current pattern's `trackMutes`, so each pattern keeps its own (cmd::track::setMuted)
 //   SLICE      pads play the selected track's slices (the engine picks the slice)  SCALE  pads play the selected track
 //              at the pad's scale degree (PAD-010…013, the engine maps it)
 //   SHIFT+pad  selects track n in every mode but MUTE (PAD-004), without sound

@@ -1,6 +1,7 @@
 #include "ui/shell/ModelParamAccess.h"
 
 #include "core/commands/CommandBusAccess.h"
+#include "core/commands/track/TrackCommands.h"
 #include "core/model/Project.h"
 #include "core/util/ampenv/EnvTime.h"
 
@@ -454,7 +455,7 @@ void post(engine::EngineBridge& bridge, const core::ParamRegistry& params, const
 
 ModelParamAccess::ModelParamAccess(core::CommandBus& bus, engine::EngineBridge* bridge,
                                    const core::ParamRegistry& params)
-    : bus_(bus), params_(params), fallback_(params, bridge)
+    : bus_(bus), params_(params), fallback_(params, bridge), muteField_(fieldById("track.mute"))
 {
     const auto all = params_.all();
     byIndex_.resize(all.size());
@@ -486,6 +487,9 @@ float ModelParamAccess::get(const core::ParamSpec& s, std::uint16_t scope) const
         return fallback_.get(s, scope);
     if (f->scene)
         return f->get(core::commands::project(bus_), scope & 15, 0);
+    if (f == muteField_) // the per-pattern mute the user sees (track-level or the current pattern's)
+        return core::commands::track::isMuted(core::commands::project(bus_), (scope >> 4) & 15, scope & 15) ? 1.0f
+                                                                                                             : 0.0f;
     return f->get(core::commands::project(bus_), (scope >> 4) & 15, scope & 15);
 }
 
@@ -499,6 +503,12 @@ void ModelParamAccess::set(const core::ParamSpec& s, std::uint16_t scope, float 
     }
     const float v = s.clamp(value);
     const int scene = f->scene ? scope & 15 : (scope >> 4) & 15, track = f->scene ? 0 : scope & 15;
+    if (f == muteField_) // a user mute goes to the current pattern (cmd::track::setMuted)
+    {
+        if (auto c = core::commands::track::setMuted(core::commands::project(bus_), scene, track, v >= 0.5f))
+            bus_.execute(std::move(c));
+        return;
+    }
     if (f->get(core::commands::project(bus_), scene, track) == v)
         return; // nothing changes: no undo step
     bus_.execute(std::make_unique<SetModelParam>(*f, s.label, scene, track, v));
@@ -565,7 +575,7 @@ void fillTrackSummaries(UiState& st, const Project& p, bool (*loading)(const voi
         const auto& x = scene.tracks[static_cast<std::size_t>(t)];
         auto& s = st.tracks[static_cast<std::size_t>(t)];
         s.typeBadge = kTypes[static_cast<int>(x.mode) & 3];
-        s.muted = x.mute;
+        s.muted = core::commands::track::isMuted(p, p.settings.currentScene, t);
         s.soloed = x.solo;
         s.missing = false;
         if (x.mode != TrackMode::Sample)

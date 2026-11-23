@@ -277,7 +277,7 @@ void PadController::paintLamps(io::LampSink& sink, double nowMs, const engine::M
         {
             const auto& tr = cmd::project(bus_).scenes[static_cast<std::size_t>(s)].tracks[static_cast<std::size_t>(t)];
             lamp.rgb = theme::ledColour(theme::trackColour((tr.colour & 15) + 1)) & 0xFFFFFFu;
-            lamp.muted = tr.mute;
+            lamp.muted = cmd::track::isMuted(cmd::project(bus_), s, t);
             lamp.soloed = tr.solo;
             lamp.anySolo = anySolo;
             lamp.hasContent = tr.mode != core::model::TrackMode::Sample || ! tr.playback.sample.empty();

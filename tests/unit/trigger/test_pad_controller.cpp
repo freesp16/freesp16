@@ -3,6 +3,7 @@
 // engine bridge, lamps; core::commands::track forwarding to the engine.
 #include "core/commands/CommandBusAccess.h"
 #include "core/commands/UndoStack.h"
+#include "core/commands/scene/SceneCommands.h"
 #include "core/commands/track/TrackCommands.h"
 #include "core/model/Project.h"
 #include "core/params/ParamRegistry.h"
@@ -160,40 +161,87 @@ TEST_CASE("trigger.pads: PLAY selects and plays pad n's track; TRACK selects sil
     CHECK(w.lastParam("pads.selected") == 11.0f);
 }
 
-TEST_CASE("trigger.pads: MUTE toggles track.mute; SHIFT + pad mutes the other 15 in one undo step (PAD-006)",
+TEST_CASE("trigger.pads: MUTE toggles the pattern's mute; SHIFT + pad mutes the other 15 in one undo step (PAD-006)",
           "[trigger]")
 {
     World w;
     auto& p = *w.pads;
+    const auto muted = [&](int t) { return w.project().scenes[0].patterns[0].trackMutes[static_cast<std::size_t>(t)]; };
     p.onModeKey(PadMode::Mute);
     p.onPad(3, 100, false, true, 0.0);
-    CHECK(w.project().scenes[0].tracks[3].mute);
-    CHECK(w.lastParam("track.mute", 3) == 1.0f); // the engine hears it (same field as the MIXER toggle)
+    CHECK(muted(3));
+    CHECK_FALSE(w.project().scenes[0].tracks[3].mute); // the pattern's mute, not the track-level one
+    CHECK(cmd::track::isMuted(w.project(), 0, 3));
     p.onPad(3, 100, false, true, 0.0);
-    CHECK_FALSE(w.project().scenes[0].tracks[3].mute);
-    CHECK(w.lastParam("track.mute", 3) == 0.0f);
+    CHECK_FALSE(muted(3));
     CHECK(w.triggers().empty()); // MUTE mode never sounds
     const auto depth = cmd::history(w.bus).undoDepth();
 
     p.onPad(7, 100, true, true, 0.0); // SHIFT + pad 8
     for (int t = 0; t < 16; ++t)
-        CHECK(w.project().scenes[0].tracks[static_cast<std::size_t>(t)].mute == (t != 7));
+        CHECK(muted(t) == (t != 7));
     CHECK(cmd::history(w.bus).undoDepth() == depth + 1);
     CHECK(cmd::history(w.bus).undoLabel() == "MUTE");
     CHECK(w.selection.selected() == 0); // SHIFT + pad does not select in MUTE mode
 
     p.onPad(7, 100, true, true, 0.0); // the same again unmutes all
     for (int t = 0; t < 16; ++t)
-        CHECK_FALSE(w.project().scenes[0].tracks[static_cast<std::size_t>(t)].mute);
+        CHECK_FALSE(muted(t));
     CHECK(cmd::history(w.bus).undoDepth() == depth + 2);
 
     REQUIRE(w.bus.undo()); // back to "all but 8 muted" in one step …
     for (int t = 0; t < 16; ++t)
-        CHECK(w.project().scenes[0].tracks[static_cast<std::size_t>(t)].mute == (t != 7));
+        CHECK(muted(t) == (t != 7));
     REQUIRE(w.bus.undo()); // … and to nothing muted in one more
     for (int t = 0; t < 16; ++t)
-        CHECK_FALSE(w.project().scenes[0].tracks[static_cast<std::size_t>(t)].mute);
-    CHECK(w.lastParam("track.mute", 5) == 0.0f); // undo reaches the engine too (EDT-U4)
+        CHECK_FALSE(muted(t));
+}
+
+TEST_CASE("trigger.pads: each pattern keeps its own mutes; switching patterns restores them", "[trigger]")
+{
+    World w;
+    auto& p = *w.pads;
+    const auto isMuted = [&](int t) { return cmd::track::isMuted(w.project(), 0, t); };
+    p.onModeKey(PadMode::Mute);
+    p.onPad(2, 100, false, true, 0.0); // pattern 1: track 3 muted
+    w.bus.execute(cmd::scene::setCurrentScenePattern(0, 1));
+    CHECK_FALSE(isMuted(2)); // pattern 2 does not inherit pattern 1's mutes
+    p.onPad(5, 100, false, true, 0.0); // pattern 2: track 6 muted
+    CHECK(isMuted(5));
+    w.bus.execute(cmd::scene::setCurrentScenePattern(0, 0));
+    CHECK(isMuted(2));
+    CHECK_FALSE(isMuted(5));
+    w.bus.execute(cmd::scene::setCurrentScenePattern(0, 1));
+    CHECK_FALSE(isMuted(2));
+    CHECK(isMuted(5));
+    // SHIFT + pad looks at the current pattern only: pattern 1's single mute does not count.
+    p.onPad(5, 100, true, true, 0.0);
+    for (int t = 0; t < 16; ++t)
+        CHECK(isMuted(t) == (t != 5));
+    w.bus.execute(cmd::scene::setCurrentScenePattern(0, 0));
+    for (int t = 0; t < 16; ++t)
+        CHECK(isMuted(t) == (t == 2));
+}
+
+TEST_CASE("trigger.pads: unmuting a track-level mute unmutes only the current pattern", "[trigger]")
+{
+    World w;
+    auto& p = *w.pads;
+    auto& s = cmd::project(w.bus).scenes[0];
+    s.tracks[4].mute = true; // an imported muteSetting: muted in every pattern
+    cmd::project(w.bus).settings.currentPattern = 3;
+    REQUIRE(cmd::track::isMuted(w.project(), 0, 4));
+    p.onModeKey(PadMode::Mute);
+    p.onPad(4, 100, false, true, 0.0);
+    CHECK_FALSE(cmd::track::isMuted(w.project(), 0, 4));
+    CHECK_FALSE(s.tracks[4].mute);
+    CHECK(w.lastParam("track.mute", 4) == 0.0f); // the engine drops the track-level mute …
+    for (int q = 0; q < 16; ++q)
+        CHECK(s.patterns[static_cast<std::size_t>(q)].trackMutes[4] == (q != 3)); // … the other patterns keep it
+    REQUIRE(w.bus.undo()); // one undo step
+    CHECK(s.tracks[4].mute);
+    for (const auto& pat : s.patterns)
+        CHECK_FALSE(pat.trackMutes[4]);
 }
 
 TEST_CASE("trigger.commands: track commands are undoable SetParams that reach the engine", "[trigger]")
@@ -290,8 +338,8 @@ TEST_CASE("trigger.pads: MUTE held + pad toggles SOLO, SHIFT mutes the others, t
     CHECK(on.lamps[io::pad(1)].second <= io::kFaintLevel);
     // SHIFT + pad while held: mutes the other tracks (one undo step), as in MUTE mode.
     p.onPad(0, 100, true, true, 0.0, false);
-    CHECK_FALSE(tracks()[0].mute);
-    CHECK(tracks()[1].mute);
+    CHECK_FALSE(cmd::track::isMuted(w.project(), 0, 0));
+    CHECK(cmd::track::isMuted(w.project(), 0, 1));
     key(false);
     CHECK_FALSE(p.soloHeld());
     CHECK(p.mode() == PadMode::Play);

@@ -14,6 +14,7 @@
 #include "core/commands/scene/SceneCommands.h"
 #include "core/commands/sequencer/SequencerCommands.h"
 #include "core/commands/slice/SliceCommands.h"
+#include "core/commands/track/TrackCommands.h"
 #include "core/edit/PatternChainBuilder.h"
 #include "core/edit/SharedEditor.h"
 #include "core/edit/WorkerPool.h"
@@ -910,11 +911,12 @@ bool Document::handle(const io::ControlEvent& e)
             else
             {
                 int muted = 0, soloed = 0;
-                for (const auto& t : tracks)
-                    muted += t.mute ? 1 : 0, soloed += t.solo ? 1 : 0;
+                for (int t = 0; t < 16; ++t)
+                    muted += core::commands::track::isMuted(p, p.settings.currentScene, t) ? 1 : 0,
+                        soloed += tracks[static_cast<std::size_t>(t)].solo ? 1 : 0;
                 d.log("INPUT pad%d %s mute=%d solo=%d muted=%d soloed=%d", n,
                       d.shift ? "mute-others" : d.pads.soloHeld() ? "solo" : "mute",
-                      tracks[static_cast<std::size_t>(n - 1)].mute ? 1 : 0,
+                      core::commands::track::isMuted(p, p.settings.currentScene, n - 1) ? 1 : 0,
                       tracks[static_cast<std::size_t>(n - 1)].solo ? 1 : 0, muted, soloed);
             }
         }

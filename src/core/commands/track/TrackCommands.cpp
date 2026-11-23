@@ -24,6 +24,10 @@ model::TriggerMode& triggerField(Project& p, const ParamPath& a) { return at(p, 
 int& chokeField(Project& p, const ParamPath& a) { return at(p, a).chokeGroup; }
 int& colourField(Project& p, const ParamPath& a) { return at(p, a).colour; }
 bool& velocityField(Project& p, const ParamPath& a) { return at(p, a).ampEnv.velocitySensitive; }
+bool& patternMuteField(Project& p, const ParamPath& a)
+{
+    return p.scenes[a.scene & 15].patterns[a.pattern & 15].trackMutes[a.track & 15];
+}
 
 // The fields, by the path tail = ParamSpec id without "track." (ParamPath grammar, core/model/paths).
 struct Field
@@ -108,9 +112,49 @@ std::unique_ptr<Command> setPadVelocity(int scene, int track, bool velocitySensi
     return make<bool>(kVelocity, scene, track, &velocityField, velocitySensitive);
 }
 
+bool isMuted(const Project& p, int scene, int track) noexcept
+{
+    const auto& s = p.scenes[scene & 15];
+    return s.tracks[track & 15].mute || s.patterns[p.settings.currentPattern & 15].trackMutes[track & 15];
+}
+
+std::unique_ptr<Command> setPatternMute(int scene, int pattern, int track, bool mute)
+{
+    char buf[48];
+    const int n = std::snprintf(buf, sizeof buf, "scene[%d].pattern[%d].mutes", scene & 15, pattern & 15);
+    ParamPath a {};
+    a.scope = Scope::Pattern;
+    a.scene = static_cast<std::uint8_t>(scene & 15);
+    a.pattern = static_cast<std::uint8_t>(pattern & 15);
+    a.track = static_cast<std::uint8_t>(track & 15);
+    return makeSetParam<bool>(std::string(buf, static_cast<std::size_t>(n > 0 ? n : 0)), "MUTE", &patternMuteField, a,
+                              mute, SetParam<bool>::Coalesce::No);
+}
+
+std::unique_ptr<Command> setMuted(const Project& p, int scene, int track, bool mute)
+{
+    if (isMuted(p, scene, track) == mute)
+        return nullptr;
+    const auto& s = p.scenes[scene & 15];
+    const int current = p.settings.currentPattern & 15;
+    if (mute || ! s.tracks[track & 15].mute)
+        return setPatternMute(scene, current, track, mute);
+    // Unmuting a track-level mute (an imported muteSetting, a pre-per-pattern project): it moves into the other
+    // patterns' own mutes, so only the current pattern unmutes.
+    auto group = std::make_unique<CommandGroup>("MUTE");
+    group->add(setMute(scene, track, false));
+    for (int q = 0; q < model::kPatterns; ++q)
+    {
+        const bool want = q != current;
+        if (s.patterns[static_cast<std::size_t>(q)].trackMutes[track & 15] != want)
+            group->add(setPatternMute(scene, q, track, want));
+    }
+    return group;
+}
+
 std::unique_ptr<Command> toggleMute(const Project& p, int scene, int track)
 {
-    return setMute(scene, track, ! p.scenes[scene & 15].tracks[track & 15].mute);
+    return setMuted(p, scene, track, ! isMuted(p, scene, track));
 }
 
 std::unique_ptr<Command> setSolo(int scene, int track, bool solo)
@@ -124,19 +168,15 @@ std::unique_ptr<Command> toggleSolo(const Project& p, int scene, int track)
 
 std::unique_ptr<CommandGroup> muteOthers(const Project& p, int scene, int track)
 {
-    const auto& tracks = p.scenes[scene & 15].tracks;
     const int n = track & 15;
-    bool soloLike = ! tracks[static_cast<std::size_t>(n)].mute; // already "every track but n muted"?
+    bool soloLike = ! isMuted(p, scene, n); // already "every track but n muted"?
     for (int t = 0; t < 16 && soloLike; ++t)
-        if (t != n && ! tracks[static_cast<std::size_t>(t)].mute)
+        if (t != n && ! isMuted(p, scene, t))
             soloLike = false;
     auto group = std::make_unique<CommandGroup>("MUTE");
     for (int t = 0; t < 16; ++t)
-    {
-        const bool want = soloLike ? false : t != n;
-        if (tracks[static_cast<std::size_t>(t)].mute != want)
-            group->add(setMute(scene, t, want));
-    }
+        if (auto c = setMuted(p, scene, t, soloLike ? false : t != n))
+            group->add(std::move(c));
     return group->empty() ? nullptr : std::move(group);
 }
 
