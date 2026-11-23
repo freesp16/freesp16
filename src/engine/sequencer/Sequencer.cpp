@@ -76,7 +76,7 @@ void Sequencer::setErase(int track, bool held) noexcept
     erase_ = static_cast<std::uint16_t>(held ? (erase_ | bit) : (erase_ & ~bit));
 }
 
-void Sequencer::push(EngineEvent::Kind kind, int track, int step, int value, int offset24) noexcept
+void Sequencer::push(EngineEvent::Kind kind, int track, int step, int value, int offset24, std::uint8_t origin) noexcept
 {
     if (feeds_ == nullptr)
         return;
@@ -86,6 +86,7 @@ void Sequencer::push(EngineEvent::Kind kind, int track, int step, int value, int
     e.step = static_cast<std::uint8_t>(step & 63);
     e.value = static_cast<std::int16_t>(value);
     e.offset24 = static_cast<std::int8_t>(offset24);
+    e.origin = origin;
     feeds_->pushEvent(e); // a full queue counts the drop (EngineFeeds::droppedEvents)
 }
 
@@ -247,9 +248,20 @@ void Sequencer::onLiveHit(const trigger::TriggerEvent& e) noexcept
 {
     if (! armed_ || e.kind != trigger::TriggerKind::Full)
         return;
-    if (e.source != trigger::TriggerSource::Pad && e.source != trigger::TriggerSource::Midi)
-        return; // SEQ-016: only pad and MIDI hits are recorded
+    const bool repeat = e.source == trigger::TriggerSource::Repeat;
+    if (e.source != trigger::TriggerSource::Pad && e.source != trigger::TriggerSource::Midi && ! repeat)
+        return; // SEQ-016: pad and MIDI hits are recorded, and the touch strip's REPEAT hits (ours, RIB-008)
     const int track = e.track & 15;
+    if (repeat) // a repeat is recorded into the running pass only: it never starts the transport or fills a count-in
+    {
+        if (playing_ && ! preCount_)
+        {
+            const double hit = p0_ + e.frame * ppf_;
+            const bool before = boundary_ && e.frame < boundaryFrame_;
+            record(track, e.velocity, hit, before ? prev_ : cur_, ! before, EngineEvent::kOriginRepeat);
+        }
+        return;
+    }
     if (preCount_)
     {
         // SEQ-044 (our choice): a hit late in the count-in (closer to step 1 than to the count-in's last grid point) is
@@ -274,7 +286,8 @@ void Sequencer::onLiveHit(const trigger::TriggerEvent& e) noexcept
     record(track, e.velocity, hit, before ? prev_ : cur_, ! before);
 }
 
-void Sequencer::record(int track, int velocity, double hitPpq, const Where& w, bool current) noexcept
+void Sequencer::record(int track, int velocity, double hitPpq, const Where& w, bool current,
+                       std::uint8_t origin) noexcept
 {
     const PatternData* pd = patterns_[static_cast<std::size_t>(w.scene)][static_cast<std::size_t>(w.pattern)];
     const int len = pd != nullptr && pd->length > 0 ? pd->length : 16;
@@ -306,6 +319,6 @@ void Sequencer::record(int track, int velocity, double hitPpq, const Where& w, b
         else if (pass == supBase_ + 1)
             suppressNext_[static_cast<std::size_t>(track)] |= bit;
     }
-    push(EngineEvent::Kind::RecordedHit, track, q.step, velocity, q.offset24);
+    push(EngineEvent::Kind::RecordedHit, track, q.step, velocity, q.offset24, origin);
 }
 } // namespace engine::sequencer

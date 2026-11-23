@@ -4,6 +4,8 @@
 // (SEQ-041/042/046/047): quantised positions, "recorded this pass", erase, pad starts sequence.
 #include "tests/unit/sequencer/SeqRig.h"
 
+#include "core/util/ribbon/Ribbon.h"
+
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -306,4 +308,86 @@ TEST_CASE("seq.engine: an 8-step pattern wraps after 8 steps; STOP rewinds to st
     hits = rig.sequenced(0);
     REQUIRE(hits.size() == 3u);
     CHECK(hits[2].frame == start);
+}
+
+namespace
+{
+// The touch strip as the app sends it (core/util/ribbon/Ribbon.h): position 0–127, contact.
+engine::TriggerNow strip(int position, bool contact)
+{
+    return {0, static_cast<std::uint8_t>(position), static_cast<std::uint8_t>(contact ? 1 : 0),
+            core::ribbon::kStripPad};
+}
+
+int repeatsRecorded(const std::vector<engine::EngineEvent>& ev, int track)
+{
+    int n = 0;
+    for (const auto& e : ev)
+        n += e.kind == engine::EngineEvent::Kind::RecordedHit && e.origin == engine::EngineEvent::kOriginRepeat
+                     && e.track == track
+                 ? 1
+                 : 0;
+    return n;
+}
+} // namespace
+
+TEST_CASE("seq.engine: touch strip REPEAT hits are recorded on the steps while REC is armed and playing (RIB-008)",
+          "[seq][engine][record][ribbon]")
+{
+    Rig rig;
+    auto p = pattern(16);
+    REQUIRE(rig.install(*p));
+    REQUIRE(rig.param("ribbon.mode", 1.0f)); // REPEAT
+    REQUIRE(rig.param("seq.recordQuantize", 3.0f)); // 1/16
+    REQUIRE(rig.param("seq.record", 1.0f));
+    REQUIRE(rig.play());
+    const double st = stepFrames();
+    rig.until(static_cast<long>(2.0 * st) - 64);
+    REQUIRE(rig.e->triggers().push({3, 100, 60, 3})); // pad 4 held: the pad hit itself is recorded (origin live)
+    REQUIRE(rig.e->triggers().push(strip(80, true))); // the 1/16 zone
+    rig.block();
+    auto ev = rig.events();
+    REQUIRE(ev.size() == 1u);
+    CHECK(ev[0].origin == engine::EngineEvent::kOriginLive);
+    rig.until(static_cast<long>(8.0 * st) - 64);
+    ev = rig.events();
+    REQUIRE(repeatsRecorded(ev, 3) == 5); // steps 4…8: one repeat per 16th, each on its own step
+    for (int i = 0; i < 5; ++i)
+    {
+        INFO("repeat " << i);
+        CHECK(ev[static_cast<std::size_t>(i)].step == 3 + i);
+        CHECK(ev[static_cast<std::size_t>(i)].offset24 == 0);
+        CHECK(ev[static_cast<std::size_t>(i)].value == 100);
+    }
+    // REC off: the repeats still sound but nothing is recorded.
+    REQUIRE(rig.param("seq.record", 0.0f));
+    const auto sounded = rig.hits.size();
+    rig.until(static_cast<long>(12.0 * st));
+    CHECK(rig.events().empty());
+    CHECK(rig.hits.size() >= sounded + 3);
+}
+
+TEST_CASE("seq.engine: REPEAT hits never start the transport or fill a count-in", "[seq][engine][record][ribbon]")
+{
+    Rig rig;
+    auto p = pattern(16);
+    REQUIRE(rig.install(*p));
+    REQUIRE(rig.param("ribbon.mode", 1.0f));
+    REQUIRE(rig.e->triggers().push({2, 90, 60, 2})); // held before REC is armed: it starts nothing
+    REQUIRE(rig.e->triggers().push(strip(127, true))); // 1/32, free-running while stopped
+    rig.blocks(4);
+    REQUIRE(rig.param("seq.record", 1.0f));
+    rig.until(static_cast<long>(8.0 * stepFrames()));
+    int repeats = 0;
+    for (const auto& h : rig.hits)
+        repeats += h.source == TriggerSource::Repeat ? 1 : 0;
+    CHECK(repeats >= 10); // it plays
+    CHECK(repeatsRecorded(rig.events(), 2) == 0);
+    CHECK_FALSE(rig.e->bridge().playhead().playing);
+    // A one-bar count-in: nothing is recorded until step 1 of the pass.
+    REQUIRE(rig.play(1));
+    rig.until(rig.frame + static_cast<long>(15.5 * stepFrames()));
+    CHECK(repeatsRecorded(rig.events(), 2) == 0);
+    rig.until(rig.frame + static_cast<long>(2.0 * stepFrames()));
+    CHECK(repeatsRecorded(rig.events(), 2) > 0);
 }

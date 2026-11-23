@@ -95,6 +95,8 @@ struct EngineEvent
     std::uint8_t track = 0, step = 0;
     std::int16_t value = 0;   // velocity, scene*16+pattern, mark index … per kind
     std::int8_t offset24 = 0; // micro-timing of a recorded hit, −24…+24 = ±1 step (SEQ-005)
+    std::uint8_t origin = 0;  // RecordedHit: kOriginLive (a pad / MIDI hit) or kOriginRepeat (touch strip REPEAT)
+    static constexpr std::uint8_t kOriginLive = 0, kOriginRepeat = 1;
 };
 
 namespace fx

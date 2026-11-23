@@ -216,7 +216,7 @@ void TriggerRouter::process(BlockContext& ctx) noexcept
         if (sources_ != nullptr)
             sources_[t].onEvent(e, ts.triggerMode);
         if (liveHits_ != nullptr && e.kind == TriggerKind::Full
-            && (e.source == TriggerSource::Pad || e.source == TriggerSource::Midi))
+            && (e.source == TriggerSource::Pad || e.source == TriggerSource::Midi || e.source == TriggerSource::Repeat))
             liveHits_->onLiveHit(e);
     }
     numApplied_ = numEvents_;

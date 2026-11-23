@@ -21,7 +21,8 @@
 //              locks at the trigger and revert / hold at the track's next event (SEQ-021, TrackSource / AmpEnvelope /
 //              Mixer::applyLocks).
 //   recording  armed (`seq.record`) and playing: every live Full pad / MIDI hit (the router's LiveHitSink, PAD-005,
-//              SEQ-041/048) is placed at its exact PPQ, quantised (core/util/sequencer/RecordQuantize.h, SEQ-042) and
+//              SEQ-041/048) — and every touch strip REPEAT hit of the running pass (origin kOriginRepeat, ours,
+//              RIB-008) — is placed at its exact PPQ, quantised (core/util/sequencer/RecordQuantize.h, SEQ-042) and
 //              sent to the UI as EngineEvent::RecordedHit {track, step, velocity, offset24} (lossless queue); the
 //              message thread writes it with recordHit inside the pass's CommandGroup (EDT-U3). A hit whose stored
 //              trigger plays later in the pass sets a per-track "recorded this pass" bit, so that step does not sound
@@ -120,8 +121,10 @@ private:
     };
     Where follow(const BlockContext& ctx, const stages::BlockBuffers::Timing& timing) const noexcept;
     void emit(const Where& w, double a, double b, bool current, trigger::TriggerRouter& router, int frameEnd) noexcept;
-    void record(int track, int velocity, double hitPpq, const Where& w, bool current) noexcept;
-    void push(EngineEvent::Kind kind, int track, int step, int value, int offset24) noexcept;
+    void record(int track, int velocity, double hitPpq, const Where& w, bool current,
+                std::uint8_t origin = EngineEvent::kOriginLive) noexcept;
+    void push(EngineEvent::Kind kind, int track, int step, int value, int offset24,
+              std::uint8_t origin = EngineEvent::kOriginLive) noexcept;
 
     feeds::EngineFeeds* feeds_ = nullptr;
     std::array<std::array<const PatternData*, kPatterns>, kScenes> patterns_ {};
