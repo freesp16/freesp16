@@ -1,8 +1,9 @@
 // ChannelStrip (07-ui-design/screens/mixer.md "ChannelStrip"; UI-270…274, UID-550…563): one track's strip on MIXER /
-// OUTPUT SETTING, 52 wide on a 56 pitch at x = 224 + 56·(n−1), y 152–608: OUT ASSIGN text (badge in the output
+// OUTPUT SETTING, 58 wide on a 62 pitch at x = 168 + 62·(n−1), y 152–608: OUT ASSIGN text (badge in the output
 // variant), SEND and PAN MiniRings (r 12, 3 lpx arc over 270° in the track colour), MUTE / SOLO toggles 52 × 44
 // (LED accent / warn), a two-bar meter centred in the strip over y 356–560 with the fader marker drawn across the
-// bars (hardware feedback: wider strips, meters aligned under the toggles and chip), and the track chip 44 × 32 at
+// bars (hardware feedback: wider strips — the rail and the bus pair are compacted for them — meters aligned under
+// the toggles and chip), and the track chip 44 × 32 at
 // y 572. States: selected (one 1.6 lpx track-colour outline inside the strip), muted (rings, meter, chip
 // 40 %, ✕ glyph on the chip), soloed, dimmed by another strip's solo, empty (chip dim), MIDI (no send ring).
 #pragma once
@@ -37,7 +38,7 @@ struct ChannelStripModel
 class ChannelStrip
 {
 public:
-    static constexpr float kX0 = 224, kPitch = 56, kW = 52;
+    static constexpr float kX0 = 168, kPitch = 62, kW = 58;
     static constexpr float kBarsW = 18; // two 8 lpx bars on a 10 lpx pitch, centred in the strip
     static constexpr float kMeterTop = 356, kMeterBottom = 560;
     static constexpr RectF rect(int track1Based) noexcept

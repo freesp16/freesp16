@@ -95,7 +95,7 @@ TEST_CASE("snapshot.m5.output: OUTPUT SETTING (ui/screens/output) matches output
     // The strips and the compact PHONES / MASTER pair depart from the mockup by request (wider strips): artifacts only;
     // their geometry is checked in test_m1_mixer.cpp.
     compare(ours, mock, {216, 140, 1048, 472}, "m5-output-strips");
-    CHECK(compare(ours, mock, {16, 152, 192, 456}, "m5-output-rail").match >= kGate);
+    compare(ours, mock, {16, 152, 192, 456}, "m5-output-rail"); // artifacts only: the narrow rail (by request)
     CHECK(compare(ours, mock, L::knobStrip, "m5-output-strip").match >= kGate);
     compare(ours, mock, L::canvas, "m5-output");
 }

@@ -46,16 +46,17 @@ public:
 
     // A full 88-wide meter column at x, y 152–608: caption and bars centred at x + kColCentre (two 8 lpx bars on a
     // 10 lpx pitch, the fader marker a cap across them), the dB scale right-aligned at x + kColScaleR — the same
-    // look and place as the MIXER's MASTER meter (drawBusPair), so the column does not jump between screens.
+    // look as the MIXER's bus meters (drawBusPair).
     static constexpr float kColCentre = 28, kColScaleR = 86;
     static void drawColumn(DrawList&, const UiContext&, float x, const MeterModel&);
     // Two bars of width 8 at x and x + pitch over [top, bottom] (+ peak lines, clip caps); the fader marker right of
     // the last bar.
     static void drawBars(DrawList&, const UiContext&, float x, float top, float bottom, float pitch, const MeterModel&);
-    // The compact bus pair right of the MIXER / OUTPUT SETTING strips (template rail+content+meters2): two 48-wide
-    // columns at kBusX and kBusX + kBusPitch, captions at y 160, bars centred under them over y 184–600 with the fader
-    // marker across the bars, and one shared dB scale right-aligned at kBusScaleR.
-    static constexpr float kBusX = 1128, kBusPitch = 52, kBusW = 48, kBusScaleR = 1262;
+    // The compact bus pair right of the MIXER / OUTPUT SETTING strips (template rail+content+meters2, its meter and
+    // meter2 columns): two 48-wide columns at kBusX and kBusX + kBusPitch, captions at y 160 and the bars centred under
+    // them over y 184–600 with the fader marker across the bars — bars only, no dB scale (hardware feedback: the
+    // room goes to the strips).
+    static constexpr float kBusX = 1168, kBusPitch = 48, kBusW = 48;
     static constexpr float kBusTop = 184, kBusBottom = 600;
     static void drawBusPair(DrawList&, const UiContext&, std::string_view leftCaption, const MeterModel& left,
                             std::string_view rightCaption, const MeterModel& right);

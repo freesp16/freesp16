@@ -96,7 +96,6 @@ void Meter::drawColumn(DrawList& dl, const UiContext& ctx, float x, const MeterM
 void Meter::drawBusPair(DrawList& dl, const UiContext& ctx, std::string_view leftCaption, const MeterModel& left,
                         std::string_view rightCaption, const MeterModel& right)
 {
-    drawScale(dl, ctx, kBusScaleR, kBusTop, kBusBottom);
     const struct
     {
         std::string_view caption;

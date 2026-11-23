@@ -37,7 +37,7 @@ namespace tk = ::theme::tokens;
 namespace L = layout;
 using Kind = io::ControlEvent::Kind;
 
-constexpr RectF kInfo {16, 270, 192, 102};
+constexpr RectF kInfo {16, 270, L::railNarrowW, 102}; // rail slot 2 on the narrow rail
 constexpr int kRailAssign = 2, kRailCue = 3;
 // OUT ASSIGN / HP CUE entries per ASSIGN MODE (03-ui/enumerations.md "Routing and outputs"; catalogue order).
 constexpr int kOutM6[] = {0, 2, 3, 4, 7, 8, 9, 10, 11, 12}, kOut8[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
@@ -82,8 +82,8 @@ public:
         drawInfo(dl, ctx);
         for (int t = 1; t <= 16; ++t)
             ChannelStrip::draw(dl, ctx, strip(t));
-        // PHONES: HEADPHONES does not fit the compact pair's 48 lpx column.
-        Meter::drawBusPair(dl, ctx, "PHONES", bus(ctx, "mixer.headphoneVolume"), "MASTER",
+        // HP (as in HP CUE): HEADPHONES / PHONES do not fit the compact pair's 48 lpx pitch (bars only, no dB scale).
+        Meter::drawBusPair(dl, ctx, "HP", bus(ctx, "mixer.headphoneVolume"), "MASTER",
                            bus(ctx, "mixer.masterVolume"));
     }
 
@@ -231,10 +231,10 @@ private:
         const auto& p = ctx.palette;
         dl.fill(kInfo, p.surface1, tk::radiusM);
         dl.stroke(kInfo, p.border, tk::borderHairline, tk::radiusM);
-        static constexpr std::string_view lines[] = {"Send and master FX", "process the master", "only. Direct outputs",
-                                                     "are dry."};
-        for (int i = 0; i < 4; ++i)
-            dl.text(32, 288 + 22.0f * static_cast<float>(i), Align::Left, TextStyleId::Body, p.text2, lines[i]);
+        static constexpr std::string_view lines[] = {"Send and master", "FX process the", "master only.",
+                                                     "Direct outputs", "are dry."};
+        for (int i = 0; i < 5; ++i)
+            dl.text(28, 285 + 18.0f * static_cast<float>(i), Align::Left, TextStyleId::Body, p.text2, lines[i]);
     }
 
     // The HEADPHONES meter shows the master feed (the engine publishes no headphone level; MeterFeed is frozen) with

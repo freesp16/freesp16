@@ -1,7 +1,7 @@
 // MIXER and OUTPUT SETTING (07-ui-design/screens/mixer.md; UI-270…274, UID-550…563). Template rail+content+meters2,
-// context bar menu (MIXER selected): 16 ChannelStrips at 224 + 56·(n−1), the compact SEND / MASTER pair at x 1128
-// (Meter::drawBusPair: one shared dB scale) and
-// the rail ANALOG FILTER SETTING (OptionSelector) · FX SETTING (RailCard over slots 2–3: MODE and TYPE zones) ·
+// context bar menu (MIXER selected): 16 ChannelStrips at 168 + 62·(n−1), the compact SEND / MASTER pair at x 1168
+// (Meter::drawBusPair: bars only) and the 144-wide rail (hardware feedback: the room goes to the strips)
+// ANALOG FILTER SETTING (OptionSelector) · FX SETTING (RailCard over slots 2–3: MODE and TYPE zones) ·
 // OUTPUT SETTING. The rail is the shell's (ui/shell/RailOwner.h): the FX SETTING card is two rail items (MODE, TYPE)
 // with their own rects, drawn by this body as one card; the selectors run this screen's popups. The rotary walks the
 // rail, then past its end the strips (railFocusEnter); turning back from strip 1 returns to the rail's last item.
@@ -39,7 +39,8 @@ namespace L = layout;
 using Kind = io::ControlEvent::Kind;
 
 // The FX SETTING card over rail slots 2–3 and its MODE / TYPE zones; OUTPUT SETTING's info box (rail slot 2).
-constexpr RectF kFxCard{16, 270, 192, 220}, kFxMode{16, 296, 192, 72}, kFxType{16, 372, 192, 118};
+constexpr float kRailW = L::railNarrowW;
+constexpr RectF kFxCard{16, 270, kRailW, 220}, kFxMode{16, 296, kRailW, 72}, kFxType{16, 372, kRailW, 118};
 constexpr std::string_view kFxModes[] = {"BOTH", "SEND", "MASTER"};
 constexpr std::string_view kAnalogValues[] = {"MASTER",   "TRACK 1",  "TRACK 2",  "TRACK 3",  "TRACK 4",  "TRACK 5",
                                               "TRACK 6",  "TRACK 7",  "TRACK 8",  "TRACK 9",  "TRACK 10", "TRACK 11",
@@ -204,6 +205,7 @@ public:
         {
             const int k = std::clamp(static_cast<int>(std::lround(afs("afs.insertTrack"))), 0, 16);
             st.value = afs("afs.active") >= 0.5f ? kAnalogValues[k] : kAnalogOff[k];
+            st.on = afs("afs.active") >= 0.5f;
             break;
         }
         default:
@@ -223,6 +225,11 @@ public:
     bool railDraw(int index, const RailItemSpec&, const RailItemState& st, DrawList& dl,
                   const UiContext& ctx) const override
     {
+        if (index == kRailAnalog)
+        {
+            drawAnalog(dl, ctx, st);
+            return true;
+        }
         if (index != kRailMode && index != kRailType)
             return false;
         if (index == kRailMode)
@@ -261,10 +268,32 @@ private:
         }
     }
 
+    // ANALOG FILTER SETTING on the narrow rail: the OptionSelector look with a short caption, the insert track as the
+    // value and `OFF` in place of the chevron while the filter is inactive (`MASTER · OFF` does not fit 144 lpx).
+    void drawAnalog(DrawList& dl, const UiContext& ctx, const RailItemState& st) const
+    {
+        const auto& p = ctx.palette;
+        const auto r = L::railItem(kRailAnalog, false, kRailW);
+        dl.fill(r, st.pressed ? p.surface3 : p.surface2, tk::radiusM);
+        dl.text(r.x + 16, r.y + 18, Align::Left, TextStyleId::Caption, p.text2, "ANALOG FILTER");
+        const RectF box{r.x + 12, r.y + r.h - 48, r.w - 24, 36};
+        dl.fill(box, p.surface1, tk::radiusS);
+        const int k = std::clamp(static_cast<int>(std::lround(afs("afs.insertTrack"))), 0, 16);
+        dl.text(r.x + 24, box.y + 18, Align::Left, TextStyleId::BodyStrong, st.on ? p.text1 : p.text2,
+                kAnalogValues[k]);
+        if (st.on)
+            glyph::draw(dl, glyph::Kind::ChevronDown, r.x + r.w - 38, box.y + 8, 20, p.text3);
+        else
+            dl.text(r.x + r.w - 22, box.y + 18, Align::Right, TextStyleId::Caption, p.text3, "OFF");
+        if (st.focused)
+            draw::focusRing(dl, p, r, tk::radiusM);
+    }
+
     void drawFxCard(DrawList& dl, const UiContext& ctx) const
     {
         const auto& p = ctx.palette;
-        // FX SETTING RailCard (mixer.md "RailCard"): MODE zone + TYPE zone with one row per running bus slot.
+        // FX SETTING RailCard (mixer.md "RailCard"): MODE zone + TYPE zone with one row per running bus slot. On the
+        // narrow rail a TYPE row is two lines: the bus caption over its effect's name (shrunk to fit when long).
         const auto c = kFxCard;
         dl.fill(c, p.surface2, tk::radiusM);
         dl.text(c.x + 16, c.y + 18, Align::Left, TextStyleId::Caption, p.text2, "FX SETTING");
@@ -281,6 +310,7 @@ private:
         {
             std::string_view slot, fx;
         } rows[] = {{"SEND", busEffectName(fx::Slot::Send)}, {"MASTER", busEffectName(fx::Slot::Master)}};
+        const float nameW = c.w - 24 - 16;
         int row = 0;
         for (int i = 0; i < 2; ++i)
         {
@@ -288,9 +318,11 @@ private:
                 continue;
             const float yy = c.y + 130 + 42.0f * static_cast<float>(row++);
             dl.fill({c.x + 12, yy, c.w - 24, 36}, p.surface1, tk::radiusS);
-            dl.text(c.x + 24, yy + 18, Align::Left, TextStyleId::Caption, p.text3, rows[i].slot);
-            dl.text(c.x + 92, yy + 18, Align::Left, TextStyleId::BodyStrong, rows[i].fx == "NONE" ? p.text2 : p.text1,
-                    rows[i].fx);
+            dl.text(c.x + 20, yy + 9, Align::Left, TextStyleId::Caption, p.text3, rows[i].slot);
+            auto style = TextStyleId::BodyStrong;
+            if (ctx.measure && ctx.measure(style, rows[i].fx) > nameW)
+                style = TextStyleId::Caption;
+            dl.text(c.x + 20, yy + 25, Align::Left, style, rows[i].fx == "NONE" ? p.text2 : p.text1, rows[i].fx);
         }
     }
 

@@ -120,9 +120,10 @@ void Shell::enterScreen(double nowMs)
     const int remembered = router_.focusOf(s.id);
     const bool compact = s.rail.size() > L::railMax;
     rail_.clear();
-    for (std::size_t i = 0; i < s.rail.size() && i < L::railCompactMax; ++i)
-        rail_.emplace_back(&s.rail[i], static_cast<int>(i), compact);
     const auto rects = L::bodyRects(s.body);
+    const float railWidth = rects.rail.w > 0 ? rects.rail.w : L::railW;
+    for (std::size_t i = 0; i < s.rail.size() && i < L::railCompactMax; ++i)
+        rail_.emplace_back(&s.rail[i], static_cast<int>(i), compact, railWidth);
     WidgetArgs args{rects.content, {}, &params_, this, &state_, &feeds_};
     railOwner_ = nullptr;
     stripOwner_ = nullptr;

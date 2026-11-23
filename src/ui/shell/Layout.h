@@ -60,6 +60,7 @@ struct BodyRects
     RectF rail{}, content{}, meter{}, meter2{};
 };
 inline constexpr float contentH = contentBottom - contentTop; // 456
+inline constexpr float railNarrowW = 144; // the MIXER / OUTPUT SETTING rail (hardware feedback: room for the strips)
 constexpr BodyRects bodyRects(BodyTemplate t) noexcept
 {
     constexpr RectF rail{16, contentTop, 192, contentH};
@@ -74,8 +75,9 @@ constexpr BodyRects bodyRects(BodyTemplate t) noexcept
         return {rail, {224, contentTop, 1040, contentH}, {}, {}};
     case BodyTemplate::RailContentMeter:
         return {rail, {224, contentTop, 936, contentH}, meterR, {}};
-    case BodyTemplate::RailContentMeters2:
-        return {rail, {224, contentTop, 896, contentH}, {1128, contentTop, 52, contentH}, {1180, contentTop, 84, contentH}};
+    case BodyTemplate::RailContentMeters2: // MIXER / OUTPUT SETTING: a narrow rail and a bars-only bus pair (by request)
+        return {{16, contentTop, railNarrowW, contentH}, {168, contentTop, 992, contentH}, {1168, contentTop, 48, contentH},
+                {1216, contentTop, 48, contentH}};
     case BodyTemplate::RailMeterContent:
         return {rail, {328, contentTop, 936, contentH}, {224, contentTop, 88, contentH}, {}};
     case BodyTemplate::Grid:
@@ -109,12 +111,13 @@ constexpr bool onGrid(const RectF& r) noexcept
 }
 
 // Rail: four 192 × 102 items at y 152, 270, 388, 506; compact rail: five 192 × 80 items at y 152 … 520 (12 gaps).
+// A template's rail may be narrower (RailContentMeters2: railNarrowW); w is the template's rail width.
 inline constexpr std::size_t railMax = 4, railCompactMax = 5;
 inline constexpr float railW = tk::sizeRail, railItemH = 102, railCompactH = 80;
-constexpr RectF railItem(int i, bool compact = false) noexcept
+constexpr RectF railItem(int i, bool compact = false, float w = railW) noexcept
 {
-    return compact ? RectF{16, contentTop + (railCompactH + tk::space[3]) * static_cast<float>(i), railW, railCompactH}
-                   : RectF{16, contentTop + (railItemH + pad) * static_cast<float>(i), railW, railItemH};
+    return compact ? RectF{16, contentTop + (railCompactH + tk::space[3]) * static_cast<float>(i), w, railCompactH}
+                   : RectF{16, contentTop + (railItemH + pad) * static_cast<float>(i), w, railItemH};
 }
 
 // Knob strip: tab x 0–248 at y 624–648; columns x = 16 + 208·(n−1); caption y 660, value 704, track 740 (UID-120).
