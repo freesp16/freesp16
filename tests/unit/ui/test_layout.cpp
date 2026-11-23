@@ -38,7 +38,7 @@ TEST_CASE("layout: every template rect, slot, rail item, column and tile is on t
         }
         CHECK(L::insideTemplate(t, b.content));
     }
-    CHECK(L::bodyRects(T::RailContentMeters2).meter.x == 1080);
+    CHECK(L::bodyRects(T::RailContentMeters2).meter.x == 1128);
     CHECK(L::bodyRects(T::RailMeterContent).meter.x == 224);
     CHECK(L::bodyRects(T::RailMeterContent).content.x == 328);
     for (const auto& r : {L::slotA, L::slotB, L::slotC, L::slotD, L::slotE, L::trackTypeBox, L::bypassBox})

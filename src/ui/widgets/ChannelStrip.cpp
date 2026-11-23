@@ -84,17 +84,19 @@ void ChannelStrip::draw(DrawList& dl, const UiContext& ctx, const ChannelStripMo
     }
     mm.faderDb = m.faderDb;
     mm.dim = dim || m.otherSolo;
-    Meter::drawBars(dl, ctx, x + 6, kMeterTop, kMeterBottom, 10, mm);
+    mm.markerOver = true;
+    Meter::drawBars(dl, ctx, x + (kW - kBarsW) / 2, kMeterTop, kMeterBottom, 10, mm);
 
     const auto chip = m.hasContent ? m.colour : m.colourDim;
-    dl.fill({x + 4, 572, 40, 32}, m.mute ? theme::withOpacity(chip, 0.45f) : chip, tk::radiusXs);
+    const float chipR = x + kW - 4;
+    dl.fill({x + 4, 572, kW - 8, 32}, m.mute ? theme::withOpacity(chip, 0.45f) : chip, tk::radiusXs);
     char number[4];
     std::snprintf(number, sizeof number, "%d", m.track);
     dl.text(cx, 589, Align::Centre, TextStyleId::BodyStrong, m.hasContent ? p.onAccent : p.text1, number);
     if (m.mute) // 10 lpx ✕ mute glyph on the chip
     {
-        glyph::line(dl, x + 34, 576, x + 42, 584, 1.5f, p.text1);
-        glyph::line(dl, x + 42, 576, x + 34, 584, 1.5f, p.text1);
+        glyph::line(dl, chipR - 10, 576, chipR - 2, 584, 1.5f, p.text1);
+        glyph::line(dl, chipR - 2, 576, chipR - 10, 584, 1.5f, p.text1);
     }
     if (m.selected) // one thin outline inside the strip (1 device px at x0.625): no ring over the neighbours
         dl.stroke({x + 0.8f, r.y + 0.8f, kW - 1.6f, r.h - 1.6f}, m.colour, 1.6f, tk::radiusS);

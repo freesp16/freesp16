@@ -1,5 +1,6 @@
 // MIXER and OUTPUT SETTING (07-ui-design/screens/mixer.md; UI-270…274, UID-550…563). Template rail+content+meters2,
-// context bar menu (MIXER selected): 16 ChannelStrips at 224 + 52·(n−1), SEND and MASTER meters at x 1080 / 1176 and
+// context bar menu (MIXER selected): 16 ChannelStrips at 224 + 56·(n−1), the compact SEND / MASTER pair at x 1128
+// (Meter::drawBusPair: one shared dB scale) and
 // the rail ANALOG FILTER SETTING (OptionSelector) · FX SETTING (RailCard over slots 2–3: MODE and TYPE zones) ·
 // OUTPUT SETTING. The rail is the shell's (ui/shell/RailOwner.h): the FX SETTING card is two rail items (MODE, TYPE)
 // with their own rects, drawn by this body as one card; the selectors run this screen's popups. The rotary walks the
@@ -117,8 +118,8 @@ public:
                     m1::trackFlag(*shell_, "track.solo", t) || state_->tracks[static_cast<std::size_t>(t - 1)].soloed;
         for (int t = 1; t <= 16; ++t)
             ChannelStrip::draw(dl, ctx, strip(t));
-        drawBus(dl, ctx, 1080, "SEND", "send");
-        drawBus(dl, ctx, 1176, "MASTER", "master");
+        Meter::drawBusPair(dl, ctx, "SEND", bus(ctx, "send", "mixer.sendReturnVolume"), "MASTER",
+                           bus(ctx, "master", "mixer.masterVolume"));
     }
 
     bool dirty(double nowMs) const override
@@ -293,26 +294,12 @@ private:
         }
     }
 
-    void drawBus(DrawList& dl, const UiContext& ctx, float x, std::string_view caption, std::string_view binds) const
+    // A bus meter's model with its level parameter's fader marker.
+    MeterModel bus(const UiContext& ctx, std::string_view binds, std::string_view level) const
     {
-        const auto& p = ctx.palette;
-        constexpr float top = 184, bottom = 600;
-        dl.text(x + 44, 160, Align::Centre, TextStyleId::Caption, p.text2, caption);
-        static constexpr struct
-        {
-            float db;
-            const char* text;
-        } labels[] = {{3, "3"}, {0, "0"}, {-10, "-10"}, {-20, "-20"}, {-30, "-30"}, {-40, "-40"}, {-50, "-50"}};
-        for (const auto& l : labels)
-            dl.text(x + 86, meterY(l.db, top, bottom), Align::Right, TextStyleId::Caption, p.text3, l.text);
-        dl.text(x + 86, bottom + 6, Align::Right, TextStyleId::Caption, p.text3, "\xE2\x88\x92\xE2\x88\x9E");
-        auto m = Meter::bus(binds == "headphones" ? std::string_view("master") : binds, &m1::feedsOf(shell_), state_,
-                            ctx.nowMs);
-        const char* id = binds == "send"     ? "mixer.sendReturnVolume"
-                         : binds == "master" ? "mixer.masterVolume"
-                                             : "mixer.headphoneVolume";
-        m.faderDb = shell_ != nullptr ? volumeDb(m1::trackParam(*shell_, id, 1, 100)) : 0.0f;
-        Meter::drawBars(dl, ctx, x + 12, top, bottom, 10, m);
+        auto m = Meter::bus(binds, &m1::feedsOf(shell_), state_, ctx.nowMs);
+        m.faderDb = shell_ != nullptr ? volumeDb(m1::trackParam(*shell_, level, 1, 100)) : 0.0f;
+        return m;
     }
 
     // Focus order (the shell's rail, then the strips): ANALOG FILTER → MODE → TYPE → OUTPUT SETTING → strips 1 … 16

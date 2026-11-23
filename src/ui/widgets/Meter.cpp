@@ -49,7 +49,13 @@ void Meter::drawBars(DrawList& dl, const UiContext& ctx, float x, float top, flo
         if (m.clip[ch])
             dl.fill({bx, top, 8, 4}, p.meterHigh, 2);
     }
-    if (m.faderDb > -119.0f) // left-pointing triangle 10 × 12 right of the bars
+    if (m.faderDb > -119.0f && m.markerOver) // a 3 lpx cap 4 lpx wider than the bars each side, outlined in bg
+    {
+        const float fy = meterY(m.faderDb, top, bottom), w = pitch + 8 + 8;
+        dl.fill({x - 4, fy - 2.5f, w + 2, 5}, p.bg, 1.5f);
+        dl.fill({x - 3, fy - 1.5f, w, 3}, theme::withOpacity(p.text1, m.dim ? 0.6f : 1.0f), 1.0f);
+    }
+    else if (m.faderDb > -119.0f) // left-pointing triangle 10 × 12 right of the bars
     {
         const float fy = meterY(m.faderDb, top, bottom), fx = x + pitch + 8 + (pitch - 8);
         for (int k = 0; k < 6; ++k)
@@ -77,6 +83,33 @@ void Meter::drawColumn(DrawList& dl, const UiContext& ctx, float x, const MeterM
             dl.text(x + 84, meterY(l.db, top, bottom), Align::Right, TextStyleId::Caption, p.text3, l.text);
     }
     drawBars(dl, ctx, x + 12, top, bottom, 12, m);
+}
+
+void Meter::drawBusPair(DrawList& dl, const UiContext& ctx, std::string_view leftCaption, const MeterModel& left,
+                        std::string_view rightCaption, const MeterModel& right)
+{
+    const auto& p = ctx.palette;
+    static constexpr struct
+    {
+        float db;
+        const char* text;
+    } labels[] = {{3, "3"}, {0, "0"}, {-10, "-10"}, {-20, "-20"}, {-30, "-30"}, {-40, "-40"}, {-50, "-50"}};
+    for (const auto& l : labels)
+        dl.text(kBusScaleR, meterY(l.db, kBusTop, kBusBottom), Align::Right, TextStyleId::Caption, p.text3, l.text);
+    dl.text(kBusScaleR, kBusBottom + 6, Align::Right, TextStyleId::Caption, p.text3, "\xE2\x88\x92\xE2\x88\x9E");
+    const struct
+    {
+        std::string_view caption;
+        const MeterModel& m;
+    } cols[] = {{leftCaption, left}, {rightCaption, right}};
+    for (int i = 0; i < 2; ++i)
+    {
+        const float cx = kBusX + kBusPitch * static_cast<float>(i) + kBusW / 2;
+        dl.text(cx, 160, Align::Centre, TextStyleId::Caption, p.text2, cols[i].caption);
+        auto m = cols[i].m;
+        m.markerOver = true;
+        drawBars(dl, ctx, cx - 9, kBusTop, kBusBottom, 10, m);
+    }
 }
 
 MeterModel Meter::bus(std::string_view binds, const EngineFeeds* feeds, const UiState* state, double nowMs) noexcept

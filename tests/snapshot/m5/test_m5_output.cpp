@@ -92,10 +92,12 @@ TEST_CASE("snapshot.m5.output: OUTPUT SETTING (ui/screens/output) matches output
     CHECK(m.shell().column(2).spec->id == "routing.outAssign");
     CHECK(m.shell().boundColumn(4) == nullptr); // column 5 stays empty on a sample track
     const auto& mock = m5test::m5mockup("output-setting");
-    CHECK(compare(ours, mock, {216, 140, 856, 472}, "m5-output-strips").match >= kGate);
+    // The strips and the compact PHONES / MASTER pair depart from the mockup by request (wider strips): artifacts only;
+    // their geometry is checked in test_m1_mixer.cpp.
+    compare(ours, mock, {216, 140, 1048, 472}, "m5-output-strips");
     CHECK(compare(ours, mock, {16, 152, 192, 456}, "m5-output-rail").match >= kGate);
     CHECK(compare(ours, mock, L::knobStrip, "m5-output-strip").match >= kGate);
-    CHECK(compare(ours, mock, L::canvas, "m5-output").match >= kGate);
+    compare(ours, mock, L::canvas, "m5-output");
 }
 
 TEST_CASE("m5ui.output: HP CUE per mode, the MIX-040 correction, OUT ASSIGN per mode, THRU BYPASS column", "[m5]")

@@ -30,6 +30,7 @@ struct MeterModel
     float faderDb = 0.0f; // fader marker position; < −119 = no marker
     bool scale = true;    // dB labels right of the bars
     bool dim = false;     // 40 % (muted strip, non-soloed strip while a solo is on)
+    bool markerOver = false; // fader marker as a cap across the bars instead of a triangle right of them
 };
 
 class Meter final : public Widget
@@ -48,6 +49,13 @@ public:
     // Two bars of width 8 at x and x + pitch over [top, bottom] (+ peak lines, clip caps); the fader marker right of
     // the last bar.
     static void drawBars(DrawList&, const UiContext&, float x, float top, float bottom, float pitch, const MeterModel&);
+    // The compact bus pair right of the MIXER / OUTPUT SETTING strips (template rail+content+meters2): two 48-wide
+    // columns at kBusX and kBusX + kBusPitch, captions at y 160, bars centred under them over y 184–600 with the fader
+    // marker across the bars, and one shared dB scale right-aligned at kBusScaleR.
+    static constexpr float kBusX = 1128, kBusPitch = 52, kBusW = 48, kBusScaleR = 1262;
+    static constexpr float kBusTop = 184, kBusBottom = 600;
+    static void drawBusPair(DrawList&, const UiContext&, std::string_view leftCaption, const MeterModel& left,
+                            std::string_view rightCaption, const MeterModel& right);
     // The model of the MASTER (binds "master") or SEND (binds "send") meter at nowMs (feeds null = silent).
     static MeterModel bus(std::string_view binds, const EngineFeeds* feeds, const UiState* state,
                           double nowMs) noexcept;

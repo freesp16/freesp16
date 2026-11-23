@@ -75,7 +75,7 @@ constexpr BodyRects bodyRects(BodyTemplate t) noexcept
     case BodyTemplate::RailContentMeter:
         return {rail, {224, contentTop, 936, contentH}, meterR, {}};
     case BodyTemplate::RailContentMeters2:
-        return {rail, {224, contentTop, 840, contentH}, {1080, contentTop, 88, contentH}, meterR};
+        return {rail, {224, contentTop, 896, contentH}, {1128, contentTop, 52, contentH}, {1180, contentTop, 84, contentH}};
     case BodyTemplate::RailMeterContent:
         return {rail, {328, contentTop, 936, contentH}, {224, contentTop, 88, contentH}, {}};
     case BodyTemplate::Grid:
