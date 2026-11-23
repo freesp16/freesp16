@@ -33,7 +33,18 @@ static_assert(static_cast<int>(AudioPort::Count) == static_cast<int>(engine::Out
               "platform::AudioPort and engine::OutPort index the same AudioIO::out pairs");
 struct PortInfo { AudioPort port; std::int8_t left, right; };          // physical interleaved channels, -1 = absent
 struct AudioConfig { unsigned sampleRate = 44100, periodFrames = 256, periods = 3; int rtPriority = 70; };
-struct AudioStats { std::uint64_t periods = 0, xruns = 0; unsigned sampleRate = 0, periodFrames = 0; bool realtime = false; };
+struct AudioStats
+{
+    std::uint64_t periods = 0, xruns = 0;
+    unsigned sampleRate = 0, periodFrames = 0;
+    bool realtime = false;
+    // A send/return loop (imx6: the analog filter), when the device has one: return frames read so far (−1 = no loop),
+    // periods it fell short, whether the return is live, and the send / return peaks since the last stats() (linear).
+    std::int64_t loopFrames = -1;
+    std::uint64_t loopDrops = 0;
+    bool loopLive = false;
+    float loopSendPeak = 0.0f, loopReturnPeak = 0.0f;
+};
 class AudioDevice {                                    // the codec; owns the only RT thread a platform creates
 public:
     virtual ~AudioDevice() = default;
@@ -74,9 +85,6 @@ public:
     virtual std::unique_ptr<DisplayDevice> display(std::string& error) = 0;
     // Called once with the settings before the factories above (e.g. imx6 audio_device = the codec PCM name).
     virtual void configure(const Settings&) {}
-    // True when the board can switch its own analog filter into the main output path (after configure): the panel's
-    // LP CUTOFF / RESONANCE pots, which the app cannot read, then act on the MASTER route (EngineSetup).
-    virtual bool analogFilterOnMain() const { return false; }
 };
 using PlatformFactory = std::unique_ptr<Platform> (*)();
 void registerPlatform(std::string_view id, PlatformFactory);

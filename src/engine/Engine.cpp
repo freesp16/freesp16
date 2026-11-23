@@ -140,7 +140,6 @@ Engine::Engine(const EngineSetup& setup, const EngineOptions& options) : options
         params_.bind(ribbon_.paramId(i), T::Ribbon);
     perf_.bindParams(setup.resolveParam, params_); // seq.retrigCount / retrigSpeed / transpose
     afs_.bindParams(setup.resolveParam);           // afs.* → ParamTarget::Afs
-    afs_.setAnalogMain(options.analogFilterOnMain); // MASTER route: the unit's own filter after the main DAC
     for (int i = 0; i < afs::AnalogFilterSlot::kParams; ++i)
         params_.bind(afs_.paramId(i), T::Afs);
     router_.bindParams(setup.resolveParam, params_); // routing.* → ParamTarget::Routing

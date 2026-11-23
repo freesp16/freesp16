@@ -1002,7 +1002,6 @@ void Document::lamps(io::LampFrame& frame) const
     frame[io::Control::AfsActive] = {afsOn ? io::LampMode::On : io::LampMode::Off, io::lampcolour::red, 0};
     // The unit's own filter board (its select line and high-pass DAC; the platform decides what it can switch).
     frame.analogFilter.inUse = afsOn && std::lround(afsValue("afs.processor", 1.0f)) == 1;
-    frame.analogFilter.master = std::lround(afsValue("afs.insertTrack", 0.0f)) == 0;
     frame.analogFilter.hpCutoff = static_cast<int>(std::lround(afsValue("afs.hpCutoff", 0.0f)));
     const auto& m = d.bridge.meters();
     if (m.masterPeak[0] >= 1.0f || m.masterPeak[1] >= 1.0f || m.afsOverLevel >= engine::kAfsOverThreshold)

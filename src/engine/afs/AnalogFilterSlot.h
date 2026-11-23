@@ -16,15 +16,10 @@
 //   Model     the 2× oversampled ZDF ladder + high-pass (ModelProcessor, engine/fx/dsp/afs_ladder.h), AFS-004
 //   External  the send/return loop, AFS-005: the driven signal goes to the FilterSend output port and the slot's
 //             output is the return, read from audio input channels 2/3 (the reference's return is device input 2/3,
-//             F189). On the device the codec's FilterSend pair feeds the unit's own analog filter (signal-flow.md
-//             device pair 5, channels 10/11; OQ-14); a device without that port, or without return inputs — the Linux
+//             F189). On the device the FilterSend pair is the second AK4452's "Send & Return" PCM
+//             (hw:ak4452audio,1): its playback feeds the unit's own analog filter, its capture is the filtered return,
+//             for the MASTER route as for a track; a device without that port, or without return inputs — the Linux
 //             desktop — runs the Model instead (our choice).
-//   Analog    the unit's own analog filter in the main output path (MASTER route on a device whose platform switches
-//             the filter board in: Platform::analogFilterOnMain). Only the drive and OVER run here: the LP CUTOFF and
-//             RESONANCE pots act on the analog filter and are never read by the app, the HP CUTOFF pot sets the board's
-//             high-pass DAC, and the app's filter-select line puts the filter after the main DAC while ACTIVE is on
-//             (research signal-flow.md "DSF drive": dsfDriveMaster feeds the main DAC, the reference's MASTER insert
-//             has no digital send). A digital filter here would add a second high-pass and leave the LP pot dead.
 // ACTIVE off bypasses every stage, bit-transparent (AFS-012, NFR-030), except the DRIVE gain, which stays on the main
 // output as on the reference (F107; unity at DRIVE 0, so still bit-transparent there; hardware feedback). A change of route, insert order, ACTIVE or the
 // processor in use dips the signal 128 samples down and 128 up (AFS-006, F187: "a 256-sample dip, not an overlapping
@@ -66,7 +61,7 @@
 namespace engine::afs
 {
 enum class Route : std::uint8_t { Master, TrackPreFx, TrackPostFx };
-enum class Processor : std::uint8_t { Model, External, Analog };
+enum class Processor : std::uint8_t { Model, External };
 
 // Per-block control of a processor (normalised knob values; the modulation already in octaves).
 struct AfsControl
@@ -227,14 +222,6 @@ public:
 
     // ---- message thread ----
     void prepare(double sampleRate, int maxBlock); // both processors prepared; the configuration settles at once
-    // The device switches its analog filter into the main output path (before prepare): the MASTER route with
-    // PROCESSOR EXTERNAL then uses Processor::Analog instead of the digital model.
-    void setAnalogMain(bool on) noexcept
-    {
-        analogMain_ = on;
-        request();
-    }
-    bool analogMain() const noexcept { return analogMain_; }
     void bindParams(const std::function<core::ParamId(std::string_view)>& resolve) noexcept; // rt-ok: set-up only
     core::ParamId paramId(int field) const noexcept { return ids_[static_cast<std::size_t>(field)]; }
     static constexpr int kParams = static_cast<int>(AfsField::Count);
@@ -358,6 +345,5 @@ private:
     const float* retBlockR_ = nullptr;
     bool sent_ = false, visited_ = false, driveRan_ = false;
     bool pingWanted_ = false;
-    bool analogMain_ = false; // Analog processor available on the MASTER route (setAnalogMain)
 };
 } // namespace engine::afs

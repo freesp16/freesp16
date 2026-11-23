@@ -2,6 +2,7 @@
 // echo until a LampModel flushes.
 #include "io/controllers/ControlNames.h"
 #include "io/controllers/LampRules.h"
+#include "platform/imx6/panel/AnalogBoard.h"
 #include "platform/imx6/panel/PanelCodec.h"
 #include "platform/imx6/panel/PanelLamps.h"
 #include "platform/imx6/panel/PanelRoles.h"
@@ -148,4 +149,31 @@ TEST_CASE("panel lamps: the local echo flashes pads, lights held keys and the st
     CHECK(monoAt(out.data(), 7).first == 0);
     bus->echo({io::ControlEvent::Kind::Press, io::Control::Play, 0, io::kSourcePanel, 1600});
     CHECK_FALSE(bus->take(1600, out, wait)); // the echo is off for good
+}
+
+TEST_CASE("analog board: the HP CUTOFF DAC code stays inside the factory range 4…3276, rising with the pot")
+{
+    CHECK(AnalogBoard::dacCode(0) == 4u);
+    CHECK(AnalogBoard::dacCode(1023) == 3276u);
+    CHECK(AnalogBoard::dacCode(-5) == 4u);
+    CHECK(AnalogBoard::dacCode(5000) == 3276u);
+    unsigned last = 0;
+    for (int i = 0; i <= 1023; ++i)
+    {
+        const unsigned c = AnalogBoard::dacCode(i);
+        INFO("pot " << i);
+        CHECK(c >= last);
+        CHECK(c <= 3276u);
+        last = c;
+    }
+    // A sweep that spends most of the pot in the low range (an even spread in Hz, not in volts).
+    CHECK(AnalogBoard::dacCode(512) < 3276u / 6);
+}
+
+TEST_CASE("analog board: the select line SEL_xDSF/THRU is active low (0 = the filter in, 1 = THRU)")
+{
+    STATIC_CHECK(AnalogBoard::selectLevel(true) == 0);
+    STATIC_CHECK(AnalogBoard::selectLevel(false) == 1);
+    STATIC_CHECK(AnalogBoard::kSelectLine == 133);
+    STATIC_CHECK(AnalogBoard::kLimitLine == 134);
 }

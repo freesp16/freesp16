@@ -513,10 +513,7 @@ AnalogFilterSlot::Config AnalogFilterSlot::wanted() const noexcept
         c.track = static_cast<std::int8_t>(insertTrack_ - 1);
     }
     c.active = active_;
-    if (processor_ == 1 && c.route == Route::Master && analogMain_)
-        c.proc = Processor::Analog; // the unit's filter after the main DAC: its LP CUTOFF / RESONANCE pots act there
-    else
-        c.proc = processor_ == 1 && externalAvailable() ? Processor::External : Processor::Model; // our fallback
+    c.proc = processor_ == 1 && externalAvailable() ? Processor::External : Processor::Model; // our fallback
     return c;
 }
 
@@ -719,8 +716,6 @@ void AnalogFilterSlot::run(float* l, float* r) noexcept
 {
     drive(l, r);
     meterOver(l, r);
-    if (cur_.proc == Processor::Analog)
-        return; // the analog filter after the main DAC does the rest (LP / RESONANCE pots, HP DAC)
     if (cur_.proc == Processor::External)
     {
         external_.process(l, r, kBlockFrames, control_);
@@ -831,8 +826,6 @@ void AnalogFilterSlot::endBlock() noexcept
 int AnalogFilterSlot::latencySamples() const noexcept
 {
     if (! cur_.active)
-        return 0;
-    if (cur_.proc == Processor::Analog)
         return 0;
     return cur_.proc == Processor::External ? external_.latencySamples() : fx::dsp::afs::kLatency;
 }

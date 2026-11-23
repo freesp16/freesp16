@@ -155,9 +155,6 @@ struct EngineSetup
     // The temporary 440 Hz test tone on an empty track 1 and the ping on empty pads (EngineOptions::testTone). The app
     // turns it off unless the `test_tone=1` setting asks for it (the smoke checks); hardware feedback: no sine at start.
     bool testTone = true;
-    // The device can switch its own analog filter into the main output path (Platform::analogFilterOnMain): the
-    // analog-filter slot's MASTER route then leaves the filtering to it (engine::afs::Processor::Analog).
-    bool analogFilterOnMain = false;
 };
 
 // Engine load as the LoadMeter measures it per 64-frame block. Cycles are A9 cycles at

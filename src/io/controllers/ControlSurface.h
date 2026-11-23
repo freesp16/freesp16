@@ -89,10 +89,10 @@ public:
     virtual ~LampSink() = default;
     virtual void setLamp(Control, std::uint32_t rgb, std::uint8_t level) = 0;
     virtual void flush() = 0;
-    // The analog filter in use (ANALOG FILTER ACTIVE with PROCESSOR EXTERNAL), whether its route is MASTER, and
-    // afs.hpCutoff (0–1023): a sink with the unit's filter board drives its select line and its high-pass DAC from
-    // these (LampFrame::analogFilter, before flush()).
-    virtual void setAnalogFilter(bool /*inUse*/, bool /*master*/, int /*hpCutoff*/) {}
+    // The unit's analog filter in use (ANALOG FILTER ACTIVE with PROCESSOR EXTERNAL) and afs.hpCutoff (0–1023): a sink
+    // with the filter board drives its select line and its high-pass DAC from these (LampFrame::analogFilter, before
+    // flush()).
+    virtual void setAnalogFilter(bool /*inUse*/, int /*hpCutoff*/) {}
 };
 
 // One MIDI message → logical control mapping of a controller profile (UI-130, resources/controllers/*.json).

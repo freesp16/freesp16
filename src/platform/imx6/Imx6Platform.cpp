@@ -57,9 +57,8 @@ public:
         return "i.MX6 board (" + (why.empty() ? std::string("not detected") : why) + "), audio " + audioDevice_
              + " (MAIN = ch 12/14 of 16; OUT3-4 8/10, OUT5-6 4/6, OUT7-8 0/2" + (mapNote_.empty() ? "" : "; " + mapNote_)
              + "), phones " + (phonesDevice_.empty() ? std::string("off") : phonesDevice_) + ", filter loop "
-             + (loopDevice_.empty() ? std::string("off") : loopDevice_) + ", filter board "
-             + (board_->enabled() ? "on (MASTER = the unit's analog filter)" : "off (digital model)") + ", panel "
-             + panelDevice
+             + (loopDevice_.empty() ? std::string("off (digital model)") : loopDevice_ + loopNote_) + ", filter board "
+             + (board_->enabled() ? "on" : "off") + ", panel " + panelDevice
              + " (+ lamps" + (lampLog_ ? ", logged" : "") + ", LCD touch), input trace " + (inputTrace_ ? "on" : "off")
              + ", strip /dev/cdc_spi2.0"
              + ", display X11 + Vivante GC2000 (gldispatch)";
@@ -94,22 +93,37 @@ public:
             phonesS16_ = it->second == "s16" || it->second == "S16_LE";
         if (auto it = settings.find("phones_gain"); it != settings.end()) // linear, default 0.5 (−6 dB, F111)
             phonesGain_ = std::clamp(static_cast<float>(std::strtod(it->second.c_str(), nullptr)), 0.0f, 1.0f);
-        // The analog filter board (panel::AnalogBoard: the filter-select GPIO line, the HP CUTOFF DAC word): ON by
-        // default, as the reference drives it at every start. The panel's LP CUTOFF and RESONANCE pots are analog only
-        // (no microcontroller reads them), so the MASTER route can only follow them through the unit's own filter after
-        // the main DAC (engine::afs::Processor::Analog). filter_board=0 = the digital model everywhere (the earlier
-        // behaviour: the HP CUTOFF pot drives the model's high-pass, the LP CUTOFF pot does nothing).
-        // The send/return loop for the track routes: OPT-IN (filter_loop=1 = hw:ak4452audio,1 "Send & Return", or a
-        // PCM name; default none: a track route runs the MODEL). The first unit run with it on by default stopped right
-        // after AUDIO ok, so it stays off until a run with only that variant proves it.
-        loopDevice_.clear();
-        if (auto it = settings.find("filter_loop"); it != settings.end() && it->second != "none" && it->second != "0")
-            loopDevice_ = it->second == "1" ? std::string("hw:ak4452audio,1") : it->second;
-        bool board = true;
+        // The unit's analog filter is an insert loop on the second AK4452 ("Send & Return", hw:ak4452audio,1), for
+        // the MASTER route as for a track: its LP CUTOFF and RESONANCE pots are analog only (no microcontroller reads
+        // them), so they act only on audio sent through that loop. ON by default (filter_loop=0 or none = the digital
+        // model everywhere: HP CUTOFF on the model, LP CUTOFF dead; another PCM name = that device). The loop PCM takes
+        // its clocks from hw:ak4452audio,0 (the PHONES PCM, opened first and started with the main stream); it is not
+        // linked to the main PCM (an overrun of a linked capture stopped the whole group on the first unit run), and a
+        // return that stays silent hands the slot back to the model (AlsaOutput::readLoop).
+        // The board's controls (panel::AnalogBoard: the select line, the limiter line, the HP CUTOFF DAC) follow the
+        // loop unless filter_board=0/1 says otherwise; filter_limit=0 leaves the limiter line as the kernel set it.
+        loopDevice_ = "hw:ak4452audio,1";
+        if (auto it = settings.find("filter_loop"); it != settings.end())
+        {
+            const std::string& v = it->second;
+            if (v == "0" || v == "none" || v.empty())
+                loopDevice_.clear();
+            else if (v != "1")
+                loopDevice_ = v;
+        }
+        if (phonesDevice_.empty() && loopDevice_ == "hw:ak4452audio,1")
+            loopNote_ = " (no PHONES PCM: the loop may have no clock)";
+        else
+            loopNote_.clear();
+        bool board = ! loopDevice_.empty();
         if (auto it = settings.find("filter_board"); it != settings.end())
             board = it->second != "0";
         board_->setEnabled(board);
         board_->setLoop(! loopDevice_.empty());
+        if (auto it = settings.find("filter_limit"); it != settings.end())
+            board_->setLimit(it->second != "0");
+        if (auto it = settings.find("filter_send_gain"); it != settings.end()) // linear, default 0.5 (−6 dB, F111)
+            loopGain_ = std::clamp(static_cast<float>(std::strtod(it->second.c_str(), nullptr)), 0.0f, 1.0f);
         map_ = kCodecMap;
         mapNote_.clear();
         if (auto it = settings.find("audio_map"); it != settings.end() && ! it->second.empty())
@@ -127,15 +141,13 @@ public:
             lampLog_ = it->second == "1";
     }
 
-    bool analogFilterOnMain() const override { return board_->enabled(); }
-
     std::vector<std::unique_ptr<AudioDevice>> audioDevices() override
     {
         std::vector<std::unique_ptr<AudioDevice>> devices;
         // Direct ALSA first; the codec's 16 channels (MAIN = 12/14, the assignable pairs) + PHONES
         devices.push_back(std::make_unique<common::AlsaOutput>(
             common::AlsaOutputConfig {audioDevice_, 16, period_, periods_, map_, phonesDevice_, 2, AudioPort::Phones,
-                                      phonesGain_, phonesS16_, loopDevice_}));
+                                      phonesGain_, phonesS16_, loopDevice_, loopGain_}));
         devices.push_back(std::make_unique<AudioOut>());                                    // JUCE ALSA fallback
         return devices;
     }
@@ -178,7 +190,9 @@ private:
     std::string phonesDevice_ = "hw:ak4452audio,0";
     float phonesGain_ = 0.5f;                       // F111's fixed −6 dB on the headphone DAC
     bool phonesS16_ = false;
-    std::string loopDevice_;                        // the analog filter's send/return (opt-in: filter_loop=1)
+    std::string loopDevice_;                        // the analog filter's send/return (default hw:ak4452audio,1)
+    std::string loopNote_;
+    float loopGain_ = 0.5f;                         // F111's fixed −6 dB on the filter send DAC
     std::shared_ptr<panel::AnalogBoard> board_ = std::make_shared<panel::AnalogBoard>();
     common::AlsaPortMap map_ = kCodecMap;
     std::string mapNote_;

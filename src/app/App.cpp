@@ -487,7 +487,6 @@ int run()
         setup.paramIds.push_back(spec.id);
     setup.fxInternalIndex = core::fx::internalIndexTable(core::builtinParams());
     setup.testTone = settings["test_tone"] == "1"; // the 440 Hz tone on an empty track 1: smoke checks only
-    setup.analogFilterOnMain = machine->analogFilterOnMain();
     auto engine = engine::createEngine(setup);
     juce::MessageManager::getInstance(); // JUCE's message thread = this thread (JUCE audio devices, juce-gl)
     std::vector<std::unique_ptr<platform::AudioDevice>> audioDevices;
@@ -621,6 +620,11 @@ int run()
                 static_cast<unsigned long long>(id == "alsa-direct" ? s.periods : 0), static_cast<unsigned long long>(s.xruns),
                 static_cast<unsigned long long>(id == "juce-alsa" ? s.periods : 0),
                 static_cast<unsigned long long>(engine->blocksRendered()), static_cast<int>(id.size()), id.data());
+        if (s.loopFrames >= 0) // the analog filter's send/return loop: is the return alive, does signal come back
+            logLine("AUDIO filter_loop live=%d return_frames=%lld drops=%llu send_peak=%.4f return_peak=%.4f",
+                    s.loopLive ? 1 : 0, static_cast<long long>(s.loopFrames),
+                    static_cast<unsigned long long>(s.loopDrops), static_cast<double>(s.loopSendPeak),
+                    static_cast<double>(s.loopReturnPeak));
         const auto load = engine->load(); // the engine's own per-block LoadMeter
         loadMax = std::max(loadMax, load.maxCycles);
         loadP95Max = std::max(loadP95Max, load.p95Cycles);

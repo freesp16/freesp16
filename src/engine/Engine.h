@@ -65,7 +65,6 @@ struct EngineOptions
     // is silent; a live hit on a track without a sample adds the 880 Hz ping (so a pad press is audible).
     bool testTone = true;
     int maxMessagesPerBlock = 512;     // bound on step 1's drain; the rest waits for the next block, in order
-    bool analogFilterOnMain = false;   // EngineSetup::analogFilterOnMain
 };
 
 class Engine final : public AudioEngine
