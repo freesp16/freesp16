@@ -117,6 +117,23 @@ TEST_CASE("migration: the built-in chain reaches the current schema", "[store][m
     CHECK(problems.empty());
 }
 
+TEST_CASE("migration: schema 4 writes MIDI NOTE2-4 OFF as 0 (semitones from NOTE)", "[store][migration]")
+{
+    auto root = juce::JSON::parse(R"({ "meta": { "format": { "name": "sixteen-project", "version": 3 } },
+        "project": { "scenes": [ { "tracks": [ { "midi": { "notes": [62, 4, -1, -1] } },
+                                               { "mode": "Midi" } ] } ] } })");
+    std::vector<std::string> applied;
+    const auto reached = MigrationRunner::builtin().run(root, 3, &applied);
+    REQUIRE(reached.ok());
+    CHECK(reached.value() == 4);
+    const auto& notes = root["project"]["scenes"][0]["tracks"][0]["midi"]["notes"];
+    CHECK(static_cast<int>(notes[0]) == 62);
+    CHECK(static_cast<int>(notes[1]) == 4); // an imported offset stays: +4
+    CHECK(static_cast<int>(notes[2]) == 0); // OFF
+    CHECK(static_cast<int>(notes[3]) == 0);
+    CHECK_FALSE(root["project"]["scenes"][0]["tracks"][1].hasProperty("midi")); // absent stays absent (the default)
+}
+
 TEST_CASE("migration: every fixture version migrates to the current one", "[store][migration][codec]")
 {
     const bool regenerate = juce::SystemStats::getEnvironmentVariable("APP_REGENERATE_FIXTURES", {}) == "1";

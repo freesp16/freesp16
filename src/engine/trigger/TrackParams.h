@@ -10,8 +10,8 @@
 //   track.inputSource  0 STEREO, 1 L, 2 R, 3 MONO (Thru tracks; the sampling input stage owns the input)
 //   scale.type         0–13 (core::scales::kScaleMasks order), scale.keyShift −12…+12, scale.area −2…+2
 //   scaleMidi.type     0–13, scaleMidi.root 0–127, scaleMidi.area −2…+2: SET SCALE (MIDI), the SCALE pads of a MIDI
-//                      track (PAD-020); with NOTE 1 (midi.note1, set by the MIDI engine: setMidiNote1) they give the
-//                      pad's transposition of the track's notes
+//                      or AS-1 track (PAD-020); with NOTE 1 (midi.note1, set by the MIDI engine: setMidiNote1) they
+//                      give the pad's transposition of the track's notes
 //   pads.mode          0 PLAY (no key lit), 1 TRACK, 2 MUTE, 3 SLICE, 4 SCALE (PAD-001), project scope 0xFFFF
 //   pads.selected      the selected track 0–15 (TRK-041), pads.shift 0/1 (SHIFT held: pads select, PAD-004)
 #pragma once
@@ -49,12 +49,12 @@ struct TrackSettings // per [scene][track]
     std::array<std::int8_t, core::scales::kPads> midiPadSemitones = kChromaticPads; // degrees from the root
 };
 
-// The semitones SCALE pad `pad` adds to track `s`'s pitch (Sample tracks: SET SCALE) or to its MIDI notes (MIDI
-// tracks: NOTE 1 becomes the pad's note of SET SCALE (MIDI), the harmony notes keep their intervals).
+// The semitones SCALE pad `pad` adds to track `s`'s pitch (Sample tracks: SET SCALE) or to its MIDI notes (MIDI and
+// AS-1 tracks: NOTE 1 becomes the pad's note of SET SCALE (MIDI), the harmony notes keep their intervals).
 inline int scalePadSemitones(const TrackSettings& s, int pad) noexcept
 {
     const auto p = static_cast<std::size_t>(pad & (core::scales::kPads - 1));
-    if (s.mode != TrackMode::Midi)
+    if (s.mode != TrackMode::Midi && s.mode != TrackMode::Instrument)
         return s.padSemitones[p];
     return core::scales::clampInt(s.midiRoot + s.midiPadSemitones[p], 0, 127) - s.midiNote1;
 }

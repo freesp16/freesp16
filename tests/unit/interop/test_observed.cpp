@@ -94,7 +94,7 @@ TEST_CASE("prj observed: the encodings of a real 1.6x project map without unknow
     const auto def = m::defaultTrack(0);
     CHECK(t0.seq.stepShiftArea == def.seq.stepShiftArea);                        // −1 = none: the default
     CHECK(t0.midi.mode == def.midi.mode);                                        // −1 = none: the default
-    CHECK(t0.midi.notes[1] == -1);                                               // 0 = off
+    CHECK(t0.midi.notes[1] == 0);                                                // 0 = off
     CHECK(t0.midi.length == 1.0);                                                // 4 quarter steps
 
     const auto& t1 = s0.tracks[1];

@@ -53,7 +53,7 @@ TEST_CASE("snapshot.m5.midi_note: MIDI NOTE (track 10, NOTE with NOTE2 +7) match
     if (haveMidi())
     {
         m.set("midi.note1", 10, 72);
-        m.set("midi.note2", 10, 79);
+        m.set("midi.note2", 10, 7); // +7 semitones: G5
     }
     REQUIRE(m.open("track.menu"));
     REQUIRE(m.open("track.note"));
@@ -167,11 +167,11 @@ TEST_CASE("m5ui.midi: chord notes by SHIFT + tap, NOTE2 offsets, CC ACTIVE / CC 
         m.f.press(io::Control::Shift);
         m.f.tap(ui::PianoKeyboard::whiteX(11) + 40, 300); // G: the first free chord note
         m.f.release(io::Control::Shift);
-        CHECK(m.get("midi.note2", 10) == 67.0f);
+        CHECK(m.get("midi.note2", 10) == 3.0f); // G = NOTE (E) + 3
         m.f.settle();
-        CHECK(m.shell().column(3).valueText == "+3");
+        CHECK(m.hasText("+3")); // NOTE2 drawn by its ParamSpec format: semitones from NOTE
         m.knob(4, -3); // NOTE2 offset +3 → 0 = OFF
-        CHECK(m.get("midi.note2", 10) == -1.0f);
+        CHECK(m.get("midi.note2", 10) == 0.0f);
     }
     m.turnSel(1); // the window one octave up
     m.f.settle();

@@ -1140,20 +1140,13 @@ void mapTrack(const Node& n, m::Track& tr, Ctx& c, int scene, int track)
                 if (g.base == "MidiNoteData")
                 {
                     Props p(gn, "MidiNoteData", mt.extras, c.log, at);
-                    // [D] note1-4, velocity, length (research tree); [S] MidiBypassFlg.
+                    // [D] note1-4, velocity, length (research tree); [S] MidiBypassFlg. note1 is the base note,
+                    // note2–4 the chord's other notes as semitones from it, −127 ~ OFF (0) ~ +127 (the manual's MIDI
+                    // NOTE settings; the observed 0 = off), stored as they are.
                     for (int k = 0; k < 4; ++k)
                     {
                         const std::string_view name = k == 0 ? "note1" : k == 1 ? "note2" : k == 2 ? "note3" : "note4";
-                        // Harmony notes 2–4: an observed 0 everywhere reads as "off" (−1 in the model).
-                        if (auto h = p.peekHit({name}); k > 0 && h && h.v->t == Var::T::Int && h.v->i == 0)
-                        {
-                            p.take({name});
-                            p.keepSilently(h);
-                            mt.notes[static_cast<std::size_t>(k)] = -1;
-                            c.log.issue(Kind::Guessed, "MidiNoteData.note2-4 = 0 read as off", at);
-                            continue;
-                        }
-                        p.intIn({name}, mt.notes[static_cast<std::size_t>(k)], -1, 127);
+                        p.intIn({name}, mt.notes[static_cast<std::size_t>(k)], k == 0 ? 0 : -127, 127);
                     }
                     p.intIn({"velocity"}, mt.velocity, 0, 127);
                     if (auto h = p.peekHit({"length"}); h && h.v->t == Var::T::Int)

@@ -20,7 +20,8 @@
 //                 applied CCs and the followed tempo go to the UI (UiEvent) for the model / display
 //   step 3        the transport calls the follower's correction (Transport::setCorrection): tempo = the PLL's, phase
 //                 steered onto the clock's ticks by a bounded rate correction (no drift; a jump only when > ½ tick off)
-//   step 7        processOut(): MIDI tracks (MidiTrackPlayer: notes + chords, length, CC1/CC2 values on change, bank /
+//   step 7        processOut(): MIDI and AS-1 tracks (MidiTrackPlayer: notes + chords — NOTE2–4 are semitones from
+//                 NOTE, an AS-1 track sends NOTE alone — a step's PITCH lock, length, CC1/CC2 values on change, bank /
 //                 program on a scene switch, MID-040…050), the hanging-note guard (stop, mode change, port change,
 //                 MID-047), clock / transport / SPP out (ClockOut, SYN-020/021) → sample-stamped → the hub's out SPSC
 //
@@ -110,10 +111,10 @@ inline constexpr std::string_view kMidiParamIds[] = {
 };
 static_assert(std::size(kMidiParamIds) == static_cast<std::size_t>(MidiField::Count));
 
-// One MIDI track's values per [scene][track] (MID-040…050; core::model::MidiTrack).
+// One MIDI / AS-1 track's values per [scene][track] (MID-040…050; core::model::MidiTrack).
 struct MidiTrackState
 {
-    std::array<std::int8_t, 4> notes {60, -1, -1, -1};
+    std::array<std::int8_t, 4> notes {60, 0, 0, 0}; // NOTE, then NOTE2–4 as semitones from it (0 = off)
     std::uint8_t velocity = 100; // 0 = OFF (step / pad velocity)
     float length = 1.0f;         // steps
     bool noteBypass = false, cc1Bypass = false, cc2Bypass = false;

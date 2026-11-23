@@ -1,5 +1,5 @@
 {
-  "format": { "name": "sixteen-project", "version": 3 },
+  "format": { "name": "sixteen-project", "version": 4 },
   "settings": {
     "padQuantize": "Step",
     "monitorVolume": 100

@@ -374,7 +374,7 @@ TEST_CASE("migration v2 → v3: projects made in the app are left alone", "[inte
     auto root = rootV2(R"({ "index": 1, "steps": [ { "track": 5, "step": 1, "trigger": 0, "velocity": 99 } ] })", "[]",
                        R"({ "attack": 0.07874015718698502 })");
     const auto notes = migrate(root);
-    CHECK(notes.size() == 1);
+    CHECK(notes.size() == 2); // the 2 → 3 and 3 → 4 descriptions, no repair note
     CHECK(static_cast<double>(root["project"]["scenes"][0]["tracks"][0]["ampEnv"]["attack"]) == 0.07874015718698502);
     CHECK(static_cast<int>(firstPattern(root)["steps"][0]["track"]) == 5);
     CHECK_FALSE(root["project"].hasProperty("origin"));
@@ -399,7 +399,7 @@ TEST_CASE("migration v2 → v3: unit cases on the migration root", "[interop][mi
                          { "key": "sp16.step[0].track[1]", "encoding": "json", "value": "{\"vct\":{\"4\":1}}" },
                          { "key": "sp16.step[0].track[6]", "encoding": "json", "value": "{\"words\":{\"9\":5}}" } ] })");
         const auto notes = migrate(root);
-        REQUIRE(notes.size() == 2);
+        REQUIRE(notes.size() == 3); // 2 → 3, its note, 3 → 4
         CHECK(notes[1].find("1 step(s) in 1 pattern(s) moved") != std::string::npos);
         CHECK(notes[1].find("1 dropped") != std::string::npos);
         const auto& pat = firstPattern(root);
@@ -459,7 +459,7 @@ TEST_CASE("migration v2 → v3: unit cases on the migration root", "[interop][mi
         CHECK(static_cast<double>(env["attack"]) == static_cast<double>(core::ampenv::storedFromIndex(10)));
         CHECK(static_cast<double>(env["hold"]) == 1.0);
         CHECK(static_cast<double>(env["release"]) == 0.5); // 64/128: the app's own grid
-        REQUIRE(notes.size() == 2);
+        REQUIRE(notes.size() == 3); // 2 → 3, its note, 3 → 4
         CHECK(notes[1].find("1 envelope time(s) rescaled") != std::string::npos);
         CHECK(root["project"]["origin"]["format"].toString() == "sp16-prj");
     }
@@ -481,7 +481,7 @@ TEST_CASE("migration v2 → v3: unit cases on the migration root", "[interop][mi
     }
 }
 
-TEST_CASE("migration: v1 bundles chain through v2 to v3; a newer bundle opens read-only", "[interop][migration]")
+TEST_CASE("migration: v1 bundles chain through v2 and v3 to v4; a newer bundle opens read-only", "[interop][migration]")
 {
     for (const char* name : {"default.sixteen", "beat.sixteen", "random-42.sixteen"})
     {
@@ -491,13 +491,14 @@ TEST_CASE("migration: v1 bundles chain through v2 to v3; a newer bundle opens re
         for (const auto& w : o.report.warnings)
             if (w.rfind("converted from an older format: ", 0) == 0)
                 converted.push_back(w);
-        REQUIRE(converted.size() >= 2);
-        CHECK(converted.back().find("project origin recorded") != std::string::npos); // 2 → 3 last
+        REQUIRE(converted.size() >= 3);
+        CHECK(converted[converted.size() - 2].find("project origin recorded") != std::string::npos); // 2 → 3
+        CHECK(converted.back().find("MIDI NOTE2-4") != std::string::npos);                         // 3 → 4 last
         CHECK_FALSE(o.report.readOnly);
     }
 
     // A bundle of a future schema: read-only, never migrated down, never rewritten.
-    const auto src = nativeFixture("v3", "beat.sixteen");
+    const auto src = nativeFixture("v4", "beat.sixteen");
     const auto dir = interop_test::temp().dir().getChildFile("future.sixteen");
     dir.deleteRecursively();
     REQUIRE(src.copyDirectoryTo(dir));

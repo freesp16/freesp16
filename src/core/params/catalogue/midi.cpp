@@ -47,6 +47,12 @@ int formatNoteOrOff(float v, char* buf, int n) noexcept
         return std::snprintf(buf, static_cast<std::size_t>(n), "OFF");
     return std::snprintf(buf, static_cast<std::size_t>(n), "%s%d", names[i % 12], i / 12 - 1); // C4 = 60
 }
+int formatHarmony(float v, char* buf, int n) noexcept // NOTE2–4: semitones from NOTE, 0 = OFF (−127 ~ OFF ~ +127)
+{
+    const int i = static_cast<int>(v < 0.0f ? v - 0.5f : v + 0.5f);
+    return i == 0 ? std::snprintf(buf, static_cast<std::size_t>(n), "OFF")
+                  : std::snprintf(buf, static_cast<std::size_t>(n), "%+d", i);
+}
 int formatVelocity(float v, char* buf, int n) noexcept // 0 = OFF (step/pad velocity)
 {
     const int i = static_cast<int>(v + 0.5f);
@@ -139,10 +145,13 @@ void addMidiParams(ParamRegistry& r)
            .storage = {.key = "internal.midi.remoteSelectBlocked"}});
 
     // ---- MIDI tracks (MID-040…047, MID-050; Scene.track[t].midi) ----
+    // NOTE: the base note C-1…G9; NOTE2–4: the chord's other notes as semitones from NOTE, −127 ~ OFF (0) ~ +127 (the
+    // reference's MidiNoteData note2–4; the manual's "MIDI NOTE settings"), so a new NOTE moves the whole chord.
     for (int i = 0; i < 4; ++i)
         r.add({.id = kNoteIds[i], .label = kNoteLabels[i], .shortLabel = kNoteLabels[i], .group = "NOTE",
-               .type = ParamType::Note, .minValue = i == 0 ? 0.0f : -1.0f, .maxValue = 127,
-               .defaultValue = i == 0 ? 60.0f : -1.0f, .format = formatNoteOrOff, .scope = ParamScope::Track,
+               .type = i == 0 ? ParamType::Note : ParamType::Integer, .minValue = i == 0 ? 0.0f : -127.0f,
+               .maxValue = 127, .defaultValue = i == 0 ? 60.0f : 0.0f,
+               .format = i == 0 ? formatNoteOrOff : formatHarmony, .bipolar = i != 0, .scope = ParamScope::Track,
                .storage = {.reference = kNoteRefs[i]}});
     r.add({.id = "midi.velocity", .label = "VELOCITY", .shortLabel = "VELOCITY", .group = "NOTE",
            .type = ParamType::Integer, .minValue = 0, .maxValue = 127, .defaultValue = 100, .format = formatVelocity,

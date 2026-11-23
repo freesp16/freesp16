@@ -151,7 +151,8 @@ bool MidiEngine::onParam(const ParamChange& c) noexcept
         case F::Note2:
         case F::Note3:
         case F::Note4:
-            s.notes[static_cast<std::size_t>(index - static_cast<int>(F::Note1))] = static_cast<std::int8_t>(clampi(iv, -1, 127));
+            s.notes[static_cast<std::size_t>(index - static_cast<int>(F::Note1))] =
+                static_cast<std::int8_t>(clampi(iv, -127, 127)); // semitones from NOTE, 0 = off
             break;
         case F::Velocity: s.velocity = static_cast<std::uint8_t>(clampi(iv, 0, 127)); break;
         case F::Length: s.length = c.value < 0.25f ? 0.25f : (c.value > 64.0f ? 64.0f : c.value); break;
@@ -523,10 +524,16 @@ void MidiEngine::trackOut(const BlockContext& ctx, const stages::BlockBuffers& b
     if (w_.router == nullptr)
         return;
     const int scene = currentScene();
-    std::uint16_t mask = 0;
+    // MIDI and TORAIZ AS-1 tracks send; an AS-1 track sends NOTE alone (the AS-1 plays no chords: no NOTE2–4).
+    std::uint16_t mask = 0, mono = 0;
     for (int t = 0; t < kTracks; ++t)
-        if (w_.router->settings(scene, t).mode == trigger::TrackMode::Midi)
+    {
+        const auto mode = w_.router->settings(scene, t).mode;
+        if (mode == trigger::TrackMode::Midi || mode == trigger::TrackMode::Instrument)
             mask = static_cast<std::uint16_t>(mask | (1u << t));
+        if (mode == trigger::TrackMode::Instrument)
+            mono = static_cast<std::uint16_t>(mono | (1u << t));
+    }
     for (std::uint32_t left = static_cast<std::uint32_t>(midiMask_ & ~mask), t = 0; left != 0; ++t, left >>= 1)
         if (left & 1u)
             out_.trackNotesOff(static_cast<int>(t)); // MID-047: the track left MIDI mode
@@ -582,12 +589,13 @@ void MidiEngine::trackOut(const BlockContext& ctx, const stages::BlockBuffers& b
         const auto length = static_cast<std::int64_t>(std::llround(static_cast<double>(s.length) * framesPerStep));
         const std::int64_t at = blockStart_ + e.frame;
         const int ch = (txChannel_[static_cast<std::size_t>(t)] - 1) & 15;
-        for (int i = 0; i < 4; ++i)
+        const int chord = (mono >> t & 1u) ? 1 : 4;
+        for (int i = 0; i < chord; ++i)
         {
-            const int n = s.notes[static_cast<std::size_t>(i)];
-            if (n < 0)
-                continue;
-            const int note = n + e.semitones + transpose;
+            const int offset = s.notes[static_cast<std::size_t>(i)];
+            if (i > 0 && offset == 0)
+                continue; // NOTE2–4 OFF
+            const int note = s.notes[0] + (i > 0 ? offset : 0) + e.semitones + transpose;
             if (note < 0 || note > 127)
                 continue;
             for (std::uint32_t m = ports, p = 0; m != 0; ++p, m >>= 1)

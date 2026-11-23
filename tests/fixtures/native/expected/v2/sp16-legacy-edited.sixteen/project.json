@@ -1,5 +1,5 @@
 {
-  "format": { "name": "sixteen-project", "version": 3 },
+  "format": { "name": "sixteen-project", "version": 4 },
   "origin": { "format": "sp16-prj", "importer": 1 },
   "settings": {
     "tempo": 133,

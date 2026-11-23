@@ -184,8 +184,8 @@ void checkTrack(Checker& c, const char* w, const Track& t, const SamplePool& poo
     const auto& m = t.midi;
     c.range(w, "midi.notes[0]", m.notes[0], 0, 127);
     for (std::size_t i = 1; i < m.notes.size(); ++i)
-        if (m.notes[i] != -1 && (m.notes[i] < 0 || m.notes[i] > 127))
-            c.fail("%s.midi.notes[%zu]: %d is neither OFF (-1) nor a note 0…127", w, i, m.notes[i]);
+        if (m.notes[i] < -127 || m.notes[i] > 127)
+            c.fail("%s.midi.notes[%zu]: %d is not an offset -127…127 (0 = OFF)", w, i, m.notes[i]);
     c.range(w, "midi.velocity", m.velocity, 0, 127);
     c.real(w, "midi.length", m.length, 0.25, 64.0);
     c.range(w, "midi.pitchBendValue", m.pitchBendValue, -8192, 8191);

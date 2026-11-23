@@ -234,7 +234,7 @@ TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends
     hub.setOutputConnected(0, true);
     d.param("track.mode", 0, 1.0f);         // track 1 → MIDI
     d.param("midi.out.channel", 0, 5.0f);   // sends on channel 5
-    d.param("midi.note2", 0, 64.0f);        // a chord: 60 + 64
+    d.param("midi.note2", 0, 4.0f);         // a chord: NOTE 60 and NOTE2 +4 = 64
     d.param("midi.velocity", 0, 0.0f);      // OFF: the pad's velocity
     d.param("midi.length", 0, 64.0f);       // long: still sounding when the guard runs
     d.param("seq.transpose", 0, 2.0f);      // performance transpose +2
@@ -274,7 +274,7 @@ TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends
     // A short note ends by itself after `length` (0.25 step at 120 BPM = 0.25 × 5512.5 = 1378.125 frames).
     d.param("track.mode", 0, 1.0f);
     d.param("midi.length", 0, 0.25f);
-    d.param("midi.note2", 0, -1.0f);
+    d.param("midi.note2", 0, 0.0f);         // NOTE2 OFF
     miditest::drainOut(*e);
     hit();
     d.blocks(60);
@@ -306,7 +306,7 @@ TEST_CASE("midi.engine: SCALE pads of a MIDI track send SET SCALE (MIDI)'s notes
     d.param("track.mode", 2, 1.0f);       // track 3 → MIDI
     d.param("midi.out.channel", 2, 1.0f);
     d.param("midi.note1", 2, 57.0f);      // NOTE 1 = A3
-    d.param("midi.note2", 2, 61.0f);      // + a major third
+    d.param("midi.note2", 2, 4.0f);       // NOTE2 +4: a major third over NOTE
     d.param("midi.velocity", 2, 100.0f);
     d.param("scaleMidi.type", 2, 1.0f);   // MAJOR
     d.param("scaleMidi.root", 2, 62.0f);  // root D4
@@ -342,6 +342,43 @@ TEST_CASE("midi.engine: SCALE pads of a MIDI track send SET SCALE (MIDI)'s notes
         if (o.bytes[0] == 0x90)
             on.push_back(o.bytes[1]);
     CHECK(on == std::vector<int> {57 + 9, 61 + 9});
+}
+
+TEST_CASE("midi.engine: a TORAIZ AS-1 track sends NOTE alone; its SCALE pads use SET SCALE (MIDI)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d {*e, 64};
+    e->midi().hub().setOutputConnected(0, true);
+    d.param("track.mode", 4, 3.0f);       // track 5 → TORAIZ AS-1
+    d.param("midi.note1", 4, 48.0f);      // C3
+    d.param("midi.note2", 4, 7.0f);       // a fifth: the AS-1 plays no chords
+    d.param("midi.velocity", 4, 100.0f);
+    d.blocks(1);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {4, 90, 60, 4}); // pad 5 (PLAY)
+    d.blocks(2);
+    auto out = miditest::drainOut(*e);
+    std::vector<int> on;
+    for (const auto& o : out)
+        if ((o.bytes[0] & 0xF0) == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {48}); // NOTE only, on the track's channel
+    CHECK((out.size() >= 1 && out[0].bytes[0] == 0x94)); // channel 5
+    e->triggers().push(engine::TriggerNow {4, 0, 60, 4});
+    d.blocks(1);
+
+    d.param("scaleMidi.root", 4, 50.0f);  // ROOT NOTE D3: the AS-1's SCALE pads play from it (the manual's 1.4)
+    d.param("pads.selected", 0xFFFF, 4.0f);
+    d.param("pads.mode", 0xFFFF, 4.0f);   // SCALE (CHROMATIC)
+    d.blocks(1);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 = root + 2 = E3
+    d.blocks(2);
+    on.clear();
+    for (const auto& o : miditest::drainOut(*e))
+        if ((o.bytes[0] & 0xF0) == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {52});
 }
 
 TEST_CASE("midi.engine: CC1 / CC2 values are sent when changed and Active (MID-041…044)", "[midi]")
