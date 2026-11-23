@@ -180,6 +180,18 @@ has the disk, the log shows `MIDI USB gadget=storage host=configured: left in st
 and say what played. `midi=0` in a variant turns MIDI off (to isolate it); the MIDI benches
 (`bench_midi*`, step 10) carry the A9 numbers.
 
+**Clock sync (HUMAN, 10 min each).** SET › SYNC SOURCE = MIDI CLOCK, a DAW or drum machine as master on MIDI IN (DIN,
+then USB), a pattern with a 4-on-the-floor kick on both. (1) Start from the master at 120, then at 174 BPM: the kicks
+stay together for 10 minutes — no flam growing over time — and BPM shows the master's tempo steadily. (2) Stop and
+Continue from the master mid-bar: the unit resumes on the master's bar. (3) With the master running, press PLAY on the
+unit: it starts on its own bar 1 and stays locked to the master's ticks (no drift; the bar offset stays where it
+started). (4) Pull the cable for 2 s and plug it back: the unit keeps time meanwhile and picks the clock up without
+jumping back. The `MIDI stats` line then also shows `clock_in_jitter=` (µs RMS: how much the master's ticks wander,
+typically 50–3000 for a DAW over USB) and `clock_in_relocks=` (grows only when the master changes tempo). Then the
+unit as master (SYNC SOURCE = INTERNAL, MIDI OUT clock on) into a receiver: the receiver's BPM shows the unit's tempo
+steadily and its sound sits on the unit's audio — the clock and notes leave when the matching audio is heard (the
+audio buffer is compensated), `late=0`; OUT LATENCY only adds delay for the receiving gear.
+
 ## 8. LINE IN sampling — `07-linein` (HUMAN: a signal into LINE IN)
 
 Connect a source to LINE IN and keep it playing from 3 s on. `pc/hwt.sh use 07-linein`. The script records 2 bars

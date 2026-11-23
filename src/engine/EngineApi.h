@@ -143,7 +143,8 @@ enum class OutPort : std::uint8_t { Main, Out34, Out56, Out78, Phones, FilterSen
 // has no such port (the engine skips it). in: planar input channels (null when numIn == 0). frames: any count (the
 // engine runs fixed 64-frame blocks with a FIFO adapter). hostTimeNs: monotonic time at the period start (MIDI sync).
 struct AudioIO { float* const* out; int numOutPorts;            // planar L/R per platform::AudioPort, 2 * ports
-                 const float* const* in; int numIn; int frames; std::uint64_t hostTimeNs; };
+                 const float* const* in; int numIn; int frames; std::uint64_t hostTimeNs;
+                 int outputLatencyFrames = 0; }; // hostTimeNs → when this period's first frame is heard (0 = unknown)
 class AudioProcessor { public: virtual ~AudioProcessor() = default;
     virtual void prepare(double sampleRate, int maxDeviceFrames) = 0;   // message thread, allocates
     virtual void process(const AudioIO&) noexcept = 0; };              // audio thread, any frame count

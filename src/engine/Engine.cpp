@@ -249,7 +249,7 @@ void Engine::process(const AudioIO& io) noexcept
     // The audio clock anchor of this period — engine frame of its first output frame ↔ hostTimeNs.
     midi_.beginPeriod(static_cast<std::int64_t>(blocks_.load(std::memory_order_relaxed)) * kBlockFrames -
                           (kBlockFrames - blockPos_),
-                      static_cast<std::int64_t>(io.hostTimeNs), frames);
+                      static_cast<std::int64_t>(io.hostTimeNs), frames, io.outputLatencyFrames);
     const int pairs = std::clamp(io.numOutPorts, 0, stages::kPorts);
     const float* inL = io.numIn > 0 && io.in != nullptr ? io.in[0] : nullptr;
     const float* inR = io.numIn > 1 && io.in != nullptr ? io.in[1] : inL;

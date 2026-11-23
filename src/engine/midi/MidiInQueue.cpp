@@ -15,10 +15,13 @@ void AudioClock::prepare(double sampleRate) noexcept
     periodFrames_ = kBlockFrames;
 }
 
-void AudioClock::period(std::int64_t frame, std::int64_t hostNs, int frames) noexcept
+void AudioClock::period(std::int64_t frame, std::int64_t hostNs, int frames, int outputLatencyFrames) noexcept
 {
     if (frames > 0)
         periodFrames_ = frames;
+    anchor_.leadFrames = outputLatencyFrames > periodFrames_ ? outputLatencyFrames
+                         : outputLatencyFrames > 0          ? periodFrames_
+                                                            : 2 * periodFrames_;
     if (hostNs == 0)
     {
         // No device clock: synthetic host time, frame · nsPerFrame (deterministic for tests and renders).
@@ -36,7 +39,7 @@ void AudioClock::period(std::int64_t frame, std::int64_t hostNs, int frames) noe
     {
         init_ = true;
         predictedNs_ = measured;
-        anchor_ = {frame, hostNs, nominalNsPerFrame_, true};
+        anchor_ = {frame, hostNs, nominalNsPerFrame_, true, anchor_.leadFrames};
         return;
     }
     const double df = static_cast<double>(frame - anchor_.frame);

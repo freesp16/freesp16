@@ -92,9 +92,9 @@ void MidiEngine::prepare(double sampleRate) noexcept
     correctionInstalled_ = following_ = false;
 }
 
-void MidiEngine::beginPeriod(std::int64_t firstFrame, std::int64_t hostNs, int frames) noexcept
+void MidiEngine::beginPeriod(std::int64_t firstFrame, std::int64_t hostNs, int frames, int outputLatencyFrames) noexcept
 {
-    clock_.period(firstFrame, hostNs, frames);
+    clock_.period(firstFrame, hostNs, frames, outputLatencyFrames);
     hub_.publishAnchor(clock_.anchor());
 }
 
@@ -572,6 +572,15 @@ void MidiEngine::processIn(BlockContext& ctx) noexcept
         core::midi::UiEvent u;
         u.kind = core::midi::UiEvent::Kind::Tempo;
         u.value = static_cast<float>(shownTempo_);
+        hub_.pushUi(u);
+    }
+    if (follower_.locked() && blockStart_ / kBlockFrames % static_cast<std::int64_t>(sampleRate_ / kBlockFrames) == 0)
+    {
+        core::midi::UiEvent u; // once a second: the followed clock's health (the MIDI stats log line)
+        u.kind = core::midi::UiEvent::Kind::ClockIn;
+        u.value = static_cast<float>(follower_.jitterFrames() / sampleRate_ * 1.0e6);
+        const auto relocks = follower_.reacquisitions();
+        u.scope = static_cast<std::uint16_t>(relocks > 65535u ? 65535u : relocks);
         hub_.pushUi(u);
     }
     if (follower_.ticks() > 0 && follower_.lost(blockStart_) && ! lostHandled_)

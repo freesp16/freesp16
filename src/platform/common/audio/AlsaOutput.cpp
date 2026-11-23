@@ -637,6 +637,7 @@ void AlsaOutput::run()
     {
         engine::AudioIO now = io;
         now.hostTimeNs = monotonicNs();
+        now.outputLatencyFrames = static_cast<int>(buffer_); // the previous write just filled the buffer
         readLoop(); // the analog filter's return of the last period (no-op without the loop)
         processor_->process(now);
         convert();

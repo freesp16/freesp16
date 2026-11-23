@@ -3,7 +3,8 @@
 // of engine::Engine, called directly (steps 2 and 7 of audio-engine.md's block order); audio thread only except the
 // set-up calls. Owns the core::midi::MidiHub (the lock-free wire to the port threads and the sender, core/util/midi).
 //
-//   period start  beginPeriod(): the audio clock anchor (DLL) → the hub (the sender's sample → monotonic mapping)
+//   period start  beginPeriod(): the audio clock anchor (DLL) and the output lead (the device's buffer) → the hub (the
+//                 sender's sample → monotonic mapping: every message leaves when its frame is heard)
 //   step 1        onParam(): midi.* ParamChanges (core/params/catalogue/midi.cpp)
 //   step 2        processIn(): drain the ports, schedule at arrival + the fixed latency (MidiInQueue.h), then per due
 //                 event in time order:
@@ -35,7 +36,8 @@
 //                 NOTE, an AS-1 track sends NOTE alone — a step's PITCH lock, length, the Active CC1/CC2 values (pitch
 //                 bend, aftertouch) before each trigger's notes, bank / program on a scene switch, MID-040…050), the
 //                 hanging-note guard (stop, mode change, port change, MID-047), clock / transport / SPP out (ClockOut,
-//                 SYN-020/021) → sample-stamped → the hub's out SPSC
+//                 SYN-020/021) → sample-stamped → the hub's out SPSC; the sender writes each message when its frame is
+//                 heard (anchor + the device's output latency)
 //
 // Output ports (our choice): MIDI tracks and the clock go to every connected output port whose mode is OUT or OUT +
 // MERGE (THRU ports only forward an input); the sender adds the merge / thru bytes.
@@ -181,7 +183,7 @@ public:
     const core::midi::MidiHub& hub() const noexcept { return hub_; }
 
     // ---- audio thread ----
-    void beginPeriod(std::int64_t firstFrame, std::int64_t hostNs, int frames) noexcept;
+    void beginPeriod(std::int64_t firstFrame, std::int64_t hostNs, int frames, int outputLatencyFrames = 0) noexcept;
     bool onParam(const ParamChange&) noexcept; // a midi.* message (consumed) or false
     void processIn(BlockContext& ctx) noexcept;                                   // step 2
     void processOut(const BlockContext& ctx, const stages::BlockBuffers& b) noexcept; // step 7

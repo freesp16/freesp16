@@ -11,6 +11,9 @@
 // tick counted twice moves the transport 1/24 quarter (≈ 20 ms at 120 BPM) for good — the drift this file guards.
 #include "tests/unit/midi/MidiTestUtil.h"
 
+#include "engine/midi/MidiInQueue.h"
+#include "io/midi/MidiSender.h"
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -373,6 +376,54 @@ TEST_CASE("midi.sync: a clock that drops out and comes back is picked up without
     const double ticksIn = (frame - (s.t0 + s.L)) / s.P;
     const double frac = p * 24.0 - ticksIn;
     CHECK(std::fabs(frac - std::nearbyint(frac)) * s.P < 1.0);
+}
+
+TEST_CASE("midi.out: every message is due after the engine produced it and when its audio is heard", "[midi]")
+{
+    // Device periods of 256 frames, a 3-period buffer (768 frames), callbacks late by up to 2 ms: each message's
+    // deadline is ≥ the end of the period that produced it (the callback's latest finish), and at the anchor time of
+    // its own frame + the output buffer (when that frame leaves the DAC).
+    auto e = miditest::make(kRate);
+    miditest::Driver d {*e, 256};
+    e->midi().hub().setOutputConnected(0, true);
+    d.param("midi.out.clock", 0, 1.0f);
+    d.param("midi.out.startStop", 0, 1.0f);
+    miditest::drainOut(*e);
+    e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+    std::mt19937 rng(9);
+    std::uniform_real_distribution<double> late(0.0, 2.0e6);
+    const double nsPerFrame = 1.0e9 / kRate, t0 = 3.0e9;
+    std::int64_t frame = static_cast<std::int64_t>(e->blocksRendered()) * 64;
+    double minSlack = 1e18;
+    std::size_t n = 0;
+    for (int p = 0; p < 2000; ++p)
+    {
+        const double callback = t0 + static_cast<double>(frame) * nsPerFrame + late(rng);
+        float* out[12] = {d.l.data(), d.r.data()};
+        e->process(engine::AudioIO {out, 1, nullptr, 0, 256, static_cast<std::uint64_t>(callback), 768});
+        const auto anchor = e->midi().hub().anchor();
+        CHECK(anchor.leadFrames == 768.0);
+        for (const auto& o : miditest::drainOut(*e))
+        {
+            const double due = io::midi::MidiSender::deadlineNs(o, anchor, 0, 0);
+            minSlack = std::min(minSlack, due - (callback + 256.0 * nsPerFrame));
+            ++n;
+        }
+        frame += 256;
+    }
+    std::printf("midi.out: %zu messages, min slack after the producing period's end = %.2f ms\n", n, minSlack / 1e6);
+    CHECK(n > 500);
+    CHECK(minSlack > 0.0);
+
+    // Unknown output latency: two periods; never less than one period.
+    engine::midi::AudioClock c;
+    c.prepare(kRate);
+    c.period(0, 1000, 256, 0);
+    CHECK(c.anchor().leadFrames == 512.0);
+    c.period(256, 1000 + 5804988, 256, 100);
+    CHECK(c.anchor().leadFrames == 256.0);
+    c.period(512, 1000 + 2 * 5804988, 256, 1024);
+    CHECK(c.anchor().leadFrames == 1024.0);
 }
 
 TEST_CASE("midi.clockout: a tick on a block boundary goes out once (playing and free-running)", "[midi]")

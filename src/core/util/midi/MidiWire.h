@@ -64,26 +64,30 @@ struct MidiOutEvent
 };
 
 // The audio clock as the sender sees it: engine frame `frame` leaves the engine at monotonic time `hostNs`
-// (period-start anchor, filtered by the engine's DLL), and one frame lasts `nsPerFrame`.
+// (period-start anchor, filtered by the engine's DLL), and one frame lasts `nsPerFrame`. `leadFrames`: how long after
+// it leaves the engine a frame is heard (the audio device's output buffer, at least one period) — a message is sent
+// when its frame is heard, so it is never due before the engine has produced it and it lines up with the audio.
 struct ClockAnchor
 {
     std::int64_t frame = 0;
     std::int64_t hostNs = 0;
     double nsPerFrame = 1.0e9 / 44100.0;
     bool valid = false;
+    double leadFrames = 0.0;
     // Monotonic time of engine frame `f` (fractional frames allowed).
     double timeOf(double f) const noexcept { return static_cast<double>(hostNs) + (f - static_cast<double>(frame)) * nsPerFrame; }
 };
 
 // Engine → message thread: an incoming CC the engine applied (the UI writes the model with a non-undoable, coalesced
-// command), MIDI activity per port (LEDs), and the followed tempo.
+// command), MIDI activity per port (LEDs), the followed tempo, and once a second the followed clock's health.
 struct UiEvent
 {
-    enum class Kind : std::uint8_t { Param, Activity, Tempo, SceneSelect } kind = Kind::Param;
+    enum class Kind : std::uint8_t { Param, Activity, Tempo, SceneSelect, ClockIn } kind = Kind::Param;
     std::uint8_t port = 0;
-    std::uint16_t scope = 0;  // Param: the ParamChange scope; SceneSelect: scene × 16 + pattern
+    std::uint16_t scope = 0;  // Param: the ParamChange scope; SceneSelect: scene × 16 + pattern; ClockIn: re-locks
     std::uint16_t param = 0;  // Param: ParamId.value
-    float value = 0.0f;       // Param: the applied value; Tempo: BPM (display, rounded with hysteresis)
+    float value = 0.0f;       // Param: the applied value; Tempo: BPM (display, rounded with hysteresis);
+                              // ClockIn: RMS jitter of the incoming ticks against the followed line (µs)
 };
 
 struct CcTable; // core/util/midi/CcTable.h
@@ -119,6 +123,7 @@ public:
         hostNs_.store(a.hostNs, std::memory_order_relaxed);
         nsPerFrame_.store(a.nsPerFrame, std::memory_order_relaxed);
         valid_.store(a.valid, std::memory_order_relaxed);
+        lead_.store(a.leadFrames, std::memory_order_relaxed);
         seq_.store(s + 2, std::memory_order_release);
     }
 
@@ -140,6 +145,7 @@ public:
             a.hostNs = hostNs_.load(std::memory_order_relaxed);
             a.nsPerFrame = nsPerFrame_.load(std::memory_order_relaxed);
             a.valid = valid_.load(std::memory_order_relaxed);
+            a.leadFrames = lead_.load(std::memory_order_relaxed);
             std::atomic_thread_fence(std::memory_order_acquire);
             if (seq_.load(std::memory_order_relaxed) == s0)
                 return a;
@@ -231,7 +237,7 @@ private:
     SpscQueue<UiEvent, kUiQueue> ui_ {};
     std::atomic<std::uint32_t> seq_ {0};
     std::atomic<std::int64_t> frame_ {0}, hostNs_ {0};
-    std::atomic<double> nsPerFrame_ {1.0e9 / 44100.0};
+    std::atomic<double> nsPerFrame_ {1.0e9 / 44100.0}, lead_ {0.0};
     std::atomic<bool> valid_ {false};
     std::atomic<const CcTable*> cc_ {nullptr};
     std::atomic<std::uint32_t> outputs_ {0}, inputs_ {0};
