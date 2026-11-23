@@ -59,9 +59,6 @@ struct ShellConfig
     WidgetFactory factory{};                       // empty: WidgetRegistry::builtin().dispatcher()
     FeatureFlags flags{};
     bool installFallbacks = true; // register interim screens the registry lacks (Fallbacks.h)
-    // UID-912: a double-tap on a strip column opens the ValueEntry popup. Off on the device: it has no keyboard to
-    // type into, and the second tap then starts a column drag like any other touch.
-    bool valueEntry = true;
 };
 
 class Shell final : public ShellApi, public PopupPresenter
@@ -124,8 +121,6 @@ public:
     // Computed on demand from the last frame's state (outside the frame build), once per frame.
     const io::LampFrame& lamps() const noexcept;
     int touchDragColumn() const noexcept { return dragColumn_; } // the strip column a running drag turns, -1 = none
-    // UID-912: the ValueEntry over strip column n0 (a double-tap on the column opens it); false = nothing editable.
-    bool openValueEntry(int column0);
     int closingPopups() const noexcept { return static_cast<int>(closing_.size()); } // close fades still running
 
     // PopupPresenter (Router::showPopup)
@@ -166,7 +161,6 @@ private:
     ParamAccess* values_;
     WidgetFactory factory_;
     FeatureFlags flags_;
-    bool valueEntry_;
     Router router_;
     UiState state_;
     FocusState focus_;
@@ -213,8 +207,6 @@ private:
     TouchOwner touchOwner_ = TouchOwner::None;
     float touchY_ = 0;
     int touchDrags_ = 0; // drag events of the running touch (trace line on release)
-    int lastTapColumn_ = -1;
-    double lastTapMs_ = -1e9;
     RailOwner* railOwner_ = nullptr;         // the body, when it takes part in its rail
     StripOwner* stripOwner_ = nullptr;       // the body, when it refines its knob-strip columns
     bool popupStrip_ = false;                // the strip is bound to a popup's bindings (not the screen's)

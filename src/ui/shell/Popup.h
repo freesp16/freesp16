@@ -72,7 +72,7 @@ public:
     // The knob-strip bindings while this popup is open (UID-125); empty = the strip is dimmed under the scrim and the
     // encoders keep editing the screen behind.
     virtual std::span<const PopupBinding> bindings() const { return {}; }
-    virtual bool swallowsEncoders() const { return false; } // Modal / ValueEntry bind the encoders themselves
+    virtual bool swallowsEncoders() const { return false; } // a Modal binds the encoders itself
     virtual bool coversStrip() const { return false; }      // Dialog: the docked keyboard hides the strip
     virtual bool blocksHome() const { return false; }       // Progress: HOME ignored until done
     virtual bool modal() const { return true; }             // Toast: false (never blocks, never takes focus)

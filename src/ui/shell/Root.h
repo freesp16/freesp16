@@ -33,7 +33,6 @@ struct RootContext
     // Added for the model-backed document (members may be added):
     ParamAccess* values = nullptr;                  // the model-backed values (ModelParamAccess); null = local values
     std::function<void(UiState&, double nowMs)> beforeFrame{}; // fills the state from the model before each frame
-    bool valueEntry = true; // the double-tap ValueEntry popup (UID-912); false on the device (no keyboard)
 };
 
 class Root

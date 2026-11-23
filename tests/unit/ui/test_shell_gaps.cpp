@@ -7,7 +7,6 @@
 #include "ui/shell/Layout.h"
 #include "ui/shell/PopupFactory.h"
 #include "ui/shell/Root.h"
-#include "ui/shell/ValueEntry.h"
 #include "ui/widgets/GridPopup.h"
 #include "ui/widgets/ListPopup.h"
 #include "ui/widgets/ModuleCard.h"
@@ -476,75 +475,11 @@ TEST_CASE("shell.gaps: the lamp model lights what the screen shows (UI-150, UID-
     CHECK((*root->lamps())[io::pad(1)].mode != io::LampMode::Off); // the test-tone track has content
 }
 
-TEST_CASE("shell.gaps: a double-tap on a column opens the ValueEntry; typed display units, the encoder stays live "
-          "(UID-912)",
+TEST_CASE("shell.gaps: a double-tap on a column opens no popup; the second touch drags the column like the first "
+          "(no typed value entry)",
           "[ui][shell][popup]")
 {
     uitest::Harness h;
-    const auto col = L::column(0);
-    auto doubleTap = [&]
-    {
-        h.touch(col.x + 40, col.y + 40, ui::touch::kDown);
-        h.touch(col.x + 40, col.y + 40, ui::touch::kUp);
-        h.now += 120;
-        h.touch(col.x + 40, col.y + 40, ui::touch::kDown);
-        h.touch(col.x + 40, col.y + 40, ui::touch::kUp);
-    };
-    doubleTap();
-    auto* entry = dynamic_cast<ui::ValueEntry*>(h.shell->topPopup());
-    REQUIRE(entry != nullptr);
-    CHECK(entry->bounds().x == 0); // column x − 16, kept on the canvas
-    CHECK(entry->bounds().y == 520);
-    CHECK(entry->selected()); // the whole value selected: typing replaces it
-    h.frame();
-    CHECK(h.drewText("VOLUME"));
-    // The edited column stays live: its encoder still turns the value; another column's does not.
-    const float v0 = h.value("track.volume"), pan0 = h.value("track.pan");
-    h.turn(io::knob(1), 2);
-    h.turn(io::knob(2), 5);
-    CHECK(h.value("track.volume") == v0 + 2);
-    CHECK(h.value("track.pan") == pan0);
-    CHECK(h.shell->topPopup() == entry);
-    // Typed in the display unit (the track VOLUME reads 0–127): the raw index whose display reads nearest 64.
-    CHECK(h.shell->typeText("64"));
-    CHECK(entry->typed() == "64");
-    CHECK(h.shell->textKey(ui::TextKey::Return));
-    CHECK(h.shell->topPopup() == nullptr);
-    const auto* vol = core::builtinParams().find("track.volume");
-    char buf[32];
-    vol->formatValue(h.value("track.volume"), buf, sizeof buf);
-    INFO(buf);
-    CHECK(std::strtod(buf, nullptr) == 64.0);
-    // Esc cancels without change; a single tap later than 400 ms does not open it.
-    const float v1 = h.value("track.volume");
-    h.now += 1000;
-    doubleTap();
-    REQUIRE(dynamic_cast<ui::ValueEntry*>(h.shell->topPopup()) != nullptr);
-    h.shell->typeText("12");
-    h.shell->textKey(ui::TextKey::Escape);
-    CHECK(h.value("track.volume") == v1);
-    h.now += 1000;
-    h.touch(col.x + 40, col.y + 40, ui::touch::kDown);
-    h.touch(col.x + 40, col.y + 40, ui::touch::kUp);
-    h.now += 600;
-    h.touch(col.x + 40, col.y + 40, ui::touch::kDown);
-    h.touch(col.x + 40, col.y + 40, ui::touch::kUp);
-    CHECK(h.shell->topPopup() == nullptr);
-    // A spec without its own format takes the number as typed.
-    float raw = 0;
-    const core::ParamSpec plain{
-        .id = "x", .label = "X", .type = core::ParamType::Continuous, .minValue = 0, .maxValue = 10};
-    CHECK(ui::ValueEntry::rawFor(plain, 3.5, raw));
-    CHECK(raw == 3.5f);
-    CHECK(ui::ValueEntry::rawFor(plain, 30, raw));
-    CHECK(raw == 10.0f);
-}
-
-TEST_CASE("shell.gaps: without ValueEntry (the device) a double-tap on a column opens nothing and the second tap "
-          "drags the column (UID-912)",
-          "[ui][shell][popup]")
-{
-    uitest::Harness h({}, {}, /*valueEntry=*/false);
     const auto col = L::column(0);
     const float x = col.x + 40, y = col.y + 40;
     h.touch(x, y, ui::touch::kDown);
@@ -552,7 +487,7 @@ TEST_CASE("shell.gaps: without ValueEntry (the device) a double-tap on a column 
     h.now += 120;
     h.touch(x, y, ui::touch::kDown);
     CHECK(h.shell->topPopup() == nullptr);
-    // The second down took the column like a first one: a vertical drag turns its value (8 lpx per detent).
+    // The second down took the column: a vertical drag turns its value (8 lpx per detent).
     const float v0 = h.value("track.volume");
     h.touch(x, y - 16 * ui::touch::kToCanvas, ui::touch::kDrag);
     h.touch(x, y - 16 * ui::touch::kToCanvas, ui::touch::kUp);

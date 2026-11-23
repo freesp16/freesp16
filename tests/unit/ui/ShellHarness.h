@@ -23,15 +23,13 @@ struct Harness
     ui::DrawList dl;
     double now = 1000;
 
-    explicit Harness(std::initializer_list<ui::ScreenSpec> extra = {}, ui::FeatureFlags flags = {},
-                     bool valueEntry = true)
+    explicit Harness(std::initializer_list<ui::ScreenSpec> extra = {}, ui::FeatureFlags flags = {})
     {
         for (const auto& s : extra)
             screens.add(s);
         ui::ShellConfig cfg{core::builtinParams(), fixedMeasure()};
         cfg.screens = &screens;
         cfg.flags = flags;
-        cfg.valueEntry = valueEntry;
         cfg.log = [this](const std::string& l) { log.push_back(l); };
         shell = std::make_unique<ui::Shell>(std::move(cfg));
         dl.reserve(4096, 32768);

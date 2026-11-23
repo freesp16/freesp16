@@ -4,7 +4,6 @@
 #include "ui/shell/Layout.h"
 #include "ui/shell/PopupFactory.h"
 #include "ui/shell/Timing.h"
-#include "ui/shell/ValueEntry.h"
 #include "ui/theme/Draw.h"
 #include "ui/widgets/Dialog.h"
 #include "ui/widgets/GridPopup.h"
@@ -68,7 +67,7 @@ Shell::Shell(ShellConfig cfg)
       ownValues_(cfg.values == nullptr ? std::make_unique<LocalParamValues>(cfg.params, cfg.bridge) : nullptr),
       values_(cfg.values != nullptr ? cfg.values : ownValues_.get()),
       factory_(cfg.factory ? std::move(cfg.factory) : WidgetRegistry::builtin().dispatcher()), flags_(cfg.flags),
-      valueEntry_(cfg.valueEntry), router_(prepare(cfg), &flags_)
+      router_(prepare(cfg), &flags_)
 {
     router_.setPresenter(this);
     feeds_.attach(cfg.bridge);
@@ -840,14 +839,6 @@ void Shell::handleTouch(const io::ControlEvent& e, UiContext& ctx)
     if (y >= L::stripY)
     {
         const int column = strip_.columnAt(x, y);
-        if (valueEntry_ && column >= 0 && column == lastTapColumn_ && e.timeMs - lastTapMs_ < timing::doubleTapMs)
-        {
-            lastTapColumn_ = -1; // a double-tap on a column types its value (UID-912)
-            openValueEntry(column);
-            return;
-        }
-        lastTapColumn_ = column;
-        lastTapMs_ = e.timeMs;
         touchOwner_ = TouchOwner::Strip;
         dragColumn_ = column;
         dragY_ = y;
@@ -1148,19 +1139,6 @@ PopupWidget* Shell::pushPopup(std::unique_ptr<PopupWidget> p)
 PopupWidget* Shell::showPopup(std::unique_ptr<PopupWidget> p)
 {
     return pushPopup(std::move(p));
-}
-
-bool Shell::openValueEntry(int n0)
-{
-    if (n0 < 0 || n0 >= 6)
-        return false;
-    updateStripModel(nowMs_);
-    const auto* spec = bound_[static_cast<std::size_t>(n0)];
-    const auto& col = strip_.model().columns[static_cast<std::size_t>(n0)];
-    if (spec == nullptr || col.spec == nullptr || col.disabled || col.readOnly)
-        return false;
-    log("INPUT value entry knob%d (%.*s)", n0 + 1, static_cast<int>(spec->id.size()), spec->id.data());
-    return pushPopup(std::make_unique<ValueEntry>(n0, *spec, scopeOf(*spec), *values_)) != nullptr;
 }
 
 void Shell::showList(ListRequest r)
