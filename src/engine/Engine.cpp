@@ -324,8 +324,11 @@ void Engine::process(const AudioIO& io) noexcept
     p.playing = transport_.playing();
     sceneSwitch_.publish(p, transport_.ppq()); // scene, pattern, step, pending scene/pattern
     p.preCount = transport_.preCount();
-    for (int t = 0; t < kTracks; ++t) // PLY-045: play position 0–1, negative = idle
+    for (int t = 0; t < kTracks; ++t) // PLY-045: play position 0–1, negative = idle; the hits for the pad flashes
+    {
         p.trackPosition[static_cast<std::size_t>(t)] = sources_[static_cast<std::size_t>(t)].playPosition();
+        p.trackHits[static_cast<std::size_t>(t)] = triggerRouter_.hits(t);
+    }
     feeds_.meters().setAfsOverLevel(afs_.overLevel());
     feeds_.publish(blocks, p);
     fxBank_.publish(feeds_.fxWrite()); // the effect panels' feed, same period

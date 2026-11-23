@@ -361,3 +361,33 @@ TEST_CASE("trigger.router: MUTE MODE STOP STEPS skips a muted track's steps; pad
     r->mixer.setStrip(0, 0, engine::mixer::StripParams {}, 0);
     CHECK_FALSE(r->mixer.stepsMuted(0));
 }
+
+// The pad-flash feed (PlayheadFeed::trackHits): every Full / Half trigger a track takes counts, from any source; a
+// release, a lock-only event and a muted track's skipped step (STOP STEPS) do not.
+TEST_CASE("trigger.router: hits(t) counts each track's applied hits for the pad flashes", "[trigger]")
+{
+    TestBuffer buf(dc(100000));
+    auto r = makeRig();
+    r->src[0].setSample(buf.get());
+    r->src[1].setSample(buf.get());
+    CHECK(r->router.hits(0) == 0);
+    r->router.push(Rig::event(0, TriggerKind::Full, 0, TriggerSource::Sequencer));
+    r->router.push(Rig::event(0, TriggerKind::Half, 32, TriggerSource::Sequencer));
+    r->router.push(Rig::event(1, TriggerKind::LockOnly, 10, TriggerSource::Sequencer));
+    r->block();
+    CHECK(r->router.hits(0) == 2);
+    CHECK(r->router.hits(1) == 0);
+    REQUIRE(r->router.pushLive(TriggerNow {1, 100, 60, 1})); // a pad
+    r->block();
+    CHECK(r->router.hits(1) == 1);
+    REQUIRE(r->router.pushLive(TriggerNow {1, 0, 60, 1})); // its release
+    r->block();
+    CHECK(r->router.hits(1) == 1);
+    engine::mixer::StripParams muted;
+    muted.mute = true;
+    r->mixer.setStrip(0, 0, muted, 0);
+    r->mixer.setGlobal(engine::mixer::GlobalParam::MuteMode, 1.0f, 0); // STOP STEPS: the step is skipped
+    r->router.push(Rig::event(0, TriggerKind::Full, 0, TriggerSource::Sequencer));
+    r->block();
+    CHECK(r->router.hits(0) == 2);
+}

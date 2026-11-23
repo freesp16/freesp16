@@ -180,6 +180,8 @@ void TriggerRouter::process(BlockContext& ctx) noexcept
             e.locks = nullptr;
         }
         const bool hit = e.kind == TriggerKind::Full || e.kind == TriggerKind::Half;
+        if (hit)
+            ++hits_[static_cast<std::size_t>(t)]; // the pad-flash feed (wraps)
         if (e.kind == TriggerKind::Full && ts.chokeGroup > 0 && sources_ != nullptr) // TRK-020
             for (std::uint32_t m = groups[static_cast<std::size_t>(ts.chokeGroup - 1)] & ~(1u << t), u = 0; m != 0;
                  ++u, m >>= 1)

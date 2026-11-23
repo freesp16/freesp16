@@ -70,6 +70,9 @@ struct PlayheadFeed
     std::uint8_t scene = 0, pattern = 0, step = 0;
     std::int8_t pendingScene = -1, pendingPattern = -1; // queued switch (SCN-022 blink), -1 = none
     std::array<float, kTracks> trackPosition {};        // PLY-045: play position 0–1 per track, negative = idle
+    // Hits per track (Full / Half triggers from any source: pads, MIDI, sequencer steps, retrigger, repeat; a muted
+    // track's skipped step is none), wrapping. The UI flashes a pad when its count moved since the last frame.
+    std::array<std::uint16_t, kTracks> trackHits {};
 };
 
 // The analog filter's OVER lamp threshold on its drive output: +5.1 dBFS (AFS-011 [OBS]).
