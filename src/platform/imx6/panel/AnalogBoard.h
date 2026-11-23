@@ -47,6 +47,10 @@ public:
 
     // The 12-bit DAC code of an afs.hpCutoff value 0–1023 (kDacMin…kDacMax; also for the tests).
     static unsigned dacCode(int value1023) noexcept;
+    // The vendor driver's synchronous SPI write returns 0 on success, not the byte count (a generic driver would return
+    // 2): both are a sent word, only −1 is an error.
+    static constexpr bool dacWriteOk(long result) noexcept { return result == 0 || result == 2; }
+    static constexpr int kDacRetries = 50;
     // The select line's level for "filter in" (active low).
     static constexpr unsigned char selectLevel(bool filterIn) noexcept { return filterIn ? 0 : 1; }
 
@@ -57,6 +61,6 @@ private:
     std::atomic<bool> limit_ {true};
     int gpioFd_ = -1, dacFd_ = -1;
     bool gpioFailed_ = false, dacFailed_ = false, limitDone_ = false;
-    int lastIn_ = -1, lastCode_ = -1;
+    int lastIn_ = -1, lastCode_ = -1, dacErrors_ = 0;
 };
 } // namespace platform::imx6::panel

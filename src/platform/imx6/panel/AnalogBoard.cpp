@@ -100,12 +100,21 @@ void AnalogBoard::setHpCutoff(int value1023) noexcept
     }
     const unsigned char bytes[2] = {static_cast<unsigned char>(code & 0xFF),
                                     static_cast<unsigned char>((code >> 8) & 0x0F)};
-    if (::write(dacFd_, bytes, 2) != 2)
+    if (! dacWriteOk(::write(dacFd_, bytes, 2)))
     {
-        dacFailed_ = true;
-        analogLog("hp-cutoff FAILED write", kDacDevice, errno);
+        // A transient error (EINTR, EAGAIN) is retried at the next change or frame (lastCode_ stays); a device that
+        // keeps failing is given up after kDacRetries attempts, logged once.
+        const int err = errno;
+        if (dacErrors_++ == 0)
+            analogLog("hp-cutoff write error (retrying)", kDacDevice, err);
+        if (dacErrors_ >= kDacRetries)
+        {
+            dacFailed_ = true;
+            analogLog("hp-cutoff FAILED write", kDacDevice, err);
+        }
         return;
     }
+    dacErrors_ = 0;
     if (lastCode_ < 0)
         analogLog("hp-cutoff ok (12-bit code 4…3276 per HP CUTOFF change)", kDacDevice, 0);
     lastCode_ = static_cast<int>(code);

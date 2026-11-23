@@ -177,3 +177,11 @@ TEST_CASE("analog board: the select line SEL_xDSF/THRU is active low (0 = the fi
     STATIC_CHECK(AnalogBoard::kSelectLine == 133);
     STATIC_CHECK(AnalogBoard::kLimitLine == 134);
 }
+
+TEST_CASE("analog board: the DAC driver's write returns 0 on success (the vendor's SPI contract), 2 elsewhere")
+{
+    STATIC_CHECK(AnalogBoard::dacWriteOk(0));
+    STATIC_CHECK(AnalogBoard::dacWriteOk(2));
+    STATIC_CHECK_FALSE(AnalogBoard::dacWriteOk(-1));
+    STATIC_CHECK_FALSE(AnalogBoard::dacWriteOk(1));
+}
