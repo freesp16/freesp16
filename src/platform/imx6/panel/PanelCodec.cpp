@@ -70,7 +70,7 @@ void PanelDecoder::reset() noexcept
     buttons_ = {};
     powerLevel_ = -1;
     powerSinceMs_ = 0;
-    powerUpSeen_ = powerPressed_ = powerReleased_ = false;
+    powerUpSeen_ = powerRequest_ = false;
     padDown_ = {};
     padPressure_ = {};
     analog_ = {-1, -1, -1};
@@ -136,7 +136,8 @@ void PanelDecoder::decode(const std::uint8_t* f, double t, EventBatch& out) noex
         buttons_[static_cast<std::size_t>(b)] = f[b];
     }
 
-    // The power key (debounced): a level counts once it held kPowerDebounceMs; a press only after the key was seen up.
+    // The power key (debounced): a level counts once it held kPowerDebounceMs; a press fires once, after the key was
+    // seen up.
     if (const int level = (f[kPowerKeyByte] >> kPowerKeyBit) & 1; level != powerLevel_)
     {
         powerLevel_ = level;
@@ -144,14 +145,13 @@ void PanelDecoder::decode(const std::uint8_t* f, double t, EventBatch& out) noex
     }
     else if (t - powerSinceMs_ >= kPowerDebounceMs)
     {
-        if ((level == 0) == config_.powerActiveLow) // pressed
-            powerPressed_ = powerUpSeen_;
-        else
+        if ((level == 0) == config_.powerActiveLow) // down
         {
-            powerUpSeen_ = true;
-            powerReleased_ = powerReleased_ || powerPressed_;
-            powerPressed_ = false;
+            powerRequest_ = powerRequest_ || powerUpSeen_;
+            powerUpSeen_ = false; // once per press
         }
+        else
+            powerUpSeen_ = true;
     }
 
     // Encoders and selector: cumulative int16 counters, the first frame is the reference (E2).

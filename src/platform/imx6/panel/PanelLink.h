@@ -9,7 +9,7 @@
 // Threads: one reader thread (normal priority, never the audio thread) polls the link and a wake pipe. Per RX frame it
 // decodes the events, pushes pad hits straight into the engine's TriggerSink (UI-118) and queues every event into an
 // SPSC queue (reader → UI thread) that poll() drains; between frames it sends the TX frame the LampBus says is due
-// (on change, heartbeat ≤ 4 Hz). The POWER/STANDBY key (RX 5.4) is no control event: its release is
+// (on change, heartbeat ≤ 4 Hz). The POWER/STANDBY key (RX 5.4) is no control event: its press is
 // io::requestStandby(), and after the app's enterStandby() the frames it sends carry the standby flag (PanelLamps.h).
 // Only one process may own the link: this replaces the stock application.
 #pragma once

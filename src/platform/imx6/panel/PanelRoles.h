@@ -29,7 +29,8 @@ constexpr int kTxStandbyOffset = 0x67;
 // therefore no key). Set from the power key on, before the audio stops (hardware notes FREESP16-POWER-BUTTON-FIX).
 constexpr int kTxHardMuteOffset = 0x66;
 // The POWER/STANDBY key on the back: M1 reads it, M2 relays it as RX byte 5 bit 4 (panel_map.py, the service manual's
-// key matrix). Its release asks the app to go to standby (the stock app's PowerManager, button object 14). The bit is
+// key matrix). Pressing it (down, held 50 ms) asks the app to go to standby — on the press, not the release, as asked on
+// the unit (the stock app's PowerManager waits for the release, button object 14). The bit is
 // active-low on the hardware (1 = idle, 0 = pressed: hardware notes, confirmed on a unit) but active-high in the
 // emulator (DecoderConfig::powerActiveLow, setting power_key=high). A level counts once it held kPowerDebounceMs.
 // (Learning the idle level from the first frames does not work: on a unit those read the pressed level.)

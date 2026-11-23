@@ -179,7 +179,7 @@ void PanelLink::run()
                 decoder_.decode(frame, t, batch_); // pad hits reach the TriggerSink inside (UI-118)
                 frames_.fetch_add(1, std::memory_order_relaxed);
                 powerLevel_.store(decoder_.powerLevel(), std::memory_order_relaxed);
-                if (decoder_.takePowerRelease()) // the POWER/STANDBY key on the back: the app powers off
+                if (decoder_.takePowerPress()) // the POWER/STANDBY key on the back: the app powers off
                     io::requestStandby();
                 for (int i = 0; i < batch_.count; ++i)
                 {

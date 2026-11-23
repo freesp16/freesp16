@@ -63,14 +63,13 @@ public:
     // and pots held at the first frame are reported (against all-up / unknown).
     void decode(const std::uint8_t* frame, double timeMs, EventBatch& out) noexcept;
     void reset() noexcept;
-    // The POWER/STANDBY key (kPowerKeyByte/Bit, no logical control): true once after it was pressed and released, like
-    // the stock app, which goes to standby on the release. Each level counts once it held kPowerDebounceMs; a press
-    // counts only after the released level was seen (a key held, or misread, when the link opens never fires). Reader
-    // thread.
-    bool takePowerRelease() noexcept
+    // The POWER/STANDBY key (kPowerKeyByte/Bit, no logical control): true once when it goes down — held for
+    // kPowerDebounceMs, after the released level was seen (a key held, or misread, when the link opens never fires).
+    // One request per press: the key must come up again before the next one. Reader thread.
+    bool takePowerPress() noexcept
     {
-        const bool r = powerReleased_;
-        powerReleased_ = false;
+        const bool r = powerRequest_;
+        powerRequest_ = false;
         return r;
     }
     int powerLevel() const noexcept { return powerLevel_; } // the bit's raw level (-1 before the first frame)
@@ -89,7 +88,7 @@ private:
     std::array<std::uint8_t, 6> buttons_ {};
     int powerLevel_ = -1;       // the bit's raw level
     double powerSinceMs_ = 0;   // when powerLevel_ last changed
-    bool powerUpSeen_ = false, powerPressed_ = false, powerReleased_ = false;
+    bool powerUpSeen_ = false, powerRequest_ = false;
     std::array<bool, 16> padDown_ {};
     std::array<std::uint8_t, 16> padPressure_ {};
     std::array<int, 3> analog_ {-1, -1, -1};

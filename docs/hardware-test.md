@@ -214,7 +214,7 @@ use 01-baseline` (or `ctl start`).
 
 ## 13. Last: the POWER button
 
-Last, because it ends the session: press and release the **POWER** button on the back while the app runs (any
+Last, because it ends the session: press the **POWER** button on the back while the app runs (any
 variant; a press shorter than 50 ms is ignored). Expected: the outputs go silent at once (HardMute, TX 0x66), the
 lamps go dark and the unit switches off, as after the stock software's standby. The log on the stick ends with
 `DIAG STOP reason=standby`, `STOP`, `PREFS flushed …` and `STANDBY panel standby flag set (TX 0x67 bit 0, HardMute
@@ -224,8 +224,8 @@ switched off — the screen, and the unsaved changes without the "Restore unsave
 SAVE keeps them, UNDO returns to the saved version). Send the tail of `<name>.log`.
 
 The key's raw bit is logged at start and at every change: `INPUT panel power raw 1 (up, active-low)` at rest, `raw 0
-(pressed, …)` while held (RX byte 5 bit 4, active-low on the unit: the app acts on the release after a press of at
-least 50 ms). If the log shows `pressed` at rest and `up` while held, the polarity is the other way round:
+(pressed, …)` while held (RX byte 5 bit 4, active-low on the unit: the app acts once the key has been down for
+50 ms, without waiting for the release). If the log shows `pressed` at rest and `up` while held, the polarity is the other way round:
 `power_key=high` in the settings swaps it (the emulator needs that setting). Send those `INPUT panel power` lines. If the unit stays on, the log goes
 on with `STANDBY the power stayed on for 20.0 s: quitting` and the boot menu comes back: the power MCU did not act on
 the standby flag. Send the log and say whether the lamps went dark and the sound stopped.

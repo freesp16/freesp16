@@ -289,7 +289,7 @@ TEST_CASE("panel frames: the first frame reports held buttons and pads but no co
     CHECK(turns == 0);
 }
 
-TEST_CASE("panel frames: the power key (active-low on the hardware, debounced) is a standby request on its release")
+TEST_CASE("panel frames: the power key (active-low on the hardware, debounced) is a standby request when it goes down")
 {
     using platform::imx6::panel::kPowerKeyBit;
     using platform::imx6::panel::kPowerKeyByte;
@@ -308,26 +308,29 @@ TEST_CASE("panel frames: the power key (active-low on the hardware, debounced) i
         };
         key(false);
         frames(100);
-        CHECK_FALSE(d.takePowerRelease());
+        CHECK_FALSE(d.takePowerPress());
         CHECK(d.powerLevel() == (activeLow ? 1 : 0));
 
         key(true);
         frames(30); // a 30 ms glitch: below the debounce
         key(false);
         frames(100);
-        CHECK_FALSE(d.takePowerRelease());
+        CHECK_FALSE(d.takePowerPress());
 
         key(true);
-        frames(300); // held
-        CHECK_FALSE(d.takePowerRelease()); // the press alone: nothing yet (the stock app acts on the release)
+        frames(30);
+        CHECK_FALSE(d.takePowerPress()); // not yet 50 ms down
+        frames(30);
+        CHECK(d.takePowerPress()); // down for 50 ms: no need to let go
+        CHECK_FALSE(d.takePowerPress()); // once
+        frames(300); // still held: no second request
+        CHECK_FALSE(d.takePowerPress());
         key(false);
-        frames(30);
-        CHECK_FALSE(d.takePowerRelease()); // the release is debounced too
-        frames(30);
-        CHECK(d.takePowerRelease());
-        CHECK_FALSE(d.takePowerRelease()); // once
-        frames(300);
-        CHECK_FALSE(d.takePowerRelease());
+        frames(100); // the release does nothing
+        CHECK_FALSE(d.takePowerPress());
+        key(true);
+        frames(100); // the next press fires again
+        CHECK(d.takePowerPress());
     }
 }
 
@@ -335,8 +338,7 @@ TEST_CASE("panel frames: power key frames that read pressed when the link opens 
 {
     using platform::imx6::panel::kPowerKeyBit;
     using platform::imx6::panel::kPowerKeyByte;
-    // Seen on a unit: the first frames read the pressed level (bit 0), then idle (1). Learning the idle level from them
-    // swapped press and release; with the fixed active-low polarity they are a press that was never armed.
+    // Seen on a unit: the first frames read the pressed level (bit 0), then idle (1). They must not power it off.
     paneltest::RxFrame f;
     PanelDecoder d; // the hardware's default: active-low
     double t = 0;
@@ -346,9 +348,10 @@ TEST_CASE("panel frames: power key frames that read pressed when the link opens 
     };
     f.button(kPowerKeyByte, kPowerKeyBit, false); // reads "pressed"
     frames(200);
+    CHECK_FALSE(d.takePowerPress());
     f.button(kPowerKeyByte, kPowerKeyBit, true); // idle
     frames(200);
-    CHECK_FALSE(d.takePowerRelease()); // that "release" is not a standby request
+    CHECK_FALSE(d.takePowerPress());
     // BAR 1 and ACTIVE share byte 5 and never arm it.
     f.button(5, 0, true);
     f.button(5, 5, true);
@@ -356,12 +359,9 @@ TEST_CASE("panel frames: power key frames that read pressed when the link opens 
     f.button(5, 0, false);
     f.button(5, 5, false);
     frames(100);
-    CHECK_FALSE(d.takePowerRelease());
-    // The real press (0) and release (1).
+    CHECK_FALSE(d.takePowerPress());
+    // The real press (0).
     f.button(kPowerKeyByte, kPowerKeyBit, false);
     frames(100);
-    CHECK_FALSE(d.takePowerRelease());
-    f.button(kPowerKeyByte, kPowerKeyBit, true);
-    frames(100);
-    CHECK(d.takePowerRelease());
+    CHECK(d.takePowerPress());
 }
