@@ -1031,13 +1031,13 @@ void Document::lamps(io::LampFrame& frame) const
                                    io::lampcolour::amber, 0};
 }
 
-void Document::shutdown()
+void Document::shutdown(bool powerOff)
 {
     io::midi::setUiEventSink(nullptr);
     if (impl_->renderer) // a running render is cancelled, the live output unmuted (before the engine goes)
         impl_->renderer->stop();
     impl_->preview.stop();
-    impl_->session->shutdown();
+    impl_->session->shutdown(powerOff);
     impl_->prefs.flush(); // nothing unsaved at quit
     impl_->log("PREFS flushed writes=%d%s", impl_->prefs.writes(),
                impl_->prefs.lastError().empty() ? "" : (" error=" + impl_->prefs.lastError()).c_str());

@@ -212,6 +212,21 @@ Last, once: `pc/hwt.sh use 12-crash` crashes the app on purpose after 5 s. Expec
 inside the toolchain container: `arm-linux-gnueabi-addr2line -C -f -e build/armel/bin/<name> <addr>`). Then `pc/hwt.sh
 use 01-baseline` (or `ctl start`).
 
+## 13. Last: the POWER button
+
+Last, because it ends the session: press and release the **POWER** button on the back while the app runs (any
+variant; a press shorter than 50 ms is ignored). Expected: the outputs go silent at once (HardMute, TX 0x66), the
+lamps go dark and the unit switches off, as after the stock software's standby. The log on the stick ends with
+`DIAG STOP reason=standby`, `STOP`, `PREFS flushed …` and `STANDBY panel standby flag set (TX 0x67 bit 0, HardMute
+0x66), lamps dark; waiting for the power to go`. Unsaved changes are in `System/autosave/`. Switch the unit on again:
+the stock software starts, then the boot menu, and the project resumes (with the "Restore unsaved changes?" offer
+when there were any). Send the tail of `<name>.log`.
+
+If nothing happens on the press, the power bit did not change (RX byte 5 bit 4; the app takes its idle level from
+the first 50 ms, so either polarity works): send `04-trace` lines while pressing it. If the unit stays on, the log goes
+on with `STANDBY the power stayed on for 20.0 s: quitting` and the boot menu comes back: the power MCU did not act on
+the standby flag. Send the log and say whether the lamps went dark and the sound stopped.
+
 ## Troubleshooting
 
 | symptom (log lines) | likely cause | what to do |
@@ -225,4 +240,5 @@ use 01-baseline` (or `ctl start`).
 | `KIT FAILED …` | the kit folder is missing | `Samples/TestKit` must be under `<name>-data/<name>/` on the stick |
 | `IMPORT FAILED no unit project …` | no `.prj` in the internal disk's projects folder | `DIAG storage internal=` line; `internal_disk=<mount>` if mounted elsewhere |
 | no new lines, `runner: app exited rc=…` | the app died before its log | `rc` ≥ 128 = signal (139 SEGV, 134 abort): the `CRASH` block precedes it; send `report <label>` |
+| `STANDBY the power stayed on for 20.0 s: quitting` after POWER | the power MCU ignored the panel's standby flag | send the log tail; the unit is still usable (boot menu) |
 | a setting has no effect | the stick-root conf overrides it, or a typo | the `SETTINGS` line shows every effective non-default key and its source counts |

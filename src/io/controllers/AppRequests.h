@@ -1,5 +1,5 @@
 // Requests an input source makes of the app itself: quit (the linux window's close button, the scripted
-// input's `quit`) and a screenshot (the scripted input's `screenshot <file.png>`). The app's frame loop reads them once
+// input's `quit`), standby (the panel's power key) and a screenshot (the scripted input's `screenshot <file.png>`). The app's frame loop reads them once
 // per frame (app/App.cpp, app/Screenshot.h); they are not control events (no screen sees them). UI/message thread;
 // quit may also be requested from any thread (atomic).
 #pragma once
@@ -11,6 +11,12 @@ namespace io
 void requestQuit() noexcept;
 bool quitRequested() noexcept;
 void clearQuitRequest() noexcept; // tests
+
+// Standby (the panel's POWER/STANDBY key, the scripted input's `standby`): the app quits cleanly, then hands the
+// machine to its power controller (platform::Platform::enterStandby). Any thread (atomic).
+void requestStandby() noexcept;
+bool standbyRequested() noexcept;
+void clearStandbyRequest() noexcept; // tests
 
 void requestScreenshot(const std::string& path);
 bool takeScreenshotRequest(std::string& path); // the oldest pending request, false when none

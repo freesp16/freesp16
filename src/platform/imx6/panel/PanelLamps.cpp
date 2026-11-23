@@ -38,6 +38,8 @@ void LampBus::publish(const TxFrame& f)
     void* arg = nullptr;
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (standby())
+            return;
         external_.store(true, std::memory_order_release);
         if (! (f == frame_))
         {
@@ -46,6 +48,47 @@ void LampBus::publish(const TxFrame& f)
             wake = wake_;
             arg = wakeArg_;
         }
+    }
+    if (wake != nullptr)
+        wake(arg);
+}
+
+bool LampBus::enterStandby()
+{
+    void (*wake)(void*) = nullptr;
+    void* arg = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (wake_ == nullptr)
+            return false; // no panel link: nothing would carry the flag
+        TxFrame f;
+        f.setHardMute(true);
+        f.setStandby(true);
+        f.finish();
+        frame_ = f;
+        changed_ = true;
+        external_.store(true, std::memory_order_release); // no echo render replaces the frame
+        standby_.store(true, std::memory_order_release);
+        hardMute_ = true;
+        wake = wake_;
+        arg = wakeArg_;
+    }
+    wake(arg);
+    return true;
+}
+
+void LampBus::hardMute()
+{
+    void (*wake)(void*) = nullptr;
+    void* arg = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (hardMute_)
+            return;
+        hardMute_ = true;
+        changed_ = true;
+        wake = wake_;
+        arg = wakeArg_;
     }
     if (wake != nullptr)
         wake(arg);
@@ -112,6 +155,11 @@ bool LampBus::take(double nowMs, TxFrame& out, double& waitMs)
     if (due)
     {
         out = frame_;
+        if (hardMute_ && ! standby())
+        {
+            out.setHardMute(true);
+            out.finish(); // the CRC again
+        }
         changed_ = false;
         lastSentMs_ = nowMs;
     }

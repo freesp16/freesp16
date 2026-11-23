@@ -11,7 +11,7 @@
 //     session.startup([&](const StartupResult& r) { … restore r.selection, show r.message … });
 //     per frame:            session.frame(nowMs);     (after workers.pump())
 //     audio device lost:    session.onAudioDeviceLost();   … back: session.onAudioDeviceRestored();
-//     quit:                 session.shutdown();
+//     quit:                 session.shutdown();      power key: session.shutdown(true);
 // Directory layout under dataDir (LIB-001's root layout): Projects/, Backups/, System/ (resume.json,
 // resume.sixteen, resuming/, resumed, crashed/, autosave/, trash/ on the device).
 #pragma once
@@ -73,7 +73,8 @@ public:
     // untitled project that was never saved) is offered through askRestore before `done`.
     void startup(std::function<void(const StartupResult&)> done);
     void frame(double nowMs); // autosave tick (playing from the engine's playhead), resume settle
-    void shutdown();          // clean exit: ends the early-exit watch, keeps the selection; waits for no worker
+    void shutdown(bool powerOff = false); // clean exit: ends the early-exit watch, keeps the selection; waits for no
+                                          // worker. powerOff (the power key): unsaved changes are autosaved first
 
     // NFR-012. Lost: remember the transport, pause it (position kept), autosave now when dirty, report the state.
     // Restored: locate back and continue when it was playing (resumePlaybackOnReconnect).

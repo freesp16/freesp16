@@ -59,6 +59,9 @@ The app still reads the projects and samples made with the stock software, on th
 4. Switch the instrument on without the stick and wait for the home screen of the stock software.
 5. Plug the stick in. The boot menu appears after a few seconds: turn **SELECT** to choose freesp16, push it to start.
 
+To switch the instrument off, press the **POWER** button on the back, as with the stock software: freesp16 saves its
+state and preferences, flushes the stick and asks the instrument to power down.
+
 To update freesp16, copy a new `freesp16` over the old one; `freesp16-data/` stays. To go back to the stock software,
 choose it in the boot menu, or remove the stick and switch the instrument off and on. The
 [installation guide](https://freesp16.github.io/install/hardware/) on the website has screenshots and troubleshooting.

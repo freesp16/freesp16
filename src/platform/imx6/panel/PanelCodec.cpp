@@ -68,6 +68,9 @@ void PanelDecoder::reset() noexcept
 {
     haveFrame_ = false;
     buttons_ = {};
+    powerLevel_ = powerIdle_ = -1;
+    powerSinceMs_ = 0;
+    powerPressed_ = powerReleased_ = false;
     padDown_ = {};
     padPressure_ = {};
     analog_ = {-1, -1, -1};
@@ -131,6 +134,25 @@ void PanelDecoder::decode(const std::uint8_t* f, double t, EventBatch& out) noex
                 out.push({(f[b] >> bit) & 1 ? Kind::Press : Kind::Release, c, 0, src, t});
         }
         buttons_[static_cast<std::size_t>(b)] = f[b];
+    }
+
+    // The power key (polarity-free, debounced): a level counts once it held kPowerDebounceMs; the first one is idle.
+    if (const int level = (f[kPowerKeyByte] >> kPowerKeyBit) & 1; level != powerLevel_)
+    {
+        powerLevel_ = level;
+        powerSinceMs_ = t;
+    }
+    else if (t - powerSinceMs_ >= kPowerDebounceMs)
+    {
+        if (powerIdle_ < 0)
+            powerIdle_ = level;
+        else if (level != powerIdle_)
+            powerPressed_ = true;
+        else if (powerPressed_)
+        {
+            powerPressed_ = false;
+            powerReleased_ = true;
+        }
     }
 
     // Encoders and selector: cumulative int16 counters, the first frame is the reference (E2).
@@ -269,6 +291,18 @@ bool TxFrame::setLamp(io::Control c, std::uint32_t rgb, std::uint8_t level) noex
     else
         setMono(role.channel, level > 0 && (rgb & 0xFFFFFF) != 0, level < kMonoDimBelow);
     return true;
+}
+
+void TxFrame::setStandby(bool on) noexcept
+{
+    auto& b = bytes_[kTxStandbyOffset];
+    b = static_cast<std::uint8_t>(on ? b | 1u : b & ~1u);
+}
+
+void TxFrame::setHardMute(bool on) noexcept
+{
+    auto& b = bytes_[kTxHardMuteOffset];
+    b = static_cast<std::uint8_t>(on ? b | 1u : b & ~1u);
 }
 
 void TxFrame::finish() noexcept

@@ -181,6 +181,27 @@ TEST_CASE("project.device: losing the audio device pauses, autosaves at once and
     session.shutdown();
 }
 
+TEST_CASE("project.power: a power-off shutdown autosaves unsaved changes; a plain quit does not", "[project]")
+{
+    for (const bool powerOff : {false, true})
+    {
+        INFO("powerOff " << powerOff);
+        fakes::FakeEngineBridge bridge;
+        auto disk = std::make_shared<libtest::TempDir>("power");
+        services::library::Workers workers {1};
+        core::CommandBus bus;
+        st::ProjectSession session(bus, workers, &bridge, nullptr,
+                                   {.dataDir = disk->dir().getChildFile("data"), .useOsTrash = false});
+        session.startup([](const st::StartupResult&) {});
+        workers.drain();
+        REQUIRE(session.store().create("Gig").ok());
+        setTempo(bus, 128.0); // unsaved, younger than the autosave interval
+        session.shutdown(powerOff); // the write completes inside: shutdown drains the workers
+        CHECK(session.autosave().writes() == (powerOff ? 1 : 0));
+        CHECK(session.autosave().file().existsAsFile() == powerOff);
+    }
+}
+
 TEST_CASE("project.device: an audio drop-out stops the real engine cleanly and the project is autosaved", "[project]")
 {
     auto engine = engine::createEngine();

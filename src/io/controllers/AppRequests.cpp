@@ -8,7 +8,7 @@ namespace io
 {
 namespace
 {
-std::atomic<bool> quit {false};
+std::atomic<bool> quit {false}, standby {false};
 
 struct Shots
 {
@@ -30,6 +30,10 @@ Shots& commands()
 void requestQuit() noexcept { quit.store(true, std::memory_order_relaxed); }
 bool quitRequested() noexcept { return quit.load(std::memory_order_relaxed); }
 void clearQuitRequest() noexcept { quit.store(false, std::memory_order_relaxed); }
+
+void requestStandby() noexcept { standby.store(true, std::memory_order_relaxed); }
+bool standbyRequested() noexcept { return standby.load(std::memory_order_relaxed); }
+void clearStandbyRequest() noexcept { standby.store(false, std::memory_order_relaxed); }
 
 void requestScreenshot(const std::string& path)
 {

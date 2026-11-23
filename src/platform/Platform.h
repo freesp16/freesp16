@@ -85,6 +85,12 @@ public:
     virtual std::unique_ptr<DisplayDevice> display(std::string& error) = 0;
     // Called once with the settings before the factories above (e.g. imx6 audio_device = the codec PCM name).
     virtual void configure(const Settings&) {}
+    // The power key was pressed: mute the analog outputs at once, before the app stops its audio (imx6: HardMute).
+    virtual void muteForStandby() {}
+    // Power off (the app has shut down cleanly and synced): hand the machine to its power controller. True = the
+    // power is going (imx6: the panel's standby flag, after which the unit's M1 cuts the power); the caller keeps
+    // the control sources running and waits. False = no power controller (host, or no panel link): just quit.
+    virtual bool enterStandby(std::string& /*info*/) { return false; }
 };
 using PlatformFactory = std::unique_ptr<Platform> (*)();
 void registerPlatform(std::string_view id, PlatformFactory);

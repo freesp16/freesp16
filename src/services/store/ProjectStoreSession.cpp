@@ -221,8 +221,10 @@ void ProjectSession::frame(double nowMs)
     autosave_.tick(nowMs, playing);
 }
 
-void ProjectSession::shutdown()
+void ProjectSession::shutdown(bool powerOff)
 {
+    if (powerOff)
+        autosave_.onDeviceLost(); // the power goes next: unsaved work on disk, as for a lost device (NFR-012)
     workers_.drain(); // a save or autosave in flight completes; nothing is dropped
     resume_->settle();
     if (config_.selection)

@@ -4,6 +4,7 @@
 #include "platform/imx6/panel/DriverIoctl.h"
 #include "platform/imx6/panel/InputTrace.h"
 
+#include "io/controllers/AppRequests.h"
 #include "io/controllers/PanelPads.h"
 
 #include <fcntl.h>
@@ -174,6 +175,8 @@ void PanelLink::run()
                 const double t = nowMs();
                 decoder_.decode(frame, t, batch_); // pad hits reach the TriggerSink inside (UI-118)
                 frames_.fetch_add(1, std::memory_order_relaxed);
+                if (decoder_.takePowerRelease()) // the POWER/STANDBY key on the back: the app powers off
+                    io::requestStandby();
                 for (int i = 0; i < batch_.count; ++i)
                 {
                     const auto& e = batch_.events[static_cast<std::size_t>(i)];

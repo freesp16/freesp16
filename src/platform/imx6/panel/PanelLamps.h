@@ -4,6 +4,12 @@
 //   LampBus     (shared) — the latest frame, the send schedule (on change, at most every kMinGapMs; heartbeat every
 //               kHeartbeatMs = 4 Hz while nothing changes) and the local echo below; the panel link's reader thread
 //               takes the frame to send (PanelLink.cpp)
+//   standby     — hardMute() (the power key, before the audio stops): every frame sent from then on carries HardMute
+//               (TX 0x66 bit 0). enterStandby() (the app's power-off, Imx6Platform::enterStandby): from then on the bus
+//               sends one dark frame with HardMute and the standby flag (TX 0x67 bit 0) on the same schedule and
+//               ignores publish()/echo(); the unit's power MCU (M1) then cuts the power, as after the stock app's
+//               standby. The link keeps sending it (heartbeat) until then, never only once: the driver drops a frame
+//               queued just before its timer stops (hardware notes, "Trap C")
 //   local echo  — until something flushes the LampSink (the LampModel of UI-150), the panel lights itself from its
 //               own input so the lamps work end to end without it: a pad hit flashes white and fades over 1 s
 //               (UI-151), a held key lights white (red/green for REC/PLAY), the strip LEDs follow the strip (UI-157,
@@ -37,6 +43,12 @@ public:
     // Sender (panel reader thread): the frame to send now, if one is due at `nowMs`. `waitMs` = when to ask again.
     bool take(double nowMs, TxFrame& out, double& waitMs);
     bool external() const noexcept { return external_.load(std::memory_order_acquire); }
+    // Any thread: every lamp dark and the standby flag set, sent at once and then on the heartbeat until the power
+    // goes; publish() and echo() are ignored from here on. False when no sender (panel link) is attached.
+    bool enterStandby();
+    // Any thread: HardMute on every frame from now on (sent at once). Never cleared: only the power-off sets it.
+    void hardMute();
+    bool standby() const noexcept { return standby_.load(std::memory_order_acquire); }
     // Called after publish()/echo() so the sender wakes up (set by the sender: write to its wake pipe).
     void setWake(void (*wake)(void*), void* arg) noexcept;
 
@@ -47,7 +59,8 @@ private:
     TxFrame frame_;
     bool changed_ = true;
     double lastSentMs_ = -1e12;
-    std::atomic<bool> external_ {false};
+    std::atomic<bool> external_ {false}, standby_ {false};
+    bool hardMute_ = false;
     // echo state
     io::LampFrame echo_ {};
     double echoAnimUntilMs_ = -1e12, lastEchoRenderMs_ = 0;

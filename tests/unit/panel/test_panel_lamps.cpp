@@ -38,6 +38,7 @@ TEST_CASE("panel lamps: a TX frame has header 2, the 0xaa marker, brightness 4 a
     CHECK(b[0x77] == 0xaa);
     CHECK(b[0x6e] == 4);
     CHECK(b[0x67] == 0); // never the standby flag
+    CHECK(b[0x66] == 0); // nor HardMute
     CHECK(crcX25(b, 124) == static_cast<std::uint16_t>(b[124] | b[125] << 8));
 }
 
@@ -184,4 +185,60 @@ TEST_CASE("analog board: the DAC driver's write returns 0 on success (the vendor
     STATIC_CHECK(AnalogBoard::dacWriteOk(2));
     STATIC_CHECK_FALSE(AnalogBoard::dacWriteOk(-1));
     STATIC_CHECK_FALSE(AnalogBoard::dacWriteOk(1));
+}
+
+TEST_CASE("panel lamps: HardMute, then standby sends one dark frame with the 0x67 flag, at once and on the heartbeat")
+{
+    auto bus = std::make_shared<LampBus>();
+    PanelLamps lamps(bus);
+    TxFrame out;
+    double wait = 0;
+    CHECK_FALSE(bus->enterStandby()); // no sender attached: nothing would carry the flag
+    CHECK_FALSE(bus->standby());
+
+    int woken = 0;
+    bus->setWake([](void* n) { ++*static_cast<int*>(n); }, &woken);
+    lamps.setLamp(io::Control::Play, 0x00FF00, 255);
+    lamps.flush();
+    REQUIRE(bus->take(1000, out, wait));
+    CHECK_FALSE(out.standby());
+    CHECK(monoAt(out.data(), 7).first == 1);
+
+    // The power key: HardMute (0x66 bit 0) on every frame from now on, the lamps unchanged, no standby flag yet.
+    int before = woken;
+    bus->hardMute();
+    CHECK(woken == before + 1);
+    REQUIRE(bus->take(1011, out, wait));
+    CHECK(out.data()[0x66] == 1);
+    CHECK_FALSE(out.standby());
+    CHECK(monoAt(out.data(), 7).first == 1);
+    CHECK(crcX25(out.data(), 124) == static_cast<std::uint16_t>(out.data()[124] | out.data()[125] << 8));
+    REQUIRE(bus->take(1011 + LampBus::kHeartbeatMs, out, wait)); // the heartbeat carries it too
+    CHECK(out.data()[0x66] == 1);
+
+    before = woken;
+    REQUIRE(bus->enterStandby());
+    CHECK(bus->standby());
+    CHECK(woken == before + 1); // the sender sends it without waiting for the heartbeat
+    REQUIRE(bus->take(1300, out, wait));
+    const auto* b = out.data();
+    CHECK(out.standby());
+    CHECK(b[0x67] == 1);
+    CHECK(b[0x66] == 1); // HardMute stays
+    CHECK(b[0x68] == 0); // "standby controller absent" stays clear
+    CHECK(b[0] == 2);
+    CHECK(b[0x77] == 0xaa);
+    CHECK(crcX25(b, 124) == static_cast<std::uint16_t>(b[124] | b[125] << 8));
+    CHECK(monoAt(b, 7).first == 0); // every lamp dark
+    for (int ch = 0; ch < 32; ++ch)
+        CHECK(rgbAt(b, ch) == std::array {0, 0, 0});
+
+    // A late LampModel flush or input echo never replaces it; the heartbeat keeps sending it.
+    lamps.flush();
+    bus->echo({io::ControlEvent::Kind::Press, io::pad(1), 100, io::kSourcePanel, 1310});
+    CHECK_FALSE(bus->take(1320, out, wait));
+    REQUIRE(bus->take(1300 + LampBus::kHeartbeatMs, out, wait));
+    CHECK(out.standby());
+    CHECK(monoAt(out.data(), 7).first == 0);
+    CHECK(rgbAt(out.data(), 0x10) == std::array {0, 0, 0});
 }

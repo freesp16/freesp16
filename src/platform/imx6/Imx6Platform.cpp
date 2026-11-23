@@ -177,6 +177,21 @@ public:
 
     std::unique_ptr<DisplayDevice> display(std::string& error) override { return makeDisplay(error); }
 
+    void muteForStandby() override { lampBus_->hardMute(); } // TX 0x66 bit 0
+
+    // The stock app's standby: the panel frame's standby flag (TX 0x67 bit 0) with HardMute, every lamp dark; M1 cuts
+    // the power.
+    bool enterStandby(std::string& info) override
+    {
+        if (! lampBus_->enterStandby())
+        {
+            info = "panel link not running: no standby flag";
+            return false;
+        }
+        info = "panel standby flag set (TX 0x67 bit 0, HardMute 0x66), lamps dark";
+        return true;
+    }
+
 private:
     static std::string detectReason()
     {

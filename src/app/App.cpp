@@ -297,6 +297,31 @@ bool measureFrames(ui::Renderer& r, const ui::GlyphAtlas& atlas, int frames, Fra
     return true;
 }
 
+// Power off (the panel's POWER/STANDBY key, io::requestStandby): unsaved changes are autosaved, the resume state and
+// the preferences written (Document::shutdown(true)) and the audio has stopped. Flush the file systems (the data is on the USB stick), then hand the machine to its power
+// controller and wait with the control sources still running: on the imx6 the panel link keeps sending the standby
+// flag until the unit's M1 cuts the power, as after the stock app's standby. If the power stays on (no power controller,
+// e.g. the host or the emulator, or the flag was ignored), the app quits as usual and the boot menu comes back.
+constexpr double kStandbyWaitMs = 20000.0;
+
+void powerOff(platform::Platform& machine)
+{
+    ::sync();
+    std::string info;
+    if (! machine.enterStandby(info))
+    {
+        logLine("STANDBY %.*s has no power controller%s%s: quitting", static_cast<int>(machine.id().size()),
+                machine.id().data(), info.empty() ? "" : ": ", info.c_str());
+        return;
+    }
+    logLine("STANDBY %s; waiting for the power to go", info.c_str());
+    ::sync(); // the log line too
+    const double start = nowMs();
+    while (! quitRequested && nowMs() - start < kStandbyWaitMs)
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    logLine("STANDBY the power stayed on for %.1f s: quitting", (nowMs() - start) / 1000.0);
+}
+
 std::string upper(std::string_view s)
 {
     std::string out(s);
@@ -701,6 +726,8 @@ int run()
         screenshot.afterFrame(frame, *renderer);
         if (io::quitRequested()) // the window's close button, the scripted `quit` (io/controllers/AppRequests.h)
             break;
+        if (io::standbyRequested()) // the panel's power key, the scripted `standby`: quit, then power off
+            break;
         bridge.retirePending();
         const double now = nowMs();
         if (diagIntervalS > 0 && now - lastReport >= 1000.0 * static_cast<double>(diagIntervalS))
@@ -730,7 +757,7 @@ int run()
                 next = nowMs();
         }
     }
-    const char* why = rendererLost ? "renderer-lost" : quitRequested ? "signal" : (runFrames > 0 && frame >= runFrames ? "run_frames" : "quit");
+    const char* why = rendererLost ? "renderer-lost" : quitRequested ? "signal" : io::standbyRequested() ? "standby" : (runFrames > 0 && frame >= runFrames ? "run_frames" : "quit");
     if (! stats.total.v.empty())
     {
         stats.print("run", renderer->name());
@@ -752,9 +779,14 @@ int run()
                 static_cast<unsigned long long>(load.overruns), diag::residentKb(), diag::peakResidentKb());
     }
     logLine("STOP");
-    document->shutdown();
+    const bool standby = io::standbyRequested() && ! quitRequested && ! rendererLost;
+    if (standby)
+        machine->muteForStandby(); // the outputs go silent before anything stops (no click at the power cut)
+    document->shutdown(standby);
     for (auto& device : audioDevices)
         device->stop();
+    if (standby)
+        powerOff(*machine); // returns only if the power stayed on
     for (auto& source : sources)
         source->stop();
     audioDevices.clear();

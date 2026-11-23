@@ -288,3 +288,77 @@ TEST_CASE("panel frames: the first frame reports held buttons and pads but no co
     CHECK(presses == 2);
     CHECK(turns == 0);
 }
+
+TEST_CASE("panel frames: the power key (either polarity, debounced) is a standby request on its release")
+{
+    using platform::imx6::panel::kPowerKeyBit;
+    using platform::imx6::panel::kPowerKeyByte;
+    // The hardware's bit is active-low (idle 1), the emulator's active-high (idle 0): the idle level is learnt.
+    for (const bool activeLow : {true, false})
+    {
+        INFO("active-low " << activeLow);
+        paneltest::RxFrame f;
+        auto key = [&](bool pressed) { f.button(kPowerKeyByte, kPowerKeyBit, pressed != activeLow); };
+        PanelDecoder d;
+        double t = 0;
+        auto frames = [&](double ms) { // one frame every 3 ms (the driver's interval) for `ms`
+            for (const double end = t + ms; t < end; t += 3)
+                CHECK(run(d, f, t).size() <= 3); // the first frame reports the pots; never a power event
+        };
+        key(false);
+        frames(100); // idle learnt
+        CHECK_FALSE(d.takePowerRelease());
+
+        key(true);
+        frames(30); // a 30 ms glitch: below the debounce
+        key(false);
+        frames(100);
+        CHECK_FALSE(d.takePowerRelease());
+
+        key(true);
+        frames(300); // held
+        CHECK_FALSE(d.takePowerRelease()); // the press alone: nothing yet (the stock app acts on the release)
+        key(false);
+        frames(30);
+        CHECK_FALSE(d.takePowerRelease()); // the release is debounced too
+        frames(30);
+        CHECK(d.takePowerRelease());
+        CHECK_FALSE(d.takePowerRelease()); // once
+        frames(300);
+        CHECK_FALSE(d.takePowerRelease());
+    }
+}
+
+TEST_CASE("panel frames: the power key's idle level comes from the first frames, and other byte-5 keys never arm it")
+{
+    using platform::imx6::panel::kPowerKeyBit;
+    using platform::imx6::panel::kPowerKeyByte;
+    paneltest::RxFrame f;
+    f.button(kPowerKeyByte, kPowerKeyBit, true); // idle 1 (the hardware)
+    PanelDecoder d;
+    double t = 0;
+    auto frames = [&](double ms) {
+        for (const double end = t + ms; t < end; t += 3)
+            run(d, f, t);
+    };
+    frames(20); // not yet stable: no idle level, so a change now is no press
+    f.button(kPowerKeyByte, kPowerKeyBit, false);
+    frames(10);
+    f.button(kPowerKeyByte, kPowerKeyBit, true);
+    frames(100);
+    CHECK_FALSE(d.takePowerRelease());
+    // BAR 1 and ACTIVE share byte 5.
+    f.button(5, 0, true);
+    f.button(5, 5, true);
+    frames(100);
+    f.button(5, 0, false);
+    f.button(5, 5, false);
+    frames(100);
+    CHECK_FALSE(d.takePowerRelease());
+    // The real press and release.
+    f.button(kPowerKeyByte, kPowerKeyBit, false);
+    frames(100);
+    f.button(kPowerKeyByte, kPowerKeyBit, true);
+    frames(100);
+    CHECK(d.takePowerRelease());
+}
