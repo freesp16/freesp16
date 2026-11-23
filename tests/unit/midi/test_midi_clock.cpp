@@ -125,7 +125,7 @@ TEST_CASE("midi.clockout: 24 PPQN ticks on exact frames, transport messages (SYN
         ctx.startedThisBlock = b == 0;
         ctx.stoppedThisBlock = false;
         sched.beginBlock(b * 64);
-        out.process(ctx, s, 1u, b * 64, ppf, false, 0, sched);
+        out.process(ctx, s, 1u, b * 64, ppf, engine::midi::ClockOutEdges {}, 0, sched);
         sched.endBlock();
     }
     drain();
@@ -144,13 +144,13 @@ TEST_CASE("midi.clockout: 24 PPQN ticks on exact frames, transport messages (SYN
     ctx.playing = false;
     ctx.stoppedThisBlock = true;
     sched.beginBlock(blocks * 64);
-    out.process(ctx, s, 1u, blocks * 64, ppf, false, 0, sched);
+    out.process(ctx, s, 1u, blocks * 64, ppf, engine::midi::ClockOutEdges {}, 0, sched);
     ctx.stoppedThisBlock = false;
-    out.process(ctx, s, 1u, blocks * 64, ppf, true, 32, sched);
+    out.process(ctx, s, 1u, blocks * 64, ppf, engine::midi::ClockOutEdges {true, 0, 0.0}, 32, sched);
     ctx.playing = ctx.startedThisBlock = true;
     ctx.ppqStart = 8.0;
     ctx.ppqEnd = 8.0 + 64 * ppf;
-    out.process(ctx, s, 1u, blocks * 64, ppf, false, 32, sched);
+    out.process(ctx, s, 1u, blocks * 64, ppf, engine::midi::ClockOutEdges {}, 32, sched);
     sched.endBlock();
     drain();
     REQUIRE(got.size() >= 5);
@@ -166,7 +166,7 @@ TEST_CASE("midi.clockout: 24 PPQN ticks on exact frames, transport messages (SYN
     for (int b = 0; b < 1000; ++b)
     {
         sched.beginBlock(b * 64);
-        out.process(ctx, s, 1u, b * 64, ppf, false, 0, sched);
+        out.process(ctx, s, 1u, b * 64, ppf, engine::midi::ClockOutEdges {}, 0, sched);
         sched.endBlock();
     }
     drain();

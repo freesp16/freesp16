@@ -305,7 +305,7 @@ TEST_CASE("transport.sync: the correction hook may change the effective tempo an
     struct Hook
     {
         double bpm = 0, phase = 0;
-        static void fn(void* u, double, double& b, double& p) noexcept
+        static void fn(void* u, double, double, double& b, double& p) noexcept
         {
             auto* h = static_cast<Hook*>(u);
             if (h->bpm > 0)
