@@ -6,8 +6,8 @@
 //
 // Every value here is session state (scope Global, storage "session.*": never saved in a project, like
 // routing.monitor) except live.inputLatency, a device preference: the reference keeps none of them in its project
-// format, and the model has no sampling fields. Engine scopes (ParamChange::scope): sampling.rec, live.rec,
-// live.takeReady = (scene << 4) | track (the target track); the others 0.
+// format, and the model has no sampling fields. Engine scopes (ParamChange::scope): sampling.rec, sampling.drop,
+// live.rec, live.takeReady = (scene << 4) | track (the target track); the others 0.
 #include "core/params/ParamRegistry.h"
 
 #include <cstdio>
@@ -23,6 +23,9 @@ constexpr std::string_view lengthLabels[] = {"OFF", "1 BAR", "2 BAR", "3 BAR", "
 // LIVE record length (SMP-021, our list).
 constexpr std::string_view liveLengthLabels[] = {"1/4 BAR", "1/2 BAR", "1 BAR", "2 BAR", "4 BAR", "8 BAR"};
 constexpr std::string_view offOnLabels[] = {"OFF", "ON"};
+// REC QUANTIZE (ours): the take waits for the next multiple of this many beats of the pattern (OFF = no wait).
+// engine/sampling/SamplingStage.h kQuantizeBeats holds the beats of each index.
+constexpr std::string_view quantizeLabels[] = {"OFF", "1 BEAT", "2 BEATS", "4 BEATS", "8 BEATS", "16 BEATS"};
 
 // REC THRESHOLD (SMP-002): 0 = OFF, 1…41 = −60…−20 dB in 1 dB steps, 42 = PLAY.
 int formatThreshold(float v, char* buf, int n) noexcept
@@ -51,6 +54,16 @@ void addSamplingParams(ParamRegistry& r)
     r.add({.id = "sampling.rec", .label = "REC", .shortLabel = "REC", .group = "SAMPLING", .type = ParamType::Bool,
            .minValue = 0, .maxValue = 1, .defaultValue = 0, .enumLabels = offOnLabels, .scope = ParamScope::Track,
            .storage = {.key = "session.sampling.rec"}});
+    // REC QUANTIZE (ours): a take starts on the next 1 / 2 / 4 / 8 / 16-beat boundary of the pattern instead of at once
+    // (stopped: at PLAY). It replaces the THRESHOLD rule while on. Fixed at REC, like THRESHOLD and LENGTH.
+    r.add({.id = "sampling.quantize", .label = "REC QUANTIZE", .shortLabel = "REC QNTZ", .group = "SAMPLING",
+           .type = ParamType::Enum, .minValue = 0, .maxValue = 5, .defaultValue = 0, .enumLabels = quantizeLabels,
+           .scope = ParamScope::Global, .storage = {.key = "session.sampling.quantize"}});
+    // Drop (ours): 1 = the take of the target track (scope) is thrown away — standby or recording → Cancelled, the
+    // recorder deletes its part file. A pad hit again during its own take posts it (SAMPLING/EDIT).
+    r.add({.id = "sampling.drop", .label = "DROP TAKE", .shortLabel = "DROP", .group = "SAMPLING",
+           .type = ParamType::Bool, .minValue = 0, .maxValue = 1, .defaultValue = 0, .enumLabels = offOnLabels,
+           .scope = ParamScope::Track, .storage = {.key = "session.sampling.drop"}});
     // PRE-ROLL (ours): a threshold start keeps this much of the input before the crossing (0 = the crossing frame).
     r.add({.id = "sampling.preRoll", .label = "PRE-ROLL", .shortLabel = "PREROLL", .group = "SAMPLING",
            .type = ParamType::Integer, .minValue = 0, .maxValue = 100, .defaultValue = 0, .coarseStep = 1,

@@ -78,6 +78,11 @@ bool SamplingStage::set(SamplingParam p, std::uint16_t scope, float value) noexc
             live_.takeReady(scope & 15, static_cast<std::uint32_t>(v < 0 ? 0 : v));
             return true;
         case SamplingParam::InputLatency: inputLatency_ = clampi(v, 0, 8192); return true;
+        case SamplingParam::Quantize: quantize_ = clampi(v, 0, 5); return true; // the take keeps its copy
+        case SamplingParam::Drop:
+            if (value >= 0.5f)
+                drop(scope);
+            return true;
         case SamplingParam::Count: break;
     }
     return false;
@@ -112,6 +117,7 @@ void SamplingStage::rec(bool on, std::uint16_t scope) noexcept
         ringSource_ = takeSource_;
         takeThreshold_ = threshold_;
         takeBars_ = lengthBars_;
+        takeBeats_ = kQuantizeBeats[quantize_];
         takeScene_ = scope >> 4 & 15;
         takeTrack_ = scope & 15;
         start_ = end_ = -1;
@@ -129,6 +135,16 @@ void SamplingStage::rec(bool on, std::uint16_t scope) noexcept
         stopRequested_ = true;
 }
 
+void SamplingStage::drop(std::uint16_t scope) noexcept
+{
+    if ((state_ != RecState::Standby && state_ != RecState::Recording) || (scope >> 4 & 15) != takeScene_ ||
+        (scope & 15) != takeTrack_)
+        return; // a take that already ended (Done) is kept: the drop came too late
+    state_ = RecState::Cancelled;
+    stopRequested_ = false;
+    statusDirty_ = true;
+}
+
 void SamplingStage::publishTake() noexcept
 {
     if (hub_ == nullptr)
@@ -140,6 +156,7 @@ void SamplingStage::publishTake() noexcept
     s.takeTrack.store(takeTrack_, rx);
     s.takeScene.store(takeScene_, rx);
     s.takeBars.store(takeBars_, rx);
+    s.takeQuantize.store(takeBeats_, rx);
     s.takeSeq.store(seq_, rx);
     s.state.store(static_cast<std::int32_t>(state_), std::memory_order_release);
     statusDirty_ = false;
@@ -157,6 +174,14 @@ void SamplingStage::schedule(const BlockContext& ctx, const stages::BlockBuffers
         return;
     const int frame = boundaryFrame(ctx, timing, switcher.unit(), switcher.currentLength());
     live_.schedule(ctx, frame, hub_->ring.head(), latencyFor(ringSource()), router, &hub_->status);
+    // REC QUANTIZE: the take's boundary in this block (capture() starts it there) and the countdown for the UI.
+    gridFrame_ = -1;
+    if (state_ == RecState::Standby && takeBeats_ > 0)
+    {
+        double left = -1.0;
+        gridFrame_ = gridFrame(ctx, timing, static_cast<double>(takeBeats_), switcher.currentLength(), left);
+        hub_->status.startInBeats.store(static_cast<float>(left), rx);
+    }
 }
 
 void SamplingStage::capture(const BlockContext& ctx, const stages::BlockBuffers& b, const float* tapL,
@@ -203,7 +228,12 @@ void SamplingStage::capture(const BlockContext& ctx, const stages::BlockBuffers&
     if (state_ == RecState::Standby)
     {
         std::int64_t start = -1;
-        if (takeThreshold_ == kThresholdOff)
+        if (takeBeats_ > 0)
+        {
+            if (gridFrame_ >= 0)
+                start = head + gridFrame_ + latencyFor(takeSource_);
+        }
+        else if (takeThreshold_ == kThresholdOff)
             start = head;
         else if (takeThreshold_ == kThresholdPlay)
         {
@@ -231,7 +261,8 @@ void SamplingStage::capture(const BlockContext& ctx, const stages::BlockBuffers&
     {
         if (stopRequested_)
         {
-            const std::int64_t now = head + (takeThreshold_ == kThresholdPlay ? latencyFor(takeSource_) : 0);
+            const bool synced = takeThreshold_ == kThresholdPlay || takeBeats_ > 0; // a synced start's latency
+            const std::int64_t now = head + (synced ? latencyFor(takeSource_) : 0);
             const std::int64_t end = now > start_ ? now : start_ + 1;
             end_ = end_ >= 0 && end_ < end ? end_ : end;
             stopRequested_ = false;

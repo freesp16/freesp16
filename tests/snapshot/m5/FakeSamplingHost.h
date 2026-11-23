@@ -74,6 +74,11 @@ public:
         calls.push_back("stop " + std::to_string(scene) + " " + std::to_string(track));
         hub_->status.state = static_cast<int>(core::sampling::RecState::Idle);
     }
+    void drop(int scene, int track) override
+    {
+        calls.push_back("drop " + std::to_string(scene) + " " + std::to_string(track));
+        hub_->status.state = static_cast<int>(core::sampling::RecState::Cancelled);
+    }
     bool unsaved(int, int track) const override { return unsavedTrack == track; }
     std::string proposedName(int, int) const override { return "Beat_120bpm_2bar_01"; }
     void saveSelection(int, int track, std::int64_t start, std::int64_t end, const std::string& name, bool replace,
