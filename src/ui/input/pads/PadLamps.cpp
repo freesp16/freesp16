@@ -7,12 +7,17 @@ namespace
 constexpr io::Control kModeKeys[] = {io::Control::PadModeTrack, io::Control::PadModeMute, io::Control::PadModeSlice,
                                      io::Control::PadModeScale};
 
+// The resolved level kept exactly (a flash mid-fade, a soloed pad mid-breath): the brightness preference scales it
+// once more when the frame is applied; the faint level stays Faint, which never rounds down to dark.
 io::LampState stateOf(std::uint32_t rgb, std::uint8_t level) noexcept
 {
     if (level == 0 || (rgb & 0xFFFFFFu) == 0)
         return {};
-    return {level >= 200 ? io::LampMode::On : level > io::kFaintLevel ? io::LampMode::Dim : io::LampMode::Faint,
-            rgb & 0xFFFFFFu, 0};
+    if (level <= io::kFaintLevel)
+        return {io::LampMode::Faint, rgb & 0xFFFFFFu, 0};
+    if (level == 255)
+        return {io::LampMode::On, rgb & 0xFFFFFFu, 0};
+    return {io::LampMode::Level, rgb & 0xFFFFFFu, 0, level};
 }
 } // namespace
 
@@ -28,14 +33,13 @@ void PadLamps::setLamp(io::Control c, std::uint32_t rgb, std::uint8_t level)
             keys_[i] = stateOf(rgb, level);
 }
 
-void PadLamps::overlay(io::LampFrame& f, PadMode mode) const noexcept
+void PadLamps::overlay(io::LampFrame& f) const noexcept
 {
     if (! painted_)
         return;
     for (std::size_t i = 0; i < 4; ++i)
         f[kModeKeys[i]] = keys_[i];
-    if (mode == PadMode::Play)
-        return;
+    // every pad mode, PLAY too: one painter, one rule (io::padLamp)
     for (int p = 1; p <= 16; ++p)
         f[io::pad(p)] = pads_[static_cast<std::size_t>(p - 1)];
 }

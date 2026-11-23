@@ -58,29 +58,54 @@ LampState faint(std::uint32_t rgb) noexcept { return {LampMode::Faint, rgb, 0}; 
 LampState lit(bool b, std::uint32_t rgb) noexcept { return b ? on(rgb) : LampState {}; }
 } // namespace
 
+namespace
+{
+double pulse(double nowMs) noexcept // 0 … 1 … 0 over kPulseMs, the same phase for every lamp
+{
+    constexpr double kTwoPi = 6.283185307179586;
+    return 0.5 - 0.5 * std::cos(kTwoPi * std::fmod(std::max(0.0, nowMs), kPulseMs) / kPulseMs);
+}
+
+int steadyLevel(const LampState& s, double nowMs) noexcept // the unscaled level of every state but Flash
+{
+    switch (s.mode)
+    {
+    case LampMode::Off: return 0;
+    case LampMode::On: return 255;
+    case LampMode::Dim: return kDimLevel;
+    case LampMode::Faint: return kFaintLevel;
+    case LampMode::Level: return s.level;
+    case LampMode::Pulse: return static_cast<int>(std::lround(s.level + (255 - s.level) * pulse(nowMs)));
+    case LampMode::BlinkSlow: return blinkOn(nowMs, s.sinceMs, kBlinkSlowHz) ? 255 : 0;
+    case LampMode::BlinkFast: return blinkOn(nowMs, s.sinceMs, kBlinkFastHz) ? 255 : 0;
+    case LampMode::Flash: break;
+    }
+    return 255;
+}
+} // namespace
+
 LampOutput resolve(const LampState& s, double nowMs, LampBrightness b) noexcept
 {
     int level = 0;
     std::uint32_t rgb = s.rgb;
-    switch (s.mode)
+    LampMode shape = s.mode; // Faint keeps at least 1 under the brightness preference
+    if (s.mode == LampMode::Flash)
     {
-    case LampMode::Off: break;
-    case LampMode::On: level = 255; break;
-    case LampMode::Dim: level = kDimLevel; break;
-    case LampMode::Faint: level = kFaintLevel; break;
-    case LampMode::BlinkSlow: level = blinkOn(nowMs, s.sinceMs, kBlinkSlowHz) ? 255 : 0; break;
-    case LampMode::BlinkFast: level = blinkOn(nowMs, s.sinceMs, kBlinkFastHz) ? 255 : 0; break;
-    case LampMode::Flash:
-    {
+        // Full white at the hit, eased back to the settle state: e = (1 − t)⁴ of the hit's light is left.
         const double t = std::clamp((nowMs - s.sinceMs) / kFlashMs, 0.0, 1.0);
-        rgb = blend(lampcolour::white, s.rgb, t);
-        level = rgb == 0 ? 0 : 255;
-        break;
+        const double e = (1.0 - t) * (1.0 - t) * (1.0 - t) * (1.0 - t);
+        const LampState base {s.settle == LampMode::Flash ? LampMode::On : s.settle, s.rgb, s.sinceMs, s.level};
+        const int settled = s.rgb == 0 ? 0 : steadyLevel(base, nowMs);
+        rgb = blend(s.rgb, lampcolour::white, e);
+        level = static_cast<int>(std::lround(settled + (255 - settled) * e));
+        shape = e > 0.0 ? LampMode::On : base.mode;
     }
-    }
+    else
+        level = steadyLevel(s, nowMs);
     if (rgb == 0)
         level = 0;
-    level = s.mode == LampMode::Faint ? std::max(1, level * brightnessScale(b) / 255) : level * brightnessScale(b) / 255;
+    level = shape == LampMode::Faint && level > 0 ? std::max(1, level * brightnessScale(b) / 255)
+                                                   : level * brightnessScale(b) / 255;
     return {level == 0 ? 0u : rgb, static_cast<std::uint8_t>(level)};
 }
 
@@ -129,27 +154,32 @@ void stripLamps(int position, bool contact, bool hold, StripMode mode, LampFrame
 
 LampState padLamp(PadMode mode, const PadLamp& p) noexcept
 {
-    if (! p.hasContent && mode != PadMode::Slice && mode != PadMode::Scale)
+    // Nothing to play: an empty track; SLICE: a pad without a slice (the slice map decides, an empty track shows
+    // the default grid); SCALE shows the layout of the selected track whatever it holds.
+    if ((! p.hasContent && mode != PadMode::Slice && mode != PadMode::Scale)
+        || (mode == PadMode::Slice && ! p.inSlices))
         return {};
+    // Silent: muted, or another track holds the solo (the engine's audible = unmuted and, when any solo is set,
+    // soloed). The smallest light, and no hit flash: the pad does not sound.
+    if (p.muted || (p.anySolo && ! p.soloed))
+        return faint(p.rgb);
     LampState base;
     switch (mode)
     {
-    // A muted track's pad glows faintly in every mode that shows the tracks (hardware feedback: "just a small light").
-    case PadMode::None: base = p.muted ? faint(p.rgb) : on(p.rgb); break;
-    case PadMode::Track: base = p.muted ? faint(p.rgb) : p.selected ? on(p.rgb) : dim(p.rgb); break; // selected brighter
-    case PadMode::Mute: base = p.muted ? faint(p.rgb) : on(p.rgb); break;
-    case PadMode::Slice:
-        if (! p.inSlices)
-            return {};
-        base = p.playing ? LampState {LampMode::Flash, p.rgb, p.lastHitMs} : on(p.rgb);
-        return base;
-    case PadMode::Scale: base = p.root ? on(p.rgb) : dim(p.rgb); break;
-    // MUTE held: a soloed track full, a track silenced by another's solo or by its mute faint, no
-    // solo set = dim. No hit flash: the pads do not sound meanwhile.
-    case PadMode::Solo: return p.muted ? faint(p.rgb) : p.soloed ? on(p.rgb) : p.anySolo ? faint(p.rgb) : dim(p.rgb);
+    // The pad's own track: the selected one full, the others dim.
+    case PadMode::None:
+    case PadMode::Track:
+    case PadMode::Mute:
+    case PadMode::Solo: base = p.selected ? on(p.rgb) : dim(p.rgb); break;
+    case PadMode::Slice: base = dim(p.rgb); break;                      // every slice of the selected track
+    case PadMode::Scale: base = p.root ? on(p.rgb) : dim(p.rgb); break; // the selected track's notes
     }
-    if (base.mode == LampMode::On && p.lastHitMs > -1e11)
-        return {LampMode::Flash, p.rgb, p.lastHitMs}; // resolve() fades it back to the colour
+    const bool tracks = mode != PadMode::Slice && mode != PadMode::Scale;
+    if (tracks && p.soloed) // breathes from its own level (a selected pad stays near full) up to full
+        base = {LampMode::Pulse, p.rgb, 0, base.mode == LampMode::On ? kPulseSelectedLevel : kDimLevel};
+    if (p.lastHitMs > -1e11) // resolve() eases the white hit back to the base state within kFlashMs
+        return {LampMode::Flash, p.rgb, p.lastHitMs, base.mode == LampMode::Pulse ? base.level : std::uint8_t {255},
+                base.mode};
     return base;
 }
 

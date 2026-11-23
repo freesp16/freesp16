@@ -18,10 +18,12 @@
 // presses of sources that did not (onPad(…, sentDirect = false): virtual panel, tests), after the velocity curve, and
 // for every release (no source pushes releases; GATE tracks need them, TRK-011).
 //
-// Lamps (paintLamps, PAD-003 / UI-151/152): track colour (`track.padColor`), white hit flash fading over 1 s, dimmed
-// when muted in MUTE mode, the selected track brighter in TRACK mode, scale roots in SCALE mode, dark when the track
-// is empty; the mode keys white while on. MUTE held: the MUTE key blinks fast, the soloed tracks' pads full, the others
-// faint (dim while nothing is soloed). At most 60 lamp frames per second.
+// Lamps (paintLamps, PAD-003 / UI-151/152): one ladder in every pad mode, PLAY included (io::padLamp), in the track
+// colour (`track.padColor`): dark = empty, faint = silent (muted, or another track soloed), dim = audible, full = the
+// selected track (SCALE: a root note), a soloed track breathes, and a hit — a pad press at once, or any trigger the
+// engine reports (observeHits: sequencer steps, MIDI, retrigger, repeat) — flashes white and eases back within 1 s.
+// SLICE / SCALE pads flash on their own presses (the engine reports hits per track, not per slice or note). The mode
+// keys white while on; MUTE held: the MUTE key blinks fast. At most 60 lamp frames per second.
 #pragma once
 
 #include "core/commands/Command.h"
@@ -88,6 +90,12 @@ public:
     // Once per UI frame: a mode key held for the hold time switches now.
     void tick(double nowMs);
     void paintLamps(io::LampSink&, double nowMs, const engine::MeterFeed&) const;
+    // Once per UI frame: a track whose engine hit count moved since the last call flashes (the sequencer's steps, MIDI,
+    // retrigger and repeat hits; a pad press already flashed at the press). The first call only takes the counts.
+    void observeHits(const engine::PlayheadFeed&, double nowMs) noexcept;
+    // Whether track `track` (0–15) has something to play (unset = from the model: a sample, or a non-sample mode);
+    // the app answers with the shell's track summary (a sample still loading counts, a missing one does not).
+    std::function<bool(int track)> hasContent;
     // The slice pad `pad` plays on `track` (−1 = none: the pad stays dark in SLICE mode, UI-152); unset =
     // the default 16 slices.
     std::function<int(int track, int pad)> slicePad;
@@ -123,6 +131,8 @@ private:
     int postedSelection_ = -1;
     std::array<double, 16> lastHit_ {};    // per track (PLAY / TRACK / MUTE lamps)
     std::array<double, 16> lastPadHit_ {}; // per pad (SLICE / SCALE lamps: all pads show the selected track)
+    std::array<std::uint16_t, 16> seenHits_ {}; // the engine's hit counts at the last observeHits
+    bool hitsSeen_ = false;
     mutable double lastPaintMs_ = -1e12;
 };
 

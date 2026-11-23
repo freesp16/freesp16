@@ -5,6 +5,15 @@
 // every state at `nowMs` and sends it to a LampSink (the panel's TX frames, the virtual panel, controller profiles).
 //
 // Device-independent and allocation-free; resolve() is a few multiplies per lamp.
+//
+// The pads follow one brightness ladder in every pad mode (padLamp, our design over UI-151/152):
+//   off      the pad has nothing to play (empty track, no slice)
+//   faint    the track is silent: muted, or another track is soloed (the smallest light that still shows)
+//   dim      the track is audible and not selected (SLICE: a slice; SCALE: a note that is not a root)
+//   on       the selected track (SCALE: a root note) in its full colour
+//   pulse    a soloed track breathes between its level and full, so the solo is seen at a glance
+//   flash    a hit — the user's or the sequencer's — jumps to full white and eases back to the state above;
+//            a silent pad never flashes (it does not sound)
 #pragma once
 
 #include "io/controllers/ControlNames.h"
@@ -16,13 +25,17 @@
 
 namespace io
 {
-enum class LampMode : std::uint8_t { Off, On, Dim, BlinkSlow, BlinkFast, Flash, Faint };
+// Level: a steady `level` (a resolved state kept exactly, e.g. a flash caught mid-fade). Pulse: breathes between
+// `level` and full over kPulseMs, in phase for every lamp (the phase comes from the clock, not sinceMs).
+enum class LampMode : std::uint8_t { Off, On, Dim, BlinkSlow, BlinkFast, Flash, Faint, Level, Pulse };
 
 struct LampState
 {
     LampMode mode = LampMode::Off;
-    std::uint32_t rgb = 0xFFFFFF; // colour (mono lamps: any non-zero colour = lit)
-    double sinceMs = 0;           // flash start; blink phase origin
+    std::uint32_t rgb = 0xFFFFFF;   // colour (mono lamps: any non-zero colour = lit)
+    double sinceMs = 0;             // flash start; blink phase origin
+    std::uint8_t level = 255;       // Level: the level; Pulse: the lowest level; Flash: the level it settles at
+    LampMode settle = LampMode::On; // Flash: the state it fades back to (On, Dim, Faint, Level or Pulse)
 };
 
 struct LampOutput
@@ -40,14 +53,16 @@ inline constexpr std::uint32_t white = 0xFFFFFF, blue = 0x2050FF, red = 0xFF1E28
 
 inline constexpr double kBlinkSlowHz = 2.0, kBlinkFastHz = 6.0; // UI-150
 inline constexpr double kFlashMs = 1000.0;                      // UI-151: back to the base colour over about 1 s
+inline constexpr double kPulseMs = 1500.0;                      // a soloed pad's breath (ours)
 inline constexpr std::uint8_t kDimLevel = 90;                   // "dim" ≈ 35 % of full (ours)
 // "faint": the smallest light that still shows (hardware feedback: muted pads "just a small light"); 6/255 is 2 of the
 // panel's 74 RGB steps and stays ≥ 1 step at the lowest brightness preference (PanelCodec never rounds a lit channel
 // down to 0).
 inline constexpr std::uint8_t kFaintLevel = 6;
 
-// The level of a lamp state at `nowMs` (UI-150), scaled by the brightness preference (UI-159). Flash fades from
-// white to the state's colour over kFlashMs; blinks are 50 % duty from sinceMs.
+// The level of a lamp state at `nowMs` (UI-150), scaled by the brightness preference (UI-159). Flash fades from full
+// white to its settle state over kFlashMs on an ease-out curve (most of the light is gone after a quarter of it, so
+// sixteenth notes still read as separate hits); blinks are 50 % duty from sinceMs.
 LampOutput resolve(const LampState&, double nowMs, LampBrightness = LampBrightness::Normal) noexcept;
 
 // One state per lamp id (controls + bar position lamps).
@@ -88,20 +103,21 @@ void modeLamps(const ModeLamps&, LampFrame&) noexcept;
 void stripLamps(int position, bool contact, bool hold, StripMode, LampFrame&) noexcept;
 int stripSegment(int position) noexcept; // 0…7
 
-// UI-151/152: one pad. hasContent false = dark; a hit within kFlashMs flashes white back to the colour.
+// UI-151/152: one pad, by the ladder above. The track is the pad's track (PLAY, TRACK, MUTE, solo view) or the
+// selected track (SLICE, SCALE: every pad shows it).
 struct PadLamp
 {
-    bool hasContent = false;
-    std::uint32_t rgb = 0;     // track (pad) colour
-    double lastHitMs = -1e12;  // most recent hit
-    bool selected = false;     // TRACK mode: the selected track
-    bool muted = false;        // MUTE mode
-    bool inSlices = true;      // SLICE mode: a slice of the selected track
-    bool playing = false;      // SLICE mode: the playing slice
-    bool root = true;          // SCALE mode: a root note
-    bool soloed = false;       // SOLO view (MUTE held): the track is soloed
-    bool anySolo = false;      // SOLO view: some track of the scene is soloed
+    bool hasContent = false;  // false = dark
+    std::uint32_t rgb = 0;    // track (pad) colour
+    double lastHitMs = -1e12; // most recent hit (pad press or sequencer step); ≤ −1e11 = never
+    bool selected = false;    // the selected track (PLAY, TRACK, MUTE, solo view)
+    bool muted = false;       // the track is muted
+    bool inSlices = true;     // SLICE mode: the pad holds a slice of the selected track
+    bool root = true;         // SCALE mode: a root note
+    bool soloed = false;      // the track is soloed
+    bool anySolo = false;     // some track of the scene is soloed (the others are silent)
 };
+inline constexpr std::uint8_t kPulseSelectedLevel = 170; // a selected soloed pad breathes near full (ours)
 LampState padLamp(PadMode, const PadLamp&) noexcept;
 
 // UI-153: step lamps of the shown bar on the selected track (step entry). trig per step: 0 none, 1 FULL, 2 HALF,

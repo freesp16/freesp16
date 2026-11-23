@@ -441,14 +441,21 @@ TEST_CASE("shell.gaps: the lamp model lights what the screen shows (UI-150, UID-
     st.tracks[4].hasContent = true;
     g.frame();
     auto lamps = [&](io::Control c) { return g.shell->lamps()[c]; };
-    CHECK(lamps(io::pad(5)).mode == io::LampMode::On);
-    CHECK(lamps(io::pad(5)).rgb == (ui::theme::trackColour(5) & 0xFFFFFFu));
+    CHECK(lamps(io::pad(5)).mode == io::LampMode::Dim); // not the selected track (io::padLamp's ladder)
+    CHECK(lamps(io::pad(5)).rgb == ui::theme::kLedColours[4]); // the LED colour (a flash blends in it)
     CHECK(lamps(io::pad(6)).mode == io::LampMode::Off); // an empty track is dark
     g.send(Kind::Press, io::pad(5), 100);
     g.frame(16);
     CHECK(lamps(io::pad(5)).mode == io::LampMode::Flash); // a hit flashes white and fades back (UI-151)
     CHECK(io::resolve(lamps(io::pad(5)), g.now - 16).rgb == io::lampcolour::white);
-    CHECK(io::resolve(lamps(io::pad(5)), g.now + 2000).rgb == (ui::theme::trackColour(5) & 0xFFFFFFu));
+    CHECK(io::resolve(lamps(io::pad(5)), g.now + 2000).rgb == ui::theme::kLedColours[4]);
+    CHECK(io::resolve(lamps(io::pad(5)), g.now + 2000).level == 255); // the hit selected it: full
+    st.tracks[4].soloed = true; // a solo: the soloed pad breathes, the other tracks fall to the minimum
+    st.tracks[0].hasContent = true;
+    g.frame(2000);
+    CHECK(io::resolve(lamps(io::pad(5)), g.now).level > 0);
+    CHECK(lamps(io::pad(1)).mode == io::LampMode::Faint);
+    st.tracks[4].soloed = false;
     st.playing = true;
     g.send(Kind::Press, io::step(3), 100);
     g.frame(16);

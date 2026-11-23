@@ -278,12 +278,14 @@ TEST_CASE("trigger.pads: MUTE held + pad toggles SOLO, SHIFT mutes the others, t
     CHECK_FALSE(tracks()[2].mute);
     for (const auto& t : w.triggers())
         CHECK(t.velocity == 0); // releases only, never a hit
-    // Lamps: the MUTE key blinks fast; soloed pads full, the others faint.
-    Lamps on, off;
+    // Lamps: the MUTE key blinks fast; soloed pads breathe up to full, the others (silent) faint.
+    Lamps on, off, peak;
     p.paintLamps(on, 0.0, {});
     p.paintLamps(off, 1000.0 / 12.0 + 1.0, {});
+    p.paintLamps(peak, io::kPulseMs / 2, {});
     CHECK(on.lamps[io::Control::PadModeMute].second != off.lamps[io::Control::PadModeMute].second);
-    CHECK(on.lamps[io::pad(3)].second == 255);
+    CHECK(on.lamps[io::pad(3)].second == io::kDimLevel); // the breath's low point (track 3 is not selected) …
+    CHECK(peak.lamps[io::pad(3)].second == 255);         // … and its peak
     CHECK(on.lamps[io::pad(1)].second > 0);
     CHECK(on.lamps[io::pad(1)].second <= io::kFaintLevel);
     // SHIFT + pad while held: mutes the other tracks (one undo step), as in MUTE mode.
@@ -316,4 +318,43 @@ TEST_CASE("trigger.pads: MUTE held + pad toggles SOLO, SHIFT mutes the others, t
     key(false);
     CHECK(p.mode() == PadMode::Play);
     CHECK(tracks()[6].solo);
+}
+
+// The engine's hits flash the pads (observeHits): a sequencer step on track n flashes pad n in PLAY / TRACK / MUTE,
+// the first observation only takes the counts, and a silent (muted) track's pad stays at the minimum.
+TEST_CASE("trigger.pads: the engine's hits (sequencer steps) flash the pads like a press (UI-151)", "[trigger]")
+{
+    World w;
+    auto& p = *w.pads;
+    for (auto& t : cmd::project(w.bus).scenes[0].tracks)
+        t.playback.sample.id = "abc";
+    engine::PlayheadFeed ph {};
+    ph.trackHits[3] = 41; // counts from before: no flash
+    p.observeHits(ph, 0.0);
+    Lamps lamps;
+    p.paintLamps(lamps, 10.0, {});
+    CHECK(lamps.lamps[io::pad(4)].first != 0xFFFFFF);
+    CHECK(lamps.lamps[io::pad(4)].second == io::kDimLevel);
+    ph.trackHits[3] = 42; // a sequencer step on track 4
+    p.observeHits(ph, 100.0);
+    p.paintLamps(lamps, 100.0, {});
+    CHECK((lamps.lamps[io::pad(4)].first == 0xFFFFFF && lamps.lamps[io::pad(4)].second == 255));
+    CHECK(lamps.lamps[io::pad(5)].second == io::kDimLevel);
+    p.paintLamps(lamps, 1200.0, {});
+    CHECK((lamps.lamps[io::pad(4)].first != 0xFFFFFF && lamps.lamps[io::pad(4)].second == io::kDimLevel));
+    p.onModeKey(PadMode::Track); // the same in TRACK mode …
+    ph.trackHits[3] = 43;
+    p.observeHits(ph, 1300.0);
+    p.paintLamps(lamps, 1300.0, {});
+    CHECK(lamps.lamps[io::pad(4)].first == 0xFFFFFF);
+    cmd::project(w.bus).scenes[0].tracks[3].mute = true; // … but a muted track does not flash
+    ph.trackHits[3] = 44;
+    p.observeHits(ph, 2000.0);
+    p.paintLamps(lamps, 2000.0, {});
+    CHECK(lamps.lamps[io::pad(4)].second <= io::kFaintLevel);
+    CHECK(lamps.lamps[io::pad(4)].second > 0);
+    p.hasContent = [](int track) { return track != 4; }; // the app's content answer (the shell's track summary)
+    p.paintLamps(lamps, 2100.0, {});
+    CHECK(lamps.lamps[io::pad(5)].second == 0);
+    CHECK(lamps.lamps[io::pad(6)].second > 0);
 }

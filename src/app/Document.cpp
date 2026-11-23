@@ -273,6 +273,11 @@ struct Document::Impl
                 slices.onInstalled(s, t, sample != nullptr ? sample->frames : 0, core::commands::project(bus));
         };
         ui::slice::sliceLive().buffer = [this](int s, int t) { return sync.current(s, t); }; // SLC-006
+        pads.hasContent = [this](int track) // the pad lamps: dark for an empty track, as the track tiles show it
+        {
+            return selection.shell == nullptr
+                   || selection.shell->state().tracks[static_cast<std::size_t>(track & 15)].hasContent;
+        };
         pads.slicePad = [this](int track, int pad) // SLICE pad lamps (which pads hold a slice)
         {
             if (! core::commands::hasProject(bus))
@@ -929,6 +934,7 @@ void Document::frame(double nowMs)
     d.preview.tick();
     d.pads.sync();
     d.pads.tick(nowMs); // PAD MODE SELECT RESPONSE OVER 1sec (PAD-007)
+    d.pads.observeHits(d.bridge.playhead(), nowMs); // the engine's hits (sequencer, MIDI, repeat) flash the pads
     d.syncSequencer(nowMs);
     d.frameMs = nowMs;
     auto& live = ui::m4::stripLive(); // TOUCH STRIP SETTING's StripPreview
@@ -987,10 +993,10 @@ void Document::lamps(io::LampFrame& frame) const
             io::barLamps(d.patternBars(), ui::input::steps::shownBar() + 1, ph.step / 16 + 1,
                          ph.blockIndex > 0 && ph.playing, ph.ppq - std::floor(ph.ppq), frame);
     }
-    // The pad controller's pad-mode lamps and mode keys; its paint is limited to 60 Hz and PadLamps
-    // keeps the last paint, so a skipped paint shows the previous state, not the shell's pads.
+    // The pad controller paints the 16 pads in every pad mode, PLAY too (one rule, io::padLamp), and the mode keys;
+    // its paint is limited to 60 Hz and PadLamps keeps the last paint, so a skipped paint shows the previous state.
     d.pads.paintLamps(d.padLamps, d.frameMs, d.bridge.meters());
-    d.padLamps.overlay(frame, d.pads.effectiveMode());
+    d.padLamps.overlay(frame);
     d.strip.lamps(frame);
     // UI-156/158: ANALOG FILTER ACTIVE (red) from afs.active; OVER (amber) while the drive output passed +5.1 dBFS
     // (AFS-011, the slot's own detector, held 0.5 s there), latched 2 s like the meters. As on the reference this is
