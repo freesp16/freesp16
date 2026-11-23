@@ -5,8 +5,11 @@
 //   - Header: MOTION RECORD (track.motionRec, red when enabled), the scene / pattern / length.
 //   - Lanes (5 visible, the list scrolls with the selection): a touch on a lane's graph selects it and draws — every
 //     step the finger crosses gets the value at the finger's height (one undo step per stroke, editMotion coalesces);
-//     a touch on the name selects the lane only. The rotary walks lanes and buttons; a push on a lane adds the
-//     cursor step's point (the value the track plays there) or removes it when it is there.
+//     a touch on the name selects the lane only. The rotary walks lanes and buttons; a push on a lane zooms it.
+//   - Zoom (only from the rotary push; a touch never zooms): the lane fills the body under the header, with its value
+//     scale and step numbers. The rotary moves the cursor step, a push adds the cursor step's point (the value the
+//     track plays there) or removes it when it is there, a touch draws. BACK returns to the lanes (LeaveGuard); the
+//     zoom also ends when the lane goes (CLEAR, undo) or the track changes.
 //   - Knob strip: STEP moves the cursor along the pattern, the lane's parameter writes the cursor step's value.
 //   - ADD PARAMETER lists the lockable parameters without motion (track slots, and the knobs of the effects FX1 / FX2
 //     hold); the added lane is empty until a point is drawn. CLEAR STEP removes the cursor step's point, CLEAR
@@ -18,6 +21,7 @@
 #include "ui/screens/sequence/M2Session.h"
 #include "ui/shell/Feeds.h"
 #include "ui/shell/Layout.h"
+#include "ui/shell/LeaveGuard.h"
 #include "ui/shell/Popup.h"
 #include "ui/shell/ShellApi.h"
 #include "ui/shell/StripOwner.h"
@@ -57,6 +61,10 @@ constexpr RectF laneRect(int row) noexcept
 {
     return {16, kLaneY + (kLaneH + kLaneGap) * static_cast<float>(row), 1248, kLaneH - 4};
 }
+// The zoomed lane: under the header to the bottom of the body; its plot leaves a gutter for the value scale (left)
+// and a row for the step numbers (below).
+constexpr RectF kZoomRect{16, kLaneY, 1248, L::contentBottom - kLaneY};
+constexpr float kZoomScaleW = 120, kZoomStepsH = 32;
 constexpr float nan() noexcept
 {
     return std::numeric_limits<float>::quiet_NaN();
@@ -69,7 +77,7 @@ void toast(ShellApi& shell, std::string_view text)
     shell.showToast(std::move(t));
 }
 
-class MotionBody final : public Widget, public StripOwner
+class MotionBody final : public Widget, public StripOwner, public LeaveGuard
 {
 public:
     explicit MotionBody(const WidgetArgs& a) noexcept : shell_(a.shell), state_(a.state)
@@ -103,6 +111,13 @@ public:
         dl.text(kRecToggle.x + kRecToggle.w / 2, kRecToggle.y + 26, Align::Centre, TextStyleId::Label, p.text1,
                 rec ? "MOTION RECORD: ON" : "MOTION RECORD: OFF");
 
+        if (const int z = zoomLane(); z >= 0)
+        {
+            drawZoom(dl, ctx, z, colour);
+            drawPlayhead(dl, ctx, zoomPlot(), zoomPlot().y, zoomPlot().h);
+            return;
+        }
+
         // Lanes.
         if (laneCount_ == 0)
         {
@@ -119,14 +134,10 @@ public:
             drawLane(dl, ctx, row, lane, colour);
         }
         // Playhead across the lanes.
-        const auto& feeds = sh.feeds();
-        const auto& ph = feeds.playhead();
-        if (laneCount_ > 0 && state_->playing && feeds.live() && ph.scene == state_->scene - 1 &&
-            ph.pattern == state_->pattern - 1 && ph.step >= 0 && ph.step < length_)
+        if (laneCount_ > 0)
         {
-            const float x = stepX(ph.step);
             const int rows = std::min(kVisibleLanes, laneCount_ - top_);
-            dl.fill({x - 1, kLaneY, 2, kLaneH * static_cast<float>(rows) - 4}, theme::withOpacity(p.playhead, 0.7f));
+            drawPlayhead(dl, ctx, listPlot(laneRect(0)), kLaneY, kLaneH * static_cast<float>(rows) - 4);
         }
         // Scroll hint.
         if (laneCount_ > kVisibleLanes)
@@ -152,14 +163,21 @@ public:
         if (shell_ == nullptr || state_ == nullptr)
             return false;
         refresh();
+        const int zoom = zoomLane();
         if (e.control == io::Control::Selector && e.kind == Kind::Turn)
         {
-            moveFocus(e.value);
+            if (zoom >= 0)
+                cursor_ = std::clamp(cursor_ + e.value, 0, length_ - 1);
+            else
+                moveFocus(e.value);
             return true;
         }
         if (e.control == io::Control::SelectorPush && e.kind == Kind::Press)
         {
-            activate(focus_);
+            if (zoom >= 0)
+                togglePoint(zoom);
+            else
+                activate(focus_);
             return true;
         }
         if (! touch::isTouch(e))
@@ -180,8 +198,19 @@ public:
         // Down.
         if (contains(kRecToggle, x, y))
         {
-            focus_ = kRecItem;
+            if (zoom < 0)
+                focus_ = kRecItem;
             activate(kRecItem);
+            return true;
+        }
+        if (zoom >= 0) // the zoomed lane: a touch on it draws
+        {
+            if (! contains(kZoomRect, x, y))
+                return contains(bounds(), x, y);
+            drawing_ = true;
+            drawLane_ = zoom;
+            lastDrawStep_ = -1;
+            drawAt(zoom, x, y);
             return true;
         }
         for (int i = 0; i < kButtons; ++i)
@@ -247,9 +276,28 @@ public:
 
     int laneCount() const noexcept { return laneCount_; }
 
+    // ---- LeaveGuard: BACK on the zoomed lane returns to the lanes (HOME and the other screens leave) ----
+    bool mayLeave(std::string_view target) override
+    {
+        if (! target.empty() || zoomSlot_ < 0)
+            return true;
+        zoomSlot_ = -1;
+        drawing_ = false;
+        drawLane_ = -1;
+        return false;
+    }
+
 private:
     static constexpr int kRecItem = -1;
     int buttonItem(int i) const noexcept { return laneCount_ + i; }
+    // The zoomed lane (its index now), -1 on the lanes.
+    int zoomLane() const noexcept
+    {
+        for (int i = 0; zoomSlot_ >= 0 && i < laneCount_; ++i)
+            if (laneSlot_[static_cast<std::size_t>(i)] == zoomSlot_)
+                return i;
+        return -1;
+    }
     int selectedLane() const noexcept { return focus_ >= 0 && focus_ < laneCount_ ? focus_ : (laneCount_ > 0 ? std::min(lastLane_, laneCount_ - 1) : -1); }
 
     // Lanes (recorded slots + added ones), the pattern length, the strip binding; also keeps the focus valid.
@@ -262,6 +310,7 @@ private:
             added_ = 0;
             top_ = 0;
             fresh_ = true;
+            zoomSlot_ = -1;
         }
         length_ = motion::patternLength(sh);
         cursor_ = std::clamp(cursor_, 0, length_ - 1);
@@ -296,6 +345,10 @@ private:
                 if (laneSlot_[static_cast<std::size_t>(i)] == previous)
                     focus_ = i;
         }
+        if (const int z = zoomLane(); z >= 0)
+            focus_ = z; // the zoomed lane is the selected one (the strip writes it)
+        else
+            zoomSlot_ = -1; // its lane went (CLEAR PARAMETER, undo)
         if (focus_ >= 0 && focus_ < laneCount_)
             lastLane_ = focus_;
         if (lastLane_ >= laneCount_)
@@ -358,14 +411,12 @@ private:
             m1::setTrackParam(sh, "track.motionRec", track_, m1::trackFlag(sh, "track.motionRec", track_) ? 0.0f : 1.0f);
             return;
         }
-        if (item >= 0 && item < laneCount_) // a push on a lane: the cursor step's point on / off
+        if (item >= 0 && item < laneCount_) // a push on a lane zooms it
         {
-            const int slot = laneSlot_[static_cast<std::size_t>(item)];
-            float v = 0;
-            if (lockAt(slot, cursor_, v))
-                write(slot, cursor_, nan());
-            else
-                write(slot, cursor_, base(*laneSpec_[static_cast<std::size_t>(item)]));
+            zoomSlot_ = laneSlot_[static_cast<std::size_t>(item)];
+            drawing_ = false;
+            drawLane_ = -1;
+            refresh();
             return;
         }
         const int b = item - laneCount_;
@@ -397,6 +448,17 @@ private:
         default:
             return;
         }
+    }
+
+    // The cursor step's point on / off (a push on the zoomed lane).
+    void togglePoint(int lane)
+    {
+        const int slot = laneSlot_[static_cast<std::size_t>(lane)];
+        float v = 0;
+        if (lockAt(slot, cursor_, v))
+            write(slot, cursor_, nan());
+        else
+            write(slot, cursor_, base(*laneSpec_[static_cast<std::size_t>(lane)]));
     }
 
     void addParameter()
@@ -478,27 +540,42 @@ private:
                                                            static_cast<core::model::LockSlot>(slot), values));
     }
 
+    // ---- geometry ----
+    // A lane's plot in the list (right of its name), the zoomed lane's plot (between the value scale and the step
+    // numbers), and the plot the finger draws on.
+    static constexpr RectF listPlot(const RectF& r) noexcept
+    {
+        return {kPlotX, r.y + kPlotPad, kPlotR - kPlotX, r.h - 2 * kPlotPad};
+    }
+    static constexpr RectF zoomPlot() noexcept
+    {
+        return {kZoomRect.x + kZoomScaleW, kZoomRect.y + 48, kZoomRect.w - kZoomScaleW - 16,
+                kZoomRect.h - 48 - kZoomStepsH};
+    }
+    RectF plotOf(int lane) const noexcept { return zoomLane() == lane ? zoomPlot() : listPlot(laneRect(lane - top_)); }
+    float stepX(const RectF& plot, int step) const noexcept
+    {
+        const float w = plot.w - 2 * kPlotPad;
+        return plot.x + kPlotPad + w * (static_cast<float>(step) + 0.5f) / static_cast<float>(length_);
+    }
+    int stepAtX(const RectF& plot, float x) const noexcept
+    {
+        const float w = plot.w - 2 * kPlotPad;
+        return std::clamp(static_cast<int>((x - plot.x - kPlotPad) / w * static_cast<float>(length_)), 0, length_ - 1);
+    }
+
     // ---- drawing (finger) ----
-    float stepX(int step) const noexcept
-    {
-        const float w = kPlotR - kPlotX - 2 * kPlotPad;
-        return kPlotX + kPlotPad + w * (static_cast<float>(step) + 0.5f) / static_cast<float>(length_);
-    }
-    int stepAtX(float x) const noexcept
-    {
-        const float w = kPlotR - kPlotX - 2 * kPlotPad;
-        return std::clamp(static_cast<int>((x - kPlotX - kPlotPad) / w * static_cast<float>(length_)), 0, length_ - 1);
-    }
     // The finger at (x, y) on a lane: that step gets the value at the finger's height, and the steps a fast swipe
     // jumped over since the last point get the values on the straight line between the two (one command).
     void drawAt(int lane, float x, float y)
     {
-        if (lane < 0 || lane >= laneCount_ || lane < top_ || lane >= top_ + kVisibleLanes)
+        if (lane < 0 || lane >= laneCount_)
             return;
-        const auto r = laneRect(lane - top_);
-        const float plotY = r.y + kPlotPad, plotH = r.h - 2 * kPlotPad;
-        const float y01 = 1.0f - (y - plotY) / plotH;
-        const int step = stepAtX(x);
+        if (zoomLane() != lane && (lane < top_ || lane >= top_ + kVisibleLanes))
+            return;
+        const auto plot = plotOf(lane);
+        const float y01 = 1.0f - (y - plot.y) / plot.h;
+        const int step = stepAtX(plot, x);
         const auto& spec = *laneSpec_[static_cast<std::size_t>(lane)];
         const int slot = laneSlot_[static_cast<std::size_t>(lane)];
         std::array<int, core::model::kSteps> steps {};
@@ -533,34 +610,100 @@ private:
     {
         const auto& p = ctx.palette;
         const auto r = laneRect(row);
-        const int slot = laneSlot_[static_cast<std::size_t>(lane)];
         const auto& spec = *laneSpec_[static_cast<std::size_t>(lane)];
         const bool selected = lane == selectedLane();
         dl.fill(r, selected ? p.surface2 : p.surface1, tk::radiusS);
 
         // Name and the cursor step's value.
         dl.text(kNameX, r.y + 20, Align::Left, TextStyleId::Label, p.text1, spec.label);
-        float v = 0;
-        const bool locked = lockAt(slot, cursor_, v);
-        const float baseValue = base(spec);
-        char buf[24];
-        const int n = spec.formatValue(locked ? v : baseValue, buf, sizeof buf);
-        auto& text = valueText_[static_cast<std::size_t>(row)];
-        text.format("%d: %.*s", cursor_ + 1, std::max(0, n), buf);
-        dl.text(kNameX, r.y + 42, Align::Left, TextStyleId::Caption, locked ? colour : p.text3, text.view());
+        const bool locked = cursorText(lane, valueText_[static_cast<std::size_t>(row)], "%d: %.*s");
+        dl.text(kNameX, r.y + 42, Align::Left, TextStyleId::Caption, locked ? colour : p.text3,
+                valueText_[static_cast<std::size_t>(row)].view());
 
-        // Plot: bars, cursor column, the track's own value, the motion.
-        const RectF plot{kPlotX, r.y + kPlotPad, kPlotR - kPlotX, r.h - 2 * kPlotPad};
+        drawPlot(dl, ctx, listPlot(r), lane, colour, selected, false);
+        if (lane == focus_)
+            draw::focusRing(dl, p, r, tk::radiusS);
+    }
+
+    // The zoomed lane: name and cursor value above, the value scale left, the step numbers below the plot.
+    void drawZoom(DrawList& dl, const UiContext& ctx, int lane, std::uint32_t colour) const
+    {
+        const auto& p = ctx.palette;
+        const auto r = kZoomRect;
+        const auto& spec = *laneSpec_[static_cast<std::size_t>(lane)];
+        dl.fill(r, p.surface2, tk::radiusS);
+        dl.text(kNameX, r.y + 24, Align::Left, TextStyleId::Title, p.text1, spec.label);
+        const bool locked = cursorText(lane, valueText_[0], "STEP %d: %.*s");
+        dl.text(kNameX + 360, r.y + 24, Align::Left, TextStyleId::Label, locked ? colour : p.text2,
+                valueText_[0].view());
+        if (laneCount_ > 1)
+        {
+            scroll_.format("%d / %d", lane + 1, laneCount_);
+            dl.text(r.right() - 240, r.y + 24, Align::Right, TextStyleId::Caption, p.text3, scroll_.view());
+        }
+        dl.text(r.right() - 16, r.y + 24, Align::Right, TextStyleId::Caption, p.text3, "BACK: ALL PARAMETERS");
+
+        const auto plot = zoomPlot();
+        // Value scale: top, middle, bottom of the parameter's range, level with the grid lines of drawPlot.
+        for (int i = 0; i < 3; ++i)
+        {
+            const float y01 = 1.0f - 0.5f * static_cast<float>(i);
+            char buf[24];
+            const int n = spec.formatValue(motion::valueAt(spec, y01), buf, sizeof buf);
+            scaleText_[static_cast<std::size_t>(i)].format("%.*s", std::max(0, n), buf);
+            dl.text(plot.x - 12, plot.bottom() - y01 * plot.h, Align::Right, TextStyleId::Caption, p.text2,
+                    scaleText_[static_cast<std::size_t>(i)].view());
+        }
+        // Step numbers: every step up to 16 steps, else every 4th (the beats).
+        const int every = length_ <= 16 ? 1 : 4;
+        for (int s = 0; s < length_; s += every)
+        {
+            stepNumbers_[static_cast<std::size_t>(s)].format("%d", s + 1);
+            dl.text(stepX(plot, s), plot.bottom() + kZoomStepsH / 2, Align::Centre, TextStyleId::Caption,
+                    s == cursor_ ? p.text1 : p.text3, stepNumbers_[static_cast<std::size_t>(s)].view());
+        }
+        drawPlot(dl, ctx, plot, lane, colour, true, true);
+        draw::focusRing(dl, p, r, tk::radiusS);
+    }
+
+    // "<format>" of the cursor step: its point's value, else the track's own (returns whether the step has a point).
+    bool cursorText(int lane, FixedText<40>& text, const char* format) const
+    {
+        const auto& spec = *laneSpec_[static_cast<std::size_t>(lane)];
+        float v = 0;
+        const bool locked = lockAt(laneSlot_[static_cast<std::size_t>(lane)], cursor_, v);
+        char buf[24];
+        const int n = spec.formatValue(locked ? v : base(spec), buf, sizeof buf);
+        text.format(format, cursor_ + 1, std::max(0, n), buf);
+        return locked;
+    }
+
+    // A lane's plot: bar lines (zoomed: beat lines and a value grid too), the cursor column, the track's own value
+    // and the motion.
+    void drawPlot(DrawList& dl, const UiContext& ctx, const RectF& plot, int lane, std::uint32_t colour, bool cursor,
+                  bool zoom) const
+    {
+        const auto& p = ctx.palette;
+        const int slot = laneSlot_[static_cast<std::size_t>(lane)];
+        const auto& spec = *laneSpec_[static_cast<std::size_t>(lane)];
         dl.fill(plot, p.bg, tk::radiusXs);
         const float x0 = plot.x + kPlotPad, w = plot.w - 2 * kPlotPad;
         const float stepW = w / static_cast<float>(length_);
+        if (zoom)
+        {
+            for (int g = 1; g < 4; ++g)
+                draw::hline(dl, plot.x, plot.right(), plot.y + plot.h * static_cast<float>(g) / 4, p.border);
+            for (int b = 4; b < length_; b += 4)
+                if (b % 16 != 0)
+                    draw::vline(dl, x0 + stepW * static_cast<float>(b), plot.y, plot.bottom(), p.border);
+        }
         for (int b = 16; b < length_; b += 16)
             draw::vline(dl, x0 + stepW * static_cast<float>(b), plot.y, plot.bottom(), p.borderStrong);
-        if (selected)
+        if (cursor)
             dl.fill({x0 + stepW * static_cast<float>(cursor_), plot.y, std::max(2.0f, stepW), plot.h},
                     theme::withOpacity(p.accent, 0.18f));
         auto yOf = [&](float value) { return plot.bottom() - spec.normalised(value) * plot.h; };
-        const float baseY = yOf(baseValue);
+        const float baseY = yOf(base(spec));
         dl.fill({x0, baseY - 0.5f, w, 1}, theme::withOpacity(p.text3, 0.6f));
 
         // The value each step plays, joined by straight lines (columns of 2 lpx where the line slopes).
@@ -575,33 +718,42 @@ private:
             ys[static_cast<std::size_t>(s)] = lk[static_cast<std::size_t>(s)] ? yOf(lv) : baseY;
         }
         const auto dim = theme::withOpacity(p.text3, 0.8f);
+        const float thick = zoom ? 3.0f : 2.0f, dot = zoom ? 14.0f : 8.0f;
         for (int s = 0; s + 1 < length_; ++s)
         {
             const bool both = lk[static_cast<std::size_t>(s)] && lk[static_cast<std::size_t>(s + 1)];
             const bool any = lk[static_cast<std::size_t>(s)] || lk[static_cast<std::size_t>(s + 1)];
             if (! any)
                 continue; // the track's own value: already the base line
-            segment(dl, stepX(s), ys[static_cast<std::size_t>(s)], stepX(s + 1), ys[static_cast<std::size_t>(s + 1)],
-                    both ? colour : dim);
+            segment(dl, stepX(plot, s), ys[static_cast<std::size_t>(s)], stepX(plot, s + 1),
+                    ys[static_cast<std::size_t>(s + 1)], both ? colour : dim, thick);
         }
         for (int s = 0; s < length_; ++s)
             if (lk[static_cast<std::size_t>(s)])
             {
-                const float x = stepX(s), y = ys[static_cast<std::size_t>(s)];
-                dl.fill({x - 4, y - 4, 8, 8}, colour, 4);
+                const float x = stepX(plot, s), y = ys[static_cast<std::size_t>(s)];
+                dl.fill({x - dot / 2, y - dot / 2, dot, dot}, colour, dot / 2);
             }
-        if (lane == focus_)
-            draw::focusRing(dl, p, r, tk::radiusS);
     }
 
-    // A straight line from (xa, ya) to (xb, yb), 2 lpx thick: one fill when flat, else one column per 2 lpx of rise
+    // The playhead over `plot`'s steps, from y0 down h (the list: across the visible lanes).
+    void drawPlayhead(DrawList& dl, const UiContext& ctx, const RectF& plot, float y0, float h) const
+    {
+        const auto& feeds = shell_->feeds();
+        const auto& ph = feeds.playhead();
+        if (state_->playing && feeds.live() && ph.scene == state_->scene - 1 && ph.pattern == state_->pattern - 1 &&
+            ph.step >= 0 && ph.step < length_)
+            dl.fill({stepX(plot, ph.step) - 1, y0, 2, h}, theme::withOpacity(ctx.palette.playhead, 0.7f));
+    }
+
+    // A straight line from (xa, ya) to (xb, yb), t lpx thick: one fill when flat, else one column per 2 lpx of rise
     // (bounded by the width), so a slope costs a few fills, not one per pixel.
-    static void segment(DrawList& dl, float xa, float ya, float xb, float yb, std::uint32_t c)
+    static void segment(DrawList& dl, float xa, float ya, float xb, float yb, std::uint32_t c, float t)
     {
         const float dx = xb - xa, dy = yb - ya;
         if (std::fabs(dy) < 1.0f)
         {
-            dl.fill({xa, std::min(ya, yb) - 1, dx, 2}, c);
+            dl.fill({xa, std::min(ya, yb) - t / 2, dx, t}, c);
             return;
         }
         const int n = std::clamp(static_cast<int>(std::fabs(dy) / 2.0f) + 1, 1, std::max(1, static_cast<int>(dx / 2.0f)));
@@ -610,7 +762,7 @@ private:
         {
             const float y0 = ya + dy * static_cast<float>(i) / static_cast<float>(n);
             const float y1 = ya + dy * static_cast<float>(i + 1) / static_cast<float>(n);
-            dl.fill({xa + cw * static_cast<float>(i), std::min(y0, y1) - 1, cw + 0.5f, std::fabs(y1 - y0) + 2}, c);
+            dl.fill({xa + cw * static_cast<float>(i), std::min(y0, y1) - t / 2, cw + 0.5f, std::fabs(y1 - y0) + t}, c);
         }
     }
 
@@ -633,6 +785,9 @@ private:
     mutable FixedText<16> header_ {}, scroll_ {}, stepText_ {};
     mutable FixedText<64> info_ {};
     mutable std::array<FixedText<40>, kVisibleLanes> valueText_ {};
+    mutable std::array<FixedText<24>, 3> scaleText_ {};
+    mutable std::array<FixedText<4>, core::model::kSteps> stepNumbers_ {};
+    mutable int zoomSlot_ = -1; // the zoomed lane's lock slot, -1 on the lanes
 };
 
 std::unique_ptr<Widget> makeMotionBody(const ScreenSpec&, const WidgetArgs& a)
