@@ -69,6 +69,14 @@ void PadController::sync()
 
 void PadController::onModeKey(PadMode m)
 {
+    if (m == PadMode::Slice && mode_ != PadMode::Slice && cmd::hasProject(bus_))
+    {
+        // "SLICE mode cannot be used for MIDI tracks" (the manual's MIDI NOTE settings; AS-1 tracks are MIDI too).
+        const auto mode = cmd::project(bus_).scenes[static_cast<std::size_t>(scene())]
+                              .tracks[static_cast<std::size_t>(selection_.selected() & 15)].mode;
+        if (mode == core::model::TrackMode::Midi || mode == core::model::TrackMode::Instrument)
+            return;
+    }
     mode_ = (m == mode_ || m == PadMode::Play) ? PadMode::Play : m; // UI-104: the lit key turns its mode off
     if (muteDown_ && m != PadMode::Mute)
         modeBeforeMute_ = mode_; // another mode key while MUTE is held: the release keeps it

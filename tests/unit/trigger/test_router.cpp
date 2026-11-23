@@ -269,6 +269,25 @@ TEST_CASE("trigger.router: SCALE pads of a MIDI track play SET SCALE (MIDI) from
     CHECK(r->router.blockEvents()[0].semitones == 12);
 }
 
+TEST_CASE("trigger.router: SLICE pads are silent on a MIDI or AS-1 track (the manual: no SLICE mode there)",
+          "[trigger]")
+{
+    auto r = makeRig();
+    r->router.setPadParam(PadField::Selected, 5.0f);
+    r->router.setPadParam(PadField::Mode, static_cast<float>(PadMode::Slice));
+    for (const float mode : {1.0f, 3.0f})
+    {
+        r->param(5, TrackField::Mode, mode);
+        r->router.pushLive(TriggerNow {1, 100, 60, 1});
+        r->block();
+        CHECK(r->router.blockEvents().empty());
+    }
+    r->param(5, TrackField::Mode, 0.0f); // a Sample track plays its slices
+    r->router.pushLive(TriggerNow {1, 100, 60, 1});
+    r->block();
+    CHECK(r->router.blockEvents().size() == 1);
+}
+
 TEST_CASE("trigger.router: MIDI notes (pad -1) play their track; note offset and note off", "[trigger]")
 {
     auto r = makeRig();

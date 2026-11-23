@@ -74,6 +74,9 @@ bool TriggerRouter::pushLive(const TriggerNow& t) noexcept
             case PadMode::Mute: return true; // select / mute, no sound (PAD-004, PAD-006)
             case PadMode::Slice: // the pad's slice as a slice-number lock (SliceMapPads)
                 e.track = pads_.selected;
+                if (const auto m = settings_[scene_][pads_.selected].mode;
+                    m == TrackMode::Midi || m == TrackMode::Instrument)
+                    return true; // SLICE mode cannot be used for MIDI / AS-1 tracks (the manual): silent
                 if (slicePads_ != nullptr)
                 {
                     const int slice = slicePads_->slice(e.track, pad);

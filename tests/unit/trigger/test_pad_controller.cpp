@@ -92,6 +92,24 @@ TEST_CASE("trigger.pads: mode keys are one-hot, the lit key turns its mode off (
     CHECK(p.mode() == PadMode::Scale);
 }
 
+TEST_CASE("trigger.pads: SLICE mode cannot be used on a MIDI or AS-1 track", "[trigger]")
+{
+    World w;
+    auto& p = *w.pads;
+    w.selection.select(2);
+    cmd::project(w.bus).scenes[0].tracks[2].mode = core::model::TrackMode::Midi;
+    p.onModeKey(PadMode::Slice);
+    CHECK(p.mode() == PadMode::Play); // refused: the key stays dark
+    cmd::project(w.bus).scenes[0].tracks[2].mode = core::model::TrackMode::Instrument;
+    p.onModeKey(PadMode::Slice);
+    CHECK(p.mode() == PadMode::Play);
+    p.onModeKey(PadMode::Scale); // SCALE is theirs (SET SCALE (MIDI))
+    CHECK(p.mode() == PadMode::Scale);
+    cmd::project(w.bus).scenes[0].tracks[2].mode = core::model::TrackMode::Sample;
+    p.onModeKey(PadMode::Slice);
+    CHECK(p.mode() == PadMode::Slice);
+}
+
 TEST_CASE("trigger.pads: PAD MODE SELECT RESPONSE OVER 1sec switches only after a 1 s hold (PAD-007)", "[trigger]")
 {
     World w;

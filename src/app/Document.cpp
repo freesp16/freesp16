@@ -13,6 +13,7 @@
 #include "core/commands/ribbon/RibbonCommands.h"
 #include "core/commands/scene/SceneCommands.h"
 #include "core/commands/sequencer/SequencerCommands.h"
+#include "core/util/scales/Scales.h"
 #include "core/commands/slice/SliceCommands.h"
 #include "core/commands/track/TrackCommands.h"
 #include "core/edit/PatternChainBuilder.h"
@@ -62,6 +63,7 @@
 #include "ui/shell/Root.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -81,6 +83,19 @@ namespace
 {
 namespace lib = services::library;
 namespace store = services::store;
+
+// SCALE pad `pad`'s semitones on track `tr` (the engine's engine::trigger::scalePadSemitones from the model): SET SCALE
+// on a Sample track (PAD-010…013), SET SCALE (MIDI)'s note over NOTE on a MIDI / AS-1 track (PAD-020).
+int scalePadSemitones(const core::model::Track& tr, int pad) noexcept
+{
+    namespace sc = core::scales;
+    if (tr.mode == core::model::TrackMode::Midi || tr.mode == core::model::TrackMode::Instrument)
+        return sc::midiPadNote(pad, sc::scaleMask(tr.midiScale.scaleTypeMidi), tr.midiScale.rootNote,
+                               tr.midiScale.scalePosition)
+               - tr.midi.notes[0];
+    return sc::padSemitones(pad, sc::scaleMask(tr.padScale.scaleType), tr.padScale.keyShift,
+                            tr.padScale.windowOffset);
+}
 
 // TRK-041: the pad controller's one selected track is the shell's (UiState::selectedTrack, 1–16).
 class ShellSelection final : public ui::input::pads::Selection
@@ -708,6 +723,12 @@ struct Document::Impl
         return std::clamp((length + 15) / 16, 1, 4);
     }
     void sliceStepEntry(int step1to16);         // SLC-005: step entry writes the last-played slice
+    // SET SCALE "selected key" (the manual's 1.6 / 8.4): the SCALE pad last pressed per track (−1 none); a step key
+    // then programs a trigger at its pitch (PITCH lock) — after the pad (release of the key) or while the key is held.
+    std::array<std::int8_t, 16> scaleKey = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+    bool scalePitchLock(int track, int pad, float& value) const; // false = no pitch shift (the root) or no project
+    void scaleStepEntry(int step1to16);  // key released after a SCALE pad: the new trigger gets the key's pitch
+    void scaleStepHeld(int step1to16);   // SCALE pad hit while a step key is held: that step plays the key
     void sliceCommand(std::istringstream& in);  // `cmd slice count N | move S FRAME | add FRAME | delete S | area A | state`
     // Incoming CCs the engine applied (io::midi::setUiEventSink, drained by the "midi" control source
     // before frame()) → the model, non-undoable and coalesced to the last value per parameter and scope each frame.
@@ -879,7 +900,10 @@ bool Document::handle(const io::ControlEvent& e)
         {
             d.steps.onStepKey(io::indexOf(e.control), press, e.timeMs); // SEQ-040 / SEQ-022 (the shell sees it too)
             if (! press)
+            {
                 d.sliceStepEntry(io::indexOf(e.control)); // SLC-005
+                d.scaleStepEntry(io::indexOf(e.control));
+            }
         }
         if (press && e.control >= io::Control::Bar1 && e.control <= io::Control::Bar4 && core::commands::hasProject(d.bus))
         {
@@ -906,8 +930,12 @@ bool Document::handle(const io::ControlEvent& e)
             const auto& tracks = p.scenes[static_cast<std::size_t>(p.settings.currentScene & 15)].tracks;
             if (mode == PadMode::Scale)
             {
-                d.selection.shell->state().tracks[static_cast<std::size_t>(d.selection.selected())].lastHitMs = e.timeMs;
-                d.log("INPUT pad%d scale track=%d", n, d.selection.selected() + 1);
+                const int t = d.selection.selected();
+                d.selection.shell->state().tracks[static_cast<std::size_t>(t)].lastHitMs = e.timeMs;
+                d.scaleKey[static_cast<std::size_t>(t)] = static_cast<std::int8_t>(n - 1); // the selected key
+                if (const int held = d.steps.heldStep(); held > 0)
+                    d.scaleStepHeld(held);
+                d.log("INPUT pad%d scale track=%d", n, t + 1);
             }
             else
             {
@@ -1279,6 +1307,61 @@ void Document::Impl::sliceStepEntry(int step1to16)
                                     step, t, 22, current) && current == static_cast<float>(slice)))
         return; // the release cleared the step (or it already plays this slice)
     bus.execute(core::commands::sequencer::setLock(sc, pat, t, step, 22, static_cast<float>(slice)));
+}
+
+bool Document::Impl::scalePitchLock(int track, int pad, float& value) const
+{
+    static const auto* pitch = core::builtinParams().find("playback.pitch");
+    if (pad < 0 || pitch == nullptr || ! core::commands::hasProject(bus))
+        return false;
+    const auto& p = core::commands::project(bus);
+    const int sc = steps.scene() & 15;
+    const auto& tr = p.scenes[static_cast<std::size_t>(sc)].tracks[static_cast<std::size_t>(track & 15)];
+    const int semis = scalePadSemitones(tr, pad);
+    const bool midi = tr.mode == core::model::TrackMode::Midi || tr.mode == core::model::TrackMode::Instrument;
+    // Sample tracks: the root key is the track's PITCH + KEY SHIFT (the manual's 1.8), so the lock is PITCH + the
+    // pad's semitones; MIDI / AS-1 tracks: the transposition of the track's notes.
+    const float base = midi ? 0.0f : values.get(*pitch, static_cast<std::uint16_t>(sc << 4 | (track & 15)));
+    value = pitch->clamp(base + static_cast<float>(semis));
+    return semis != 0;
+}
+
+void Document::Impl::scaleStepEntry(int step1to16)
+{
+    if (pads.mode() != ui::input::pads::PadMode::Scale || ! core::commands::hasProject(bus) || step1to16 < 1
+        || step1to16 > 16)
+        return;
+    const int t = selection.selected();
+    float value = 0.0f;
+    if (! scalePitchLock(t, scaleKey[static_cast<std::size_t>(t)], value))
+        return; // no key selected yet, or the root: the plain trigger is the key
+    const auto& p = core::commands::project(bus);
+    const int sc = steps.scene(), pat = steps.pattern(), step = steps.patternStep(step1to16);
+    const auto& cell = p.scenes[static_cast<std::size_t>(sc & 15)].patterns[static_cast<std::size_t>(pat & 15)]
+                           .steps[static_cast<std::size_t>(step & 63)][static_cast<std::size_t>(t)];
+    const auto& pattern = p.scenes[static_cast<std::size_t>(sc & 15)].patterns[static_cast<std::size_t>(pat & 15)];
+    float current = 0.0f;
+    if (cell.trigger == core::model::Step::kEmpty
+        || (core::commands::sequencer::lockOf(pattern, step, t, 4, current) && current == value))
+        return; // the release cleared the step (or it already plays this key)
+    bus.execute(core::commands::sequencer::setLock(sc, pat, t, step, 4, value)); // PITCH (slot 4)
+}
+
+void Document::Impl::scaleStepHeld(int step1to16)
+{
+    static const auto* pitch = core::builtinParams().find("playback.pitch");
+    if (! core::commands::hasProject(bus) || pitch == nullptr || step1to16 < 1 || step1to16 > 16)
+        return;
+    const int t = selection.selected();
+    float value = 0.0f;
+    scalePitchLock(t, scaleKey[static_cast<std::size_t>(t)], value); // the root's value: the track's own pitch
+    const auto& p = core::commands::project(bus);
+    const int sc = steps.scene(), pat = steps.pattern(), step = steps.patternStep(step1to16);
+    const auto& cell = p.scenes[static_cast<std::size_t>(sc & 15)].patterns[static_cast<std::size_t>(pat & 15)]
+                           .steps[static_cast<std::size_t>(step & 63)][static_cast<std::size_t>(t)];
+    if (cell.trigger == core::model::Step::kEmpty) // an empty step gets a trigger: the key programs a note there
+        bus.execute(core::commands::sequencer::toggleStep(sc, pat, t, step, core::model::TriggerType::Full, 127));
+    steps.setLock(*pitch, step1to16, value); // the key's pitch; the held key's release then toggles nothing
 }
 
 void Document::Impl::command(const std::string& text)
