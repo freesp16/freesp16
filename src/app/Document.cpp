@@ -23,6 +23,7 @@
 #include "io/controllers/profiles/ControllerHub.h"
 #include "io/controllers/StripSource.h"
 #include "io/midi/MidiSettings.h"
+#include "services/ext/ExtFlags.h"
 #include "services/interop/sp16/Sp16Mapping.h"
 #include "services/interop/sp16/Sp16ProjectCodec.h"
 #include "services/library/PreviewService.h"
@@ -40,6 +41,7 @@
 #include "services/settings/Preferences.h"
 #include "services/settings/ProjectSettings.h"
 #include "io/controllers/PanelPads.h"
+#include "ui/input/ext/striprecord/StripRecorder.h"
 #include "ui/input/pads/PadController.h"
 #include "ui/input/pads/PadLamps.h"
 #include "ui/input/panel/PanelKeys.h"
@@ -443,10 +445,7 @@ struct Document::Impl
             .bridge = &bridge,
             .log = [this](const std::string& line) { log("%s", line.c_str()); },
             .setRemote = [this](const core::ParamSpec& spec, std::uint16_t scope, float v) { values.setRemote(spec, scope, v); },
-            .value = [this](const core::ParamSpec& spec, std::uint16_t scope) { return values.get(spec, scope); },
             .selectedTrack = [this] { return selection.selected(); },
-            .recArmed = [this] { return selection.shell != nullptr && selection.shell->state().recArmed; },
-            .padMode = [this] { return static_cast<int>(pads.effectiveMode()); },
             .resolveSample = [this](const std::string& path) { return resolve(path); },
             .preference = [this](std::string_view key) { return prefs.get(key); }});
     }
@@ -608,6 +607,7 @@ struct Document::Impl
     DocumentConfig config;
 
     void syncSequencer(double nowMs);
+    void recordStrip(); // the touch strip's moves → motion locks while recording (RIB-008, SEQ-023)
     void command(const std::string& text);
     void logState();
     void render(const std::string& file, double seconds, bool withChain = false, bool song = false);
@@ -642,6 +642,10 @@ struct Document::Impl
     ui::input::pads::PadLamps padLamps;
     std::optional<LoggingProjectSource> projectLog;
     io::StripRouter strip; // MODE / HOLD, the strip and pad pressure → engine, the strip lamps
+    ui::input::ext::StripHeld stripHeld;         // the tracks the strip acts on (held pads, HOLD, ribbon.applyTo)
+    ui::input::ext::StripRecorder stripRecorder; // its moves as motion locks (MOTION RECORD)
+    std::vector<ui::input::ext::LockWrite> stripWrites;
+    int stripLocks = 0; // logged "MOTION strip …" lines (the first 64)
     // The preferences (<data dir>/preferences.json, saved on a worker ≤ 1 s after a change) and the
     // shell's ParamAccess that saves every preference edit (ui/screens/utility/PrefAccess.h).
     services::settings::Preferences prefs {core::builtinParams(),
@@ -857,8 +861,9 @@ bool Document::handle(const io::ControlEvent& e)
     if (e.control == io::Control::ExtPaste && edge && (! sceneManager || ! press))
         d.steps.setPaste(press);
     d.strip.handle(e); // never consumes
-    if (d.extensions)
-        d.extensions->handle(e); // held pads for recorded strip moves (never consumes)
+    if (io::isPad(e.control) && edge) // the tracks the strip acts on, for its recorded moves
+        d.stripHeld.onPad(io::indexOf(e.control) - 1, press, static_cast<int>(d.pads.effectiveMode()), d.shift,
+                          d.selection.selected());
     if (d.afsControl(e)) // the panel's ANALOG FILTER controls
         return true;
     if (d.panelKeys.handle(e, d.shift)) // before the SCENE / PATTERN keys and the pad modes
@@ -936,13 +941,14 @@ void Document::frame(double nowMs)
     d.pads.tick(nowMs); // PAD MODE SELECT RESPONSE OVER 1sec (PAD-007)
     d.pads.observeHits(d.bridge.playhead(), nowMs); // the engine's hits (sequencer, MIDI, repeat) flash the pads
     d.syncSequencer(nowMs);
+    d.recordStrip();
     d.frameMs = nowMs;
     auto& live = ui::m4::stripLive(); // TOUCH STRIP SETTING's StripPreview
     live.mode = static_cast<int>(d.strip.mode());
     live.contact = d.strip.contact();
     live.position = d.strip.position();
     if (d.extensions) // flags, MIDI learn's overlay, recorded strip moves
-        d.extensions->frame(nowMs, d.bridge.playhead(), live.mode, live.contact, live.position);
+        d.extensions->frame(nowMs);
     core::commands::flushNotifications(d.bus);
     d.checkKit(nowMs);
     if (nowMs - d.lastPollMs >= 1000.0) // removable volumes (LIB-002), stale waveform conversions
@@ -1048,7 +1054,18 @@ void Document::Impl::syncSequencer(double nowMs)
         if (e.kind == engine::EngineEvent::Kind::RecordedHit)
             ++recordedHits;
         steps.onEngineEvent(e);    // RecordedHit / ErasedStep → recordHit / clearStep in the pass's group
-        if (e.kind == engine::EngineEvent::Kind::RecordedHit) // SLC-005: the hit's slice lock
+        if (e.kind == engine::EngineEvent::Kind::RecordedHit && e.origin == engine::EngineEvent::kOriginRepeat)
+        {
+            // A touch strip REPEAT hit: it replays the held pad, so in SLICE pad mode it records that pad's slice (the
+            // last one played) and never takes a pad press's pending slice.
+            log("REPEAT recorded track=%d step=%d velocity=%d", e.track + 1, e.step + 1, e.value);
+            const int t = e.track & 15;
+            const int slice = ui::slice::sliceLive().lastSlice[static_cast<std::size_t>(t)];
+            if (pads.mode() == ui::input::pads::PadMode::Slice && t == selection.selected() && slice >= 0)
+                bus.execute(core::commands::sequencer::setLock(steps.scene(), steps.pattern(), t, e.step, 22,
+                                                               static_cast<float>(slice)));
+        }
+        else if (e.kind == engine::EngineEvent::Kind::RecordedHit) // SLC-005: the hit's slice lock
             if (const auto slice = ui::slice::sliceLive().takeRecorded(e.track, nowMs))
             {
                 bus.execute(core::commands::sequencer::setLock(steps.scene(), steps.pattern(), e.track, e.step, 22,
@@ -1080,6 +1097,54 @@ void Document::Impl::syncSequencer(double nowMs)
                                                                           ((st.selectedTrack - 1) & 15))) >= 0.5f;
     steps.setMotionRec(motion);
     steps.tick(nowMs);
+}
+
+// The touch strip's moves while recording (ui/input/ext/striprecord): on the tracks the strip acts on whose MOTION
+// RECORD is ON (all of them with the ext.strip.record switch), as locks of the playing steps in the recording pass's
+// group — PITCH on the track's own pitch, USER items at their values, also while HOLD keeps a value. REPEAT's hits are
+// recorded by the sequencer (RecordedHit, origin kOriginRepeat).
+void Document::Impl::recordStrip()
+{
+    if (selection.shell == nullptr || ! core::commands::hasProject(bus))
+        return;
+    const auto& ph = bridge.playhead();
+    const auto& p = core::commands::project(bus);
+    const auto& params = core::builtinParams();
+    const int scene = ph.scene & 15, pattern = ph.pattern & 15;
+    ui::input::ext::StripRecordState s;
+    s.recording = ph.playing && ! ph.preCount && selection.shell->state().recArmed;
+    s.scene = scene;
+    s.pattern = pattern;
+    s.step = ph.step;
+    s.length = p.scenes[static_cast<std::size_t>(scene)].patterns[static_cast<std::size_t>(pattern)].length;
+    s.mode = static_cast<int>(strip.mode());
+    s.position = strip.shownPosition();
+    s.contact = s.position >= 0; // touched, or kept by HOLD
+    static const auto* applyTo = params.find("ribbon.applyTo");
+    static const auto* motionRec = params.find("track.motionRec");
+    static const auto* pitch = params.find("playback.pitch");
+    const int apply = applyTo != nullptr ? static_cast<int>(std::lround(values.get(*applyTo, 0))) : 0;
+    s.tracks = stripHeld.tracks(apply, selection.selected(), strip.hold() && s.contact);
+    const bool all = services::ext::flags().isOn(services::ext::kStripRecord);
+    s.record = 0;
+    for (int t = 0; t < 16; ++t)
+    {
+        const auto scope = static_cast<std::uint16_t>(scene << 4 | t);
+        if (all || (motionRec != nullptr && values.get(*motionRec, scope) >= 0.5f))
+            s.record = static_cast<std::uint16_t>(s.record | (1u << t));
+        s.pitch[static_cast<std::size_t>(t)] = pitch != nullptr ? values.get(*pitch, scope) : 0.0f;
+    }
+    stripWrites.clear();
+    stripRecorder.frame(s, p.ribbon, stripWrites);
+    for (const auto& w : stripWrites)
+    {
+        if (! steps.recordStripLocks(w.scene, w.pattern, w.track, std::span<const int>(&w.step, 1), w.slot, w.value))
+            continue;
+        if (++stripLocks <= 64)
+            log("MOTION strip %s track=%d step=%d value=%.2f",
+                w.spec != nullptr ? std::string(w.spec->id).c_str() : "?", w.track + 1, w.step + 1,
+                static_cast<double>(w.value));
+    }
 }
 
 // A pad in SLICE pad mode plays the selected track's slice (the engine routes it: a slice-number lock);

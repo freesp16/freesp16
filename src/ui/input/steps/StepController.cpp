@@ -242,6 +242,16 @@ bool StepController::recordEncoder(const core::ParamSpec& spec, float value, int
     return true;
 }
 
+bool StepController::recordStripLocks(int scene, int pattern, int track, std::span<const int> steps,
+                                      core::model::LockSlot slot, float value)
+{
+    if (! (playing_ && armed_) || steps.empty())
+        return false;
+    openGroup();
+    bus_.execute(seqcmd::recordLocks(scene, pattern, track, steps, slot, value));
+    return true;
+}
+
 void StepController::onEngineEvent(const engine::EngineEvent& e)
 {
     using K = engine::EngineEvent::Kind;

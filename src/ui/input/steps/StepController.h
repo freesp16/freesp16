@@ -38,6 +38,7 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <span>
 
 namespace core::model
 {
@@ -85,6 +86,11 @@ public:
     // was recorded.
     static constexpr double kMotionHoldMs = 300.0; // our choice
     bool recordEncoder(const core::ParamSpec&, float value, int playStep);
+    // The touch strip's recorded moves (ui/input/ext/striprecord, RIB-008): `value` locked on `steps` of `track` in
+    // pattern (scene, pattern), in the recording pass's group (one undo step with the knobs' motion and the hits).
+    // False (nothing written) unless recording and playing.
+    bool recordStripLocks(int scene, int pattern, int track, std::span<const int> steps, core::model::LockSlot slot,
+                          float value);
     void onEngineEvent(const engine::EngineEvent&); // recorded hits / erased steps → commands in the open group
     void paintStepLamps(io::LampSink&, const engine::PlayheadFeed&) const;
 

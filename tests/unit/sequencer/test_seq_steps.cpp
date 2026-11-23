@@ -151,6 +151,31 @@ TEST_CASE("seq.steps: recorded hits and erased steps of a pass are one undo step
     CHECK_FALSE(f.sc.recordEncoder(spec("track.volume"), 70.0f, 6)); // not recording now
 }
 
+TEST_CASE("seq.steps: recorded touch strip locks need REC and play, and join the pass's undo step (RIB-008)",
+          "[seq][steps][record][ribbon]")
+{
+    Fixture f;
+    const int steps[] = {3, 4};
+    CHECK_FALSE(f.sc.recordStripLocks(0, 0, 5, steps, 0, 40.0f)); // stopped
+    f.sc.setTransport(true, false);
+    CHECK_FALSE(f.sc.recordStripLocks(0, 0, 5, steps, 0, 40.0f)); // playing, REC off
+    CHECK(f.cell(3, 5).empty());
+    const auto depth = core::commands::history(f.bus).undoDepth();
+    f.sc.setTransport(true, true);
+    f.sc.onEngineEvent({engine::EngineEvent::Kind::RecordedHit, 5, 0, 100, 0});
+    REQUIRE(f.sc.recordStripLocks(0, 0, 5, steps, 0, 40.0f)); // any track, not only the selected one
+    CHECK_FALSE(f.sc.recordStripLocks(0, 0, 5, {}, 0, 40.0f));
+    f.sc.setTransport(false, true);
+    CHECK(core::commands::history(f.bus).undoDepth() == depth + 1);
+    float v = 0;
+    REQUIRE(core::commands::sequencer::lockOf(f.pat(), 4, 5, 0, v));
+    CHECK(v == 40.0f);
+    CHECK(f.cell(3, 5).triggerType == TriggerType::LockOnly);
+    REQUIRE(f.bus.undo());
+    CHECK(f.cell(3, 5).empty());
+    CHECK(f.cell(0, 5).empty());
+}
+
 TEST_CASE("seq.steps: MOTION REC overwrites the steps the playhead passes while the knob turns; the motion view",
           "[seq][steps][record]")
 {
