@@ -455,6 +455,7 @@ void Shell::updateFrameModels(double nowMs)
     cb.track = state_.selectedTrack;
     cb.trackName = tr.name;
     cb.typeBadge = tr.typeBadge;
+    cb.trackType = tr.typeBadge == "SMPL" ? std::string_view("SAMPLE") : tr.typeBadge; // TRACK MENU (UI-225)
     cb.stretchBadge = tr.hasContent ? tr.stretchBadge : std::string_view{};
     cb.loopGlyph = tr.hasContent ? tr.loopGlyph : std::string_view{};
     cb.missing = tr.missing;
