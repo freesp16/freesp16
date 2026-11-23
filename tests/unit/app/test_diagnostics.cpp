@@ -81,6 +81,7 @@ TEST_CASE("app diag: system lines, mounts, memory", "[app][diag]")
     CHECK(has("cache dir=/nonexistent-cache-dir missing"));
     CHECK(has("storage fat_mounts="));
     CHECK(has("midi rawmidi="));
+    CHECK(has("midi unit din_midi="));
 #if defined(__linux__)
     CHECK(app::diag::residentKb() > 0);
     CHECK(app::diag::peakResidentKb() >= app::diag::residentKb());

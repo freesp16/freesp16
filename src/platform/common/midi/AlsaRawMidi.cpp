@@ -1,21 +1,34 @@
 // ALSA raw MIDI ports (what knows the machine lives in platform/). Compiled for the device and
 // the Linux desktop (platform/common, LINUX_ONLY), through the existing libasound dependency — no new library.
 //
-// The device: the research names the kernel's DIN MIDI driver (`snd-din-midi`, loaded by apl_start with `midi_thru`;
-// PioneerSP16FirmwareResearch docs/findings.md "Boot and application startup") and the USB-B MIDI gadget, which is
-// mutually exclusive with USB storage mode (docs/storage.md §2) — so the USB port vanishes while the unit exports its
-// storage and comes back after: MidiService's 1 s hot-plug pass reconnects it by name. The reference reads MIDI on an
-// `AlsaClient::MidiInputThread` (docs/architecture.md). Both appear as ALSA raw MIDI devices (hw:C,D,S); which card
-// is which, and whether `midi_thru` already echoes DIN IN to DIN OUT in hardware, are still to be checked on the unit.
+// The device (platform/common/midi/UnitMidi.h, from the unit's GPL kernel sources): the DIN sockets are card
+// "snddinmidi" (snd-din-midi, UART2), the USB-B MIDI gadget card "gmidi" (g_midi2), mutually exclusive with USB storage
+// mode (docs/storage.md §2) — so the USB port vanishes while the unit exports its storage and comes back after:
+// MidiService's 1 s hot-plug pass reconnects it by name. ALSA numbers the gadget's card before the DIN card, so the
+// ports are not placed by card order: DIN always takes slot 0 (port A, the default SYNC PORT) and USB slot 1 (port B,
+// kept for it in storage mode). The DIN output
+//   - gives the OUT socket to UART2 when it opens (/proc/midi_through '0': the official application may have left it
+//     on THRU, and then nothing this app sends would leave the unit) and again when it closes;
+//   - switches the socket to hardware THRU when port A is set to THRU A (MidiService: DIN IN → DIN OUT, every byte);
+//   - writes the real-time bytes (clock, start, continue, stop) through /dev/din_midi's priority queue, so a tick never
+//     waits behind note bytes in the raw MIDI buffer (31.25 kbit/s: 0.32 ms a byte); a song position is drained out
+//     before the Continue that follows it can overtake it. Without /dev/din_midi (or when its ioctl fails) everything
+//     goes through the raw MIDI device.
 // The desktop: every raw MIDI device of the sound cards (USB interfaces, snd-virmidi).
 //
 // Port name = "<card name> <device>:<subdevice> <subdevice name>" (the reconnect key; the unit's own cards read "MIDI
-// USB" / "MIDI DIN"); id = "hw:C,D,S".
+// DIN" / "MIDI USB"); id = "hw:C,D,S".
 #include "io/midi/MidiPort.h"
+#include "platform/common/midi/UnitMidi.h"
 
 #include <alsa/asoundlib.h>
+#include <fcntl.h>
 #include <poll.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
+#include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -72,8 +85,52 @@ private:
     snd_rawmidi_t* h_;
 };
 
-void listDirection(snd_ctl_t* ctl, int card, int device, const std::string& cardName, snd_rawmidi_stream_t stream,
-                   std::vector<io::midi::PortInfo>& out)
+// The unit's DIN output (UnitMidi.h): the raw MIDI device + the /dev/din_midi priority queue + the OUT/THRU switch.
+class DinOutput final : public io::midi::MidiOutput
+{
+public:
+    explicit DinOutput(snd_rawmidi_t* h) : h_(h)
+    {
+        unitmidi::setHardwareThru(false); // the OUT socket is ours (the official application may have left THRU on)
+        // After the raw MIDI output is open: the driver refuses the ioctl (−ESRCH) without it.
+        fd_ = ::open(unitmidi::kDinMidiDevice, O_RDWR | O_CLOEXEC);
+    }
+    ~DinOutput() override
+    {
+        if (fd_ >= 0)
+            ::close(fd_);
+        unitmidi::setHardwareThru(false); // leave the OUT socket as an output
+        snd_rawmidi_close(h_);
+    }
+    bool write(const std::uint8_t* bytes, int size) override
+    {
+        if (fd_ >= 0 && size == 1)
+        {
+            const int code = unitmidi::realtimeCode(bytes[0]);
+            if (code >= 0)
+            {
+                auto request = static_cast<std::uint32_t>(code);
+                if (::ioctl(fd_, unitmidi::kDinRealtimeIoctl, &request) == 0)
+                    return true;
+                ::close(fd_); // the queue refused: everything through the raw MIDI device from now on
+                fd_ = -1;
+            }
+        }
+        const ssize_t r = snd_rawmidi_write(h_, bytes, static_cast<size_t>(size));
+        // A song position on the wire before the Start / Continue / clock that follows it in the priority queue.
+        if (r == size && fd_ >= 0 && bytes[0] == 0xF2)
+            snd_rawmidi_drain(h_);
+        return r == size;
+    }
+    bool setHardwareThru(bool on) override { return unitmidi::setHardwareThru(on); }
+
+private:
+    snd_rawmidi_t* h_;
+    int fd_ = -1; // /dev/din_midi; −1 = none (the desktop, an old kernel) or refused
+};
+
+void listDirection(snd_ctl_t* ctl, int card, int device, const std::string& cardName, unitmidi::UnitPort unit,
+                   snd_rawmidi_stream_t stream, std::vector<io::midi::PortInfo>& out)
 {
     snd_rawmidi_info_t* info = nullptr;
     snd_rawmidi_info_alloca(&info);
@@ -90,10 +147,12 @@ void listDirection(snd_ctl_t* ctl, int card, int device, const std::string& card
             continue;
         char id[48];
         std::snprintf(id, sizeof id, "hw:%d,%d,%u", card, device, s);
-        // The unit's two ports by what they are, not by their kernel drivers: the USB-B MIDI gadget
-        // (card "g_midi") = MIDI USB, the DIN sockets (card "snd-din-midi") = MIDI DIN; a further device / subdevice
-        // of the same card gets its number appended.
-        const char* friendly = cardName == "g_midi" ? "MIDI USB" : cardName == "snd-din-midi" ? "MIDI DIN" : nullptr;
+        // The unit's two ports by what they are, not by their kernel drivers: the USB-B MIDI gadget = MIDI USB, the
+        // DIN sockets = MIDI DIN; a further device / subdevice of the same card gets its number appended.
+        const char* friendly = unit == unitmidi::UnitPort::Usb   ? "MIDI USB"
+                               : unit == unitmidi::UnitPort::Din ? "MIDI DIN"
+                                                                 : nullptr;
+        const bool first = device == 0 && s == 0;
         std::string name;
         if (friendly != nullptr)
         {
@@ -117,7 +176,8 @@ void listDirection(snd_ctl_t* ctl, int card, int device, const std::string& card
             }
         if (! merged)
         {
-            io::midi::PortInfo p {id, name, stream == SND_RAWMIDI_STREAM_INPUT, stream == SND_RAWMIDI_STREAM_OUTPUT};
+            io::midi::PortInfo p {id, name, stream == SND_RAWMIDI_STREAM_INPUT, stream == SND_RAWMIDI_STREAM_OUTPUT,
+                                  first ? unitmidi::fixedSlot(unit) : -1};
             out.push_back(p);
         }
     }
@@ -130,6 +190,8 @@ public:
     std::vector<io::midi::PortInfo> list() override
     {
         std::vector<io::midi::PortInfo> out;
+        snd_ctl_card_info_t* info = nullptr;
+        snd_ctl_card_info_alloca(&info);
         int card = -1;
         while (snd_card_next(&card) >= 0 && card >= 0)
         {
@@ -138,18 +200,36 @@ public:
             snd_ctl_t* ctl = nullptr;
             if (snd_ctl_open(&ctl, hw, SND_CTL_NONBLOCK) < 0)
                 continue;
-            char* cardName = nullptr;
-            std::string name = snd_card_get_name(card, &cardName) >= 0 && cardName != nullptr ? cardName : hw;
-            std::free(cardName);
+            std::string cardId, name = hw;
+            if (snd_ctl_card_info(ctl, info) >= 0)
+            {
+                cardId = snd_ctl_card_info_get_id(info);
+                if (const char* n = snd_ctl_card_info_get_name(info); n != nullptr && *n != '\0')
+                    name = n;
+            }
+            const auto unit = unitmidi::classify(cardId, name);
+            if (unit != unitmidi::UnitPort::None)
+                unitSeen_ = true;
             int device = -1;
             while (snd_ctl_rawmidi_next_device(ctl, &device) >= 0 && device >= 0)
             {
-                listDirection(ctl, card, device, name, SND_RAWMIDI_STREAM_INPUT, out);
-                listDirection(ctl, card, device, name, SND_RAWMIDI_STREAM_OUTPUT, out);
+                listDirection(ctl, card, device, name, unit, SND_RAWMIDI_STREAM_INPUT, out);
+                listDirection(ctl, card, device, name, unit, SND_RAWMIDI_STREAM_OUTPUT, out);
             }
             snd_ctl_close(ctl);
         }
+        // The unit's ports first (DIN, then USB), whatever their card numbers.
+        std::stable_sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
+            return static_cast<unsigned>(a.slot) < static_cast<unsigned>(b.slot); // −1 (any other port) sorts last
+        });
         return out;
+    }
+    // On the unit (its DIN card is there for good): slots 0 and 1 stay DIN's and USB's, the gadget in storage mode too.
+    std::uint32_t reservedSlots() const override
+    {
+        return unitSeen_ ? (1u << unitmidi::fixedSlot(unitmidi::UnitPort::Din)) |
+                               (1u << unitmidi::fixedSlot(unitmidi::UnitPort::Usb))
+                         : 0u;
     }
     std::unique_ptr<io::midi::MidiInput> openInput(const io::midi::PortInfo& p, std::string& error) override
     {
@@ -174,8 +254,13 @@ public:
             return nullptr;
         }
         snd_rawmidi_nonblock(h, 0);
+        if (p.slot == unitmidi::fixedSlot(unitmidi::UnitPort::Din)) // list() gives slot 0 to the DIN port only
+            return std::make_unique<DinOutput>(h);
         return std::make_unique<AlsaOutput>(h);
     }
+
+private:
+    bool unitSeen_ = false;
 };
 
 std::unique_ptr<io::midi::PortProvider> makeAlsaRawMidi() { return std::make_unique<AlsaRawMidiProvider>(); }

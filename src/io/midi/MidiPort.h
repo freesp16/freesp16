@@ -28,6 +28,7 @@ struct PortInfo
     std::string id;   // provider-specific address ("hw:1,0,0")
     std::string name; // stable display name, the reconnect key ("USB MIDI 1"); unique per provider
     bool input = false, output = false;
+    int slot = -1; // the slot this port always takes (the unit's DIN = 0, USB = 1); −1 = the first free one
 };
 
 class MidiInput
@@ -45,6 +46,9 @@ public:
     virtual ~MidiOutput() = default;
     // Writes one complete message (sender thread only); false = the port is gone.
     virtual bool write(const std::uint8_t* bytes, int size) = 0;
+    // Hands the output socket to this port's own input in hardware (the unit's DIN OUT / THRU switch) or back to
+    // write(); false = the port has no such switch. Message thread, while the sender may be in write().
+    virtual bool setHardwareThru(bool on) { return ! on; }
 };
 
 class PortProvider
@@ -53,6 +57,9 @@ public:
     virtual ~PortProvider() = default;
     virtual std::string_view id() const = 0;
     virtual std::vector<PortInfo> list() = 0; // message thread (hot-plug poll, every 1 s)
+    // Slots (bit s) kept for this provider's fixed-slot ports even while they are absent (the unit's USB port in
+    // storage mode); no other port takes them while a free slot remains. Valid after list().
+    virtual std::uint32_t reservedSlots() const { return 0; }
     virtual std::unique_ptr<MidiInput> openInput(const PortInfo&, std::string& error) = 0;
     virtual std::unique_ptr<MidiOutput> openOutput(const PortInfo&, std::string& error) = 0;
 };

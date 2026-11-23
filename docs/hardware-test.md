@@ -161,10 +161,15 @@ The model's own cost is `afs_model` in step 10 (budget 45 k cycles; may exceed i
 
 The MIDI source is a control source like the panel: `DIAG input midi ok …` names the ports it opened (alsa-rawmidi:
 the DIN port and, in USB MIDI gadget mode, the USB port; USB MIDI and USB storage are exclusive gadget modes), and
-`DIAG midi rawmidi=midiC…D…` lists the device nodes. Every 10 s a `MIDI stats in=… sent=… clocks=… late=… dropped=…
-jitter_p99=… tempo=…` line. **HUMAN:** connect a keyboard to MIDI IN (notes → `in=` grows, pads sound on MIDI tracks),
-a receiver to MIDI OUT (the clock: `clocks=` grows while playing, `late=0`), and check THRU. Send `report midi`
-with the port names, and say what played. `midi=0` in a variant turns MIDI off (to isolate it); the MIDI benches
+`DIAG midi rawmidi=midiC…D…` lists the device nodes. Expected: `in: 1=MIDI DIN 2=MIDI USB` (DIN is always port 1,
+USB port 2, also when the USB port shows up later or is away in storage mode) and `DIAG midi unit din_midi=present
+midi_through=present usb_gadget=midi`. Every 10 s a `MIDI stats in=… sent=… clocks=… late=… dropped=… jitter_p99=…
+tempo=…` line. **HUMAN:** connect a keyboard to MIDI IN (notes → `in=` grows, pads sound on MIDI tracks), a receiver to
+MIDI OUT (the clock: `clocks=` grows while playing, `late=0`; this works even if the official software was left on MIDI
+THRU), then set UTILITY › MIDI PORTS port 1 OUT MODE to THRU A: what the keyboard plays must now come out of MIDI OUT
+unchanged (the socket is switched in hardware; SysEx passes too), and back on OUT the receiver gets the clock again.
+Send a song position + Continue from SET (locate, then play) and check the receiver resumes at the same bar. Send
+`report midi` with the port names, and say what played. `midi=0` in a variant turns MIDI off (to isolate it); the MIDI benches
 (`bench_midi*`, step 10) carry the A9 numbers.
 
 ## 8. LINE IN sampling — `07-linein` (HUMAN: a signal into LINE IN)

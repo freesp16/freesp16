@@ -95,7 +95,8 @@ void MidiSender::forward() noexcept
             {
                 const int mode = hub_.portMode(p);
                 const bool wants = (in == 0 && (mode == 1 || mode == 3)) || (in == 1 && (mode == 2 || mode == 4));
-                if (wants && (hub_.outputMask() >> p & 1u) && write(p, e.bytes, e.size))
+                const bool hardware = (hardwareThru_.load(std::memory_order_relaxed) >> p & 1u) != 0;
+                if (wants && ! hardware && (hub_.outputMask() >> p & 1u) && write(p, e.bytes, e.size))
                     forwarded_.fetch_add(1, std::memory_order_relaxed);
             }
     }

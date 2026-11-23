@@ -519,6 +519,14 @@ void systemLines(const platform::Paths& paths, const Log& log)
         std::string seq = ::access("/dev/snd/seq", F_OK) == 0 ? "present" : "absent";
         log("midi rawmidi=" + (ports.empty() ? std::string("none") : ports) + " seq=" + seq
             + " (names only; the MIDI sources log their own lines)");
+        // The reference unit's MIDI kernel interfaces (platform/common/midi/UnitMidi.h): the DIN priority queue, the
+        // OUT/THRU switch, and which USB-B gadget is loaded (USB MIDI and USB storage exclude each other).
+        const auto there = [](const char* path) { return ::access(path, F_OK) == 0 ? "present" : "absent"; };
+        const char* gadget = ::access("/sys/module/g_midi2", F_OK) == 0           ? "midi"
+                             : ::access("/sys/module/g_mass_storage2", F_OK) == 0 ? "storage"
+                                                                                  : "none";
+        log(std::string("midi unit din_midi=") + there("/dev/din_midi") + " midi_through=" + there("/proc/midi_through")
+            + " usb_gadget=" + gadget);
     }
 }
 
