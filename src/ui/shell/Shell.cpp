@@ -68,7 +68,7 @@ Shell::Shell(ShellConfig cfg)
       ownValues_(cfg.values == nullptr ? std::make_unique<LocalParamValues>(cfg.params, cfg.bridge) : nullptr),
       values_(cfg.values != nullptr ? cfg.values : ownValues_.get()),
       factory_(cfg.factory ? std::move(cfg.factory) : WidgetRegistry::builtin().dispatcher()), flags_(cfg.flags),
-      router_(prepare(cfg), &flags_)
+      valueEntry_(cfg.valueEntry), router_(prepare(cfg), &flags_)
 {
     router_.setPresenter(this);
     feeds_.attach(cfg.bridge);
@@ -840,7 +840,7 @@ void Shell::handleTouch(const io::ControlEvent& e, UiContext& ctx)
     if (y >= L::stripY)
     {
         const int column = strip_.columnAt(x, y);
-        if (column >= 0 && column == lastTapColumn_ && e.timeMs - lastTapMs_ < timing::doubleTapMs)
+        if (valueEntry_ && column >= 0 && column == lastTapColumn_ && e.timeMs - lastTapMs_ < timing::doubleTapMs)
         {
             lastTapColumn_ = -1; // a double-tap on a column types its value (UID-912)
             openValueEntry(column);

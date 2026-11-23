@@ -59,6 +59,9 @@ struct ShellConfig
     WidgetFactory factory{};                       // empty: WidgetRegistry::builtin().dispatcher()
     FeatureFlags flags{};
     bool installFallbacks = true; // register interim screens the registry lacks (Fallbacks.h)
+    // UID-912: a double-tap on a strip column opens the ValueEntry popup. Off on the device: it has no keyboard to
+    // type into, and the second tap then starts a column drag like any other touch.
+    bool valueEntry = true;
 };
 
 class Shell final : public ShellApi, public PopupPresenter
@@ -163,6 +166,7 @@ private:
     ParamAccess* values_;
     WidgetFactory factory_;
     FeatureFlags flags_;
+    bool valueEntry_;
     Router router_;
     UiState state_;
     FocusState focus_;

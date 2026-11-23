@@ -598,8 +598,9 @@ int run()
                                 .log = appLog,
                                 .audioDevice = audio != nullptr ? std::string(audio->id()) : std::string(),
                                 .testTone = setup.testTone});
+    // The device has no keyboard: a double-tap on a strip column does not open the ValueEntry popup (UID-912).
     auto root = ui::createRoot({core::builtinParams(), measureWith(atlas), &bridge, appLog, &document->values(),
-                                document->summaries()});
+                                document->summaries(), machine->id() != "imx6"});
     document->attach(*root);
     document->startup();
     ui::DrawList dl;

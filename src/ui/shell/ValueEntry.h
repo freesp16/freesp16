@@ -4,6 +4,8 @@
 // (the first typed character replaces it). Digits, '.', '-' and '+' type; ⌫ deletes; Return or push applies; Esc,
 // BACK or a tap outside cancels. The edited column stays live (its encoder is bound and still turns the value; the
 // field then shows the new value until the next key).
+// Host only: the device has no keyboard to type into, so the app opens the shell with ShellConfig::valueEntry off
+// (RootContext::valueEntry) and a double-tap there is two plain touches.
 //
 // Typed numbers are in the column's display units (our choice): a ParamSpec with its own formatter (VOLUME in dB, PAN
 // L/C/R …) is inverted by scanning its range for the raw value whose display reads nearest to the typed number (≤ 4096

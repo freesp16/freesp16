@@ -540,6 +540,26 @@ TEST_CASE("shell.gaps: a double-tap on a column opens the ValueEntry; typed disp
     CHECK(raw == 10.0f);
 }
 
+TEST_CASE("shell.gaps: without ValueEntry (the device) a double-tap on a column opens nothing and the second tap "
+          "drags the column (UID-912)",
+          "[ui][shell][popup]")
+{
+    uitest::Harness h({}, {}, /*valueEntry=*/false);
+    const auto col = L::column(0);
+    const float x = col.x + 40, y = col.y + 40;
+    h.touch(x, y, ui::touch::kDown);
+    h.touch(x, y, ui::touch::kUp);
+    h.now += 120;
+    h.touch(x, y, ui::touch::kDown);
+    CHECK(h.shell->topPopup() == nullptr);
+    // The second down took the column like a first one: a vertical drag turns its value (8 lpx per detent).
+    const float v0 = h.value("track.volume");
+    h.touch(x, y - 16 * ui::touch::kToCanvas, ui::touch::kDrag);
+    h.touch(x, y - 16 * ui::touch::kToCanvas, ui::touch::kUp);
+    CHECK(h.value("track.volume") == v0 + 2);
+    CHECK(h.shell->topPopup() == nullptr);
+}
+
 TEST_CASE("shell.gaps: popups fade out on close (motion.base), input ends the fade (UID-065)", "[ui][popup]")
 {
     uitest::Harness h;

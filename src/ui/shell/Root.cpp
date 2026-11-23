@@ -20,8 +20,13 @@ class ShellRoot final : public Root
 {
 public:
     explicit ShellRoot(const RootContext& ctx)
-        : shell_(ShellConfig{ctx.params, ctx.measure, ctx.bridge, ctx.log, ctx.values}), bridge_(ctx.bridge),
-          log_(ctx.log), beforeFrame_(ctx.beforeFrame)
+        : shell_(ShellConfig{.params = ctx.params,
+                              .measure = ctx.measure,
+                              .bridge = ctx.bridge,
+                              .log = ctx.log,
+                              .values = ctx.values,
+                              .valueEntry = ctx.valueEntry}),
+          bridge_(ctx.bridge), log_(ctx.log), beforeFrame_(ctx.beforeFrame)
     {
         // PLAY / STOP / REC / ext.tap / ext.nudge → the engine's transport; playhead → UiState.
         if (bridge_ != nullptr)
