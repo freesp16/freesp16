@@ -88,7 +88,8 @@ TEST_CASE("snapshot.m5.sampling_edit: SAMPLING/EDIT (track 5 with a sample, stop
     CHECK(m.get("sampling.screenOpen") == 1.0f);
     const auto& mock = m5test::m5mockup("sampling-edit");
     CHECK(compare(ours, mock, {16, 152, 192, 456}, "m5-sampling-rail").match >= kGate);
-    CHECK(compare(ours, mock, {224, 152, 88, 456}, "m5-sampling-meter").match >= kGate);
+    // The INPUT column departs from the mockup by request (bars centred, as on every meter column): artifacts only.
+    compare(ours, mock, {224, 152, 88, 456}, "m5-sampling-meter");
     CHECK(compare(ours, mock, {328, 152, 856, 360}, "m5-sampling-editor").match >= kGate);
     CHECK(compare(ours, mock, {328, 528, 856, 64}, "m5-sampling-overview").match >= kGate);
     CHECK(compare(ours, mock, L::contextBar, "m5-sampling-context").match >= kGate);
@@ -179,7 +180,8 @@ TEST_CASE("snapshot.m5.live_sampling: LIVE SAMPLING (armed at the next bar, the 
     CHECK(compare(ours, mock, {328, 152, 856, 360}, "m5-live-ring").match >= kGate);
     CHECK(compare(ours, mock, {328, 528, 856, 64}, "m5-live-take").match >= kGate);
     CHECK(compare(ours, mock, {16, 152, 192, 456}, "m5-live-rail").match >= kGate);
-    CHECK(compare(ours, mock, {224, 152, 88, 456}, "m5-live-meter").match >= kGate);
+    // The INPUT column departs from the mockup by request (bars centred, as on every meter column): artifacts only.
+    compare(ours, mock, {224, 152, 88, 456}, "m5-live-meter");
     CHECK(compare(ours, mock, L::knobStrip, "m5-live-strip").match >= kGate);
     CHECK(compare(ours, mock, L::canvas, "m5-live-sampling").match >= kGate);
 }

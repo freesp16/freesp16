@@ -44,7 +44,10 @@ public:
     void build(DrawList&, const UiContext&) const override;
     bool dirty(double nowMs) const override;
 
-    // A full 88-wide meter column at x (bars at x + 12 on a 12 lpx pitch, labels to x + 84), y 152–600.
+    // A full 88-wide meter column at x, y 152–608: caption and bars centred at x + kColCentre (two 8 lpx bars on a
+    // 10 lpx pitch, the fader marker a cap across them), the dB scale right-aligned at x + kColScaleR — the same
+    // look and place as the MIXER's MASTER meter (drawBusPair), so the column does not jump between screens.
+    static constexpr float kColCentre = 28, kColScaleR = 86;
     static void drawColumn(DrawList&, const UiContext&, float x, const MeterModel&);
     // Two bars of width 8 at x and x + pitch over [top, bottom] (+ peak lines, clip caps); the fader marker right of
     // the last bar.

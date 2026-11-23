@@ -67,36 +67,36 @@ void Meter::drawBars(DrawList& dl, const UiContext& ctx, float x, float top, flo
     }
 }
 
-void Meter::drawColumn(DrawList& dl, const UiContext& ctx, float x, const MeterModel& m)
+namespace
 {
-    const auto& p = ctx.palette;
-    constexpr float top = 184, bottom = 600;
-    dl.text(x + 44, 160, Align::Centre, TextStyleId::Caption, p.text2, m.caption);
-    if (m.scale)
-    {
-        static constexpr struct
-        {
-            float db;
-            const char* text;
-        } labels[] = {{3, "3"}, {0, "0"}, {-10, "-10"}, {-20, "-20"}, {-30, "-30"}, {-40, "-40"}, {-50, "-50"}};
-        for (const auto& l : labels)
-            dl.text(x + 84, meterY(l.db, top, bottom), Align::Right, TextStyleId::Caption, p.text3, l.text);
-    }
-    drawBars(dl, ctx, x + 12, top, bottom, 12, m);
-}
-
-void Meter::drawBusPair(DrawList& dl, const UiContext& ctx, std::string_view leftCaption, const MeterModel& left,
-                        std::string_view rightCaption, const MeterModel& right)
+void drawScale(DrawList& dl, const UiContext& ctx, float right, float top, float bottom)
 {
-    const auto& p = ctx.palette;
     static constexpr struct
     {
         float db;
         const char* text;
     } labels[] = {{3, "3"}, {0, "0"}, {-10, "-10"}, {-20, "-20"}, {-30, "-30"}, {-40, "-40"}, {-50, "-50"}};
     for (const auto& l : labels)
-        dl.text(kBusScaleR, meterY(l.db, kBusTop, kBusBottom), Align::Right, TextStyleId::Caption, p.text3, l.text);
-    dl.text(kBusScaleR, kBusBottom + 6, Align::Right, TextStyleId::Caption, p.text3, "\xE2\x88\x92\xE2\x88\x9E");
+        dl.text(right, meterY(l.db, top, bottom), Align::Right, TextStyleId::Caption, ctx.palette.text3, l.text);
+    dl.text(right, bottom + 6, Align::Right, TextStyleId::Caption, ctx.palette.text3, "\xE2\x88\x92\xE2\x88\x9E");
+}
+} // namespace
+
+void Meter::drawColumn(DrawList& dl, const UiContext& ctx, float x, const MeterModel& m)
+{
+    const float cx = x + kColCentre;
+    dl.text(cx, 160, Align::Centre, TextStyleId::Caption, ctx.palette.text2, m.caption);
+    if (m.scale)
+        drawScale(dl, ctx, x + kColScaleR, kBusTop, kBusBottom);
+    auto mm = m;
+    mm.markerOver = true;
+    drawBars(dl, ctx, cx - 9, kBusTop, kBusBottom, 10, mm);
+}
+
+void Meter::drawBusPair(DrawList& dl, const UiContext& ctx, std::string_view leftCaption, const MeterModel& left,
+                        std::string_view rightCaption, const MeterModel& right)
+{
+    drawScale(dl, ctx, kBusScaleR, kBusTop, kBusBottom);
     const struct
     {
         std::string_view caption;
@@ -105,7 +105,7 @@ void Meter::drawBusPair(DrawList& dl, const UiContext& ctx, std::string_view lef
     for (int i = 0; i < 2; ++i)
     {
         const float cx = kBusX + kBusPitch * static_cast<float>(i) + kBusW / 2;
-        dl.text(cx, 160, Align::Centre, TextStyleId::Caption, p.text2, cols[i].caption);
+        dl.text(cx, 160, Align::Centre, TextStyleId::Caption, ctx.palette.text2, cols[i].caption);
         auto m = cols[i].m;
         m.markerOver = true;
         drawBars(dl, ctx, cx - 9, kBusTop, kBusBottom, 10, m);
