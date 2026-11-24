@@ -1,5 +1,6 @@
 #include "io/midi/MidiSender.h"
 
+#include <pthread.h>
 #include <sched.h>
 #include <time.h>
 
@@ -13,22 +14,6 @@ namespace
 {
 constexpr std::int64_t kPollNs = 1000000; // 1 ms: the longest sleep, so new messages are seen in time
 } // namespace
-
-// ---- PiMutex ----
-
-PiMutex::PiMutex() noexcept
-{
-    pthread_mutexattr_t a;
-    pthread_mutexattr_init(&a);
-    pthread_mutexattr_setprotocol(&a, PTHREAD_PRIO_INHERIT); // best effort: a plain mutex without it
-    pthread_mutex_init(&m_, &a);
-    pthread_mutexattr_destroy(&a);
-}
-
-PiMutex::~PiMutex()
-{
-    pthread_mutex_destroy(&m_);
-}
 
 // ---- LatenessHistogram ----
 
@@ -134,7 +119,7 @@ void MidiSender::setOutput(int port, MidiOutput* output)
 {
     if (port < 0 || port >= kPorts)
         return;
-    std::lock_guard<PiMutex> lock(portLocks_[static_cast<std::size_t>(port)]);
+    std::lock_guard<std::mutex> lock(portLocks_[static_cast<std::size_t>(port)]);
     outputs_[static_cast<std::size_t>(port)] = output;
     if (output != nullptr)
         clearFailed(port);
@@ -168,7 +153,7 @@ bool MidiSender::start(std::string& info)
     const bool senderRt = startThread(sender_, kSenderPriority, &MidiSender::runSender);
     char buf[128];
     std::snprintf(buf, sizeof buf, "clock %s sender %s wake-margin=%lldus(adaptive)",
-                  clockRt ? "SCHED_FIFO 80" : "normal-priority", senderRt ? "SCHED_FIFO 72" : "normal-priority",
+                  clockRt ? "SCHED_FIFO 80" : "normal-priority", senderRt ? "SCHED_FIFO 65" : "normal-priority",
                   static_cast<long long>(clockWait_.margin() / 1000));
     info_ = info = buf;
     return true;
@@ -185,7 +170,7 @@ void MidiSender::stop()
 
 WriteResult MidiSender::write(int port, const std::uint8_t* bytes, int size) noexcept
 {
-    std::lock_guard<PiMutex> lock(portLocks_[static_cast<std::size_t>(port)]);
+    std::lock_guard<std::mutex> lock(portLocks_[static_cast<std::size_t>(port)]);
     MidiOutput* out = outputs_[static_cast<std::size_t>(port)];
     if (out == nullptr || failed(port))
         return WriteResult::Gone;
@@ -237,6 +222,7 @@ void MidiSender::serve(Lane lane, Lanes& lanes, DeadlineWaiter& waiter)
     const int latency = hub_.outputLatencyMs();
     // The earliest head over the ports: its deadline, or a busy port's retry time when that is later.
     int best = -1;
+    bool retrying = false; // the earliest is a busy port's retry
     double bestDue = 0.0, bestDeadline = 0.0, bestRaw = 0.0;
     for (int p = 0; p < kPorts; ++p)
         if (lanes.count[static_cast<std::size_t>(p)] > 0)
@@ -255,6 +241,7 @@ void MidiSender::serve(Lane lane, Lanes& lanes, DeadlineWaiter& waiter)
                 bestDue = due;
                 bestDeadline = d;
                 bestRaw = raw;
+                retrying = retry > d;
             }
         }
     const std::int64_t now = core::midi::monotonicNs();
@@ -264,13 +251,22 @@ void MidiSender::serve(Lane lane, Lanes& lanes, DeadlineWaiter& waiter)
         return;
     }
     const auto due = static_cast<std::int64_t>(bestDue);
-    if (due - now > waiter.margin())
+    if (retrying) // a busy port: already late, so sleep to the retry — never spin on a port that does not take data
+    {
+        if (due > now)
+        {
+            waiter.sleepUntil(due < now + kPollNs ? due : now + kPollNs, now);
+            return;
+        }
+    }
+    else if (due - now > waiter.margin())
     {
         const std::int64_t wake = waiter.wakeFor(due);
         waiter.sleepUntil(wake < now + kPollNs ? wake : now + kPollNs, now);
         return; // re-evaluate: new messages or a new anchor may have arrived
     }
-    DeadlineWaiter::spinUntil(due); // the last stretch: busy wait to the deadline
+    else
+        DeadlineWaiter::spinUntil(due); // the last stretch (≤ the margin): busy wait to the deadline
     const auto& h = lanes.front(best);
     const WriteResult r = (hub_.outputMask() >> best & 1u) ? write(best, h.bytes, h.size) : WriteResult::Gone;
     const std::int64_t done = core::midi::monotonicNs();

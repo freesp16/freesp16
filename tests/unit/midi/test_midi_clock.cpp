@@ -12,6 +12,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <time.h>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -387,9 +389,19 @@ TEST_CASE("midi.sender: a port that takes nothing holds up neither the clock nor
             e.bytes[2] = 100;
             REQUIRE(hub.pushOut(e)); // a note on each port too
         }
+    const auto cpu = []
+    {
+        timespec t{};
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t);
+        return static_cast<double>(t.tv_sec) + static_cast<double>(t.tv_nsec) * 1e-9;
+    };
+    const double cpu0 = cpu(), wall0 = static_cast<double>(core::midi::monotonicNs()) * 1e-9;
     for (int i = 0; i < 1000 && sender.stats().sent < static_cast<std::uint64_t>(2 * ticks); ++i)
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // past the stale limit of the last tick
+    // The stuck port is retried asleep: the two real-time threads must not spin on it (on the unit a spinning
+    // SCHED_FIFO thread starves its core's kernel workers — the drivers that move the MIDI bytes).
+    const double cpuShare = (cpu() - cpu0) / (static_cast<double>(core::midi::monotonicNs()) * 1e-9 - wall0);
     sender.stop();
     const auto s = sender.stats();
     const auto rec = provider.received();
@@ -407,6 +419,8 @@ TEST_CASE("midi.sender: a port that takes nothing holds up neither the clock nor
     CHECK(s.busy > 0);
     CHECK(stuck.tries.load() < 40 * ticks);                     // retried every 1 ms by each thread, not spun on
     CHECK(s.dropped >= static_cast<std::uint64_t>(ticks) - 10); // its stale ticks are dropped, not sent in a burst
+    std::printf("midi.sender: CPU while a port is stuck: %.0f %% of one core\n", cpuShare * 100.0);
+    CHECK(cpuShare < 0.3);
 }
 
 TEST_CASE("midi.sender: the tick smoother keeps the intervals exact and follows the audio clock without drift",
@@ -452,20 +466,22 @@ TEST_CASE("midi.sender: the tick smoother keeps the intervals exact and follows 
 
 TEST_CASE("midi.sender: the wake-up margin follows the measured wake-up latency", "[midi]")
 {
-    io::midi::DeadlineWaiter w;
+    using W = io::midi::DeadlineWaiter;
+    W w;
     w.learn(0, 0);
-    CHECK(w.margin() == io::midi::DeadlineWaiter::kMinMarginNs); // an exact kernel: the least busy wait
-    w.learn(800000, 1000000);                                    // woken 0.8 ms late once
-    CHECK(w.margin() == 800000 * 3 / 2 + 50000);
+    CHECK(w.margin() == W::kMinMarginNs); // an exact kernel: the least busy wait
+    w.learn(200000, 1000000);             // woken 0.2 ms late once
+    CHECK(w.margin() == 200000 * 3 / 2 + 50000);
     w.learn(0, 1000000000); // 1 s later: the peak has decayed by e^-0.1
-    CHECK(w.margin() < 800000 * 3 / 2 + 50000);
-    CHECK(w.margin() > 1000000);
+    CHECK(w.margin() < 200000 * 3 / 2 + 50000);
+    CHECK(w.margin() > 300000);
     w.learn(0, 60000000000); // a quiet minute: back to the least
-    CHECK(w.margin() == io::midi::DeadlineWaiter::kMinMarginNs);
-    w.learn(5000000, 1000000); // a 5 ms stall: capped
-    CHECK(w.margin() == io::midi::DeadlineWaiter::kMaxMarginNs);
+    CHECK(w.margin() == W::kMinMarginNs);
+    w.learn(5000000, 1000000); // a 5 ms stall: the busy wait stays bounded
+    CHECK(w.margin() == W::kMaxMarginNs);
+    CHECK(W::kMaxMarginNs <= 500000);
     w.learn(0, 600000000000);
-    w.setFloorNs(500000); // midi_spin_us=500
+    w.setFloorNs(300000); // midi_spin_us=300
     w.learn(0, 1000000);
-    CHECK(w.margin() == 500000);
+    CHECK(w.margin() == 300000);
 }

@@ -199,7 +199,7 @@ OUT clock on) into a receiver: the receiver's BPM shows the unit's tempo steadil
 142.9–143.2) and its sound sits on the unit's audio — the clock and notes leave when the matching audio is heard (the
 audio buffer is compensated), `late=0`. The clock has its own thread (`DIAG input midi … clock SCHED_FIFO 80`): the
 `MIDI stats` line's `jitter_p50/p99/max` are its ticks' lateness (µs; expected p99 ≤ 100), `clock_margin=` how early
-it wakes before a tick (µs, learnt from the kernel's wake-up latency, 100–2000), `notes_jitter_p99=` the notes'
+it wakes before a tick (µs, learnt from the kernel's wake-up latency, 100–500), `notes_jitter_p99=` the notes'
 lateness and `busy=` writes a port could not take (a USB host that does not read: the DIN clock goes on regardless).
 Also check with a computer on USB-B that has no MIDI program open (it does not read the port): the receiver on DIN OUT
 must stay as steady. OUTPUT LATENCY

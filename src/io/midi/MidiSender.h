@@ -7,7 +7,8 @@
 //                  (sub-sample) frame they belong to. Nothing else ever runs on it, so a tick is never held up by
 //                  notes, forwarding, lamp feedback or a port that does not take data: it sleeps to each tick's
 //                  absolute deadline and writes it.
-//   sender thread  (priority 72) the hub's out queue (notes, CCs, program changes …), the forwarder (MID-002: copies
+//   sender thread  (priority 65, below the audio thread) the hub's out queue (notes, CCs, program changes …), the
+//   forwarder (MID-002: copies
 //                  the inputs' messages to OUT + MERGE A/B and THRU A/B ports at once, A = input port 0, B = input port
 //                  1, except to a port in hardware THRU) and sendNow (controller lamps).
 //
@@ -19,15 +20,18 @@
 //
 // The wait (DeadlineWaiter): clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME) to a margin before the deadline, then a
 // busy wait to the deadline itself. The margin follows this thread's own measured wake-up latency (how late the
-// kernel wakes it: its recent peak × 1.5 + 50 µs, the peak decaying over ~10 s, 100 µs … 2 ms), so a kernel that wakes
-// late now and then (no PREEMPT_RT: USB, SD card or display interrupts) still gives exact ticks — the cost is the busy
-// wait, ≤ 2 ms per tick on one core of four. Both threads poll their queues at least every 1 ms.
+// kernel wakes it: its recent peak × 1.5 + 50 µs, the peak decaying over ~10 s, 100 … 500 µs), so a kernel that wakes
+// late now and then (no PREEMPT_RT: USB, SD card or display interrupts) still gives exact ticks. The busy wait is
+// bounded (≤ 0.5 ms per message): a real-time thread that spins starves the kernel's per-CPU workers (kworker,
+// ksoftirqd) on its core, and the drivers that move the MIDI bytes run there. Both threads poll their queues at least
+// every 1 ms.
 //
 // Ports: a write never blocks (MidiOutput::write); a port that is busy (a USB host that does not read) keeps its
-// message and is retried 1 ms later while the other ports go on — on the clock thread a message that is still busy
-// 50 ms past its deadline is dropped (a burst of stale ticks would be worse than none). Each port has a
-// priority-inheritance mutex: the two threads may both write to it, never at once, and the message thread swaps it
-// (hot-plug) under that lock.
+// message and is retried 1 ms later — sleeping, never spinning — while the other ports go on; on the clock thread a
+// message that is still busy 50 ms past its deadline is dropped (a burst of stale ticks would be worse than none). Each
+// port has a plain mutex (the two threads may both write to it, never at once, and the message thread swaps it on
+// hot-plug under that lock; held only for one non-blocking write). Not a priority-inheritance mutex: the unit's
+// kernel (3.0, ARM) may lack PI futexes, and then glibc refuses to create one.
 //
 // Jitter (NFR-004: ≤ 0.5 ms p99): every write's lateness (write time − deadline) goes into a 10 µs histogram, one for
 // the clock thread and one for the sender; stats() reports p50 / p99 / max of the clock's (what a receiver's tempo
@@ -38,11 +42,10 @@
 #include "core/util/midi/MidiWire.h"
 #include "io/midi/MidiPort.h"
 
-#include <pthread.h>
-
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -54,22 +57,6 @@ struct SenderStats
     double p50Us = 0, p99Us = 0, maxUs = 0; // the clock thread's writes (ticks, transport) against their deadlines
     double notesP99Us = 0;                  // the sender thread's
     double marginUs = 0;                    // the clock thread's wake-up margin now (DeadlineWaiter)
-};
-
-// A mutex with priority inheritance (PTHREAD_PRIO_INHERIT where the system has it): a lower-priority holder runs at
-// the waiter's priority until it unlocks.
-class PiMutex
-{
-public:
-    PiMutex() noexcept;
-    ~PiMutex();
-    PiMutex(const PiMutex&) = delete;
-    PiMutex& operator=(const PiMutex&) = delete;
-    void lock() noexcept { pthread_mutex_lock(&m_); }
-    void unlock() noexcept { pthread_mutex_unlock(&m_); }
-
-private:
-    pthread_mutex_t m_;
 };
 
 // Lateness histogram: 10 µs bins, 0 … 20 ms. One writer thread; any thread reads (racily, for a report).
@@ -96,7 +83,7 @@ class DeadlineWaiter
 {
 public:
     static constexpr std::int64_t kMinMarginNs = 100000;  // 100 µs
-    static constexpr std::int64_t kMaxMarginNs = 2000000; // 2 ms
+    static constexpr std::int64_t kMaxMarginNs = 500000;  // 500 µs: the most a message may spin
     static constexpr double kDecaySeconds = 10.0;         // the wake-up latency peak's memory
 
     // The time to wake up at for a write at `deadline`.
@@ -183,7 +170,7 @@ public:
     static constexpr int kRing = 1024;                 // per output port and thread
     static constexpr std::int64_t kRetryNs = 1000000;  // a busy port is tried again after 1 ms
     static constexpr std::int64_t kStaleNs = 50000000; // the clock thread drops what is still busy 50 ms late
-    static constexpr int kClockPriority = 80, kSenderPriority = 72;
+    static constexpr int kClockPriority = 80, kSenderPriority = 65;
 
     explicit MidiSender(core::midi::MidiHub& hub) : hub_(hub) {}
     ~MidiSender() { stop(); }
@@ -264,7 +251,7 @@ private:
     std::thread clock_, sender_;
     std::atomic<bool> quit_{false};
     std::atomic<std::uint32_t> failed_ {0}, hardwareThru_ {0};
-    std::array<PiMutex, kPorts> portLocks_; // one port's writes ↔ its swap (message thread)
+    std::array<std::mutex, kPorts> portLocks_; // one port's writes ↔ its swap (message thread)
     std::array<MidiOutput*, kPorts> outputs_ {};
     Lanes clockLanes_, noteLanes_;
     DeadlineWaiter clockWait_, noteWait_;
