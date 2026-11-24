@@ -5,6 +5,7 @@
 #include "core/edit/SharedEditor.h"
 #include "core/model/Project.h"
 #include "io/controllers/LampRules.h"
+#include "ui/input/steps/PadStepEntry.h"
 #include "ui/theme/Theme.h"
 
 #include <algorithm>
@@ -140,29 +141,32 @@ void StepController::setPaste(bool held)
         gesture().pasteReleased();
 }
 
-void StepController::onStepKey(int step, bool pressed, double nowMs)
+bool StepController::onStepKey(int step, bool pressed, double nowMs)
 {
     nowMs_ = nowMs;
     if (scenesOwn_ || step < 1 || step > 16)
-        return;
+        return false;
     if (copyGestureActive())
     {
         if (pressed)
             gesture().stepKey(step); // EDT-005: copy / paste instead of a trigger
-        return;
+        return false;
     }
     if (pressed)
     {
         held_ = step;
         turned_ = false;
-        return;
+        return false;
     }
     if (held_ != step)
-        return;
+        return false;
     held_ = 0;
     if (turned_)
-        return; // hold + turn made a lock: the release does not toggle (SEQ-022)
+        return false; // hold + turn made a lock: the release does not toggle (SEQ-022)
     bus_.execute(seqcmd::toggleStep(scene_, pattern_, track_, patternStep(step), entryType_, 127));
+    const auto* p = project();
+    const Step* c = p != nullptr ? cellAt(*p, scene_, pattern_, track_, patternStep(step)) : nullptr;
+    return c != nullptr && c->trigger != Step::kEmpty;
 }
 
 bool StepController::clearHeldStep()
@@ -276,10 +280,10 @@ void StepController::onEngineEvent(const engine::EngineEvent& e)
             const auto scope = static_cast<std::uint16_t>(scene_ << 4 | (e.track & 15));
             const auto mode =
                 p->scenes[static_cast<std::size_t>(scene_)].tracks[static_cast<std::size_t>(e.track & 15)].mode;
-            const bool midi = mode == core::model::TrackMode::Midi || mode == core::model::TrackMode::Instrument;
+            const bool midi = isMidiMode(mode);
             const float base = midi || values_ == nullptr ? 0.0f : values_->get(*pitchSpec, scope);
-            if (e.semitones != 0)
-                pitch = pitchSpec->clamp(base + static_cast<float>(e.semitones));
+            if (e.semitones != 0) // the note the hit played (a MIDI / AS-1 track: up to ±127, as the live path)
+                pitch = clampPitchLock(*pitchSpec, mode, base + static_cast<float>(e.semitones));
         }
         bus_.execute(seqcmd::recordHit(scene_, pattern_, e.track, e.step, e.value, e.offset24, pitchSlot, pitch));
         if ((e.track & 15) == track_)

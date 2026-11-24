@@ -10,12 +10,14 @@
 #include "core/model/ModelOps.h"
 #include "core/model/Project.h"
 #include "engine/sequencer/PatternBuilder.h"
+#include "ui/input/steps/PadStepEntry.h"
 #include "ui/input/steps/PatternSync.h"
 #include "ui/input/steps/StepController.h"
 #include "io/controllers/LampRules.h"
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <limits>
 #include <map>
 
 namespace steps = ui::input::steps;
@@ -196,10 +198,126 @@ TEST_CASE("seq.steps: a recorded MIDI note or SCALE pad keeps the pitch it playe
     sc.onEngineEvent(midi);
     REQUIRE(seqcmd::lockOf(f.pat(), 8, 5, kPitch, v));
     CHECK(v == -5.0f);
+    midi.semitones = 26; // a SCALE pad over two octaves up: replayed as played, not cut to PITCH's ±24
+    sc.onEngineEvent(midi);
+    REQUIRE(seqcmd::lockOf(f.pat(), 8, 5, kPitch, v));
+    CHECK(v == 26.0f);
+    core::commands::project(f.bus).scenes[0].tracks[6].mode = core::model::TrackMode::Instrument; // AS-1: the same
+    midi.track = 6;
+    midi.semitones = -40;
+    sc.onEngineEvent(midi);
+    REQUIRE(seqcmd::lockOf(f.pat(), 8, 6, kPitch, v));
+    CHECK(v == -40.0f);
     sc.setTransport(false, true);
     REQUIRE(f.bus.undo()); // the whole pass, locks included, is one undo step
     CHECK(f.cell(4, 2).empty());
     CHECK(f.cell(8, 5).empty());
+    CHECK(f.cell(8, 6).empty());
+}
+
+TEST_CASE("seq.steps: a step-key release reports whether it entered a trigger (step input after a pad, 8.4)",
+          "[seq][steps]")
+{
+    Fixture f;
+    CHECK_FALSE(f.sc.onStepKey(5, true, 0)); // a press enters nothing
+    CHECK(f.sc.onStepKey(5, false, 80));     // the release toggled a trigger on
+    CHECK(f.cell(4, 2).trigger == 15);
+    f.sc.onStepKey(5, true, 100);
+    CHECK_FALSE(f.sc.onStepKey(5, false, 150)); // the release removed it
+    CHECK(f.cell(4, 2).empty());
+
+    // Hold + turn: the release toggles nothing, so a SCALE / SLICE pad does not re-program the step.
+    f.bus.execute(core::commands::sequencer::toggleStep(0, 0, 2, 6, TriggerType::Full, 127));
+    f.sc.onStepKey(7, true, 200);
+    CHECK(f.sc.interceptEncoder(spec("track.volume"), 2, false));
+    CHECK_FALSE(f.sc.onStepKey(7, false, 300));
+    CHECK(f.cell(6, 2).trigger == 15);
+    // A held-step edit (a SCALE pad while the key is held) is kept the same way.
+    f.sc.onStepKey(9, true, 400);
+    f.sc.keepHeldStep(9);
+    CHECK_FALSE(f.sc.onStepKey(9, false, 450));
+    CHECK(f.cell(8, 2).empty());
+
+    // COPY / PASTE: the step keys copy and paste (EDT-005), they enter nothing.
+    f.sc.setCopy(true);
+    CHECK_FALSE(f.sc.onStepKey(7, true, 500));
+    CHECK_FALSE(f.sc.onStepKey(7, false, 550));
+    f.sc.setCopy(false);
+    f.sc.setPaste(true);
+    CHECK_FALSE(f.sc.onStepKey(12, true, 600));
+    CHECK_FALSE(f.sc.onStepKey(12, false, 650));
+    f.sc.setPaste(false);
+    CHECK(f.cell(11, 2).trigger == 15); // pasted from step 7, not toggled
+}
+
+TEST_CASE("seq.steps: SCALE step input programs the key's PITCH lock; held-step input does the same, at the pad's "
+          "velocity",
+          "[seq][steps]")
+{
+    Fixture f;
+    namespace seqcmd = core::commands::sequencer;
+    const auto& pitch = spec("playback.pitch");
+    using core::model::TrackMode;
+    constexpr float kRoot = std::numeric_limits<float>::quiet_NaN();
+    float v = 0;
+
+    // PITCH locks: the sample PITCH range on a Sample track, the live path's ±127 on a MIDI / AS-1 track.
+    CHECK(steps::clampPitchLock(pitch, TrackMode::Sample, 26.0f) == 24.0f);
+    CHECK(steps::clampPitchLock(pitch, TrackMode::Midi, 26.0f) == 26.0f);
+    CHECK(steps::clampPitchLock(pitch, TrackMode::Instrument, -200.0f) == -127.0f);
+
+    // A step key after a pad: the entered trigger gets the key's lock; the root programs none.
+    REQUIRE(f.sc.onStepKey(1, true, 0) == false);
+    REQUIRE(f.sc.onStepKey(1, false, 50));
+    steps::scaleStepEntry(f.bus, f.sc, 2, 26.0f, 1); // a MIDI track's key two octaves and a tone up
+    REQUIRE(seqcmd::lockOf(f.pat(), 0, 2, steps::kPitchLockSlot, v));
+    CHECK(v == 26.0f);
+    f.sc.onStepKey(2, true, 100);
+    REQUIRE(f.sc.onStepKey(2, false, 150));
+    steps::scaleStepEntry(f.bus, f.sc, 2, kRoot, 2);
+    CHECK_FALSE(seqcmd::lockOf(f.pat(), 1, 2, steps::kPitchLockSlot, v));
+    CHECK(f.cell(1, 2).value2 == 127); // step entry's velocity (SEQ-040)
+
+    // A pad while a step key is held: an empty step gets a trigger at the pad's velocity and the same lock.
+    f.sc.onStepKey(3, true, 200);
+    steps::scaleStepHeld(f.bus, f.sc, 2, 26.0f, 90, 3);
+    CHECK(f.cell(2, 2).trigger == 15);
+    CHECK(f.cell(2, 2).value2 == 90);
+    REQUIRE(seqcmd::lockOf(f.pat(), 2, 2, steps::kPitchLockSlot, v));
+    CHECK(v == 26.0f);
+    // Another pad, the root, while still held: the step plays the track as it is — no lock, as step entry.
+    steps::scaleStepHeld(f.bus, f.sc, 2, kRoot, 40, 3);
+    CHECK_FALSE(seqcmd::lockOf(f.pat(), 2, 2, steps::kPitchLockSlot, v));
+    CHECK(f.cell(2, 2).value2 == 90);           // the trigger the first pad made stays
+    CHECK_FALSE(f.sc.onStepKey(3, false, 300)); // the release toggles nothing
+    CHECK(f.cell(2, 2).trigger == 15);
+    // The root on an empty held step: a trigger, no lock (not the track's own PITCH written as a lock).
+    f.sc.onStepKey(4, true, 400);
+    steps::scaleStepHeld(f.bus, f.sc, 2, kRoot, 64, 4);
+    CHECK(f.cell(3, 2).trigger == 15);
+    CHECK(f.cell(3, 2).value2 == 64);
+    CHECK(f.cell(3, 2).lockIndex == core::model::Step::kNoLocks);
+    CHECK_FALSE(f.sc.onStepKey(4, false, 450));
+}
+
+TEST_CASE("seq.steps: SLICE step input writes the last slice, never on a MIDI or AS-1 track (manual p.49)",
+          "[seq][steps]")
+{
+    Fixture f;
+    namespace seqcmd = core::commands::sequencer;
+    float v = 0;
+    f.bus.execute(seqcmd::toggleStep(0, 0, 2, 0, TriggerType::Full, 127));
+    steps::sliceStepEntry(f.bus, f.sc, 2, 5, 1);
+    REQUIRE(seqcmd::lockOf(f.pat(), 0, 2, steps::kSliceLockSlot, v));
+    CHECK(v == 5.0f);
+    for (const auto mode : {core::model::TrackMode::Midi, core::model::TrackMode::Instrument})
+    {
+        core::commands::project(f.bus).scenes[0].tracks[2].mode = mode;
+        f.bus.execute(seqcmd::toggleStep(0, 0, 2, 1, TriggerType::Full, 127));
+        steps::sliceStepEntry(f.bus, f.sc, 2, 7, 2);
+        CHECK_FALSE(seqcmd::lockOf(f.pat(), 1, 2, steps::kSliceLockSlot, v));
+        f.bus.execute(seqcmd::clearStep(0, 0, 2, 1));
+    }
 }
 
 TEST_CASE("seq.steps: recorded touch strip locks need REC and play, and join the pass's undo step (RIB-008)",
