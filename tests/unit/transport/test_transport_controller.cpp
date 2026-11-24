@@ -280,6 +280,7 @@ TEST_CASE("transport.controller: under MIDI clock PLAY only arms; the external S
     engine::PlayheadFeed feed {};
     feed.blockIndex = 100;
     feed.externalClock = true;
+    feed.externalStart = true; // IN START/STOP/CONTINUE on: the master starts the unit
     t.sync(feed);
     ui::UiState s;
     io::LampFrame lamps;
@@ -341,8 +342,46 @@ TEST_CASE("transport.controller: under MIDI clock PLAY only arms; the external S
     feed.blockIndex = 400;
     feed.ppq = 0.0;
     feed.externalClock = false;
+    feed.externalStart = false; // the engine's clockStarts() needs following
     t.sync(feed);
     CHECK_FALSE(t.playArmed());
     t.onPlay();
     CHECK(is(lastCmd(bridge), TransportCmd::Play, 0.0));
+}
+
+TEST_CASE("transport.controller: under MIDI clock with IN START/STOP/CONTINUE off, PLAY plays (no arm)", "[transport]")
+{
+    // Manual p.45: START/STOP/CONTINUE DISABLE — the master cannot start the unit, so its PLAY does (the engine locks
+    // the transport onto the clock). The BPM and the MIDI badge still follow the clock.
+    fakes::FakeEngineBridge bridge;
+    TransportController t(bridge);
+    engine::PlayheadFeed feed {};
+    feed.blockIndex = 100;
+    feed.externalClock = true;
+    feed.externalStart = false;
+    feed.bpm = 133.0;
+    t.sync(feed);
+    t.onPlay();
+    CHECK(is(lastCmd(bridge), TransportCmd::Play, 0.0));
+    CHECK(t.state() == State::Playing);
+    CHECK_FALSE(t.playArmed());
+    ui::UiState s;
+    t.publish(s);
+    CHECK_FALSE(s.playArmed);
+    CHECK(s.syncBadge == "MIDI");
+    t.onPlay(); // pause
+    CHECK(is(lastCmd(bridge), TransportCmd::Stop, 0.0));
+    t.onPlay(); // continue
+    CHECK(is(lastCmd(bridge), TransportCmd::Continue, 0.0));
+    // IN START/STOP/CONTINUE switched on: PLAY arms; switched off again: the arm ends.
+    t.onStop();
+    feed.blockIndex = 200;
+    feed.externalStart = true;
+    t.sync(feed);
+    t.onPlay();
+    CHECK(t.playArmed());
+    feed.blockIndex = 300;
+    feed.externalStart = false;
+    t.sync(feed);
+    CHECK_FALSE(t.playArmed());
 }

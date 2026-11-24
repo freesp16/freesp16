@@ -3,10 +3,12 @@
 //
 //   PLAY   Stopped → Play (with the pre-count bars of transport.preCount when REC is armed, SEQ-044);
 //          Playing → Stop(0) (pause, the position is kept); Paused → Continue; during the pre-count → Stop(1)
-//          Under MIDI clock (the feed's externalClock) only the external device starts the sequencer (its Start /
-//          Continue): PLAY while stopped or paused toggles the PLAY arm (lamp blinking: waiting for the clock's Start)
-//          and posts nothing; PLAY while playing does nothing. The arm ends when the transport starts, on STOP, or
-//          when the sync is switched off. (The engine drops a UI Play / Continue while following, too.)
+//          Under MIDI clock with IN START/STOP/CONTINUE enabled (the feed's externalStart) only the external device
+//          starts the sequencer (its Start / Continue): PLAY while stopped or paused toggles the PLAY arm (lamp
+//          blinking: waiting for the clock's Start) and posts nothing; PLAY while playing does nothing. The arm ends
+//          when the transport starts, on STOP, or when the sync (or IN START/STOP/CONTINUE) is switched off. (The
+//          engine drops a UI Play / Continue then, too.) With IN START/STOP/CONTINUE disabled the master cannot start
+//          the unit (manual p.45), so PLAY works as without sync and the engine locks the transport onto the clock.
 //   STOP   Playing / Paused / pre-count → Stop(1) (back to step 1, tails ring); Stopped → Stop(2) (hard stop:
 //          everything silent, tails included)
 //   REC    toggles the record arm (the sequencer's recorder reads recArmed())
@@ -94,5 +96,6 @@ private:
     bool posted_ = false;
     double feedPpq_ = 0.0, feedBpm_ = 120.0;
     bool external_ = false, clockLost_ = false; // the feed: following MIDI clock, no tick lately
+    bool externalStart_ = false;                // the feed: only the clock's Start starts the transport
 };
 } // namespace ui::input::transport

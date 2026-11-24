@@ -323,6 +323,7 @@ void Engine::process(const AudioIO& io) noexcept
     p.bpm = midi_.displayTempo(transport_.bpm()); // the followed clock's tempo (SYN-012 display)
     p.playing = transport_.playing();
     p.externalClock = midi_.following();
+    p.externalStart = midi_.clockStarts();
     p.clockLost = midi_.clockLost();
     sceneSwitch_.publish(p, transport_.ppq()); // scene, pattern, step, pending scene/pattern
     p.preCount = transport_.preCount();
@@ -354,6 +355,7 @@ void Engine::renderBlock() noexcept
     sampling_.install(swaps_.as<sampling::CaptureHub>(sampling::kCaptureHubSlot)); // the capture hub
     sampling_.input(buffers_);        //    input stage: soft limiter + meter → the post-limiter input
     midi_.processIn(ctx);             // 2  MIDI in
+    sequencer_.seq.setStartBlocked(midi_.clockStarts()); // SEQ-047 pad start: not while the clock's Start starts it
     transport_.process(ctx, buffers_); // 3
     sync_.process(ctx, buffers_);     // 4
     chain_.setSuspended(arrangement_.suspendsChain()); // 5: song mode is on, the chain waits
@@ -385,8 +387,9 @@ void Engine::renderBlock() noexcept
     afs_.beginBlock(triggerRouter_.blockEvents(), lfo_.lfo(afs_.track() < 0 ? 0 : afs_.track()).value());
     modSink_.beginBlock(triggerRouter_.scene(), ctx.bpm);
     modMatrix_.applyBlock(fxBank_, modSink_);          //    once per block, after the locks, before the voices
-    // padStartsSequence (SEQ-047): the hit starts the transport — not under MIDI clock sync (only the clock's Start).
-    if (sequencer_.seq.takeStartRequest() && ! midi_.following())
+    // padStartsSequence (SEQ-047): the hit starts the transport (the sequencer asks only while the start is not
+    // blocked: midi_.clockStarts(), see processIn above).
+    if (sequencer_.seq.takeStartRequest())
         transport_.command(TransportCmd {TransportCmd::Play, 0.0});
     midi_.processOut(ctx, buffers_);  // 7  MIDI out
     if (transport_.secondStopThisBlock())
@@ -537,9 +540,10 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
     }
     if (const auto* t = std::get_if<TransportCmd>(&m))
     {
-        // Under MIDI clock sync only the external device starts the transport (its Start / Continue, MidiEngine):
-        // a UI Play / Continue (PLAY, the device-restore resume) is dropped; the UI shows PLAY armed instead.
-        if (! (midi_.following() && (t->kind == TransportCmd::Play || t->kind == TransportCmd::Continue)))
+        // Under MIDI clock sync with IN START/STOP/CONTINUE enabled only the external device starts the transport
+        // (its Start / Continue, MidiEngine): a UI Play / Continue (PLAY, the device-restore resume) is dropped; the
+        // UI shows PLAY armed instead. With it disabled (manual p.45) the unit starts itself and locks to the clock.
+        if (! (midi_.clockStarts() && (t->kind == TransportCmd::Play || t->kind == TransportCmd::Continue)))
             transport_.command(*t);
         return true;
     }

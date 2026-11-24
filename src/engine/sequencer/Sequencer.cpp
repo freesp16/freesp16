@@ -277,8 +277,8 @@ void Sequencer::onLiveHit(const trigger::TriggerEvent& e, bool pitched) noexcept
     }
     if (! playing_)
     {
-        if (! padStarts_)
-            return;
+        if (! padStarts_ || startBlocked_)
+            return; // nothing starts the pass: nothing to record onto its step 1
         // SEQ-047: the first hit while stopped starts the transport and is recorded on step 1 (it sounded now, so
         // step 1 must not sound again when the pass starts).
         startRequest_ = true;

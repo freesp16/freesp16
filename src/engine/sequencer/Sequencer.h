@@ -32,7 +32,8 @@
 //              the step is not played. Pre-count blocks (timing.preCount) play nothing; a hit late in the count-in that
 //              quantises onto step 1 is recorded there (SEQ-044, our choice), any other count-in hit is not.
 //              padStartsSequence (SEQ-047): the first hit while stopped and armed is recorded on step 1 and asks the
-//              transport to start (takeStartRequest, read by the engine after the router).
+//              transport to start (takeStartRequest, read by the engine after the router) — unless the start is
+//              blocked (setStartBlocked: under MIDI clock only the clock's Start starts it); then nothing is recorded.
 //
 // Budget: collect for 16 tracks with locks, swing and record capture ≤ 15 µs per block on the
 // A9 (tests/bench/bench_sequencer.cpp). Index arithmetic only, no search, no allocation, lock sets by pointer.
@@ -88,6 +89,7 @@ public:
     void setRecordArmed(bool armed) noexcept;
     void setRecordQuantize(RecordQuantize q) noexcept { quantize_ = q; }
     void setPadStartsSequence(bool on) noexcept { padStarts_ = on; }
+    void setStartBlocked(bool blocked) noexcept { startBlocked_ = blocked; } // per block, before the router
     void setErase(int track, bool held) noexcept; // SEQ-046
 
     // Emits every step event whose time ∈ [p0, p1), split at the switch boundary (old pattern before, new after).
@@ -139,7 +141,7 @@ private:
     double swing_ = 0.0; // in PPQ
     double sampleRate_ = 44100.0;
     RecordQuantize quantize_ = core::sequencer::kDefaultRecordQuantize;
-    bool armed_ = false, padStarts_ = false, startRequest_ = false;
+    bool armed_ = false, padStarts_ = false, startRequest_ = false, startBlocked_ = false;
     std::uint16_t erase_ = 0;
     // "Recorded this pass": bit s = step s of the track must not sound again — for grid pass supBase_ (suppress_) and
     // the one after it (suppressNext_: a hit quantised onto the next pass's step 1).

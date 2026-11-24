@@ -60,9 +60,10 @@ double TransportController::tempo() const
 
 void TransportController::onPlay()
 {
-    if (external_)
+    if (externalStart_)
     {
-        // MIDI clock sync: the external device starts the sequencer (Start / Continue); PLAY only arms.
+        // MIDI clock sync, IN START/STOP/CONTINUE on: the external device starts the sequencer (Start / Continue);
+        // PLAY only arms. With it off the unit's PLAY starts it (the engine locks it onto the clock).
         if (state_ == State::Stopped || state_ == State::Paused)
             playArmed_ = ! playArmed_;
         return;
@@ -178,8 +179,9 @@ void TransportController::sync(const engine::PlayheadFeed& feed)
     feedBpm_ = feed.bpm;
     external_ = feed.externalClock;
     clockLost_ = feed.clockLost;
-    if (! external_ || feed.playing || feed.preCount)
-        playArmed_ = false; // sync off, or the clock started the transport
+    externalStart_ = feed.externalStart;
+    if (! externalStart_ || feed.playing || feed.preCount)
+        playArmed_ = false; // sync (or its Start) off, or the clock started the transport
     if (feed.blockIndex == 0)
         return; // the engine is not running yet
     if (posted_ && feed.blockIndex < postedAt_ + kSettleBlocks)

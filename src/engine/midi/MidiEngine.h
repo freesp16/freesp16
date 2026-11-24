@@ -5,9 +5,11 @@
 //
 //   period start  beginPeriod(): the audio clock anchor (DLL) and the output lead (the device's buffer) → the hub (the
 //                 sender's sample → monotonic mapping: every message leaves when its frame is heard)
-//   step 1        onParam(): midi.* ParamChanges (core/params/catalogue/midi.cpp). While following (following()), the
-//                 engine drops a UI Play / Continue and the pad start (SEQ-047): only the clock's Start / Continue
-//                 starts the transport (the UI shows PLAY armed); STOP still stops it
+//   step 1        onParam(): midi.* ParamChanges (core/params/catalogue/midi.cpp). While following with IN START/STOP/
+//                 CONTINUE enabled (clockStarts()), the engine drops a UI Play / Continue and the pad start (SEQ-047):
+//                 only the clock's Start / Continue starts the transport (the UI shows PLAY armed); STOP still stops
+//                 it. With it disabled (manual p.45: the unit does not receive them) PLAY, Continue and the pad start
+//                 the transport as usual, and step 3 locks it onto the running clock's tick grid
 //   step 2        processIn(): drain the ports, schedule at arrival + the fixed latency (MidiInQueue.h), then per due
 //                 event in time order:
 //                   F8 clock          → ClockFollower (sync source MIDI CLOCK on the sync port, IN clock enabled):
@@ -198,6 +200,9 @@ public:
     const MidiOutScheduler& out() const noexcept { return out_; }
     const AudioClock& clock() const noexcept { return clock_; }
     bool following() const noexcept { return following_; }
+    // Only the clock's Start / Continue start the transport (following, IN START/STOP/CONTINUE enabled): the unit's
+    // PLAY arms instead (ours, the user's design), a UI Play / Continue and the pad start are dropped.
+    bool clockStarts() const noexcept { return following_ && inEnable_[1]; }
     bool clockLost() const noexcept { return following_ && follower_.lost(blockStart_); } // SYN-013 (or no clock yet)
     int inputLatency() const noexcept { return MidiInScheduler::latencyFor(clock_.periodFrames()); }
     const MidiTrackState& track(int scene, int t) const noexcept { return tracks_[scene & 15][t & 15]; }

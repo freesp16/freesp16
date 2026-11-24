@@ -4,9 +4,10 @@
 //   jitter models  clean; ±1 ms random; "burst": a DAW that renders its clock with its audio (every tick of a 512-frame
 //                  48 kHz block goes out at the block start: ticks 0…10.7 ms late, often two at once), plus a 5 ms
 //                  USB-poll quantisation; "spiky": 1 tick in 50 arrives 12 ms late (a scheduler hiccup on the master)
-//   start modes    MIDI Start (FA) then ticks; the unit already playing on its own when the sync is switched on
-//                  mid-song under a running clock (no Start, no SPP). The unit's own PLAY does not start the transport
-//                  under MIDI clock (only the clock's Start / Continue does) — tested on its own below.
+//   start modes    MIDI Start (FA) then ticks; the unit's own PLAY under a running clock with IN START/STOP/CONTINUE
+//                  disabled (no Start, no SPP: manual p.45, the master cannot start it); the unit already playing on
+//                  its own when the sync is switched on mid-song. With IN START/STOP/CONTINUE enabled the unit's PLAY
+//                  does not start the transport (only the clock's Start / Continue does) — tested on its own below.
 //
 // The target: the clock's ideal position at every block (tick n at t0 + n·P, delayed by the fixed input latency). A
 // tick counted twice moves the transport 1/24 quarter (≈ 20 ms at 120 BPM) for good — the drift this file guards.
@@ -33,7 +34,7 @@ void push(engine::Engine& e, std::uint8_t b0, double frame, int port = 0)
 }
 
 enum class Jitter { Clean, Random1ms, Burst, Spiky };
-enum class Start { MidiStart, RunningClockEnabledLate };
+enum class Start { MidiStart, LocalPlay, RunningClockEnabledLate };
 
 struct SyncResult
 {
@@ -69,6 +70,8 @@ SyncResult follow(double bpm, Jitter jitter, Start start, int bars)
     auto e = miditest::make(kRate);
     miditest::Driver d {*e, 64};
     d.param("transport.tempo", 0, 97.0f); // the project's own tempo, far from the clock's
+    if (start == Start::LocalPlay)
+        d.param("midi.in.startStop", 0, 0.0f); // the master cannot start it: the unit's PLAY does
     if (start != Start::RunningClockEnabledLate)
         d.param("midi.syncSource", 0, 1.0f);
     const double P = 60.0 * kRate / (24.0 * bpm);
@@ -86,8 +89,8 @@ SyncResult follow(double bpm, Jitter jitter, Start start, int bars)
     SyncResult r;
     double sumS = 0, sumE = 0;
     int nS = 0, nE = 0;
-    // Late enable: the unit's PLAY (sync still off) lands somewhere inside a tick; its bar 1 is the clock's tick 0
-    // rounded to the tick grid (the follower's sub-tick phase is all it can lock to without a Start or SPP).
+    // LocalPlay / late enable: the unit's PLAY lands somewhere inside a tick; its bar 1 is the clock's tick 0 rounded
+    // to the tick grid (the follower's sub-tick phase is all it can lock to without a Start or SPP).
     double origin = t0;
     for (;;)
     {
@@ -96,6 +99,8 @@ SyncResult follow(double bpm, Jitter jitter, Start start, int bars)
         {
             if (start == Start::MidiStart)
                 push(*e, 0xFA, t0 - P / 2);
+            else if (start == Start::LocalPlay)
+                e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
             else
             {
                 // Playing on its own clock first (PLAY with the sync off), then the sync is switched on.
@@ -161,6 +166,7 @@ const char* name(Start s)
     switch (s)
     {
         case Start::MidiStart: return "MIDI Start";
+        case Start::LocalPlay: return "unit PLAY, S/S/C off";
         case Start::RunningClockEnabledLate: return "sync enabled mid-song";
     }
     return "";
@@ -171,7 +177,7 @@ TEST_CASE("midi.sync: no drift over minutes, whatever the master's jitter and ho
 {
     for (const double bpm : {120.0, 160.0, 174.0})
         for (const Jitter j : {Jitter::Clean, Jitter::Random1ms, Jitter::Burst, Jitter::Spiky})
-            for (const Start s : {Start::MidiStart, Start::RunningClockEnabledLate})
+            for (const Start s : {Start::MidiStart, Start::LocalPlay, Start::RunningClockEnabledLate})
             {
                 const int bars = static_cast<int>(bpm / 4.0 * 2.0); // two minutes
                 const auto r = follow(bpm, j, s, bars);
@@ -351,7 +357,9 @@ TEST_CASE("midi.sync: Stop then Continue resumes at the clock's song position; S
     CHECK(worst < 0.5);
 }
 
-TEST_CASE("midi.sync: under MIDI clock the unit's PLAY does not start the transport, the clock's Start does", "[midi]")
+TEST_CASE("midi.sync: under MIDI clock with IN START/STOP/CONTINUE on, the unit's PLAY does not start the transport, "
+          "the clock's Start does",
+          "[midi]")
 {
     Slave s(120.0);
     std::vector<Slave::Msg> q;
@@ -364,6 +372,7 @@ TEST_CASE("midi.sync: under MIDI clock the unit's PLAY does not start the transp
     CHECK_FALSE(s.e->bridge().playhead().playing);
     CHECK(s.e->bridge().playhead().ppq == 0.0);
     CHECK(s.e->bridge().playhead().externalClock);
+    CHECK(s.e->bridge().playhead().externalStart); // the UI arms PLAY instead
     // STOP still works (nothing to stop here, but it is not dropped): the transport stays stopped.
     s.e->bridge().post(engine::TransportCmd {engine::TransportCmd::Stop, 1.0});
     s.run(s.t0 + 44 * s.P, q);
@@ -502,6 +511,107 @@ TEST_CASE("midi.clockout: a tick on a block boundary goes out once (playing and 
     }
 }
 
+TEST_CASE("midi.sync: with IN START/STOP/CONTINUE off the unit starts itself and locks onto the running clock",
+          "[midi]")
+{
+    // Manual p.45: CLOCK ENABLE follows the clock's tempo; START/STOP/CONTINUE DISABLE does not receive them. The
+    // master cannot start the unit then, so its PLAY, the device-restore resume and PAD STARTS SEQUENCE do.
+    Slave s(120.0);
+    s.d.param("midi.in.startStop", 0, 0.0f);
+    std::vector<Slave::Msg> q;
+    s.ticks(q, -96, 960); // the master's clock runs
+    s.run(s.t0 + 10.3 * s.P, q);
+    CHECK(s.e->bridge().playhead().externalClock);
+    CHECK_FALSE(s.e->bridge().playhead().externalStart); // the UI's PLAY is the unit's own
+    s.e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+    s.run(s.t0 + 13 * s.P, q);
+    CHECK(s.e->bridge().playhead().playing);
+    // A master Start / Stop is not received.
+    q.push_back({s.t0 + 20.5 * s.P, 0xFC, 0, 0});
+    q.push_back({s.t0 + 30.5 * s.P, 0xFA, 0, 0});
+    s.ppq.clear();
+    s.run(s.t0 + 200 * s.P, q);
+    CHECK(s.e->bridge().playhead().playing);
+    // Phase-locked: from a beat on, the unit's position sits on the clock's tick grid (its bar 1 is the tick nearest to
+    // the PLAY), at the clock's tempo.
+    double worst = 0.0;
+    int n = 0;
+    double offset = 0.0;
+    for (const auto& [frame, p] : s.ppq)
+    {
+        const double ticksIn = (frame - (s.t0 + s.L)) / s.P;
+        if (ticksIn < 60.0)
+            continue;
+        const double d = p * 24.0 - ticksIn;
+        if (n == 0)
+            offset = std::nearbyint(d);
+        worst = std::max(worst, std::fabs(d - offset) * s.P);
+        ++n;
+    }
+    INFO("unit PLAY, S/S/C off: max phase error " << worst << " samples over " << n << " blocks");
+    CHECK(n > 100);
+    CHECK(worst < 1.0);
+    CHECK(std::fabs(s.e->bridge().playhead().bpm - 120.0) <= 0.1);
+    // Pause and resume (the device-restore path: Locate + Continue) work too, and lock again.
+    s.e->bridge().post(engine::TransportCmd {engine::TransportCmd::Stop, 0.0});
+    s.run(s.t0 + 230 * s.P, q);
+    CHECK_FALSE(s.e->bridge().playhead().playing);
+    const double paused = s.e->bridge().playhead().ppq;
+    s.e->bridge().post(engine::TransportCmd {engine::TransportCmd::Locate, paused});
+    s.e->bridge().post(engine::TransportCmd {engine::TransportCmd::Continue, 0.0});
+    s.run(s.t0 + 236 * s.P, q);
+    CHECK(s.e->bridge().playhead().playing);
+    CHECK(s.e->bridge().playhead().ppq >= paused);
+    s.ppq.clear();
+    s.run(s.t0 + 400 * s.P, q);
+    worst = 0.0;
+    n = 0;
+    for (const auto& [frame, p] : s.ppq)
+    {
+        const double ticksIn = (frame - (s.t0 + s.L)) / s.P;
+        if (ticksIn < 290.0)
+            continue;
+        const double d = p * 24.0 - ticksIn;
+        worst = std::max(worst, std::fabs(d - std::nearbyint(d)) * s.P);
+        ++n;
+    }
+    CHECK(n > 50);
+    CHECK(worst < 1.0);
+}
+TEST_CASE("midi.sync: a MIDI Start while playing restarts like a stop and a start (Stop then Start out)", "[midi]")
+{
+    Slave s(120.0);
+    std::vector<Slave::Msg> q;
+    q.push_back({s.t0 - s.P / 2, 0xFA, 0, 0});
+    s.ticks(q, 0, 192);
+    // The master restarts (Start while playing, the next tick is beat 0 again) right before its tick: both in one
+    // block, so the transport stops and starts between two blocks (a restart, no stopped block in between).
+    q.push_back({s.t0 + 192 * s.P - 2.0, 0xFA, 0, 0});
+    s.ticks(q, 192, 300);
+    s.run(s.t0 + 290 * s.P, q);
+    std::vector<std::uint8_t> kinds;
+    std::vector<std::int64_t> at;
+    for (const auto& o : s.out)
+        if (o.bytes[0] != 0xF8)
+        {
+            kinds.push_back(o.bytes[0]);
+            at.push_back(o.sampleTime);
+        }
+    // Before: no edge at all (the transport was playing at both block ends): neither Stop nor Start went out.
+    REQUIRE(kinds == std::vector<std::uint8_t> {0xFA, 0xFC, 0xFA});
+    CHECK(at[1] <= at[2]);
+    CHECK(at[2] - at[1] < 64); // the same block
+    CHECK(std::fabs(static_cast<double>(at[2]) - (s.t0 + s.L + 192 * s.P)) <= 1.0);
+    // The transport is at beat 0 on tick 192.
+    double worst = 0.0;
+    for (const auto& [frame, p] : s.ppq)
+    {
+        const double k = (frame - (s.t0 + s.L)) / s.P - 192.0;
+        if (k > 0.0)
+            worst = std::max(worst, std::fabs(p - k / 24.0) * 24.0 * s.P);
+    }
+    CHECK(worst < 0.5);
+}
 TEST_CASE("midi.out: with the default preferences a message is due exactly when its frame is heard", "[midi]")
 {
     // OUTPUT LATENCY is an extra trim (default 0): the anchor's lead (the output buffer) is the whole compensation.
@@ -536,39 +646,4 @@ TEST_CASE("midi.out: with the default preferences a message is due exactly when 
         }
     }
     CHECK(n > 80);
-}
-
-TEST_CASE("midi.sync: a MIDI Start while playing restarts like a stop and a start (Stop then Start out)", "[midi]")
-{
-    Slave s(120.0);
-    std::vector<Slave::Msg> q;
-    q.push_back({s.t0 - s.P / 2, 0xFA, 0, 0});
-    s.ticks(q, 0, 192);
-    // The master restarts (Start while playing, the next tick is beat 0 again) right before its tick: both in one
-    // block, so the transport stops and starts between two blocks (a restart, no stopped block in between).
-    q.push_back({s.t0 + 192 * s.P - 2.0, 0xFA, 0, 0});
-    s.ticks(q, 192, 300);
-    s.run(s.t0 + 290 * s.P, q);
-    std::vector<std::uint8_t> kinds;
-    std::vector<std::int64_t> at;
-    for (const auto& o : s.out)
-        if (o.bytes[0] != 0xF8)
-        {
-            kinds.push_back(o.bytes[0]);
-            at.push_back(o.sampleTime);
-        }
-    // Before: no edge at all (the transport was playing at both block ends): neither Stop nor Start went out.
-    REQUIRE(kinds == std::vector<std::uint8_t> {0xFA, 0xFC, 0xFA});
-    CHECK(at[1] <= at[2]);
-    CHECK(at[2] - at[1] < 64); // the same block
-    CHECK(std::fabs(static_cast<double>(at[2]) - (s.t0 + s.L + 192 * s.P)) <= 1.0);
-    // The transport is at beat 0 on tick 192.
-    double worst = 0.0;
-    for (const auto& [frame, p] : s.ppq)
-    {
-        const double k = (frame - (s.t0 + s.L)) / s.P - 192.0;
-        if (k > 0.0)
-            worst = std::max(worst, std::fabs(p - k / 24.0) * 24.0 * s.P);
-    }
-    CHECK(worst < 0.5);
 }

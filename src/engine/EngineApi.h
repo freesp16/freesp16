@@ -68,6 +68,7 @@ struct PlayheadFeed
     double ppq = 0, bpm = 120;        // transport position in quarter notes, tempo
     bool playing = false, preCount = false;
     bool externalClock = false;       // SYN-010: the transport follows MIDI clock (bpm = the followed tempo)
+    bool externalStart = false;       // following, IN START/STOP/CONTINUE on: only the clock starts it (PLAY arms)
     bool clockLost = false;           // SYN-013: following, but no tick for 500 ms (or none yet)
     std::uint8_t scene = 0, pattern = 0, step = 0;
     std::int8_t pendingScene = -1, pendingPattern = -1; // queued switch (SCN-022 blink), -1 = none
