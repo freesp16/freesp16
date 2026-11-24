@@ -195,7 +195,7 @@ private:
     void correct(double ppq, double& bpm, double& phase) noexcept;
     void handle(const DueEvent& d, BlockContext& ctx) noexcept;
     void channelMessage(const MidiEvent& e, int frame) noexcept;
-    void controlChange(int ch, int cc, int value) noexcept;
+    void controlChange(int ch, int cc, int value, int frame) noexcept;
     void select(int scene, int pattern) noexcept;
     void trackOut(const BlockContext& ctx, const stages::BlockBuffers& b, std::uint32_t ports) noexcept;
     int currentScene() const noexcept;

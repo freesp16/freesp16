@@ -227,6 +227,40 @@ TEST_CASE("midi.engine: fixed CC map, scene/pattern select, all notes off (MID-0
     CHECK(stopped == std::vector<int> {3, 9});
 }
 
+TEST_CASE("midi.engine: CC 123 ALL NOTE OFF stops at its own frame (MID-023)", "[midi]")
+{
+    miditest::Sample sample;
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    sample = miditest::installSample(*e, 0, 4 * 44100);
+    d.blocks(1);
+    // One block: track 1 at +10, ALL NOTE OFF on channel 1 at +20 (tracks 1 and 2: track 2 receives channel 1 too),
+    // track 1 again at +30.
+    d.param("midi.in.channel", 1, 1.0f);
+    const double block = static_cast<double>(d.frame()) - 64; // arrived during the previous period → this block
+    push(*e, 0x90, 0, 100, block + 10);                       // track 1, note on at +10
+    push(*e, 0xB0, 123, 0, block + 20);                       // ALL NOTE OFF at +20
+    push(*e, 0x90, 0, 100, block + 30);                       // track 1 again at +30: after the CC, it plays
+    d.hits.clear();
+    d.blocks(1);
+    REQUIRE(d.hits.size() == 4);
+    const std::int64_t start = d.frame() - 64;
+    CHECK((d.hits[0].kind == TriggerKind::Full && d.hits[0].frame == start + 10));
+    CHECK((d.hits[1].kind == TriggerKind::Stop && d.hits[1].frame == start + 20 && d.hits[1].track == 0));
+    CHECK((d.hits[2].kind == TriggerKind::Stop && d.hits[2].frame == start + 20 && d.hits[2].track == 1));
+    CHECK((d.hits[3].kind == TriggerKind::Full && d.hits[3].frame == start + 30));
+    d.blocks(8);
+    CHECK(e->trackSource(0).voice().mainActive()); // the note after the CC sounds
+    // A note before the CC in the same block is stopped (it never sounds past the 2 ms fade).
+    push(*e, 0xB0, 123, 0, static_cast<double>(d.frame()) - 64 + 1);
+    d.blocks(8);
+    CHECK_FALSE(e->trackSource(0).voice().mainActive());
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 64 + 10);
+    push(*e, 0xB0, 123, 0, static_cast<double>(d.frame()) - 64 + 20);
+    d.blocks(8);
+    CHECK_FALSE(e->trackSource(0).voice().mainActive());
+}
+
 TEST_CASE("midi.engine: PAN (CC 10) and PITCH (CC 20) reach their centre at 64 (MID-031)", "[midi]")
 {
     auto e = miditest::make();

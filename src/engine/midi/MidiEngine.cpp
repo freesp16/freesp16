@@ -289,7 +289,7 @@ void MidiEngine::select(int scene, int pattern) noexcept
     hub_.pushUi(u);
 }
 
-void MidiEngine::controlChange(int ch, int cc, int value) noexcept
+void MidiEngine::controlChange(int ch, int cc, int value, int frame) noexcept
 {
     ++ccsIn_;
     const core::midi::CcTable* table = cc_.table();
@@ -309,10 +309,10 @@ void MidiEngine::controlChange(int ch, int cc, int value) noexcept
     {
         if (rxChannel_[static_cast<std::size_t>(t)] != ch + 1)
             continue;
-        if (kind == core::midi::CcKind::AllNotesOff) // MID-023: the voices of every track on the channel
+        if (kind == core::midi::CcKind::AllNotesOff) // MID-023: the voices of every track on the channel, at its frame
         {
             if (w_.router != nullptr)
-                w_.router->push(hit(t, 0, 0, trigger::TriggerKind::Stop, 0));
+                w_.router->push(hit(t, 0, 0, trigger::TriggerKind::Stop, frame));
             continue;
         }
         if (! (trackIsSample(t) || trackIs(t, static_cast<int>(trigger::TrackMode::Thru))))
@@ -379,7 +379,9 @@ void MidiEngine::channelMessage(const MidiEvent& e, int frame) noexcept
             }
             return;
         }
-        case 0xB0: controlChange(ch, d1, d2); return;
+        case 0xB0:
+            controlChange(ch, d1, d2, frame);
+            return;
         case 0xE0: // MID-032
         {
             if (w_.ribbon == nullptr)
