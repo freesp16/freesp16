@@ -6,13 +6,15 @@
 // clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME) to `spinUs` before it, then a short busy wait (the sleep's
 // wake-up latency is the jitter; the spin trades ≤ 1 % of a core for it). It polls the hub at least every 1 ms.
 // The forwarder (MID-002) copies the inputs' messages to OUT + MERGE A/B and THRU A/B ports at once (A = input port
-// 0, B = input port 1). SCHED_FIFO below the audio thread when the system allows it (best effort).
+// 0, B = input port 1). Role::MidiOut (core/util/ThreadRole.h): SCHED_FIFO below the audio thread when the system
+// allows it (best effort).
 //
 // Jitter (NFR-004: ≤ 0.5 ms p99): every write's lateness (write time − deadline) goes into a 10 µs histogram; stats()
 // reports p50 / p99 / max. Deadlines already past by > 1 ms when popped (a negative offset larger than the latency,
 // a stalled sender) are written at once and counted late.
 #pragma once
 
+#include "core/util/PiMutex.h"
 #include "core/util/midi/MidiWire.h"
 #include "io/midi/MidiPort.h"
 
@@ -46,7 +48,7 @@ public:
     // Message thread: the output port of slot `port` (null = none). The pointer stays owned by the caller, who must
     // clear it here before destroying the port.
     void setOutput(int port, MidiOutput* output);
-    bool start(std::string& info, int priority = 65);
+    bool start(std::string& info); // the thread takes Role::MidiOut (core/util/ThreadRole.h)
     void stop();
     bool running() const noexcept { return thread_.joinable(); }
     void setSpinUs(int us) noexcept { spinUs_.store(us < 0 ? 0 : us); }
@@ -81,7 +83,7 @@ private:
     std::atomic<bool> quit_ {false};
     std::atomic<int> spinUs_ {100};
     std::atomic<std::uint32_t> failed_ {0};
-    std::mutex portsMutex_; // message thread ↔ sender only (never the audio thread)
+    core::PiMutex portsMutex_; // message thread ↔ sender only (never the audio thread); priority inheritance
     std::array<MidiOutput*, kPorts> outputs_ {};
     // Sender-thread state.
     std::array<std::array<core::midi::MidiOutEvent, kRing>, kPorts> ring_ {};

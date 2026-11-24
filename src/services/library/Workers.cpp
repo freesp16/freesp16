@@ -1,5 +1,7 @@
 #include "services/library/Workers.h"
 
+#include "core/util/ThreadRole.h"
+
 #include <utility>
 
 namespace services::library
@@ -7,7 +9,12 @@ namespace services::library
 Workers::Workers(int threads)
 {
     for (int i = 0; i < (threads < 1 ? 1 : threads); ++i)
-        threads_.emplace_back([this] { loop(); });
+        threads_.emplace_back(
+            [this]
+            {
+                (void) core::threads::apply(core::threads::Role::Worker, "worker"); // below the UI (nice)
+                loop();
+            });
 }
 
 Workers::~Workers()

@@ -56,6 +56,7 @@ private:
     std::array<float*, 2 * static_cast<int>(AudioPort::Count)> out_ {};
     std::atomic<std::uint64_t> callbacks_ {0};
     std::atomic<unsigned> rate_ {0}, period_ {0};
+    std::atomic<bool> realtime_ {false}; // SCHED_FIFO granted to the callback thread
     int maxFrames_ = 0;
     bool started_ = false;
 };

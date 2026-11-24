@@ -3,14 +3,17 @@
 // and the child must still die of that signal (the exit status the device's launcher logs).
 #include "app/Diagnostics.cpp"
 
+#include "core/util/ThreadRole.h"
 #include "tests/fakes/FakeAudioDevice.h"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <sys/wait.h>
 
+#include <atomic>
 #include <csignal>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace
@@ -111,3 +114,44 @@ TEST_CASE("app diag: a fatal signal writes the CRASH report and still kills the 
     CHECK(aborted.find("[tag] TEST CRASH SIGABRT (6)") != std::string::npos);
     CHECK(aborted.find("[tag] TEST CRASH end") != std::string::npos);
 }
+
+#if defined(__linux__)
+TEST_CASE("app diag: one thread line per thread, with its policy, nice value and cores", "[app][diag]")
+{
+    std::atomic<bool> ready {false}, done {false};
+    std::thread worker(
+        [&]
+        {
+            core::threads::apply(core::threads::Role::Worker, "diag-worker"); // nice 10, inherited cores
+            ready = true;
+            while (! done)
+                std::this_thread::yield();
+        });
+    while (! ready)
+        std::this_thread::yield();
+    std::vector<std::string> lines;
+    app::diag::threadLines([&](const std::string& l) { lines.push_back(l); });
+    done = true;
+    worker.join();
+    REQUIRE(lines.size() >= 2);
+    std::string mine;
+    for (const auto& l : lines)
+    {
+        CHECK(l.rfind("thread ", 0) == 0);
+        CHECK(l.find(" cpus=") != std::string::npos);
+        if (l.rfind("thread diag-worker ", 0) == 0)
+            mine = l;
+    }
+    INFO(mine);
+    CHECK(mine.find(" policy=OTHER prio=0 nice=10 cpus=") != std::string::npos);
+}
+
+TEST_CASE("app diag: the interrupt lines group interrupts by their cores", "[app][diag]")
+{
+    std::vector<std::string> lines;
+    app::diag::irqLines([&](const std::string& l) { lines.push_back(l); });
+    // A container may hide /proc/irq: no line then; otherwise the summary comes first.
+    if (! lines.empty())
+        CHECK(lines.front().rfind("irq cpus ", 0) == 0);
+}
+#endif

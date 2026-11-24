@@ -3,6 +3,8 @@
 
 #include "io/midi/InputRouter.h"
 
+#include "core/util/ThreadRole.h"
+
 #include <pthread.h>
 #include <sched.h>
 
@@ -87,9 +89,9 @@ int MidiService::slotFor(std::array<Slot, kPorts>& slots, const std::string& pro
 
 void MidiService::inputLoop(int slot, MidiInput* port, Input* state)
 {
-    sched_param p {};
-    p.sched_priority = 60;
-    pthread_setschedparam(pthread_self(), SCHED_FIFO, &p); // best effort (refused without the right: normal priority)
+    char name[16];
+    std::snprintf(name, sizeof name, "midi-in-%d", slot);
+    (void) core::threads::apply(core::threads::Role::MidiIn, name); // best effort (refused: normal priority)
     MidiParser parser;
     std::uint8_t buf[256];
     while (! state->quit.load(std::memory_order_relaxed))

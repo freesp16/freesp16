@@ -96,6 +96,7 @@ public:
     bool start(const AudioConfig&, engine::AudioProcessor&, std::string& info) override; // message thread
     void stop() override;
     AudioStats stats() const noexcept override;
+    std::uint64_t xruns() const noexcept override { return xruns_.load(std::memory_order_relaxed); }
     std::uint64_t reopens() const noexcept { return reopens_.load(std::memory_order_relaxed); }
     std::uint64_t auxDrops() const noexcept { return auxDrops_.load(std::memory_order_relaxed); }
     std::uint64_t loopDrops() const noexcept { return loopDrops_.load(std::memory_order_relaxed); }

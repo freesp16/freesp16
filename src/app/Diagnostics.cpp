@@ -18,11 +18,13 @@
 #endif
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 namespace app::diag
 {
@@ -320,6 +322,114 @@ std::string mountOf(const std::string& path)
             best = &m;
     }
     return best != nullptr ? best->point + " " + best->type : std::string();
+}
+
+void threadLines(const Log& log)
+{
+#if defined(__linux__)
+    DIR* dir = ::opendir("/proc/self/task");
+    if (dir == nullptr)
+        return;
+    std::vector<long> tids;
+    while (const dirent* e = ::readdir(dir))
+        if (e->d_name[0] >= '0' && e->d_name[0] <= '9')
+            tids.push_back(std::strtol(e->d_name, nullptr, 10));
+    ::closedir(dir);
+    std::sort(tids.begin(), tids.end());
+    static const char* const policies[] = {"OTHER", "FIFO", "RR", "BATCH", "ISO", "IDLE", "DEADLINE"};
+    for (const long tid : tids)
+    {
+        const std::string base = "/proc/self/task/" + std::to_string(tid) + "/";
+        const std::string name = readFirstLine((base + "comm").c_str());
+        // stat: "tid (comm) state …": field k (1-based) is token k - 3 after the last ')'.
+        std::string stat = readFirstLine((base + "stat").c_str());
+        const auto close = stat.rfind(')');
+        std::vector<std::string> f;
+        if (close != std::string::npos)
+        {
+            std::istringstream in(stat.substr(close + 1));
+            for (std::string t; in >> t;)
+                f.push_back(t);
+        }
+        const auto field = [&](int k) { return k - 3 < static_cast<int>(f.size()) ? f[static_cast<std::size_t>(k - 3)] : "?"; };
+        const int policy = std::atoi(field(41).c_str());
+        std::string cpus;
+        {
+            std::ifstream in(base + "status");
+            for (std::string line; std::getline(in, line);)
+                if (line.rfind("Cpus_allowed_list:", 0) == 0)
+                {
+                    std::istringstream v(line.substr(18));
+                    v >> cpus;
+                }
+        }
+        log("thread " + (name.empty() ? std::string("?") : name) + " tid=" + std::to_string(tid) + " policy="
+            + (policy >= 0 && policy < 7 ? policies[policy] : field(41)) + " prio=" + field(40) + " nice=" + field(19)
+            + " cpus=" + (cpus.empty() ? std::string("?") : cpus));
+    }
+#else
+    (void) log;
+#endif
+}
+
+void irqLines(const Log& log)
+{
+#if defined(__linux__)
+    std::vector<std::pair<std::string, int>> groups; // cpu list → interrupts
+    const auto cpusOf = [](const std::string& irq)
+    {
+        std::string list = readFirstLine(("/proc/irq/" + irq + "/smp_affinity_list").c_str());
+        if (list.empty())
+        {
+            const std::string mask = readFirstLine(("/proc/irq/" + irq + "/smp_affinity").c_str());
+            if (! mask.empty())
+                list = "mask " + mask;
+        }
+        return list;
+    };
+    std::ifstream in("/proc/interrupts");
+    std::string line;
+    std::getline(in, line); // the CPU header
+    std::vector<std::string> named;
+    while (std::getline(in, line))
+    {
+        std::istringstream f(line);
+        std::string irq;
+        f >> irq;
+        if (irq.empty() || irq.back() != ':' || irq[0] < '0' || irq[0] > '9')
+            continue; // IPI, LOC, Err …
+        irq.pop_back();
+        std::string token, last;
+        while (f >> token)
+            last = token;
+        const std::string cpus = cpusOf(irq);
+        if (cpus.empty())
+            continue;
+        auto it = std::find_if(groups.begin(), groups.end(), [&](const auto& g) { return g.first == cpus; });
+        if (it == groups.end())
+            groups.emplace_back(cpus, 1);
+        else
+            ++it->second;
+        std::string lower = last;
+        std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+        for (const char* key : {"sdma", "galcore", "usb", "ehci", "spi", "ssi", "esai"})
+            if (lower.find(key) != std::string::npos)
+            {
+                named.push_back("irq " + irq + " " + last + " cpus=" + cpus);
+                break;
+            }
+    }
+    if (groups.empty())
+        return;
+    std::string summary = "irq cpus";
+    for (const auto& g : groups)
+        summary += " " + g.first + "=" + std::to_string(g.second);
+    log(summary);
+    for (const auto& n : named)
+        log(n);
+#else
+    (void) log;
+#endif
 }
 
 void systemLines(const platform::Paths& paths, const Log& log)

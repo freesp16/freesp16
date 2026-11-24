@@ -32,7 +32,7 @@ static_assert(static_cast<int>(AudioPort::Count) == static_cast<int>(engine::Out
                   && static_cast<int>(AudioPort::FilterSend) == static_cast<int>(engine::OutPort::FilterSend),
               "platform::AudioPort and engine::OutPort index the same AudioIO::out pairs");
 struct PortInfo { AudioPort port; std::int8_t left, right; };          // physical interleaved channels, -1 = absent
-struct AudioConfig { unsigned sampleRate = 44100, periodFrames = 256, periods = 3; int rtPriority = 70; };
+struct AudioConfig { unsigned sampleRate = 44100, periodFrames = 256, periods = 3; }; // priority: Role::Audio
 struct AudioStats
 {
     std::uint64_t periods = 0, xruns = 0;
@@ -55,6 +55,8 @@ public:
     virtual bool start(const AudioConfig&, engine::AudioProcessor&, std::string& info) = 0;   // message thread
     virtual void stop() = 0;
     virtual AudioStats stats() const noexcept = 0;
+    // The xrun count alone, without stats()'s side effects (it resets the loop peaks): polled by the UI throttle.
+    virtual std::uint64_t xruns() const noexcept { return stats().xruns; }
 };
 struct Paths { std::string dataDir, settingsFile, cacheDir; std::vector<std::string> usbMounts; };
 class DisplayDevice {
@@ -68,6 +70,17 @@ public:
     virtual bool sizeKnown() const noexcept { return true; }
 };
 struct ControlEnv { engine::TriggerSink* triggers; };  // UI-118: pad hits go straight to the engine
+
+// How the machine runs the app's threads (threading.md "Threads"; the app applies it before any thread starts):
+//   threadMap  the default core / priority map of the thread roles (core/util/ThreadRole.h syntax; empty = every role
+//              keeps its inherited cores); the setting thread_map goes over it ("none" = no map at all)
+//   lockCode   lock the executable's and the libraries' code in RAM after start-up, so the audio thread never waits for
+//              a page read back from the medium the program runs from (setting mem_lock=0/1)
+//   governor   the CPU frequency governor while the app runs ("" = leave it; setting cpu_governor=keep|<name>)
+//   rtRuntime  kernel.sched_rt_runtime_us while the app runs ("" = leave it; setting rt_runtime_us=keep|<µs>|-1): with
+//              −1 (no limit) one real-time thread that never sleeps keeps its core forever; the kernel's default
+//              950000 leaves the normal threads 5 % of every second on each core
+struct Tuning { std::string threadMap; bool lockCode = false; std::string governor; std::string rtRuntime; };
 
 // The settings the app read (key=value file at Paths::settingsFile + <PREFIX>_<KEY> environment overrides).
 using Settings = std::map<std::string, std::string, std::less<>>;
@@ -85,6 +98,7 @@ public:
     virtual std::unique_ptr<DisplayDevice> display(std::string& error) = 0;
     // Called once with the settings before the factories above (e.g. imx6 audio_device = the codec PCM name).
     virtual void configure(const Settings&) {}
+    virtual Tuning tuning() const { return {}; } // the defaults; the settings go over them
     // The power key was pressed: mute the analog outputs at once, before the app stops its audio (imx6: HardMute).
     virtual void muteForStandby() {}
     // Power off (the app has shut down cleanly and synced): hand the machine to its power controller. True = the

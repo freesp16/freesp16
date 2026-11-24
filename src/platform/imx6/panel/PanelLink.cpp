@@ -7,6 +7,8 @@
 #include "io/controllers/AppRequests.h"
 #include "io/controllers/PanelPads.h"
 
+#include "core/util/ThreadRole.h"
+
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/ioctl.h>
@@ -140,6 +142,8 @@ void PanelLink::sendDue(double now, double& waitMs)
 
 void PanelLink::run()
 {
+    // Pad hits leave this thread for the engine (UI-118): real-time, on the control core (core/util/ThreadRole.h).
+    (void) core::threads::apply(core::threads::Role::Panel, "panel");
     std::uint8_t frame[panel::kFrameBytes];
     double waitMs = 0;
     sendDue(nowMs(), waitMs);

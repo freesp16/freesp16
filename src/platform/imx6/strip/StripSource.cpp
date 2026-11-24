@@ -5,6 +5,8 @@
 #include "platform/imx6/panel/InputTrace.h"
 
 #include "io/controllers/StripSource.h"
+
+#include "core/util/ThreadRole.h"
 #include "ProjectIdentity.h"
 
 #include <fcntl.h>
@@ -81,6 +83,7 @@ void StripSource::stop()
 
 void StripSource::run()
 {
+    (void) core::threads::apply(core::threads::Role::Strip, "strip"); // core/util/ThreadRole.h
     std::uint8_t frame[strip::kFrameBytes];
     while (! quit_)
     {

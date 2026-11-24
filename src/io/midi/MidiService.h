@@ -3,7 +3,7 @@
 //
 //   input ports   up to 8 slots; each open input has its own thread: read → parse (MidiParser) → stamp
 //                 CLOCK_MONOTONIC → MidiHub::pushIn (to the engine) and pushForward (to the sender's merge / thru).
-//                 Nothing else happens there. SCHED_FIFO below the sender when allowed (best effort).
+//                 Nothing else happens there. Role::MidiIn (core/util/ThreadRole.h), best effort.
 //   output ports  up to 8 slots, written by the one MidiSender thread
 //   hot-plug      refresh() (the message thread calls poll() every frame; it refreshes every 1 s) lists every
 //                 provider's ports and reconnects them by name: a name keeps the slot it first got, so a replugged

@@ -2,6 +2,8 @@
 
 #include "services/library/SidecarStore.h"
 
+#include "core/util/ThreadRole.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -12,12 +14,11 @@ namespace services::sampling
 {
 namespace
 {
-// High priority, below the audio thread (threading.md); best effort: without the right (the desktop) it stays normal.
+// High priority, below the audio thread (threading.md, core/util/ThreadRole.h); best effort: without the right (the
+// desktop) it stays normal.
 void raisePriority()
 {
-    sched_param p {};
-    p.sched_priority = 40;
-    (void) pthread_setschedparam(pthread_self(), SCHED_FIFO, &p);
+    (void) core::threads::apply(core::threads::Role::Recorder, "recorder");
 }
 } // namespace
 

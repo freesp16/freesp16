@@ -1,6 +1,7 @@
 #include "platform/imx6/audio/AudioOut.h"
 
 #include "core/util/Realtime.h"
+#include "core/util/ThreadRole.h"
 
 #include <cstring>
 
@@ -86,7 +87,8 @@ AudioStats AudioOut::stats() const noexcept
     if (manager_ != nullptr)
         if (auto* device = manager_->getCurrentAudioDevice())
             xruns = static_cast<std::uint64_t>(juce::jmax(0, device->getXRunCount()));
-    return {callbacks_.load(std::memory_order_relaxed), xruns, rate_.load(), period_.load(), false};
+    return {callbacks_.load(std::memory_order_relaxed), xruns, rate_.load(), period_.load(),
+            realtime_.load(std::memory_order_relaxed)};
 }
 
 void AudioOut::audioDeviceAboutToStart(juce::AudioIODevice* device)
@@ -102,6 +104,12 @@ void AudioOut::audioDeviceAboutToStart(juce::AudioIODevice* device)
 void AudioOut::audioDeviceIOCallbackWithContext(const float* const*, int, float* const* out, int numOut, int numSamples,
                                                 const juce::AudioIODeviceCallbackContext&)
 {
+    // JUCE starts its ALSA thread at Priority::high, which is SCHED_OTHER on Linux: the first callback on each thread
+    // takes the audio role (its core and SCHED_FIFO, best effort), before the thread is marked real-time.
+    static thread_local bool role = (realtime_.store(core::threads::apply(core::threads::Role::Audio, "audio").realtime,
+                                                     std::memory_order_relaxed),
+                                     true);
+    (void) role;
     core::rt::ScopedRealtimeThread realtime;
     static thread_local bool ftz = (core::rt::enableFlushToZero(), true);
     (void) ftz;

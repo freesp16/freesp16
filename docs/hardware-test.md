@@ -60,6 +60,10 @@ Expected (the block ends with `DIAG END`, before any project or kit is loaded):
 | `DIAG platform imx6 reason: imx6 selected (auto: detected …) \| i.MX6 board (/dev/subucom_spi0.1 present) …` | imx6 detected by the panel node |
 | `DIAG kernel Linux … armv7l` | the stock kernel |
 | `DIAG cpu online=4 … neon=yes freq_khz=… governor=…` | 4 cores, NEON; note the frequency and governor (benches assume 1 GHz) |
+| `DIAG threads map audio:1@70 clock:2@80 midi_in:2@75 panel:2@72 midi_out:2@65 strip:2@60 recorder:3@40 ui:0@nice0 worker:0+3@nice10 origin=platform ui_pinned=yes` | the thread roles' cores and priorities (setting `thread_map`, `none` = no pinning); `ui_pinned=yes`, no `IGNORED` |
+| `DIAG governor before=… wanted=performance now=performance …` | the CPU governor held at performance while the app runs (setting `cpu_governor=keep|<name>`; the old one comes back on exit) |
+| `DIAG rt_runtime_us before=-1 wanted=950000 now=950000` | the real-time limit back at the kernel default while the app runs (the system starts with −1; setting `rt_runtime_us=keep|<µs>`) |
+| `DIAG irq cpus 0=… 1=1 …`, `DIAG irq … sdma cpus=1` | interrupts on core 0, the audio DMA's on core 1 (the system's own placement); note them |
 | `DIAG libc glibc 2.13 (… built against 2.13)` | 2.13 |
 | `DIAG memory memtotal=… memfree=…` | note the numbers |
 | `DIAG data dir=/root/data/<name> writable … mount=/root/data vfat` | the stick (bind mount); free space noted |
@@ -71,8 +75,12 @@ Expected (the block ends with `DIAG END`, before any project or kit is loaded):
 | `DIAG audio device=alsa-direct ok rate=44100 period=256 … ports MAIN=12/14 OUT3-4=8/10 OUT5-6=4/6 OUT7-8=0/2 PHONES=0/1 FILTERSEND=absent` | the codec and the port map; PHONES `absent` = the headphone PCM did not open (the `DIAG audio info` line says why) |
 | `DIAG input panel ok …`, `DIAG input cdc-strip ok …` | both sources started (the EBUSY fix: no `FAILED … busy`) |
 | `DIAG interval=10 s`, `DIAG END` | |
+| `DIAG memlock code locked_kb=… mappings=… swap_kb=…` (after the project loads) | no `failed=`: the code is locked in RAM (setting `mem_lock=0` turns it off) |
+| `DIAG thread <name> tid=… policy=… prio=… nice=… cpus=…` (2 s into the run, again with every `diag`) | `freesp16` cpus=0, `audio` FIFO 70 cpus=1, `panel` FIFO 72 / `strip` FIFO 60 / `midi-out` FIFO 65 / `midi-in-N` FIFO 75 cpus=2, `recorder` FIFO 40 cpus=3, `worker` OTHER nice=10 cpus=0,3; every other thread (X, GL, JUCE) cpus=0 |
 
-Every 10 s: `FRAME run …`, `AUDIO … xruns=0`, `LOAD … xruns=0 VmRSS=…`. On exit (`ctl stop`): `DIAG STOP reason=signal
+Every 10 s: `FRAME run …`, `AUDIO … xruns=0`, `LOAD … xruns=0 VmRSS=…`. Under audio load (an xrun, an engine overrun, or
+LOAD p95 ≥ 80 % of the block) the display steps down to 30 Hz for at least 3 s: `UI throttle on: 30 Hz (<cause>)` …
+`UI throttle off after N s`; note them with the LOAD lines around them. On exit (`ctl stop`): `DIAG STOP reason=signal
 … xruns=… load_p95_max=… peak_rss_kB=…` and `STOP`.
 
 Listen: with no project yet, track 1's 440 Hz test tone at −12 dBFS on MAIN (OUT1-2) — only because `01-baseline`
