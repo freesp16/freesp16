@@ -20,6 +20,14 @@ namespace tk = ::theme::tokens;
 namespace L = layout;
 using Kind = io::ControlEvent::Kind;
 
+RectF padRect(int track, bool classic)
+{
+    if (! classic)
+        return L::trackTile(track);
+    const int col = (track - 1) % 4, row = 3 - (track - 1) / 4;
+    return {29.0f + 282 * col, 173.0f + 112 * row, 272, 102};
+}
+
 constexpr StripSpec kHomeStrip{
     "TRACK {track}",
     {"track.volume", "track.pan", "playback.pitch", "playback.timeStretch", "playback.loop", "track.triggerMode"}};
@@ -90,7 +98,7 @@ void TrackGrid::build(DrawList& dl, const UiContext& ctx) const
 {
     bindStripForMode();
     for (int t = 1; t <= 16; ++t)
-        TrackTile::draw(dl, ctx, L::trackTile(t), model(t, ctx));
+        TrackTile::draw(dl, ctx, padRect(t, ctx.palette.classic), model(t, ctx));
 }
 
 bool TrackGrid::dirty(double nowMs) const
@@ -109,7 +117,7 @@ bool TrackGrid::dirty(double nowMs) const
     return false;
 }
 
-bool TrackGrid::handle(const io::ControlEvent& e, UiContext&)
+bool TrackGrid::handle(const io::ControlEvent& e, UiContext& ctx)
 {
     if (shell_ == nullptr || state_ == nullptr)
         return false;
@@ -130,7 +138,7 @@ bool TrackGrid::handle(const io::ControlEvent& e, UiContext&)
     }
     if (touch::isTouch(e) && e.value == touch::kDown)
         for (int t = 1; t <= 16; ++t)
-            if (contains(L::trackTile(t), touch::x(e), touch::y(e)))
+            if (contains(padRect(t, ctx.palette.classic), touch::x(e), touch::y(e)))
             {
                 if (t == state_->selectedTrack && home) // two-tap: a tap on the selected tile opens it (UID-155)
                     shell_->open("track.menu");

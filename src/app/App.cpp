@@ -280,6 +280,7 @@ bool measureFrames(ui::Renderer& r, const ui::GlyphAtlas& atlas, int frames, Fra
     MeasureBridge bridge;
     auto root = ui::createRoot({core::builtinParams(), measureWith(atlas), &bridge, {}});
     ui::DrawList dl;
+    dl.viewport = ui::CanvasTransform::fit(r.width(), r.height());
     dl.reserve(2048, 16384);
     for (int i = 0; i < frames && ! quitRequested; ++i)
     {
@@ -628,6 +629,7 @@ int run()
     document->attach(*root);
     document->startup();
     ui::DrawList dl;
+    dl.viewport = ui::CanvasTransform::fit(screenW, screenH);
     dl.reserve(2048, 16384);
     std::vector<io::ControlEvent> events;
     events.reserve(256);

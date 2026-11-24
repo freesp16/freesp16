@@ -24,7 +24,7 @@ RectF KnobStrip::bounds() const noexcept
 void KnobStrip::build(DrawList& dl, const UiContext& ctx) const
 {
     const auto& p = ctx.palette;
-    dl.fill(L::knobStrip, p.surface1);
+    dl.fill(L::knobStrip, p.classic ? p.bg : p.surface1);
     draw::hline(dl, 0, L::canvasW, L::stripY, p.border);
 
     // StripTab: trapezoid, top edge 0–224, bottom 0–248 (slanted right edge), drawn as 2 lpx bands.

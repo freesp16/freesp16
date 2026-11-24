@@ -7,6 +7,7 @@
 #include "ui/shell/ParamAccess.h"
 #include "ui/shell/ShellApi.h"
 #include "ui/shell/UiState.h"
+#include "ui/theme/Theme.h"
 
 #include <cmath>
 #include <string_view>
@@ -91,6 +92,11 @@ inline int trackMode(ShellApi& shell, int track) noexcept
 
 namespace ui::m1
 {
+inline std::uint32_t padInk(ShellApi& shell, int track, bool dim = false) noexcept
+{
+    return theme::trackColour(theme::palette(shell.state().skin), padColour(shell, track), dim);
+}
+
 // Sample-load progress per track (UI-410): 0–1 while the sample pool loads a sample for the track, < 0 otherwise.
 // Written by BROWSE (the load's progress callback), read by HOME / TRACK SETTING tiles and the TRACK MENU identity row.
 inline float* loadProgress() noexcept

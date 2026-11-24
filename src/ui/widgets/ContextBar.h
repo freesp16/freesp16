@@ -55,7 +55,7 @@ public:
     const ContextBarModel& model() const noexcept { return model_; }
     RectF bounds() const noexcept override;
     void build(DrawList&, const UiContext&) const override;
-    Item hit(float x, float y) const noexcept; // canvas lpx; 44 lpx hit areas are guaranteed by the 72 lpx items
+    Item hit(float x, float y, bool classic = false) const noexcept; // canvas lpx; 44 lpx hit areas are guaranteed by the 72 lpx items
 
 private:
     ContextBarModel model_;

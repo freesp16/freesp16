@@ -13,6 +13,21 @@ namespace
 namespace tk = ::theme::tokens;
 namespace L = layout;
 
+// The touch regions and the painted faces share the same layout.
+struct HeaderLayout
+{
+    RectF project, tempo, scene, position;
+    float menuLeft, menuPitch;
+    RectF menu(int i) const
+    {
+        return {menuLeft + menuPitch * i, project.y, L::menuButtonW, project.h};
+    }
+};
+
+constexpr HeaderLayout normalHeader{L::slotA, L::slotB, L::slotC, L::slotD, L::slotE.x, L::menuPitch};
+constexpr HeaderLayout classicHeader{{29, 58, 113, 78}, {152, 58, 236, 78}, {398, 58, 236, 78},
+                                      {644, 58, 161, 78}, 806, 114};
+
 bool in(const RectF& r, float x, float y) noexcept
 {
     return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
@@ -31,7 +46,7 @@ void selectedBar(DrawList& dl, const tk::Palette& p, const RectF& r)
 void splitItem(DrawList& dl, const tk::Palette& p, const RectF& r, std::string_view capA, std::string_view valA,
                std::string_view capB, std::string_view valB, bool selected, bool dim, int pressedHalf)
 {
-    dl.fill(r, itemFill(p, selected, pressedHalf >= 0), tk::radiusM);
+    draw::controlFace(dl, p, r, itemFill(p, selected, pressedHalf >= 0), tk::radiusM);
     if (selected)
         selectedBar(dl, p, r);
     draw::vline(dl, r.x + r.w / 2, r.y + 12, r.y + 60, p.borderStrong);
@@ -39,8 +54,10 @@ void splitItem(DrawList& dl, const tk::Palette& p, const RectF& r, std::string_v
     for (int i = 0; i < 2; ++i)
     {
         const float cx = r.x + r.w / 4 + r.w / 2 * static_cast<float>(i);
-        dl.text(cx, L::captionY, Align::Centre, TextStyleId::Caption, cap, i == 0 ? capA : capB);
-        dl.text(cx, L::valueY, Align::Centre, TextStyleId::Value, val, i == 0 ? valA : valB);
+        if (p.classic)
+            dl.fill({cx - r.w / 4 + 6, r.y + 32, r.w / 2 - 12, 35}, p.bg, 2);
+        dl.text(cx, r.y + 20, Align::Centre, p.classic ? TextStyleId::ValueS : TextStyleId::Caption, cap, i == 0 ? capA : capB);
+        dl.text(cx, r.y + 52, Align::Centre, p.classic ? TextStyleId::ValueL : TextStyleId::Value, val, i == 0 ? valA : valB);
     }
 }
 
@@ -65,22 +82,27 @@ void ContextBar::build(DrawList& dl, const UiContext& ctx) const
 {
     const auto& p = ctx.palette;
     const auto& m = model_;
-    dl.fill(L::contextBar, p.surface1);
-    draw::hline(dl, 0, L::canvasW, L::contextY + L::contextH, p.border);
+    const auto& slots = p.classic ? classicHeader : normalHeader;
+    dl.fill(L::contextBar, p.classic ? p.bg : p.surface1);
+    if (! p.classic)
+        draw::hline(dl, 0, L::canvasW, L::contextY + L::contextH, p.border);
 
     // Slot A: PROJECT (document icon) or BACK (↩ arrow).
-    dl.fill(L::slotA, m.pressed == SlotA ? p.surface3 : p.surface2, tk::radiusM);
+    draw::controlFace(dl, p, slots.project, m.pressed == SlotA ? p.surface3 : p.surface2, tk::radiusM);
     if (m.back)
-        glyph::draw(dl, glyph::Kind::Back, L::slotA.x + 38, L::slotA.y + 16, tk::sizeIcon, p.text1);
+        glyph::draw(dl, glyph::Kind::Back, slots.project.x + 38, slots.project.y + 16, tk::sizeIcon, p.text1);
     else
-        glyph::draw(dl, glyph::Kind::Project, L::slotA.x + 40, L::slotA.y + 22, tk::sizeIcon, p.text1);
+        glyph::draw(dl, glyph::Kind::Project, slots.project.x + 40, slots.project.y + 22, tk::sizeIcon, p.text1);
 
-    splitItem(dl, p, L::slotB, "BPM", m.bpm, "QUANTIZE", m.quantize, false, false,
+    splitItem(dl, p, slots.tempo, "BPM", m.bpm, "QUANTIZE", m.quantize, false, false,
               m.pressed == Bpm || m.pressed == Quantize ? 0 : -1);
-    splitItem(dl, p, L::slotC, "SCENE", m.scene, "PATTERN", m.pattern, m.sceneSelected, m.sceneDimmed,
+    splitItem(dl, p, slots.scene, "SCENE", m.scene, "PATTERN", m.pattern, m.sceneSelected, m.sceneDimmed,
               m.pressed == Scene || m.pressed == Pattern ? 0 : -1);
-    dl.text(L::readoutX, L::captionY, Align::Left, TextStyleId::Caption, p.text2, "BAR:BEAT:STEP");
-    dl.text(L::readoutX, L::valueY, Align::Left, TextStyleId::Value, m.playing ? p.play : p.text1, m.position);
+    const float readoutX = p.classic ? slots.position.x + 5 : L::readoutX;
+    dl.text(readoutX, p.classic ? 77 : L::captionY, Align::Left, p.classic ? TextStyleId::Body : TextStyleId::Caption,
+            p.text2, "BAR:BEAT:STEP");
+    dl.text(readoutX, p.classic ? 111 : L::valueY, Align::Left, TextStyleId::Value,
+            m.playing ? p.play : p.text1, m.position);
 
     switch (m.kind)
     {
@@ -91,9 +113,15 @@ void ContextBar::build(DrawList& dl, const UiContext& ctx) const
                                                 glyph::Kind::Utility};
         for (int i = 0; i < 4; ++i)
         {
-            const auto r = L::menuButton(i);
+            const auto r = slots.menu(i);
             const bool sel = m.menuSelected == i;
-            dl.fill(r, itemFill(p, sel, m.pressed == Menu0 + i), tk::radiusM);
+            draw::controlFace(dl, p, r, itemFill(p, sel, m.pressed == Menu0 + i), tk::radiusM);
+            if (p.classic)
+            {
+                const auto icon = i == 2 ? glyph::Kind::Score : (i == 3 ? glyph::Kind::Gear : icons[i]);
+                glyph::draw(dl, icon, r.x + (r.w - 34) / 2, r.y + (r.h - 34) / 2, 34, sel ? p.accent : p.text1);
+                continue;
+            }
             if (sel)
                 selectedBar(dl, p, r);
             glyph::draw(dl, icons[i], r.x + 40, r.y + 12, tk::sizeIcon, sel ? p.accent : p.text1);
@@ -133,12 +161,14 @@ void ContextBar::build(DrawList& dl, const UiContext& ctx) const
     case ContextBarKind::TrackTypeBypass:
     {
         const auto& t = L::trackTypeBox;
-        dl.fill(t, m.pressed == TrackType ? p.surface3 : p.surface2, tk::radiusM);
-        dl.text(t.x + t.w / 2, L::captionY, Align::Centre, TextStyleId::Caption, p.text2, "TRACK TYPE");
-        dl.text(t.x + t.w / 2, L::valueY, Align::Centre, TextStyleId::ValueS, p.text1, m.trackType);
+        draw::controlFace(dl, p, t, m.pressed == TrackType ? p.surface3 : p.surface2, tk::radiusM);
+        dl.text(t.x + t.w / 2, (p.classic ? 77 : L::captionY), Align::Centre, TextStyleId::Caption, p.text2, "TRACK TYPE");
+        if (p.classic)
+            dl.fill({t.x + 6, t.y + 32, t.w - 12, 35}, p.bg, 2);
+        dl.text(t.x + t.w / 2, (p.classic ? 111 : L::valueY), Align::Centre, TextStyleId::ValueS, p.text1, m.trackType);
         // BYPASS: a Toggle-styled item, warn LED bar when active (a bypassed track is a caution state).
         const auto& b = L::bypassBox;
-        dl.fill(b, m.pressed == Bypass ? p.surface3 : p.surface2, tk::radiusS);
+        draw::controlFace(dl, p, b, m.pressed == Bypass ? p.surface3 : p.surface2, tk::radiusS);
         dl.fill({b.x + 16, b.y + 8, b.w - 32, 4}, m.bypass ? p.warn : p.borderStrong, 2);
         dl.text(b.x + b.w / 2, b.y + b.h / 2 + 4, Align::Centre, TextStyleId::Label, p.text1, "BYPASS");
         break;
@@ -148,21 +178,22 @@ void ContextBar::build(DrawList& dl, const UiContext& ctx) const
     }
 }
 
-ContextBar::Item ContextBar::hit(float x, float y) const noexcept
+ContextBar::Item ContextBar::hit(float x, float y, bool classic) const noexcept
 {
-    if (in(L::slotA, x, y))
+    const auto& slots = classic ? classicHeader : normalHeader;
+    if (in(slots.project, x, y))
         return SlotA;
-    if (in(L::slotB, x, y))
-        return x < L::slotB.x + L::slotB.w / 2 ? Bpm : Quantize;
-    if (in(L::slotC, x, y))
-        return x < L::slotC.x + L::slotC.w / 2 ? Scene : Pattern;
-    if (in(L::slotD, x, y))
+    if (in(slots.tempo, x, y))
+        return x < slots.tempo.x + slots.tempo.w / 2 ? Bpm : Quantize;
+    if (in(slots.scene, x, y))
+        return x < slots.scene.x + slots.scene.w / 2 ? Scene : Pattern;
+    if (in(slots.position, x, y))
         return Position;
     switch (model_.kind)
     {
     case ContextBarKind::Menu:
         for (int i = 0; i < 4; ++i)
-            if (in(L::menuButton(i), x, y))
+            if (in(slots.menu(i), x, y))
                 return static_cast<Item>(Menu0 + i);
         break;
     case ContextBarKind::TrackContext:

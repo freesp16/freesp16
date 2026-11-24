@@ -97,10 +97,10 @@ void ModuleCard::draw(DrawList& dl, const UiContext& ctx, const ModuleCardModel&
         return;
     }
     const bool dis = m.state == ModuleCardModel::State::Disabled;
-    dl.fill(r, dis ? p.surface1 : p.surface2, tk::radiusM);
+    draw::controlFace(dl, p, r, dis ? p.surface1 : p.surface2, tk::radiusM);
     dl.text(r.x + kW / 2, r.y + 22, Align::Centre, TextStyleId::Label, dis ? p.text3 : p.text1, m.title);
     const RectF t{r.x + 16, r.y + 44, 152, 88};
-    dl.fill(t, dis ? p.bg : p.surface1, tk::radiusS);
+    dl.fill(t, dis || p.classic ? p.bg : p.surface1, p.classic ? 2 : tk::radiusS);
     if (! dis)
         switch (m.thumb)
         {
@@ -158,7 +158,8 @@ void ModuleCard::draw(DrawList& dl, const UiContext& ctx, const ModuleCardModel&
     if (m.state == ModuleCardModel::State::Focused)
     {
         draw::focusRing(dl, p, r, tk::radiusM);
-        cornerTriangle(dl, r, p.accent);
+        if (! p.classic)
+            cornerTriangle(dl, r, p.accent);
     }
     if (m.locked)
         dl.fill({r.x + kW - 14, r.y + 6, 8, 8}, p.mod, 2);

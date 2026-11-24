@@ -213,7 +213,10 @@ public:
         memory()[{state_, page_}] = focus_;
     }
 
-    RectF bounds() const noexcept override { return {kX, L::contentTop, kTitleW, L::contentH}; }
+    bool fullHeight() const { return state_ && state_->skin == theme::Skin::Classic && page_ == "utility"; }
+    float listTop() const { return fullHeight() ? 229 : kListY; }
+    float listBottom() const { return fullHeight() ? 724 : kListBottom; }
+    RectF bounds() const noexcept override { return {kX, L::contentTop, kTitleW, listBottom() - L::contentTop}; }
     bool dirty(double) const override { return diskArrived_; }
 
     void build(DrawList& dl, const UiContext& ctx) const override
@@ -221,25 +224,30 @@ public:
         diskArrived_ = false;
         const auto& p = ctx.palette;
         // PanelTitle (project.md): the page name; right: "n sections" (UTILITY) or the page's note.
-        dl.fill({kX, 152, kTitleW, 48}, p.surface2, tk::radiusM);
-        dl.fill({kX, 192, kTitleW, 8}, p.surface2);
-        draw::hline(dl, kX, kX + kTitleW, 200, p.border);
-        dl.text(kX + 24, 176, Align::Left, TextStyleId::Title, p.text1, title_);
+        const auto titleFill = p.classic ? p.accentWeak : p.surface2;
+        const float titleY = fullHeight() ? 173 : 152;
+        const float inset = fullHeight() ? 13 : 0;
+        const float left = kX + inset, width = kTitleW - 2 * inset;
+        dl.fill({left, titleY, width, 48}, titleFill, p.classic ? 1 : tk::radiusM);
+        dl.fill({left, titleY + 40, width, 8}, titleFill);
+        draw::hline(dl, left, left + width, titleY + 48, p.border);
+        dl.text(left + 24, titleY + 24, Align::Left, p.classic ? TextStyleId::Value : TextStyleId::Title, p.text1, title_);
         if (page_ == "utility")
             note_.format("%d section%s", sections_, sections_ == 1 ? "" : "s");
         else
             note_.set(pageNote(page_));
-        dl.text(kX + kTitleW - 24, 176, Align::Right, TextStyleId::Body, p.text2, note_.view());
-        float y = kListY;
+        if (! fullHeight())
+            dl.text(left + width - 24, titleY + 24, Align::Right, TextStyleId::Body, p.text2, note_.view());
+        float y = listTop();
         int shown = 0;
         for (int i = first_; i < static_cast<int>(rows_.size()); ++i)
         {
             const auto& row = rows_[static_cast<std::size_t>(i)];
             const bool head = row.kind == SettingsRow::Kind::Header;
             const float h = head ? kHeaderH : kRowH;
-            if (y + h > kListBottom + 0.5f)
+            if (y + h > listBottom() + 0.5f)
                 break;
-            const RectF r {kX, y, kW, h};
+            const RectF r {left, y, kW - 2 * inset, h};
             ListRowModel m;
             m.label = row.label;
             m.header = head;
@@ -248,7 +256,7 @@ public:
             m.disabled = ! head && ! available(row);
             m.opens = row.kind == SettingsRow::Kind::Action && ! row.opens.empty();
             m.labelX = 40;
-            m.valueX = kCellX + 8 - kX; // the editing cell starts 8 lpx before this (x 648)
+            m.valueX = kCellX + 8 - left; // the editing cell starts 8 lpx before this (x 648)
             const bool editingHere = editing_ && i == focus_;
             char* buf = text_[static_cast<std::size_t>(shown % kMaxShown)];
             int len = 0;
@@ -265,10 +273,10 @@ public:
                 if (! editingHere)
                     draw::vline(dl, kDividerX, y + 8, y + h - 8, p.border);
             if (! editingHere && ! value.empty())
-                dl.text(kValueX, y + h / 2, Align::Left, TextStyleId::Body,
+                dl.text(kValueX, y + h / 2, Align::Left, p.classic ? TextStyleId::Value : TextStyleId::Body,
                         m.disabled ? p.text3 : (m.focused ? p.text1 : p.text2), value);
             if (row.track > 0)
-                dl.fill({kX + 24, y + 12, 4, 20}, theme::trackColour(row.track), 2);
+                dl.fill({kX + 24, y + 12, 4, 20}, theme::trackColour(p, row.track), 2);
             y += h;
             ++shown;
         }
@@ -276,7 +284,7 @@ public:
         sm.total = static_cast<float>(rows_.size());
         sm.visible = static_cast<float>(shown);
         sm.first = static_cast<float>(first_);
-        Scrollbar::draw(dl, ctx, {1256, 204, 4, 400}, sm);
+        Scrollbar::draw(dl, ctx, {1256 - inset, listTop() + 4, 4, listBottom() - listTop() - 8}, sm);
     }
 
     bool handle(const io::ControlEvent& e, UiContext&) override
@@ -554,7 +562,10 @@ private:
                 if (prefs() != nullptr && st::persists(*b.spec)) // the app's PreferenceAccess does it too
                     prefs()->set(st::keyOf(*b.spec, b.scope), b.spec->clamp(v));
                 if (b.spec->id == "ui.theme" && state_ != nullptr)
-                    state_->dark = v < 0.5f; // UID-051: the palette follows at once
+                {
+                    state_->skin = theme::skinFromPreference(v);
+                    scroll();
+                }
                 return;
             case Store::Pref:
                 if (prefs() != nullptr)
@@ -661,21 +672,21 @@ private:
             --first_;
         for (;;)
         {
-            float y = kListY;
+            float y = listTop();
             for (int i = first_; i <= focus_; ++i)
                 y += heightOf(i);
-            if (y <= kListBottom + 0.5f || first_ >= focus_)
+            if (y <= listBottom() + 0.5f || first_ >= focus_)
                 break;
             ++first_;
         }
     }
     int rowAt(float y) const
     {
-        float top = kListY;
+        float top = listTop();
         for (int i = first_; i < static_cast<int>(rows_.size()); ++i)
         {
             const float h = heightOf(i);
-            if (top + h > kListBottom + 0.5f)
+            if (top + h > listBottom() + 0.5f)
                 break;
             if (y >= top && y < top + h)
                 return i;

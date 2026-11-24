@@ -274,7 +274,7 @@ bool EffectPanel::mixHint() const
 
 std::uint32_t EffectPanel::ink(const theme::tk::Palette& p) const noexcept
 {
-    return fx::isInsert(slot_) ? theme::trackColour(track()) : p.accent; // UID-836
+    return fx::isInsert(slot_) ? theme::trackColour(p, track()) : p.accent; // UID-836
 }
 
 int EffectPanel::focusCount() const noexcept

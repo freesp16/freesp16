@@ -97,7 +97,7 @@ public:
         const auto& p = ctx.palette;
         auto& sh = *shell_;
         const int t = state_->selectedTrack;
-        const auto colour = theme::trackColour(m1::padColour(sh, t));
+        const auto colour = m1::padInk(sh, t);
 
         // Header.
         header_.format("TRACK %d", t);

@@ -6,6 +6,11 @@ namespace ui::draw
 {
 void panel(DrawList& dl, const tk::Palette& p, RectF r)
 {
+    if (p.classic)
+    {
+        controlFace(dl, p, r, p.surface1, 2);
+        return;
+    }
     // Elevation 2: the token's drop shadow (offset y, 40 % black) drawn as one rect 1 lpx larger (mock.py panel()).
     dl.fill({r.x - 1, r.y + tk::elevation2OffsetY - 1, r.w + 2, r.h + 2},
             theme::withOpacity(tk::elevation2Shadow, (p.bg >> 24) / 255.0f), tk::radiusL + 1);
@@ -16,8 +21,9 @@ void panel(DrawList& dl, const tk::Palette& p, RectF r)
 void titleBand(DrawList& dl, const tk::Palette& p, RectF r, float bandH, std::string_view title, bool centred,
                bool close, bool hairline)
 {
-    dl.fill({r.x, r.y, r.w, bandH}, p.surface2, tk::radiusL);
-    dl.fill({r.x, r.y + bandH - tk::radiusL, r.w, static_cast<float>(tk::radiusL)}, p.surface2);
+    const auto band = p.classic ? p.accentWeak : p.surface2;
+    dl.fill({r.x, r.y, r.w, bandH}, band, p.classic ? 2 : tk::radiusL);
+    dl.fill({r.x, r.y + bandH - tk::radiusL, r.w, static_cast<float>(tk::radiusL)}, band);
     if (hairline)
         hline(dl, r.x, r.x + r.w, r.y + bandH, p.border);
     const float cy = r.y + bandH / 2;

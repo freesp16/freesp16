@@ -133,7 +133,24 @@ MeterModel Meter::bus(std::string_view binds, const EngineFeeds* feeds, const Ui
 
 void Meter::build(DrawList& dl, const UiContext& ctx) const
 {
-    drawColumn(dl, ctx, column_.x, bus(binds_, feeds_, state_, ctx.nowMs));
+    const auto m = bus(binds_, feeds_, state_, ctx.nowMs);
+    if (ctx.palette.classic && column_.x == 1176)
+    {
+        constexpr float top = 221, bottom = 606;
+        const float x = column_.x;
+        dl.text(x + 38, 183, Align::Centre, TextStyleId::ValueS, ctx.palette.text2, m.caption);
+        for (const int db : {3, 0, -10, -20, -30, -40, -50})
+        {
+            char label[8];
+            std::snprintf(label, sizeof label, "%d", db);
+            const float y = meterY(static_cast<float>(db), top, bottom);
+            dl.text(x + 25, y, Align::Right, TextStyleId::Body, ctx.palette.text2, label);
+            dl.fill({x + 29, y, 5, 1}, ctx.palette.borderStrong);
+        }
+        drawBars(dl, ctx, x + 38, top, bottom, 16, m);
+        return;
+    }
+    drawColumn(dl, ctx, column_.x, m);
 }
 
 bool Meter::dirty(double nowMs) const

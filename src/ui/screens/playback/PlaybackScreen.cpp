@@ -57,7 +57,7 @@ public:
         auto& sh = *shell_;
         const int t = state_->selectedTrack;
         view_ = m1::SampleViews::instance().of(t);
-        m.colour = theme::trackColour(m1::padColour(sh, t));
+        m.colour = m1::padInk(sh, t);
         m.overview = view_.empty() ? nullptr : view_.overview;
         m.frames = view_.frames;
         m.gridSnap = m1::trackFlag(sh, "playback.gridSnap", t);

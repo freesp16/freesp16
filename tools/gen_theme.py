@@ -21,7 +21,7 @@ MOTION = ["instant", "fast", "base", "slow", "meter-release", "peak-hold", "pad-
 SIZES = ["hit-min", "icon", "icon-s", "focus-ring-offset", "status-row", "context-bar", "knob-strip", "rail"]
 BORDERS = ["hairline", "focus", "track-frame"]
 GROUPS = ["meta", "color", "font", "space", "radius", "border", "elevation", "motion", "size"]
-COLOUR_GROUPS = ["dark", "light", "track", "scene"]
+COLOUR_GROUPS = ["dark", "light", "classic", "track", "scene"]
 FONT_GROUPS = ["family", "feature", "style"]
 ELEVATIONS = ["0", "1", "2"]
 SHADOW = re.compile(r"(-?\d+)(?:px)?\s+(-?\d+)(?:px)?\s+(\d+)(?:px)?\s+(?:(\d+)(?:px)?\s+)?(#[0-9A-Fa-f]{6,8})")
@@ -80,8 +80,8 @@ def main() -> int:
              f"inline constexpr int canvasWidth = {canvas['width']};",
              f"inline constexpr int canvasHeight = {canvas['height']};", "",
              "struct Palette", "{"]
-    lines += [f"    std::uint32_t {ident(k)};" for k in COLOUR_KEYS + DARK_ONLY] + ["};", ""]
-    for theme in ("dark", "light"):
+    lines += [f"    std::uint32_t {ident(k)};" for k in COLOUR_KEYS + DARK_ONLY] + ["    bool classic = false;", "};", ""]
+    for theme in ("dark", "light", "classic"):
         pal = need(colour, theme, "color")
         check_known(pal, COLOUR_KEYS + DARK_ONLY, f"color.{theme}")
         values = []
@@ -90,6 +90,8 @@ def main() -> int:
             if entry is None:
                 raise SystemExit(f"tokens: missing color.{theme}.{k}")
             values.append(f"    {argb(entry['$value'])}, // {k}")
+        if theme == "classic":
+            values.append("    true, // classic control geometry")
         lines += [f"inline constexpr Palette {theme} {{"] + values + ["};", ""]
     track = need(colour, "track", "color")
     lines += ["struct TrackColour", "{", "    std::uint32_t base, dim;", "    int hue;", "};",

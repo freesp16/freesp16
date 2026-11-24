@@ -203,7 +203,7 @@ public:
     void railState(int index, const RailItemSpec&, RailItemState& st) const override
     {
         if (index == kRailLimiter)
-            st.onColour = theme::palette(state_ == nullptr || state_->dark).warn;
+            st.onColour = theme::palette(state_ ? state_->skin : theme::Skin::Dark).warn;
         else if (index == kRailEdit || index == kRailSave)
             st.disabled = recording() || ! hasSample();
     }
@@ -335,7 +335,7 @@ private:
     {
         WaveformModel m;
         view_ = sample();
-        m.colour = theme::trackColour(m1::padColour(*shell_, track() + 1));
+        m.colour = m1::padInk(*shell_, track() + 1);
         m.overview = view_.empty() ? nullptr : view_.overview;
         m.frames = view_.frames;
         m.gridCount = 0;
@@ -457,7 +457,7 @@ private:
             dl.fill({bx - 0.5f, y + 8, 1, h - 16}, b == 4 ? p.borderStrong : p.border);
         }
         const auto* hb = hub();
-        const auto colour = theme::trackColour(m1::padColour(*shell_, track() + 1));
+        const auto colour = m1::padInk(*shell_, track() + 1);
         const int bars = hb != nullptr ? hb->status.takeBars.load(std::memory_order_relaxed) : 0;
         if (rs == RecState::Recording && hb != nullptr && span_ > 0)
         {

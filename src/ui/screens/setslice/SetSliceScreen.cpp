@@ -223,7 +223,7 @@ public:
         if (shell_ == nullptr || state_ == nullptr)
             return m;
         const auto v = view();
-        m.colour = theme::trackColour(m1::padColour(*shell_, state_->selectedTrack));
+        m.colour = m1::padInk(*shell_, state_->selectedTrack);
         m.overview = v.sample.empty() ? nullptr : v.sample.overview;
         m.frames = v.frames;
         m.start = 0;

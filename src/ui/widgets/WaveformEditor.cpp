@@ -229,7 +229,7 @@ void WaveformEditor::drawEditor(DrawList& dl, const UiContext& ctx, RectF r, con
     if (m.overview == nullptr || m.frames <= 0)
         return;
     const RectF plot{r.x + 8, r.y, r.w - 16, r.h};
-    const auto col = m.colour;
+    const auto col = p.classic ? p.accent : m.colour;
     const float y0 = r.y + 4, y1 = r.bottom() - 4;
     const bool points = ! m.slicePoints.empty(); // slice starts in frames (moved / added points)
     if (points && m.slices == 0) // PLAYBACK: the grid at the slice points (SLC-011)
@@ -399,7 +399,7 @@ void WaveformEditor::drawOverview(DrawList& dl, const UiContext& ctx, RectF r, c
     }
     const int columns = static_cast<int>(iw / 2);
     drawColumns(dl, *m.overview, 0, frames, columns, ix, 2, 1.2f, r.y + r.h / 2, (r.h - 12) / 2 * 0.85f, 0, m.frames,
-                m.colour);
+                p.classic ? p.accent : m.colour);
     draw::hline(dl, ix, ix + iw, r.y + r.h / 2, p.border);
     if (m.slices > 0 && ! m.slicePoints.empty()) // a tick per slice start at its frame
         for (int k = 0; k < m.slices && k + 1 < static_cast<int>(m.slicePoints.size()); ++k)

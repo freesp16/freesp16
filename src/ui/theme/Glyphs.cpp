@@ -168,6 +168,10 @@ void draw(DrawList& dl, Kind kind, float x, float y, float size, std::uint32_t c
         p.box(6, 10, 14, 4);
         p.box(2, 17, 8, 4);
         break;
+    case Kind::Score:
+    case Kind::Gear:
+        drawClassicToolbarGlyph(dl, kind, x, y, size, c);
+        break;
     case Kind::Utility:
         p.ring(12, 12, 4);
         for (int i = 0; i < 8; ++i)

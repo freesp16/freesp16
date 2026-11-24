@@ -89,7 +89,7 @@ public:
             window_ = std::clamp(octave - 1, 0, 8);
         m.firstOctave = window_;
         m.focusedNote = m.notes[0];
-        m.colour = theme::trackColour(m1::padColour(*shell_, state_->selectedTrack));
+        m.colour = m1::padInk(*shell_, state_->selectedTrack);
         return m;
     }
     void build(DrawList& dl, const UiContext& ctx) const override

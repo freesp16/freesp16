@@ -146,9 +146,9 @@ void toast(ShellApi& shell, std::string_view text)
     shell.showToast(std::move(t));
 }
 
-std::uint32_t sceneColour(int scene0)
+std::uint32_t sceneColour(int scene0, theme::Skin skin)
 {
-    return theme::trackColour(m2::Session::instance().project().scenes[static_cast<std::size_t>(scene0 & 15)].colour +
+    return theme::trackColour(theme::palette(skin), m2::Session::instance().project().scenes[static_cast<std::size_t>(scene0 & 15)].colour +
                               1);
 }
 
@@ -971,7 +971,7 @@ private:
         const auto pend = pending();
         SceneKeyModel k;
         k.index = n;
-        k.colour = sceneColour(n - 1);
+        k.colour = sceneColour(n - 1, state_->skin);
         k.current = n == state_->scene;
         k.hasContent = s.sceneHasContent(n - 1);
         k.pending = pend.first == n && pend.first != state_->scene && blinkOn(nowMs);
@@ -986,7 +986,7 @@ private:
         const auto pend = pending();
         SceneKeyModel k;
         k.index = n;
-        k.colour = sceneColour(focusScene_ - 1);
+        k.colour = sceneColour(focusScene_ - 1, state_->skin);
         k.current = focusScene_ == state_->scene && n == state_->pattern;
         k.hasContent = s.patternHasContent(focusScene_ - 1, n - 1);
         k.pending = pend.first == focusScene_ && pend.second == n && blinkOn(nowMs);
@@ -1118,14 +1118,14 @@ private:
         {
             const float ry = kRowY0 + static_cast<float>(t - 1) * kRowH;
             const bool has = state_->tracks[static_cast<std::size_t>(t - 1)].hasContent;
-            dl.fill({232, ry + 2, 32, 14}, has ? theme::trackColour(t) : theme::trackColour(t, true), 3);
+            dl.fill({232, ry + 2, 32, 14}, has ? theme::trackColour(p, t) : theme::trackColour(p, t, true), 3);
             dl.text(248, ry + 9, Align::Centre, TextStyleId::Caption, has ? p.onAccent : p.text1, kNumbers[t - 1]);
             if (t % 2 == 0)
                 dl.fill({kGx, ry, 960, kRowH}, theme::withOpacity(p.surface2, 0.35f));
         }
         rebuildOverview();
         for (const auto& h : hits_)
-            dl.fill(h.r, theme::trackColour(h.track + 1), 2);
+            dl.fill(h.r, theme::trackColour(p, h.track + 1), 2);
         for (int bar = bars; bar < 4; ++bar) // beyond the pattern length: 50 % bg over the rows
             dl.fill({kGx + 240 * static_cast<float>(bar), 212, 240, 288}, theme::withOpacity(p.bg, 0.5f));
         // Selection.
@@ -1166,7 +1166,7 @@ private:
         {
             const auto r = trackCell(t);
             const bool has = trackHasContent(t - 1);
-            dl.fill(r, has ? theme::trackColour(m1::padColour(*shell_, t)) : p.surface2, tk::radiusS);
+            dl.fill(r, has ? m1::padInk(*shell_, t) : p.surface2, tk::radiusS);
             dl.text(r.x + 12, r.y + 16, Align::Left, TextStyleId::BodyStrong, has ? p.onAccent : p.text2,
                     kNumbers[t - 1]);
             if (t == chosenTrack_)

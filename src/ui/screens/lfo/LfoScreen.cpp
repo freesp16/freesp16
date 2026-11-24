@@ -220,7 +220,7 @@ private:
         const bool syncOn = sync();
         const auto base = viewOf(speed, depth, phase, shape, syncOn, random, mode);
         graph_.setShape(base.shape, base.depth01, base.phase01, syncOn, bpm(), base.cycles, base.seed, base.oneShot);
-        graph_.setStyle(theme::trackColour(m1::padColour(sh, t)), static_cast<int>(std::lround(depth)),
+        graph_.setStyle(m1::padInk(sh, t), static_cast<int>(std::lround(depth)),
                         ! destination().valid(), param("lfo.bypass", 0) >= 0.5f);
         // Step held: the locked waveform (UID-166 / amp-envelope-lfo.md "Step held").
         bool locked = false;

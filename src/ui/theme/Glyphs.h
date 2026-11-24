@@ -31,8 +31,12 @@ enum class Kind : std::uint8_t
     Tracks, // menu button icons
     Mixer,
     Arranger,
-    Utility
+    Utility,
+    Score,
+    Gear
 };
+
+void drawClassicToolbarGlyph(DrawList&, Kind, float x, float y, float size, std::uint32_t colour);
 
 // A straight stroke of `width` lpx from (x1, y1) to (x2, y2) with round caps.
 void line(DrawList&, float x1, float y1, float x2, float y2, float width, std::uint32_t argb);

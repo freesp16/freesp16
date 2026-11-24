@@ -820,7 +820,7 @@ void Document::attach(ui::Root& root)
     impl_->panelKeys.attach(root.shell());
     impl_->panelKeys.log = [this](const std::string& line) { impl_->log("%s", line.c_str()); };
     if (auto* shell = root.shell()) // THEME (UID-051)
-        shell->state().dark = impl_->prefs.get("ui.theme") < 0.5f;
+        shell->state().skin = ui::theme::skinFromPreference(impl_->prefs.get("ui.theme"));
 }
 
 void Document::startup()
@@ -2124,7 +2124,7 @@ void Document::Impl::watchPreferences()
                                       [this](std::string_view)
                                       {
                                           if (selection.shell != nullptr)
-                                              selection.shell->state().dark = prefs.get("ui.theme") < 0.5f;
+                                              selection.shell->state().skin = ui::theme::skinFromPreference(prefs.get("ui.theme"));
                                       }));
     prefWatch.push_back(prefs.observe("library.locations", [this](std::string_view) { applyLibraryLocations(); }));
     prefWatch.push_back(prefs.observe("midi.portIn", [this](std::string_view) { applyMidiInputs(); }));

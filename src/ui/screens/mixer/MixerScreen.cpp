@@ -85,8 +85,9 @@ public:
         auto& sh = *shell_;
         const auto& s = state_->tracks[static_cast<std::size_t>(t - 1)];
         const int colour = m1::padColour(sh, t);
-        m.colour = theme::trackColour(colour);
-        m.colourDim = theme::trackColour(colour, true);
+        const auto& palette = theme::palette(state_->skin);
+        m.colour = theme::trackColour(palette, colour);
+        m.colourDim = theme::trackColour(palette, colour, true);
         m.hasContent = s.hasContent;
         m.selected = t == state_->selectedTrack;
         m.faderDb = volumeDb(m1::trackParam(sh, "track.volume", t, 100));
