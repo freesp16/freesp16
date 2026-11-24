@@ -12,7 +12,8 @@
 //                                       IN START/STOP and SONG POSITION enables (SYN-011; ARR-008 in song mode)
 //                   notes 0–15        → track n + 1, any channel, frame-accurate trigger (MID-020); Sample tracks only
 //                   notes 24–72       → each Sample track on that receive channel, note − 48 semitones, ±12 under
-//                                       MASTER TEMPO (MID-021/022); Note Off → Release (GATE tracks)
+//                                       MASTER TEMPO (MID-021/022); Note Off → Release (GATE tracks) of the tracks
+//                                       whose sounding note it started (same port, channel and note)
 //                   CC                → the fixed map (CcMap) on every Sample/Thru track of the channel (MID-030/031/
 //                                       035), CC 0/32 → queued scene/pattern (SCN-050, ignored while SAMPLING/EDIT is
 //                                       open: midi.remoteSelectBlocked, SCN-051), CC 123 → stop those tracks (MID-023)
@@ -235,7 +236,7 @@ private:
     std::int64_t blockStart_ = 0;
     std::uint16_t midiMask_ = 0;
     std::array<std::uint32_t, core::midi::kMaxPorts> generation_ {};
-    std::array<std::int8_t, 16> heldTrackOfNote_ {}; // notes 0–15 → their track (Release)
+    std::array<std::int16_t, 16> heldNote_{}; // per track: port << 11 | channel << 7 | note that started it, −1 none
     double shownTempo_ = 0.0;
     std::uint32_t activity_ = 0;
     std::uint64_t notesIn_ = 0, ccsIn_ = 0, ticksIn_ = 0;

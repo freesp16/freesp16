@@ -42,7 +42,7 @@ trigger::TriggerEvent hit(int track, int velocity, int semis, trigger::TriggerKi
 MidiEngine::MidiEngine() noexcept
 {
     field_.fill(kNotOurs);
-    heldTrackOfNote_.fill(-1);
+    heldNote_.fill(-1);
     out_.attach(&hub_);
     hubClaimed_ = core::midi::claimLiveHub(&hub_);
 }
@@ -81,7 +81,7 @@ void MidiEngine::prepare(double sampleRate) noexcept
     lostHandled_ = false;
     blockStart_ = 0;
     midiMask_ = 0;
-    heldTrackOfNote_.fill(-1);
+    heldNote_.fill(-1);
     for (int p = 0; p < core::midi::kMaxPorts; ++p)
         generation_[static_cast<std::size_t>(p)] = hub_.generation(p);
     if (correctionInstalled_ && w_.transport != nullptr)
@@ -313,6 +313,7 @@ void MidiEngine::controlChange(int ch, int cc, int value, int frame) noexcept
         {
             if (w_.router != nullptr)
                 w_.router->push(hit(t, 0, 0, trigger::TriggerKind::Stop, frame));
+            heldNote_[static_cast<std::size_t>(t)] = -1;
             continue;
         }
         if (! (trackIsSample(t) || trackIs(t, static_cast<int>(trigger::TrackMode::Thru))))
@@ -346,21 +347,25 @@ void MidiEngine::channelMessage(const MidiEvent& e, int frame) noexcept
             const bool on = type == 0x90 && d2 > 0;
             if (w_.router == nullptr)
                 return;
+            // The note that started a track's sounding voice (port, channel, note); only its Note Off releases it.
+            const auto key = static_cast<std::int16_t>((e.port & 7) << 11 | ch << 7 | d1);
+            if (! on)
+            {
+                for (int t = 0; t < kTracks; ++t)
+                    if (heldNote_[static_cast<std::size_t>(t)] == key)
+                    {
+                        w_.router->push(hit(t, 0, 0, trigger::TriggerKind::Release, frame));
+                        heldNote_[static_cast<std::size_t>(t)] = -1;
+                    }
+                return;
+            }
             if (d1 <= 15) // MID-020: notes 0–15, any channel → track n + 1
             {
-                if (on)
-                {
-                    if (! trackIsSample(d1)) // MID-022
-                        return;
-                    w_.router->push(hit(d1, d2, 0, trigger::TriggerKind::Full, frame));
-                    heldTrackOfNote_[static_cast<std::size_t>(d1)] = static_cast<std::int8_t>(d1);
-                    ++notesIn_;
-                }
-                else if (heldTrackOfNote_[static_cast<std::size_t>(d1)] >= 0)
-                {
-                    w_.router->push(hit(d1, 0, 0, trigger::TriggerKind::Release, frame));
-                    heldTrackOfNote_[static_cast<std::size_t>(d1)] = -1;
-                }
+                if (! trackIsSample(d1)) // MID-022
+                    return;
+                w_.router->push(hit(d1, d2, 0, trigger::TriggerKind::Full, frame));
+                heldNote_[static_cast<std::size_t>(d1)] = key;
+                ++notesIn_;
                 return;
             }
             if (d1 < 24 || d1 > 72)
@@ -372,10 +377,9 @@ void MidiEngine::channelMessage(const MidiEvent& e, int frame) noexcept
                 int semis = d1 - 48;
                 if (w_.pitchPreserving != nullptr && w_.pitchPreserving(w_.user, t))
                     semis = clampi(semis, -12, 12);
-                w_.router->push(hit(t, on ? d2 : 0, semis, on ? trigger::TriggerKind::Full : trigger::TriggerKind::Release,
-                                    frame));
-                if (on)
-                    ++notesIn_;
+                w_.router->push(hit(t, d2, semis, trigger::TriggerKind::Full, frame));
+                heldNote_[static_cast<std::size_t>(t)] = key;
+                ++notesIn_;
             }
             return;
         }

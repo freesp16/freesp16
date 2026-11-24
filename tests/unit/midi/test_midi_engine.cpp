@@ -57,7 +57,8 @@ TEST_CASE("midi.engine: incoming notes 0-15 land at arrival + one block exactly 
         arrivals.push_back(static_cast<std::int64_t>(a));
         push(*e, static_cast<std::uint8_t>(0x90 | (i % 16)), static_cast<std::uint8_t>(i % 16), static_cast<std::uint8_t>(1 + i), a);
         d.blocks(1);
-        push(*e, 0x80, static_cast<std::uint8_t>(i % 16), 0, static_cast<double>(d.frame()) - 10); // Note Off
+        push(*e, static_cast<std::uint8_t>(0x80 | (i % 16)), static_cast<std::uint8_t>(i % 16), 0,
+             static_cast<double>(d.frame()) - 10); // Note Off (its note on's channel)
         d.blocks(3);
     }
     d.blocks(4);
@@ -140,6 +141,46 @@ TEST_CASE("midi.engine: a note recorded while REC is armed keeps its semitones; 
     CHECK(got[1].track == 3);
     CHECK(got[1].pitched);
     CHECK(got[1].semitones == 0);
+}
+
+TEST_CASE("midi.engine: a Note Off releases only the note that started the track (port, channel, note)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    d.param("track.triggerMode", 0, 1.0f); // track 1 GATE
+    d.param("midi.in.channel", 5, 1.0f);   // track 6 shares channel 1
+    auto send = [&](std::uint8_t b0, int note, int vel, int port = 0)
+    {
+        push(*e, b0, static_cast<std::uint8_t>(note), static_cast<std::uint8_t>(vel),
+             static_cast<double>(d.frame()) - 1, port);
+        d.hits.clear();
+        d.blocks(2);
+        std::vector<std::pair<int, TriggerKind>> got;
+        for (const auto& h : d.hits)
+            got.emplace_back(h.track, h.kind);
+        return got;
+    };
+    using V = std::vector<std::pair<int, TriggerKind>>;
+    // Notes 24–72: 50 then 55 on channel 1 (tracks 1 and 6); letting go of 50 keeps 55 sounding.
+    CHECK(send(0x90, 50, 100) == V{{0, TriggerKind::Full}, {5, TriggerKind::Full}});
+    CHECK(send(0x90, 55, 100) == V{{0, TriggerKind::Full}, {5, TriggerKind::Full}});
+    CHECK(send(0x80, 50, 0).empty());
+    CHECK(send(0x90, 55, 0) == V{{0, TriggerKind::Release}, {5, TriggerKind::Release}}); // velocity 0 = Note Off
+    CHECK(send(0x80, 55, 0).empty());                                                    // released already
+    // The same note number on another channel or port is another note.
+    send(0x90, 60, 100);
+    CHECK(send(0x81, 60, 0).empty());
+    CHECK(send(0x80, 60, 0, 1).empty());
+    CHECK(send(0x80, 60, 0) == V{{0, TriggerKind::Release}, {5, TriggerKind::Release}});
+    // Notes 0–15 (any channel): the Note Off of the note on's channel releases it.
+    CHECK(send(0x94, 3, 90) == V{{3, TriggerKind::Full}});
+    CHECK(send(0x80, 3, 0).empty());
+    CHECK(send(0x84, 3, 0) == V{{3, TriggerKind::Release}});
+    // A later note on the track takes it over: the first note's Note Off no longer releases it.
+    send(0x90, 0, 100);
+    send(0x91, 0, 100);
+    CHECK(send(0x80, 0, 0).empty());
+    CHECK(send(0x81, 0, 0) == V{{0, TriggerKind::Release}});
 }
 
 TEST_CASE("midi.engine: CC 46 at 0/64/127 hits the start, middle (half-even) and end of the FX1 grid (FX-086)", "[midi]")
