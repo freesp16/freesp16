@@ -29,6 +29,9 @@ UnitPort classify(std::string_view cardId, std::string_view cardName) noexcept;
 // The slot the unit's ports always take (MidiService): DIN = 0 (port A, the default SYNC PORT), USB = 1 (port B, kept
 // for it while the unit is in USB storage mode); −1 = any other port.
 int fixedSlot(UnitPort) noexcept;
+// Their port names (the reconnect key, and what UTILITY shows): by what they are, not by their kernel drivers.
+inline constexpr const char* kDinPortName = "MIDI DIN";
+inline constexpr const char* kUsbPortName = "MIDI USB";
 
 inline constexpr const char* kDinMidiDevice = "/dev/din_midi";
 inline constexpr const char* kMidiThroughPath = "/proc/midi_through";

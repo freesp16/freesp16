@@ -309,6 +309,22 @@ void MidiService::poll(double nowMs)
     applyHardwareThru();
 }
 
+std::string_view MidiService::slotName(int slot) const
+{
+    if (slot < 0 || slot >= kPorts)
+        return {};
+    const auto i = static_cast<std::size_t>(slot);
+    if (! outSlots_[i].name.empty())
+        return outSlots_[i].name;
+    if (! inSlots_[i].name.empty())
+        return inSlots_[i].name;
+    if ((reserved_ >> slot & 1u) != 0)
+        for (const auto& provider : providers_)
+            if (const auto name = provider->slotName(slot); ! name.empty())
+                return name;
+    return {};
+}
+
 std::string MidiService::describe() const
 {
     std::string s = "in:";

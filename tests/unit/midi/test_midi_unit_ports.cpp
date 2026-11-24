@@ -108,6 +108,13 @@ public:
         return out;
     }
     std::uint32_t reservedSlots() const override { return reserved_; }
+    std::string_view slotName(int slot) const override
+    {
+        for (auto* p : ports_)
+            if (p->slot == slot && (reserved_ >> slot & 1u) != 0)
+                return p->name;
+        return {};
+    }
     std::unique_ptr<io::midi::MidiInput> openInput(const io::midi::PortInfo& i, std::string&) override
     {
         return std::make_unique<FakeInput>(*find(i.name));
@@ -200,6 +207,9 @@ TEST_CASE("midi.unit: DIN = slot 0, USB = slot 1 in card order, kept in storage 
     service.refresh();
     CHECK_FALSE(service.outputs()[1].connected);
     CHECK(service.outputs()[1].name == "MIDI USB");
+    CHECK(service.slotName(1) == "MIDI USB");
+    CHECK(service.slotName(4) == "LATER");
+    CHECK(service.slotName(5).empty());
     CHECK(service.outputs()[4].name == "LATER");
     CHECK(service.outputs()[4].connected);
     usb.present = true;

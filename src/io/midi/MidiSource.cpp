@@ -141,9 +141,8 @@ private:
         bool changed = false;
         for (int i = 0; i < MidiService::kPorts; ++i)
         {
-            const auto& out = service_->outputs()[static_cast<std::size_t>(i)];
-            const auto& in = service_->inputs()[static_cast<std::size_t>(i)];
-            const std::string& name = ! out.name.empty() ? out.name : in.name;
+            // A fixed slot keeps its port's name while the port is absent (the unit's USB in storage mode).
+            const auto name = service_->slotName(i);
             if (name != published_[static_cast<std::size_t>(i)])
             {
                 published_[static_cast<std::size_t>(i)] = name;

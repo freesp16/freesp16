@@ -60,6 +60,9 @@ public:
     // Slots (bit s) kept for this provider's fixed-slot ports even while they are absent (the unit's USB port in
     // storage mode); no other port takes them while a free slot remains. Valid after list().
     virtual std::uint32_t reservedSlots() const { return 0; }
+    // The name of the port that keeps reserved slot `slot` ("MIDI USB"), shown while it is absent; "" = none. The
+    // text outlives the provider (a literal).
+    virtual std::string_view slotName(int /*slot*/) const { return {}; }
     virtual std::unique_ptr<MidiInput> openInput(const PortInfo&, std::string& error) = 0;
     virtual std::unique_ptr<MidiOutput> openOutput(const PortInfo&, std::string& error) = 0;
 };

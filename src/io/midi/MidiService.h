@@ -56,6 +56,9 @@ public:
     };
     const std::array<Slot, kPorts>& inputs() const noexcept { return inSlots_; }
     const std::array<Slot, kPorts>& outputs() const noexcept { return outSlots_; }
+    // The name of slot `slot` for the UI: its port's (the output's, else the input's), else the name of the fixed-slot
+    // port a provider keeps it for (the unit's USB port in storage mode: "MIDI USB"); "" = a free slot.
+    std::string_view slotName(int slot) const; // valid until the next refresh()
     std::uint64_t messagesIn() const noexcept { return messagesIn_.load(); }
     std::uint64_t reconnects() const noexcept { return reconnects_; }
     // Output `slot` passes its own input on in hardware (THRU A / B on the unit's DIN port).

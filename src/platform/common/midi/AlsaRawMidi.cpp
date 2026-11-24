@@ -153,8 +153,8 @@ void listDirection(snd_ctl_t* ctl, int card, int device, const std::string& card
         std::snprintf(id, sizeof id, "hw:%d,%d,%u", card, device, s);
         // The unit's two ports by what they are, not by their kernel drivers: the USB-B MIDI gadget = MIDI USB, the
         // DIN sockets = MIDI DIN; a further device / subdevice of the same card gets its number appended.
-        const char* friendly = unit == unitmidi::UnitPort::Usb   ? "MIDI USB"
-                               : unit == unitmidi::UnitPort::Din ? "MIDI DIN"
+        const char* friendly = unit == unitmidi::UnitPort::Usb   ? unitmidi::kUsbPortName
+                               : unit == unitmidi::UnitPort::Din ? unitmidi::kDinPortName
                                                                  : nullptr;
         const bool first = device == 0 && s == 0;
         std::string name;
@@ -240,6 +240,14 @@ public:
         return unitSeen_ ? (1u << unitmidi::fixedSlot(unitmidi::UnitPort::Din)) |
                                (1u << unitmidi::fixedSlot(unitmidi::UnitPort::Usb))
                          : 0u;
+    }
+    std::string_view slotName(int slot) const override // the unit's ports keep their names while absent
+    {
+        if (! unitSeen_)
+            return {};
+        return slot == unitmidi::fixedSlot(unitmidi::UnitPort::Din)   ? unitmidi::kDinPortName
+               : slot == unitmidi::fixedSlot(unitmidi::UnitPort::Usb) ? unitmidi::kUsbPortName
+                                                                      : std::string_view();
     }
     std::unique_ptr<io::midi::MidiInput> openInput(const io::midi::PortInfo& p, std::string& error) override
     {
