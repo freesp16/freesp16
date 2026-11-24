@@ -328,6 +328,13 @@ public:
         }
         c.valueText = t.view();
     }
+    long long stripSteps(int column0, const core::ParamSpec& spec, bool fine) const override
+    {
+        if (column0 > 3)
+            return -1;
+        // BPM only: SCENE, PATTERN and REPEAT walk one by one.
+        return static_cast<ar::RowField>(column0) == ar::RowField::Bpm ? EncoderAccel::stepsOf(spec, fine) : 0;
+    }
     bool stripTurn(int column0, const core::ParamSpec& spec, int detents, bool fine) override
     {
         if (column0 > 3 || shell_ == nullptr)

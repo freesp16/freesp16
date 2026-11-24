@@ -245,6 +245,15 @@ public:
                                                      static_cast<double>(s.frames) * static_cast<double>(c.spec->maxValue));
         }
     }
+    long long stripSteps(int column0, const core::ParamSpec&, bool fine) const override
+    {
+        if (column0 != 3 && column0 != 4)
+            return -1;
+        if (fine)
+            return 0;
+        // START / END walk one editor column per detent: the zoomed view's columns across the whole sample.
+        return static_cast<long long>(zoomX_ * kColumns);
+    }
     bool stripTurn(int column0, const core::ParamSpec&, int detents, bool fine) override
     {
         if (column0 != 3 && column0 != 4)

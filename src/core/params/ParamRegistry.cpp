@@ -11,7 +11,26 @@ float ParamSpec::step(float v, int detents, bool fine) const noexcept
     const float s = fine ? fineStep : coarseStep;
     float next = clamp(v + s * static_cast<float>(detents));
     if (type == ParamType::Enum || type == ParamType::Integer || type == ParamType::Bool)
-        next = std::round(next);
+        return std::round(next);
+    // No drift: float steps of 0.1 and the like gather rounding error turn after turn, so a result within 1 % of a
+    // step of the grid (minValue + k · the smaller step) lands exactly on it, the same float whatever path reached it.
+    // The range's ends stay exact; a value off the grid (an import, an LFO-written base) stays where the turn puts it.
+    if (next == minValue || next == maxValue)
+        return next;
+    // A step written as a short decimal is taken as that decimal (0.1f is 0.100000001…, and k × that would drift
+    // again); any other step (1/127 …) as the float itself.
+    const auto exact = [](float f) {
+        const double d = std::round(static_cast<double>(f) * 1e6) / 1e6;
+        return static_cast<float>(d) == f ? d : static_cast<double>(f);
+    };
+    const float grid = std::min(fineStep, coarseStep) > 0 ? std::min(fineStep, coarseStep) : s;
+    if (grid > 0)
+    {
+        const double g = exact(grid), lo = exact(minValue);
+        const double q = (static_cast<double>(next) - lo) / g, k = std::round(q);
+        if (std::fabs(q - k) < 0.01)
+            next = clamp(static_cast<float>(lo + k * g));
+    }
     return next;
 }
 
