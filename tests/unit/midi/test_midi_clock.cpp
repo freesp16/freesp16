@@ -13,6 +13,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -112,7 +113,7 @@ TEST_CASE("midi.clockout: 24 PPQN ticks on exact frames, transport messages (SYN
     std::vector<core::midi::MidiOutEvent> got;
     auto drain = [&] {
         core::midi::MidiOutEvent e;
-        while (hub.popOut(e))
+        while (hub.popSync(e) || hub.popOut(e))
             got.push_back(e);
     };
     // 2 bars playing from PPQ 0.
@@ -139,6 +140,11 @@ TEST_CASE("midi.clockout: 24 PPQN ticks on exact frames, transport messages (SYN
     REQUIRE(ticks.size() >= 8 * 24);
     for (std::size_t n = 0; n < 8 * 24; ++n) // tick n at round(n · 918.75): the stamps carry no jitter
         CHECK(ticks[n] == static_cast<std::int64_t>(std::floor(static_cast<double>(n) * 918.75 + 0.5)));
+    // … and their exact time, n · 918.75, to 1/65536 frame (no half-frame rounding left: 11 µs at 44.1 kHz).
+    std::size_t k = 0;
+    for (const auto& e : got)
+        if (e.bytes[0] == 0xF8 && k < 8 * 24)
+            CHECK(std::fabs(e.exactTime() - static_cast<double>(k++) * 918.75) <= 1.0 / 65536.0);
     // Stop, then a locate while stopped (SPP), then Continue from there (SPP + Continue).
     got.clear();
     ctx.playing = false;
@@ -236,9 +242,10 @@ TEST_CASE("midi.jitter: clock-out timestamps stay within 0.5 ms under 2 ms callb
     std::uniform_real_distribution<double> late(0.0, 2.0e6);
     const double trueNsPerFrame = 1.0e9 / (kRate * (1.0 + 60e-6));
     const double t0 = 5.0e9;
-    std::vector<double> dev;
+    std::vector<double> dev, interval, rawInterval;
     std::int64_t frame = static_cast<std::int64_t>(e->blocksRendered()) * 64; // periods of 256 = 4 blocks, aligned
-    double sum = 0.0;
+    double sum = 0.0, previous = 0.0, previousRaw = 0.0;
+    io::midi::TickSmoother smoother;
     for (int p = 0; p < 3000; ++p) // ≈ 17 s
     {
         const double ideal = t0 + static_cast<double>(frame) * trueNsPerFrame;
@@ -247,10 +254,20 @@ TEST_CASE("midi.jitter: clock-out timestamps stay within 0.5 ms under 2 ms callb
         for (const auto& o : miditest::drainOut(*e))
             if (o.bytes[0] == 0xF8 && p > 1000) // after the DLL settled (≈ 6 s)
             {
-                const double dl = io::midi::MidiSender::deadlineNs(o, anchor, 0, 0);
-                const double x = dl - (t0 + static_cast<double>(o.sampleTime) * trueNsPerFrame);
+                const double raw = io::midi::MidiSender::deadlineNs(o, anchor, 0, 0);
+                // Raw: the deadline as the anchor gives it; the clock thread smooths it (TickSmoother).
+                if (previous > 0.0)
+                    rawInterval.push_back(std::fabs(raw - previousRaw - 918.75 * trueNsPerFrame));
+                previousRaw = raw;
+                const double dl = smoother.deadline(raw, o.exactTime(), anchor.nsPerFrame);
+                smoother.commit(raw, o.exactTime(), anchor.nsPerFrame);
+                const double x = dl - (t0 + o.exactTime() * trueNsPerFrame);
                 dev.push_back(x);
                 sum += x;
+                // Tick to tick: what a receiver's tempo display reacts to (ideal: 918.75 frames of the DAC clock).
+                if (previous > 0.0)
+                    interval.push_back(std::fabs(dl - previous - 918.75 * trueNsPerFrame));
+                previous = dl;
             }
         frame += 256;
     }
@@ -264,6 +281,13 @@ TEST_CASE("midi.jitter: clock-out timestamps stay within 0.5 ms under 2 ms callb
                 "(callback jitter 0-2 ms, DLL %.2f Hz)\n",
                 dev.size(), p99, mx, engine::midi::AudioClock::kBandwidthHz);
     CHECK(p99 <= 0.5);
+    // Tick to tick (what a receiver's tempo display reacts to; at 120 BPM a 0.1 BPM step is 17 µs of a 20.8 ms tick):
+    // the anchor's per-period corrections show in the raw deadlines; the smoothed ones are exact to a few µs.
+    const double rawMax = *std::max_element(rawInterval.begin(), rawInterval.end()) / 1.0e3;
+    const double intervalMax = *std::max_element(interval.begin(), interval.end()) / 1.0e3;
+    std::printf("midi.jitter: tick-to-tick deviation max = %.2f us raw, %.3f us smoothed\n", rawMax, intervalMax);
+    CHECK(intervalMax <= 4.0);
+    CHECK(intervalMax * 10.0 < rawMax);
 }
 
 TEST_CASE("midi.sender: deadlines on this host (live thread, virtual output)", "[midi]")
@@ -293,7 +317,7 @@ TEST_CASE("midi.sender: deadlines on this host (live thread, virtual output)", "
         e.bytes[0] = 0xF8;
         e.sampleTime = static_cast<std::int64_t>(std::floor(n * 918.75 + 0.5));
         due.push_back(base + static_cast<std::int64_t>(static_cast<double>(e.sampleTime) * 1.0e9 / kRate));
-        while (! hub.pushOut(e))
+        while (! hub.pushSync(e)) // the clock thread's queue
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     for (int i = 0; i < 1000 && sender.stats().sent < static_cast<std::uint64_t>(ticks); ++i)
@@ -306,8 +330,142 @@ TEST_CASE("midi.sender: deadlines on this host (live thread, virtual output)", "
     for (int n = 0; n < ticks; ++n)
         late.push_back(static_cast<double>(rec[static_cast<std::size_t>(n)].atNs - due[static_cast<std::size_t>(n)]) / 1.0e6);
     const double p99 = percentile(late, 0.99);
-    std::printf("midi.sender: %s, %d ticks, lateness p50 = %.3f ms p99 = %.3f ms max = %.3f ms (stats p99 %.0f us)\n",
-                info.c_str(), ticks, percentile(late, 0.5), p99, *std::max_element(late.begin(), late.end()), s.p99Us);
+    std::printf("midi.sender: %s, %d ticks, lateness p50 = %.3f ms p99 = %.3f ms max = %.3f ms (stats p99 %.0f us, "
+                "margin %.0f us)\n",
+                info.c_str(), ticks, percentile(late, 0.5), p99, *std::max_element(late.begin(), late.end()), s.p99Us,
+                s.marginUs);
     CHECK(*std::min_element(late.begin(), late.end()) >= 0.0); // never early
     CHECK(p99 <= 5.0);
+    CHECK(s.clocks == static_cast<std::uint64_t>(ticks));
+}
+
+namespace
+{
+// An output that never takes anything (a USB host that does not read the port).
+class StuckOutput final : public io::midi::MidiOutput
+{
+public:
+    io::midi::WriteResult write(const std::uint8_t*, int) override
+    {
+        tries.fetch_add(1);
+        return io::midi::WriteResult::Busy;
+    }
+    std::atomic<int> tries{0};
+};
+} // namespace
+
+TEST_CASE("midi.sender: a port that takes nothing holds up neither the clock nor the notes of the others", "[midi]")
+{
+    core::midi::MidiHub hub;
+    io::midi::VirtualProvider provider(io::midi::VirtualScript{});
+    std::string err;
+    auto out = provider.openOutput({"virtual:0", "VIRTUAL", true, true}, err);
+    REQUIRE(out);
+    StuckOutput stuck;
+    io::midi::MidiSender sender(hub);
+    sender.setOutput(0, out.get());
+    sender.setOutput(1, &stuck);
+    hub.setOutputConnected(0, true);
+    hub.setOutputConnected(1, true);
+    std::string info;
+    REQUIRE(sender.start(info));
+    const std::int64_t base = core::midi::monotonicNs() + 20000000;
+    hub.publishAnchor({0, base, 1.0e9 / kRate, true});
+    const int ticks = 100; // 10 ms apart: 1 s
+    for (int n = 0; n < ticks; ++n)
+        for (std::uint8_t port : {std::uint8_t{1}, std::uint8_t{0}}) // the stuck port's tick first
+        {
+            core::midi::MidiOutEvent e;
+            e.port = port;
+            e.size = 1;
+            e.bytes[0] = 0xF8;
+            e.sampleTime = n * 441;
+            REQUIRE(hub.pushSync(e));
+            e.size = 3;
+            e.bytes[0] = 0x90;
+            e.bytes[1] = 60;
+            e.bytes[2] = 100;
+            REQUIRE(hub.pushOut(e)); // a note on each port too
+        }
+    for (int i = 0; i < 1000 && sender.stats().sent < static_cast<std::uint64_t>(2 * ticks); ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // past the stale limit of the last tick
+    sender.stop();
+    const auto s = sender.stats();
+    const auto rec = provider.received();
+    REQUIRE(rec.size() == static_cast<std::size_t>(2 * ticks));
+    std::vector<double> late;
+    for (const auto& r : rec)
+        if (r.bytes[0] == 0xF8)
+            late.push_back(static_cast<double>(r.atNs - base) / 1.0e6 - static_cast<double>(late.size()) * 10.0);
+    REQUIRE(late.size() == static_cast<std::size_t>(ticks));
+    std::printf("midi.sender: next to a stuck port, %d ticks, lateness p99 = %.3f ms, busy %llu, dropped %llu\n", ticks,
+                percentile(late, 0.99), static_cast<unsigned long long>(s.busy),
+                static_cast<unsigned long long>(s.dropped));
+    CHECK(*std::min_element(late.begin(), late.end()) >= 0.0);
+    CHECK(percentile(late, 0.99) <= 5.0);
+    CHECK(s.busy > 0);
+    CHECK(stuck.tries.load() < 40 * ticks);                     // retried every 1 ms by each thread, not spun on
+    CHECK(s.dropped >= static_cast<std::uint64_t>(ticks) - 10); // its stale ticks are dropped, not sent in a burst
+}
+
+TEST_CASE("midi.sender: the tick smoother keeps the intervals exact and follows the audio clock without drift",
+          "[midi]")
+{
+    // Raw tick deadlines on an audio clock 100 ppm off the anchor's claimed rate, ±20 µs of per-period anchor noise.
+    io::midi::TickSmoother sm;
+    const double npf = 1.0e9 / kRate, frames = 918.75, t0 = 1.0e9;
+    const auto line = [&](int n) { return t0 + n * frames * npf * (1.0 + 100e-6); };
+    double previous = 0.0, worstInterval = 0.0, worstPhase = 0.0;
+    for (int n = 0; n < 3000; ++n)
+    {
+        const double raw = line(n) + (n % 2 != 0 ? 20.0e3 : -20.0e3);
+        const double d = sm.deadline(raw, n * frames, npf);
+        sm.commit(raw, n * frames, npf);
+        if (n > 1500) // settled: on the audio clock's line (no drift) with exact intervals
+        {
+            worstPhase = std::max(worstPhase, std::fabs(d - line(n)));
+            worstInterval = std::max(worstInterval, std::fabs(d - previous - frames * npf * (1.0 + 100e-6)));
+        }
+        previous = d;
+    }
+    std::printf("midi.smoother: 100 ppm + 20 us noise: phase within %.2f us, intervals within %.2f us\n",
+                worstPhase / 1e3, worstInterval / 1e3);
+    CHECK(worstPhase < 2.0e3);
+    CHECK(worstInterval < 1.0e3);
+    // A 0.5 ms phase step (the anchor moved): followed smoothly — the next tick moves by 1 % of it.
+    int n = 3000;
+    double raw = line(n) + 0.5e6;
+    double d = sm.deadline(raw, n * frames, npf);
+    CHECK(std::fabs(d - line(n) - 0.005e6) < 2.0e3);
+    sm.commit(raw, n * frames, npf);
+    // A 2 ms step (a re-anchor after an xrun, a new port offset): straight to the raw deadline.
+    ++n;
+    raw = line(n) + 2.5e6;
+    CHECK(sm.deadline(raw, n * frames, npf) == raw);
+    sm.commit(raw, n * frames, npf);
+    // After a Start / Stop (reset): the raw deadline.
+    sm.reset();
+    ++n;
+    CHECK(sm.deadline(line(n) + 0.3e6, n * frames, npf) == line(n) + 0.3e6);
+}
+
+TEST_CASE("midi.sender: the wake-up margin follows the measured wake-up latency", "[midi]")
+{
+    io::midi::DeadlineWaiter w;
+    w.learn(0, 0);
+    CHECK(w.margin() == io::midi::DeadlineWaiter::kMinMarginNs); // an exact kernel: the least busy wait
+    w.learn(800000, 1000000);                                    // woken 0.8 ms late once
+    CHECK(w.margin() == 800000 * 3 / 2 + 50000);
+    w.learn(0, 1000000000); // 1 s later: the peak has decayed by e^-0.1
+    CHECK(w.margin() < 800000 * 3 / 2 + 50000);
+    CHECK(w.margin() > 1000000);
+    w.learn(0, 60000000000); // a quiet minute: back to the least
+    CHECK(w.margin() == io::midi::DeadlineWaiter::kMinMarginNs);
+    w.learn(5000000, 1000000); // a 5 ms stall: capped
+    CHECK(w.margin() == io::midi::DeadlineWaiter::kMaxMarginNs);
+    w.learn(0, 600000000000);
+    w.setFloorNs(500000); // midi_spin_us=500
+    w.learn(0, 1000000);
+    CHECK(w.margin() == 500000);
 }

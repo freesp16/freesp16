@@ -2,8 +2,10 @@
 // 02-features/midi.md MID-001/070, sync-and-transport.md SYN-011/020).
 //
 //   MIDI port thread (io/midi, one per input) ──pushIn (SPSC per port)──────▶ audio thread (engine/midi)
-//                                             ──pushForward (SPSC per port)─▶ MIDI sender thread (merge / thru, MID-002)
+//                                             ──pushForward (SPSC per port)─▶ MIDI sender thread (merge / thru,
+//                                             MID-002)
 //   audio thread ──pushOut (SPSC, sample-stamped)──────────────────────────▶ MIDI sender thread (io/midi/MidiSender)
+//   audio thread ──pushSync (SPSC, sample-stamped: clock, start/stop, SPP)─▶ MIDI clock thread (io/midi/MidiSender)
 //   audio thread ──publishAnchor (seqlock, once per device period)─────────▶ sender (sample time → monotonic time)
 //   audio thread ──pushUi (SPSC)───────────────────────────────────────────▶ message thread (CC → model, activity)
 //
@@ -27,6 +29,7 @@ namespace core::midi
 constexpr int kMaxPorts = 8;               // input ports and output ports, each (DIN + USB on the device; 8 is ours)
 constexpr std::size_t kInQueue = 512;      // per input port: ≥ 160 ms of a saturated 31.25 kbit/s DIN stream
 constexpr std::size_t kOutQueue = 2048;    // engine → sender (all ports)
+constexpr std::size_t kSyncQueue = 512; // engine → clock thread (all ports): ≥ 1 s of ticks at 300 BPM on 2 ports
 constexpr std::size_t kUiQueue = 1024;     // engine → message thread
 // ParamChange scope of the project-open marker (io::midi::postMidiSettings → engine::midi::MidiEngine): a MIDI track
 // value (midi.note1 … midi.mode) posted with it resets every scene's MIDI track values to their defaults (the
@@ -56,12 +59,20 @@ struct MidiEvent
 };
 
 // One outgoing message, stamped with the engine sample time it belongs to (MID-070). port = output port 0–7.
+// `frac`: the exact time minus `sampleTime` (the nearest frame), −½…+½ frame in 1/65536 frame, so a clock tick keeps
+// its exact position (a tick is rarely on a whole frame: 770.98 frames apart at 143 BPM) instead of being rounded by up
+// to half a frame (11 µs at 44.1 kHz).
 struct MidiOutEvent
 {
     std::uint8_t port = 0, size = 0;
     std::uint8_t bytes[3] {};
+    std::int16_t frac = 0;
     std::int64_t sampleTime = 0; // engine frame index (frames rendered since prepare)
+    double exactTime() const noexcept { return static_cast<double>(sampleTime) + frac * (1.0 / 65536.0); }
+    // System messages (clock, Start / Continue / Stop, Song Position): the clock thread's (MidiHub::pushSync).
+    bool system() const noexcept { return bytes[0] >= 0xF0; }
 };
+static_assert(sizeof(MidiOutEvent) == 16);
 
 // The audio clock as the sender sees it: engine frame `frame` leaves the engine at monotonic time `hostNs`
 // (period-start anchor, filtered by the engine's DLL), and one frame lasts `nsPerFrame`. `leadFrames`: how long after
@@ -112,6 +123,7 @@ public:
     // ---- audio thread ----
     bool popIn(int port, MidiEvent& e) noexcept { return valid(port) && in_[static_cast<std::size_t>(port)].pop(e); }
     bool pushOut(const MidiOutEvent& e) noexcept { return out_.push(e) || count(outDropped_); }
+    bool pushSync(const MidiOutEvent& e) noexcept { return sync_.push(e) || count(outDropped_); }
     bool pushUi(const UiEvent& e) noexcept { return ui_.push(e) || count(uiDropped_); }
     void publishAnchor(const ClockAnchor& a) noexcept
     {
@@ -129,6 +141,7 @@ public:
 
     // ---- sender thread ----
     bool popOut(MidiOutEvent& e) noexcept { return out_.pop(e); }
+    bool popSync(MidiOutEvent& e) noexcept { return sync_.pop(e); } // the clock thread
     bool popForward(int port, MidiEvent& e) noexcept
     {
         return valid(port) && forward_[static_cast<std::size_t>(port)].pop(e);
@@ -234,6 +247,7 @@ private:
     std::array<SpscQueue<MidiEvent, kInQueue>, kMaxPorts> in_ {};
     std::array<SpscQueue<MidiEvent, kInQueue>, kMaxPorts> forward_ {};
     SpscQueue<MidiOutEvent, kOutQueue> out_ {};
+    SpscQueue<MidiOutEvent, kSyncQueue> sync_{};
     SpscQueue<UiEvent, kUiQueue> ui_ {};
     std::atomic<std::uint32_t> seq_ {0};
     std::atomic<std::int64_t> frame_ {0}, hostNs_ {0};

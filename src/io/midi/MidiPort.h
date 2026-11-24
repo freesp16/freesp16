@@ -40,12 +40,22 @@ public:
     virtual int read(std::uint8_t* buffer, int capacity, int timeoutMs) = 0;
 };
 
+// What MidiOutput::write did.
+enum class WriteResult : std::uint8_t
+{
+    Written, // the whole message is on its way
+    Busy,    // nothing written: no room right now (a USB host that does not read, a full buffer) — try again later
+    Gone     // the port is gone (unplugged)
+};
+
 class MidiOutput
 {
 public:
     virtual ~MidiOutput() = default;
-    // Writes one complete message (sender thread only); false = the port is gone.
-    virtual bool write(const std::uint8_t* bytes, int size) = 0;
+    // Writes one complete message or nothing, and never blocks: a port that cannot take it now must not hold up the
+    // MIDI clock thread or the other ports. Called by the sender and the clock thread (MidiSender), never by both at
+    // once for the same port.
+    virtual WriteResult write(const std::uint8_t* bytes, int size) = 0;
     // Hands the output socket to this port's own input in hardware (the unit's DIN OUT / THRU switch) or back to
     // write(); false = the port has no such switch. Message thread, while the sender may be in write().
     virtual bool setHardwareThru(bool on) { return ! on; }

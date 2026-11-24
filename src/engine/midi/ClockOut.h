@@ -1,8 +1,8 @@
 // MIDI clock out (spec 02-features/sync-and-transport.md SYN-020/021, NFR-004; midi.md MID-012).
-// Audio thread, once per block after the transport (step 7). Sample-accurate: a tick is due at every PPQ
-// n/24 of the block's [ppqStart, ppqEnd), stamped with the engine frame of that PPQ (fractional position rounded to the
-// nearest frame: ≤ 11 µs at 44.1 kHz), so the stamps themselves carry no jitter; the sender's deadline sleep is the
-// only jitter source (NFR-004: ≤ 0.5 ms, measured p99).
+// Audio thread, once per block after the transport (step 7). Sub-sample accurate: a tick is due at every PPQ
+// n/24 of the block's [ppqStart, ppqEnd), stamped with the exact (fractional) engine frame of that PPQ — the nearest
+// frame + the rest in 1/65536 frame (MidiOutEvent::frac) — so the stamps carry no jitter at all, not even the
+// half-frame rounding; the clock thread's deadline wait is the only jitter source (NFR-004: ≤ 0.5 ms, measured p99).
 //
 //   transport start   Start (FA) when it starts at PPQ 0, else Song Position (F2, when enabled) + Continue (FB), on
 //                     the transport's start frame (a pre-count's end, an external clock's tick); the message precedes
@@ -54,12 +54,14 @@ public:
 
 private:
     void sendAll(std::uint32_t ports, std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, int size, std::int64_t t,
-                 MidiOutScheduler& out) noexcept
+                 MidiOutScheduler& out, std::int16_t frac = 0) noexcept
     {
         for (std::uint32_t m = ports, p = 0; m != 0; ++p, m >>= 1)
             if (m & 1u)
-                out.message(static_cast<int>(p), b0, b1, b2, size, t);
+                out.message(static_cast<int>(p), b0, b1, b2, size, t, frac);
     }
+    // A tick at in-block frame `f` (fractional): Timing Clock on every port, at the nearest frame + the rest.
+    void tick(std::uint32_t ports, std::int64_t blockStart, double f, MidiOutScheduler& out) noexcept;
     double sampleRate_ = 44100.0;
     double freePhase_ = 0.0; // ticks, while stopped (SYN-021)
     std::uint64_t ticks_ = 0;

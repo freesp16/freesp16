@@ -12,8 +12,10 @@
 #include "core/util/midi/CcTable.h"
 #include "io/midi/CcTableBuilder.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -127,13 +129,19 @@ inline Sample installSample(engine::Engine& e, int track, std::int64_t frames, d
     return b;
 }
 
-// Everything the engine sent to the hub's out queue so far (the test plays the sender).
+// Everything the engine sent to the hub's out and sync queues so far, in time order (the test plays the sender and the
+// clock thread; on the same time, the sync queue's message first).
 inline std::vector<core::midi::MidiOutEvent> drainOut(engine::Engine& e)
 {
-    std::vector<core::midi::MidiOutEvent> v;
+    std::vector<core::midi::MidiOutEvent> v, sync;
     core::midi::MidiOutEvent o;
     while (e.midi().hub().popOut(o))
         v.push_back(o);
-    return v;
+    while (e.midi().hub().popSync(o))
+        sync.push_back(o);
+    std::vector<core::midi::MidiOutEvent> all;
+    std::merge(sync.begin(), sync.end(), v.begin(), v.end(), std::back_inserter(all),
+               [](const auto& a, const auto& b) { return a.exactTime() < b.exactTime(); });
+    return all;
 }
 } // namespace miditest

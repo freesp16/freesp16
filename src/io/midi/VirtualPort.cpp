@@ -223,16 +223,16 @@ class VirtualOutput final : public MidiOutput
 {
 public:
     explicit VirtualOutput(std::shared_ptr<VirtualProvider::Shared> s) : s_(std::move(s)) {}
-    bool write(const std::uint8_t* bytes, int size) override
+    WriteResult write(const std::uint8_t* bytes, int size) override
     {
         if (! s_->present->load())
-            return false;
+            return WriteResult::Gone;
         VirtualRecord r {core::midi::monotonicNs(), {0, 0, 0}, static_cast<std::uint8_t>(size)};
         for (int i = 0; i < size && i < 3; ++i)
             r.bytes[i] = bytes[i];
         std::lock_guard<std::mutex> lock(s_->mutex);
         s_->received.push_back(r);
-        return true;
+        return WriteResult::Written;
     }
 
 private:

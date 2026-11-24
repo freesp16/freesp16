@@ -498,7 +498,7 @@ TEST_CASE("midi.clockout: a tick on a block boundary goes out once (playing and 
                 out.process(ctx, s, 1u, b * 64, ppf, engine::midi::ClockOutEdges {}, 0, sched);
                 sched.endBlock();
                 core::midi::MidiOutEvent e;
-                while (hub.popOut(e))
+                while (hub.popSync(e))
                     ticks.push_back(e.sampleTime);
             }
             const double expected = std::ceil(blocks * 64 * ppf * 24.0);
@@ -748,7 +748,7 @@ TEST_CASE("midi.out: with the default preferences a message is due exactly when 
         {
             const double due = io::midi::MidiSender::deadlineNs(o, anchor, e->midi().hub().outputLatencyMs(),
                                                                 e->midi().hub().portOffsetMs(0));
-            CHECK(due == anchor.timeOf(static_cast<double>(o.sampleTime) + anchor.leadFrames));
+            CHECK(due == anchor.timeOf(o.exactTime() + anchor.leadFrames));
             ++n;
         }
     }

@@ -4,6 +4,15 @@
 
 namespace engine::midi
 {
+void ClockOut::tick(std::uint32_t ports, std::int64_t blockStart, double f, MidiOutScheduler& out) noexcept
+{
+    const double whole = std::floor(f + 0.5 + 1e-6); // + 1e-6: PPQ rounding at a half frame
+    double rest = std::round((f - whole) * 65536.0);
+    rest = rest < -32768.0 ? -32768.0 : (rest > 32767.0 ? 32767.0 : rest);
+    sendAll(ports, 0xF8, 0, 0, 1, blockStart + static_cast<std::int64_t>(whole), out, static_cast<std::int16_t>(rest));
+    ++ticks_;
+}
+
 void ClockOut::process(const BlockContext& ctx, const ClockOutSettings& s, std::uint32_t ports,
                        std::int64_t blockStart, double ppqPerFrame, const ClockOutEdges& edges, std::int64_t spp16,
                        MidiOutScheduler& out) noexcept
@@ -46,12 +55,10 @@ void ClockOut::process(const BlockContext& ctx, const ClockOutSettings& s, std::
             const double end = std::ceil(p1 * 24.0);
             for (double n = first < 0.0 ? 0.0 : first; n < end; n += 1.0)
             {
-                const double f = (n / 24.0 - p0) / ppqPerFrame;
-                auto fr = static_cast<std::int64_t>(std::floor(f + 0.5 + 1e-6)); // + 1e-6: PPQ rounding at a half frame
-                if (edge && fr < edges.startFrame)
-                    fr = edges.startFrame;
-                sendAll(ports, 0xF8, 0, 0, 1, blockStart + fr, out);
-                ++ticks_;
+                double f = (n / 24.0 - p0) / ppqPerFrame;
+                if (edge && f < edges.startFrame)
+                    f = edges.startFrame;
+                tick(ports, blockStart, f, out);
             }
         }
         freePhase_ = 0.0;
@@ -68,9 +75,7 @@ void ClockOut::process(const BlockContext& ctx, const ClockOutSettings& s, std::
         // ticks — exactly (endPhase − ⌊endPhase⌋), so the next block's ⌈phase⌉ continues this block's count.
         for (double n = std::ceil(freePhase_); n < std::ceil(endPhase); n += 1.0)
         {
-            const auto fr = static_cast<std::int64_t>(std::floor((n - freePhase_) / ticksPerFrame + 0.5 + 1e-6));
-            sendAll(ports, 0xF8, 0, 0, 1, blockStart + fr, out);
-            ++ticks_;
+            tick(ports, blockStart, (n - freePhase_) / ticksPerFrame, out);
         }
         freePhase_ = endPhase - std::floor(endPhase);
     }
