@@ -501,3 +501,39 @@ TEST_CASE("midi.clockout: a tick on a block boundary goes out once (playing and 
         }
     }
 }
+
+TEST_CASE("midi.out: with the default preferences a message is due exactly when its frame is heard", "[midi]")
+{
+    // OUTPUT LATENCY is an extra trim (default 0): the anchor's lead (the output buffer) is the whole compensation.
+    const auto* latency = core::builtinParams().find("midi.outLatency");
+    const auto* offset = core::builtinParams().find("midi.portOffset");
+    REQUIRE(latency != nullptr);
+    REQUIRE(offset != nullptr);
+    CHECK(latency->defaultValue == 0.0f);
+    auto e = miditest::make(kRate);
+    CHECK(e->midi().hub().outputLatencyMs() == 0); // the hub before the preferences are posted
+    miditest::Driver d {*e, 256};
+    d.param("midi.outLatency", 0, latency->defaultValue);
+    d.param("midi.portOffset", 0, offset->defaultValue);
+    e->midi().hub().setOutputConnected(0, true);
+    d.param("midi.out.clock", 0, 1.0f);
+    e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+    std::size_t n = 0;
+    for (int p = 0; p < 400; ++p) // 2.3 s
+    {
+        float* out[12] = {d.l.data(), d.r.data()};
+        const auto frame = static_cast<std::int64_t>(e->blocksRendered()) * 64;
+        e->process(engine::AudioIO {out, 1, nullptr, 0, 256,
+                                    static_cast<std::uint64_t>(3.0e9 + static_cast<double>(frame) * 1.0e9 / kRate),
+                                    768});
+        const auto anchor = e->midi().hub().anchor();
+        for (const auto& o : miditest::drainOut(*e))
+        {
+            const double due = io::midi::MidiSender::deadlineNs(o, anchor, e->midi().hub().outputLatencyMs(),
+                                                                e->midi().hub().portOffsetMs(0));
+            CHECK(due == anchor.timeOf(static_cast<double>(o.sampleTime) + anchor.leadFrames));
+            ++n;
+        }
+    }
+    CHECK(n > 80);
+}

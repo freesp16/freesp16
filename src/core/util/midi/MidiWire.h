@@ -244,7 +244,7 @@ private:
     std::array<std::atomic<std::uint32_t>, kMaxPorts> generation_ {};
     std::array<std::atomic<std::int8_t>, kMaxPorts> mode_ {};
     std::array<std::atomic<std::int16_t>, kMaxPorts> offset_ {};
-    std::atomic<std::int16_t> latency_ {12};
+    std::atomic<std::int16_t> latency_ {0}; // = midi.outLatency's default (an extra trim; the lead is the buffer)
     std::atomic<std::uint64_t> inDropped_ {0}, outDropped_ {0}, uiDropped_ {0}, forwardDropped_ {0};
 };
 
