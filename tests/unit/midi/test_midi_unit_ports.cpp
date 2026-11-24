@@ -25,6 +25,7 @@
 #include <string>
 #include <thread>
 
+#include <fcntl.h>
 #include <unistd.h>
 
 namespace
@@ -360,6 +361,54 @@ TEST_CASE("midi.unit: USB-B into MIDI mode — the gadget, the command, the runn
     const auto t0 = std::chrono::steady_clock::now();
     CHECK(um::runCommand({"sleep", "5"}, "/", 100) == -1); // killed at the timeout
     CHECK(std::chrono::steady_clock::now() - t0 < std::chrono::seconds(3));
+
+    // The timeout kills the whole group: a child the command started goes too.
+    const auto pidFile = std::filesystem::temp_directory_path() / ("run-group-test-" + std::to_string(::getpid()));
+    CHECK(um::runCommand({"sh", "-c", "sleep 30 & echo $! > \"$1\"; wait", "sh", pidFile.string()}, "/", 300) == -1);
+    int child = 0;
+    std::ifstream(pidFile) >> child;
+    std::filesystem::remove(pidFile);
+    REQUIRE(child > 0);
+    bool gone = false;
+    for (int i = 0; i < 100 && ! gone; ++i) // killed; reaped by init (or a subreaper) soon after
+    {
+        std::ifstream stat("/proc/" + std::to_string(child) + "/stat");
+        std::string line;
+        gone = ! std::getline(stat, line) || line.find(") Z") != std::string::npos;
+        if (! gone)
+            sleepMs(10);
+    }
+    CHECK(gone);
+
+    // None of this process's descriptors reaches the command.
+    const int fd = ::open("/dev/null", O_RDONLY); // no O_CLOEXEC
+    REQUIRE(fd > 2);
+    CHECK(um::runCommand({"sh", "-c", "test ! -e /proc/$$/fd/" + std::to_string(fd)}, "/", 5000) == 0);
+    ::close(fd);
+
+    // Abandoned: returns at once, the command is left running.
+    std::atomic<bool> abandon{false};
+    const auto t1 = std::chrono::steady_clock::now();
+    std::thread stopper(
+        [&]
+        {
+            sleepMs(100);
+            abandon = true;
+        });
+    CHECK(um::runCommand({"sleep", "1"}, "/", 30000, &abandon) == um::kAbandoned);
+    stopper.join();
+    CHECK(std::chrono::steady_clock::now() - t1 < std::chrono::milliseconds(800));
+
+    // A host on USB-B: the controller's state reads "configured".
+    const auto udc = std::filesystem::temp_directory_path() / ("udc-test-" + std::to_string(::getpid()));
+    std::filesystem::create_directories(udc / "ci_hdrc.0");
+    CHECK_FALSE(um::hostConfigured(udc.string()));
+    std::ofstream(udc / "ci_hdrc.0" / "state") << "not attached\n";
+    CHECK_FALSE(um::hostConfigured(udc.string()));
+    std::ofstream(udc / "ci_hdrc.0" / "state") << "configured\n";
+    CHECK(um::hostConfigured(udc.string()));
+    std::filesystem::remove_all(udc);
+    CHECK_FALSE(um::hostConfigured(udc.string()));
 }
 
 namespace
@@ -368,7 +417,8 @@ struct FakeUnit
 {
     std::mutex m;
     um::UsbGadget gadget = um::UsbGadget::Storage;
-    bool script = true;
+    bool script = true, host = false;
+    int runMs = 0; // how long a run takes (polling `abandon`)
     std::vector<std::vector<std::string>> runs;
     std::vector<std::string> logs;
     um::UsbMidiMode::Env env()
@@ -379,9 +429,20 @@ struct FakeUnit
             return gadget;
         };
         e.exists = [this](const char*) { return script; };
-        e.run = [this](const std::vector<std::string>& argv) {
+        e.hostAttached = [this] { return host; };
+        e.run = [this](const std::vector<std::string>& argv, const std::atomic<bool>& abandon)
+        {
+            {
+                std::lock_guard<std::mutex> lock(m);
+                runs.push_back(argv);
+            }
+            for (int waited = 0; waited < runMs; waited += 5)
+            {
+                if (abandon.load())
+                    return um::kAbandoned;
+                sleepMs(5);
+            }
             std::lock_guard<std::mutex> lock(m);
-            runs.push_back(argv);
             gadget = um::UsbGadget::Midi;
             return 0;
         };
@@ -438,6 +499,40 @@ TEST_CASE("midi.unit: USB-B into MIDI mode once, after the grace period", "[midi
         mode.wait();
         CHECK(u.runs.empty());
         CHECK(mode.settled());
+    }
+    SECTION("storage mode with a computer on USB-B: left alone, logged")
+    {
+        FakeUnit u;
+        u.host = true;
+        um::UsbMidiMode mode(u.env(), 1);
+        for (int i = 0; i < 5; ++i)
+            mode.tick();
+        mode.wait();
+        CHECK(u.runs.empty());
+        CHECK(mode.settled());
+        REQUIRE_FALSE(u.logs.empty());
+        CHECK(u.logs.back().find("host=configured") != std::string::npos);
+    }
+    SECTION("quitting while the command runs does not wait for it")
+    {
+        FakeUnit u;
+        u.runMs = 30000;
+        const auto t0 = std::chrono::steady_clock::now();
+        {
+            um::UsbMidiMode mode(u.env(), 1);
+            mode.tick();
+            const auto started = [&u]
+            {
+                std::lock_guard<std::mutex> lock(u.m);
+                return ! u.runs.empty();
+            };
+            for (int i = 0; i < 100 && ! started(); ++i)
+                sleepMs(5);
+        }
+        CHECK(std::chrono::steady_clock::now() - t0 < std::chrono::seconds(2));
+        std::lock_guard<std::mutex> lock(u.m);
+        CHECK(u.runs.size() == 1);
+        CHECK(u.logs.back().find("abandoned") != std::string::npos);
     }
     SECTION("storage mode without the unit's script: logged, nothing runs")
     {
