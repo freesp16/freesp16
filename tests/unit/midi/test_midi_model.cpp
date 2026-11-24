@@ -103,7 +103,7 @@ TEST_CASE("midi.model: opening another project replaces every MIDI value of the 
     CHECK(e->midi().receiveChannel(2) == 3);
     CHECK(noteHeard()); // ENABLE again
     const auto& m = e->midi().track(2, 7);
-    CHECK(m.notes[1] == -1);
+    CHECK(m.notes[1] == 0); // NOTE2 off (a semitone offset, 0 = off)
     CHECK(m.ccValue[4] == 0);
     CHECK_FALSE(m.ccActive[4]);
     // The send channel too: a MIDI track 1 of B sends on CH.1, not A's CH.9.
