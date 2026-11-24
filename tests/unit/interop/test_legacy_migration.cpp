@@ -31,7 +31,7 @@ namespace store = services::store;
 
 namespace
 {
-juce::File nativeFixture(const char* version, const char* name)
+juce::File nativeFixture(const juce::String& version, const char* name)
 {
     return interop_test::sourceDir().getChildFile("tests/fixtures/native").getChildFile(version).getChildFile(name);
 }
@@ -481,34 +481,39 @@ TEST_CASE("migration v2 → v3: unit cases on the migration root", "[interop][mi
     }
 }
 
-TEST_CASE("migration: v1 bundles chain through v2 and v3 to v4; a newer bundle opens read-only", "[interop][migration]")
+TEST_CASE("migration: v1 bundles chain to the current schema; a newer bundle opens read-only", "[interop][migration]")
 {
     for (const char* name : {"default.sixteen", "beat.sixteen", "random-42.sixteen"})
     {
         INFO(name);
         const auto o = openNative(nativeFixture("v1", name));
-        std::vector<std::string> converted;
-        for (const auto& w : o.report.warnings)
-            if (w.rfind("converted from an older format: ", 0) == 0)
-                converted.push_back(w);
-        REQUIRE(converted.size() >= 3);
-        CHECK(converted[converted.size() - 2].find("project origin recorded") != std::string::npos); // 2 → 3
-        CHECK(converted.back().find("MIDI NOTE2-4") != std::string::npos);                         // 3 → 4 last
+        auto warning = o.report.warnings.begin();
+        for (const char* summary : {"MIDI IN / OUT CLOCK", "project origin recorded", "MIDI NOTE2-4", "SET SCALE"})
+        {
+            CAPTURE(summary);
+            const auto prefix = std::string("converted from an older format: ") + summary;
+            warning = std::find_if(warning, o.report.warnings.end(),
+                                   [&](const std::string& text) { return text.starts_with(prefix); });
+            REQUIRE(warning != o.report.warnings.end());
+            ++warning;
+        }
         CHECK_FALSE(o.report.readOnly);
     }
 
     // A bundle of a future schema: read-only, never migrated down, never rewritten.
-    const auto src = nativeFixture("v4", "beat.sixteen");
+    const auto src = nativeFixture("v" + juce::String(store::kSchemaVersion), "beat.sixteen");
     const auto dir = interop_test::temp().dir().getChildFile("future.sixteen");
     dir.deleteRecursively();
     REQUIRE(src.copyDirectoryTo(dir));
     for (const char* f : {"meta.json", "project.json"})
     {
         auto file = dir.getChildFile(f);
-        const auto text = file.loadFileAsString();
-        const auto from = "\"version\": " + juce::String(store::kSchemaVersion) + " }";
-        REQUIRE(text.contains(from));
-        REQUIRE(file.replaceWithText(text.replace(from, "\"version\": " + juce::String(store::kSchemaVersion + 1) + " }")));
+        const auto json = juce::JSON::parse(file);
+        auto* format = json["format"].getDynamicObject();
+        REQUIRE(format != nullptr);
+        REQUIRE(static_cast<int>(format->getProperty("version")) == store::kSchemaVersion);
+        format->setProperty("version", store::kSchemaVersion + 1);
+        REQUIRE(file.replaceWithText(juce::JSON::toString(json)));
     }
     const auto o = openNative(dir);
     CHECK(o.report.readOnly);

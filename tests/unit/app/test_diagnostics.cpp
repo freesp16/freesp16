@@ -83,8 +83,9 @@ TEST_CASE("app diag: system lines, mounts, memory", "[app][diag]")
     CHECK(has("midi rawmidi="));
     CHECK(has("midi unit din_midi="));
 #if defined(__linux__)
-    CHECK(app::diag::residentKb() > 0);
-    CHECK(app::diag::peakResidentKb() >= app::diag::residentKb());
+    const auto resident = app::diag::residentKb();
+    CHECK(resident > 0);
+    CHECK(app::diag::peakResidentKb() >= resident);
     CHECK(app::diag::freeBytes("/tmp") > 0);
     CHECK(app::diag::mountOf("/tmp/x/y").size() > 2);
 #endif

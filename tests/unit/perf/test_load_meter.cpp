@@ -11,6 +11,9 @@
 #include <chrono>
 #include <memory>
 #include <thread>
+#if defined(__linux__)
+#include <time.h>
+#endif
 
 namespace engine
 {
@@ -33,6 +36,18 @@ namespace
 constexpr double kRate = 44100.0;
 constexpr int kBlock = 64;
 constexpr double kPeriod = 1.0e9 * kBlock / kRate; // 1451247 ns = cycles at 1 GHz
+
+std::chrono::nanoseconds meterClockNow()
+{
+#if defined(__linux__)
+    // steady_clock is frequency-adjusted on Linux. Time the stimulus on the raw clock the meter measures.
+    timespec ts{};
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    return std::chrono::seconds(ts.tv_sec) + std::chrono::nanoseconds(ts.tv_nsec);
+#else
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch());
+#endif
+}
 
 std::unique_ptr<LoadMeter> prepared()
 {
@@ -141,8 +156,8 @@ TEST_CASE("load meter: real clock, real-time thread, no allocation, concurrent s
             m->begin();
             if (i % 1000 == 0) // a few slow blocks: ~200 µs busy wait
             {
-                const auto until = std::chrono::steady_clock::now() + std::chrono::microseconds(200);
-                while (std::chrono::steady_clock::now() < until)
+                const auto until = meterClockNow() + std::chrono::microseconds(200);
+                while (meterClockNow() < until)
                 {
                 }
             }
