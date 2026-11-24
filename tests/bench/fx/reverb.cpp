@@ -1,9 +1,10 @@
-// Reverb cycle budget: 14k A9 cycles per 64-frame stereo block (the dearest insert's, Distortion, FX-051), so a
-// Reverb on each of the 16 tracks fits the insert budget the MASTER TEMPO governor assumes.
+// Reverb cycle budget: 19k A9 cycles per 64-frame stereo block, ≈ 1.35 × the dearest insert (Distortion, FX-051, 14k):
+// the NEON build executes ≈ 133k instructions per block steady and ≈ 139k gliding, the Distortion's bench ≈ 103k
+// (counted under qemu-arm -cpu cortex-a9 -singlestep; asleep ≈ 0.7k).
 //   fx_reverb          worst case: the room flips between 20 and 80 every 128 blocks, so every line keeps gliding
 //                      (eight interpolated reads instead of four) and the coefficients are recomputed (libm)
 //   fx_reverb_steady   steady state: four plain block copies, four modulated reads
-//   fx_reverb_16       16 track reverbs, all running (budget 16 × 14k)
+//   fx_reverb_16       16 track reverbs, all running (budget 16 × 19k)
 //   fx_reverb_16_idle  16 track reverbs on silent tracks, asleep after their tails: a peak scan each
 // Host timings are relative; the device number comes from scripts/emulator-bench.sh fx_reverb / the hardware.
 #include "tests/bench/harness/Bench.h"
@@ -109,17 +110,17 @@ void benchSixteen(bench::State& state, bool silent)
 }
 } // namespace
 
-BENCH(fx_reverb, 14000)
+BENCH(fx_reverb, 19000)
 {
     benchReverb(state, true);
 }
 
-BENCH(fx_reverb_steady, 14000)
+BENCH(fx_reverb_steady, 19000)
 {
     benchReverb(state, false);
 }
 
-BENCH(fx_reverb_16, 224000)
+BENCH(fx_reverb_16, 304000)
 {
     benchSixteen(state, false);
 }

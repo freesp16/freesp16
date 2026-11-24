@@ -23,8 +23,8 @@
 // CPU (the point of the design: up to 16 track reverbs plus the Send and the Master):
 //   - all eight lines are longer than a block, so every ring is read and written as whole blocks (memcpy) and the
 //     diffusers run as vector operations; only the matrix runs per sample (NEON: 4 samples × 8 lines transposed into
-//     two float32x4 per sample). Steady state ≈ the Distortion insert's cost; libm (exp, cos, sqrt) only when Room,
-//     Time or Damping change.
+//     two float32x4 per sample). Steady state ≈ 1.3 × the Distortion insert (instructions executed, NEON build);
+//     libm (exp, cos, sqrt) only when Room, Time or Damping change.
 //   - sleep: once the input has been silent long enough for everything to have entered the network and the wet
 //     output has decayed below −120 dBFS, the reverb clears its rings (O(1)) and returns silence without running;
 //     the first non-silent input block wakes it. A reverb on a silent track costs a peak scan per block.
