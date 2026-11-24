@@ -1,6 +1,8 @@
 #include "platform/common/midi/UnitMidi.h"
 
+#include <errno.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 namespace platform::unitmidi
@@ -28,6 +30,28 @@ int realtimeCode(std::uint8_t status) noexcept
         case 0xFF: return 5; // system reset
         default: return -1;
     }
+}
+
+int ioctlSubmit(int fd, std::uint32_t* code) noexcept
+{
+    return ::ioctl(fd, kDinRealtimeIoctl, code);
+}
+
+QueueResult queueRealtime(int fd, int code, QueueSubmit submit) noexcept
+{
+    auto request = static_cast<std::uint32_t>(code);
+    for (int attempt = 0; attempt < 8; ++attempt)
+    {
+        if (submit(fd, &request) == 0)
+            return QueueResult::Queued;
+        const int e = errno;
+        if (e == EINTR)
+            continue;
+        if (e == EAGAIN || e == EWOULDBLOCK || e == EBUSY || e == ENOBUFS)
+            return QueueResult::RawThisTime;
+        return QueueResult::Disable;
+    }
+    return QueueResult::RawThisTime; // interrupted again and again: this byte the other way
 }
 
 bool setHardwareThru(bool on, const char* path) noexcept

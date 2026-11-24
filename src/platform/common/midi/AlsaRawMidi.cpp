@@ -12,8 +12,9 @@
 //   - switches the socket to hardware THRU when port A is set to THRU A (MidiService: DIN IN → DIN OUT, every byte);
 //   - writes the real-time bytes (clock, start, continue, stop) through /dev/din_midi's priority queue, so a tick never
 //     waits behind note bytes in the raw MIDI buffer (31.25 kbit/s: 0.32 ms a byte); a song position is drained out
-//     before the Continue that follows it can overtake it. Without /dev/din_midi (or when its ioctl fails) everything
-//     goes through the raw MIDI device.
+//     before the Continue that follows it can overtake it. Without /dev/din_midi (or when its ioctl fails for good)
+//     everything goes through the raw MIDI device; a full queue sends that one byte the raw way
+//     (unitmidi::queueRealtime).
 // The USB port is put into USB MIDI mode once per run if the unit was left in USB storage mode (UsbMidiMode.h; the
 // setting midi_usb=0 leaves it as found).
 // The desktop: every raw MIDI device of the sound cards (USB interfaces, snd-virmidi).
@@ -28,7 +29,6 @@
 #include <alsa/asoundlib.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -113,11 +113,14 @@ public:
             const int code = unitmidi::realtimeCode(bytes[0]);
             if (code >= 0)
             {
-                auto request = static_cast<std::uint32_t>(code);
-                if (::ioctl(fd_, unitmidi::kDinRealtimeIoctl, &request) == 0)
+                const auto r = unitmidi::queueRealtime(fd_, code);
+                if (r == unitmidi::QueueResult::Queued)
                     return true;
-                ::close(fd_); // the queue refused: everything through the raw MIDI device from now on
-                fd_ = -1;
+                if (r == unitmidi::QueueResult::Disable)
+                {
+                    ::close(fd_); // the queue does not work: everything through the raw MIDI device from now on
+                    fd_ = -1;
+                }
             }
         }
         const ssize_t r = snd_rawmidi_write(h_, bytes, static_cast<size_t>(size));

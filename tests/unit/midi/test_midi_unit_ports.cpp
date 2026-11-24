@@ -15,6 +15,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -166,6 +168,34 @@ TEST_CASE("midi.unit: the unit's cards, real-time codes and the OUT/THRU switch"
     CHECK(um::realtimeCode(0xFF) == 5);
     for (int b : {0x90, 0xF2, 0xF0, 0xF9, 0xFD, 0x00})
         CHECK(um::realtimeCode(static_cast<std::uint8_t>(b)) == -1);
+
+    // The priority queue's ioctl: EINTR is retried, a full queue sends this byte the raw way, other errors disable it.
+    static int calls = 0;
+    static std::vector<int> script; // errno per call, 0 = success
+    const auto submit = [](int, std::uint32_t* code) -> int
+    {
+        const int e = calls < static_cast<int>(script.size()) ? script[static_cast<std::size_t>(calls)] : 0;
+        ++calls;
+        if (e == 0)
+            return *code == 2 ? 0 : -1;
+        errno = e;
+        return -1;
+    };
+    const auto run = [&](std::vector<int> errnos)
+    {
+        calls = 0;
+        script = std::move(errnos);
+        return um::queueRealtime(3, 2, submit);
+    };
+    CHECK(run({}) == um::QueueResult::Queued);
+    CHECK(run({EINTR, EINTR}) == um::QueueResult::Queued);
+    CHECK(calls == 3);
+    CHECK(run({EAGAIN}) == um::QueueResult::RawThisTime);
+    CHECK(run({ENOBUFS}) == um::QueueResult::RawThisTime);
+    CHECK(run({EINTR, EINVAL}) == um::QueueResult::Disable);
+    CHECK(run({ESRCH}) == um::QueueResult::Disable);
+    CHECK(run(std::vector<int>(20, EINTR)) == um::QueueResult::RawThisTime); // bounded
+    CHECK(calls < 20);
 
     const auto path = std::filesystem::temp_directory_path() / ("midi-through-test-" + std::to_string(::getpid()));
     std::ofstream(path).put('x');

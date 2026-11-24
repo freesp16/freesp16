@@ -40,6 +40,19 @@ inline constexpr unsigned long kDinRealtimeIoctl = 0x40047000UL; // DIN_MIDI_IOC
 // The /dev/din_midi code of a real-time status byte (F8 0, FA 1, FB 2, FC 3, FE 4, FF 5); −1 = not one it takes.
 int realtimeCode(std::uint8_t status) noexcept;
 
+// Queues real-time code `code` on /dev/din_midi (`fd`) through `submit` (the ioctl; 0, or −1 with errno set): an
+// interrupted call is retried; a full or busy queue (EAGAIN, EBUSY, ENOBUFS) sends this byte through the raw MIDI
+// device instead; any other error means the queue does not work here (Disable: everything through the raw device).
+enum class QueueResult : std::uint8_t
+{
+    Queued,
+    RawThisTime,
+    Disable
+};
+using QueueSubmit = int (*)(int fd, std::uint32_t* code);
+int ioctlSubmit(int fd, std::uint32_t* code) noexcept; // ioctl(fd, kDinRealtimeIoctl, code)
+QueueResult queueRealtime(int fd, int code, QueueSubmit submit = &ioctlSubmit) noexcept;
+
 // Writes '1' (hardware THRU: DIN IN → DIN OUT) or '0' (the socket is UART2's) to `path`; false when it cannot.
 bool setHardwareThru(bool on, const char* path = kMidiThroughPath) noexcept;
 } // namespace platform::unitmidi
