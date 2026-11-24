@@ -50,10 +50,7 @@ void TrackSource::setMode(TrackMode m) noexcept
     voice_.stop(0, kFadeMs); // the sounding note fades out (the envelope keeps applying while it does)
     numStarts_ = 0;
     if (mode_ == TrackMode::Plugin && plugin_ != nullptr)
-    {
         plugin_->allNotesOff(0);
-        lastPluginNote_ = -1;
-    }
     if (mode_ == TrackMode::Thru && bank_ != nullptr && thruEnvelope_)
     {
         bank_->setThru(lane_, false); // back to an idle envelope; the input fades out below
@@ -69,7 +66,6 @@ void TrackSource::setPlugin(core::audio::PluginAudioNode* p) noexcept
     if (plugin_ != nullptr)
         plugin_->allNotesOff(0);
     plugin_ = p;
-    lastPluginNote_ = -1;
 }
 
 void TrackSource::setPlayback(const voice::PlaybackParams& p) noexcept
@@ -136,18 +132,13 @@ void TrackSource::onEvent(const TriggerEvent& e, TriggerMode triggerMode) noexce
             case TriggerKind::Full:
             case TriggerKind::Half:
                 plugin_->noteOn(frame, note, vel > 1.0f ? 1.0f : (vel < 0.0f ? 0.0f : vel));
-                lastPluginNote_ = note;
                 return;
             case TriggerKind::Release:
-                if (lastPluginNote_ >= 0)
-                {
-                    plugin_->noteOff(frame, lastPluginNote_);
-                    lastPluginNote_ = -1;
-                }
+                // The router retains the pitch from the pad press. Other notes on this track may still be held.
+                plugin_->noteOff(frame, note);
                 return;
             case TriggerKind::Stop:
                 plugin_->allNotesOff(frame);
-                lastPluginNote_ = -1;
                 return;
             case TriggerKind::LockOnly: return;
         }
@@ -217,7 +208,6 @@ void TrackSource::choke(int frame) noexcept
     {
         if (plugin_ != nullptr)
             plugin_->allNotesOff(f);
-        lastPluginNote_ = -1;
         return;
     }
     int kept = 0; // starts at or before the choke frame never sound; later ones (a re-hit) still do

@@ -110,7 +110,6 @@ private:
     int numStarts_ = 0;
     const voice::SliceMap* sliceMap_ = nullptr;
     core::audio::PluginAudioNode* plugin_ = nullptr;
-    int lastPluginNote_ = -1;
     int heldSlice_ = -1, liveSlice_ = -1, noteSlice_ = -1; // Hold lock, last pad slice (Repeat hits), sounding
     alignas(16) float gain_[kBlockFrames] {};
     alignas(16) float tailL_[kBlockFrames] {};

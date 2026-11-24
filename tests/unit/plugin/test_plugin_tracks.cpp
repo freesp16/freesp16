@@ -11,6 +11,7 @@
 #include "engine/Engine.h"
 #include "services/store/NativeCodec.h"
 #include "tests/unit/store/StoreTestSupport.h"
+#include "tests/unit/trigger/TriggerRig.h"
 #include "ui/render/Damage.h"
 #include "ui/render/DrawList.h"
 #include "ui/render/GlyphAtlas.h"
@@ -49,6 +50,7 @@ public:
     }
     void noteOff(int, int note) noexcept override
     {
+        lastOffNote = note;
         if (note == lastNote)
             sounding = false;
         ++noteOffs;
@@ -71,7 +73,7 @@ public:
     }
     bool active() const noexcept override { return sounding; }
 
-    int lastNote = -1;
+    int lastNote = -1, lastOffNote = -1;
     float lastVel = 0.0f;
     int noteOns = 0, noteOffs = 0, allOffs = 0;
     bool sounding = false;
@@ -330,6 +332,39 @@ TEST_CASE("plugin: Engine SwapSlot::TrackPlugin renders audio on triggers and re
     CHECK(destroyed.load() == 0); // test still owns its initial ref
     mock->release();
     CHECK(destroyed.load() == 1);
+}
+
+TEST_CASE("plugin: overlapping scale pads release their own notes", "[plugin][engine]")
+{
+    using namespace engine::trigger;
+    auto rig = trigtest::makeRig();
+    MockPluginNode mock(nullptr);
+    rig->src[0].setMode(TrackMode::Plugin);
+    rig->src[0].setPlugin(&mock);
+    rig->router.setPadParam(PadField::Mode, static_cast<float>(PadMode::Scale));
+
+    for (const auto& order : {std::array{0, 1}, std::array{1, 0}})
+    {
+        CAPTURE(order[0]);
+        const int noteOffs = mock.noteOffs;
+        REQUIRE(rig->router.pushLive(engine::TriggerNow{0, 100, 60, 0}));
+        REQUIRE(rig->router.pushLive(engine::TriggerNow{1, 100, 60, 1}));
+        rig->block();
+        CHECK(mock.lastNote == 61);
+
+        // Releasing after a scale edit must still stop the note that sounded on the press.
+        rig->param(0, TrackField::KeyShift, 5.0f);
+        for (int pad : order)
+        {
+            REQUIRE(rig->router.pushLive(
+                engine::TriggerNow{static_cast<std::uint8_t>(pad), 0, 60, static_cast<std::int8_t>(pad)}));
+            rig->block();
+            CHECK(mock.lastOffNote == 60 + pad);
+        }
+        CHECK(mock.noteOffs == noteOffs + 2);
+        rig->param(0, TrackField::KeyShift, 0.0f);
+    }
+    rig->src[0].setPlugin(nullptr);
 }
 
 TEST_CASE("plugin: TRACK TYPE -> PLUGIN (mode-only) -> SELECT PLUGIN -> track.plugin custom UI + 6 knobs", "[plugin][ui]")
