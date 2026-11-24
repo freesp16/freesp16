@@ -1,16 +1,17 @@
 // The MIDI output threads (spec 02-features/midi.md MID-002/070, sync-and-transport.md SYN-020, NFR-004).
 //
-// Two threads, both SCHED_FIFO when the system allows it (best effort):
+// Two threads with their roles (core/util/ThreadRole.h: cores and SCHED_FIFO priority from the thread map, best
+// effort):
 //
-//   clock thread   (priority 80, above the audio thread and the MIDI input threads) the hub's sync queue only: Timing
-//                  Clock, Start / Continue / Stop and Song Position, which the engine stamps with the exact
-//                  (sub-sample) frame they belong to. Nothing else ever runs on it, so a tick is never held up by
-//                  notes, forwarding, lamp feedback or a port that does not take data: it sleeps to each tick's
+//   clock thread   (Role::Clock, FIFO 80: above the audio thread and the MIDI input threads) the hub's sync queue
+//                  only: Timing Clock, Start / Continue / Stop and Song Position, which the engine stamps with the
+//                  exact (sub-sample) frame they belong to. Nothing else ever runs on it, so a tick is never held up
+//                  by notes, forwarding, lamp feedback or a port that does not take data: it sleeps to each tick's
 //                  absolute deadline and writes it.
-//   sender thread  (priority 65, below the audio thread) the hub's out queue (notes, CCs, program changes …), the
-//   forwarder (MID-002: copies
-//                  the inputs' messages to OUT + MERGE A/B and THRU A/B ports at once, A = input port 0, B = input port
-//                  1, except to a port in hardware THRU) and sendNow (controller lamps).
+//   sender thread  (Role::MidiOut, FIFO 65: below the audio thread) the hub's out queue (notes, CCs, program
+//                  changes …), the forwarder (MID-002: copies the inputs' messages to OUT + MERGE A/B and THRU A/B
+//                  ports at once, A = input port 0, B = input port 1, except to a port in hardware THRU) and sendNow
+//                  (controller lamps).
 //
 // Deadline of a message = the audio clock anchor (the engine's DLL-filtered period start: the deadlines follow the
 // audio clock, so the MIDI clock neither drifts from the audio nor carries the audio callback's wake-up jitter) + the
@@ -29,9 +30,9 @@
 // Ports: a write never blocks (MidiOutput::write); a port that is busy (a USB host that does not read) keeps its
 // message and is retried 1 ms later — sleeping, never spinning — while the other ports go on; on the clock thread a
 // message that is still busy 50 ms past its deadline is dropped (a burst of stale ticks would be worse than none). Each
-// port has a plain mutex (the two threads may both write to it, never at once, and the message thread swaps it on
-// hot-plug under that lock; held only for one non-blocking write). Not a priority-inheritance mutex: the unit's
-// kernel (3.0, ARM) may lack PI futexes, and then glibc refuses to create one.
+// port has a core::PiMutex (the two threads may both write to it, never at once, and the message thread swaps it on
+// hot-plug under that lock; held only for one non-blocking write): priority inheritance where the kernel has PI
+// futexes, probed once, and a plain mutex where it does not (the unit's 3.0 ARM kernel may lack them).
 //
 // Jitter (NFR-004: ≤ 0.5 ms p99): every write's lateness (write time − deadline) goes into a 10 µs histogram, one for
 // the clock thread and one for the sender; stats() reports p50 / p99 / max of the clock's (what a receiver's tempo
@@ -39,6 +40,8 @@
 // offset larger than the latency, a stalled thread) is counted late.
 #pragma once
 
+#include "core/util/PiMutex.h"
+#include "core/util/ThreadRole.h"
 #include "core/util/midi/MidiWire.h"
 #include "io/midi/MidiPort.h"
 
@@ -170,7 +173,6 @@ public:
     static constexpr int kRing = 1024;                 // per output port and thread
     static constexpr std::int64_t kRetryNs = 1000000;  // a busy port is tried again after 1 ms
     static constexpr std::int64_t kStaleNs = 50000000; // the clock thread drops what is still busy 50 ms late
-    static constexpr int kClockPriority = 80, kSenderPriority = 65;
 
     explicit MidiSender(core::midi::MidiHub& hub) : hub_(hub) {}
     ~MidiSender() { stop(); }
@@ -245,13 +247,13 @@ private:
     // The written / dropped head of a clock lane (its raw deadline and the anchor's rate: the tick smoother's input).
     void popClock(Lanes& lanes, int port, double raw, double nsPerFrame) noexcept;
     WriteResult write(int port, const std::uint8_t* bytes, int size) noexcept;
-    bool startThread(std::thread& t, int priority, void (MidiSender::*body)());
+    bool startThread(std::thread& t, core::threads::Role role, const char* name, void (MidiSender::*body)());
 
     core::midi::MidiHub& hub_;
     std::thread clock_, sender_;
     std::atomic<bool> quit_{false};
     std::atomic<std::uint32_t> failed_ {0}, hardwareThru_ {0};
-    std::array<std::mutex, kPorts> portLocks_; // one port's writes ↔ its swap (message thread)
+    std::array<core::PiMutex, kPorts> portLocks_; // one port's writes ↔ its swap (message thread)
     std::array<MidiOutput*, kPorts> outputs_ {};
     Lanes clockLanes_, noteLanes_;
     DeadlineWaiter clockWait_, noteWait_;

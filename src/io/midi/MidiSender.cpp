@@ -119,21 +119,20 @@ void MidiSender::setOutput(int port, MidiOutput* output)
 {
     if (port < 0 || port >= kPorts)
         return;
-    std::lock_guard<std::mutex> lock(portLocks_[static_cast<std::size_t>(port)]);
+    std::lock_guard<core::PiMutex> lock(portLocks_[static_cast<std::size_t>(port)]);
     outputs_[static_cast<std::size_t>(port)] = output;
     if (output != nullptr)
         clearFailed(port);
 }
 
-bool MidiSender::startThread(std::thread& t, int priority, void (MidiSender::*body)())
+bool MidiSender::startThread(std::thread& t, core::threads::Role role, const char* name,
+                             void (MidiSender::*body)())
 {
     std::atomic<int> rt {-1};
     t = std::thread(
-        [this, priority, body, &rt]
+        [this, role, name, body, &rt]
         {
-            sched_param p{};
-            p.sched_priority = priority;
-            rt = pthread_setschedparam(pthread_self(), SCHED_FIFO, &p) == 0 ? 1 : 0; // best effort
+            rt = core::threads::apply(role, name).realtime ? 1 : 0; // best effort
             (this->*body)();
         });
     while (rt.load() < 0) // the thread reports its priority at once (no atomic wait: GCC 11 / glibc 2.13 device)
@@ -149,11 +148,13 @@ bool MidiSender::start(std::string& info)
         return true;
     }
     quit_ = false;
-    const bool clockRt = startThread(clock_, kClockPriority, &MidiSender::runClock);
-    const bool senderRt = startThread(sender_, kSenderPriority, &MidiSender::runSender);
+    using core::threads::Role;
+    const bool clockRt = startThread(clock_, Role::Clock, "midi-clock", &MidiSender::runClock);
+    const bool senderRt = startThread(sender_, Role::MidiOut, "midi-out", &MidiSender::runSender);
     char buf[128];
-    std::snprintf(buf, sizeof buf, "clock %s sender %s wake-margin=%lldus(adaptive)",
-                  clockRt ? "SCHED_FIFO 80" : "normal-priority", senderRt ? "SCHED_FIFO 65" : "normal-priority",
+    std::snprintf(buf, sizeof buf, "clock %s %d sender %s %d wake-margin=%lldus(adaptive)",
+                  clockRt ? "SCHED_FIFO" : "normal-priority", core::threads::spec(Role::Clock).priority,
+                  senderRt ? "SCHED_FIFO" : "normal-priority", core::threads::spec(Role::MidiOut).priority,
                   static_cast<long long>(clockWait_.margin() / 1000));
     info_ = info = buf;
     return true;
@@ -170,7 +171,7 @@ void MidiSender::stop()
 
 WriteResult MidiSender::write(int port, const std::uint8_t* bytes, int size) noexcept
 {
-    std::lock_guard<std::mutex> lock(portLocks_[static_cast<std::size_t>(port)]);
+    std::lock_guard<core::PiMutex> lock(portLocks_[static_cast<std::size_t>(port)]);
     MidiOutput* out = outputs_[static_cast<std::size_t>(port)];
     if (out == nullptr || failed(port))
         return WriteResult::Gone;
