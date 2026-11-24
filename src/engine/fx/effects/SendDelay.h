@@ -43,7 +43,8 @@ class SendDelay final : public EffectBase
 public:
     enum Option : int
     {
-        kOptSync = 0 // options[0] "fx.delayBus.sync"
+        kOptSync = 0,
+        kOptMode = 1 // DIGITAL / TAPE
     };
 
     void prepare(double sampleRate, int maxBlock) override;
@@ -78,6 +79,7 @@ private:
     double fs_ = 44100.0;
     dsp::delay::Param p_[6];
     dsp::delay::Toggle sync_;
+    dsp::delay::TapeColour colour_;
     dsp::delay::Param bpm_;
     float baseTL_ = 1.0f, baseTR_ = 1.0f, baseGL_ = 0.0f, baseGR_ = 0.0f; // DelayEchoBase's own parameters
     int syncV_ = 0;

@@ -64,7 +64,11 @@ constexpr EffectParamDef kParams[] = {
      .format = &fmtHiCut},
     {.key = "mix", .label = "MIX RATIO", .shortLabel = "MIX", .k = 5, .free = {0, 101}, .format = &fmtPercent},
 };
-constexpr EffectOptionDef kOptions[] = {{.key = "sync", .label = "SYNC", .shortLabel = "SYNC"}};
+constexpr std::string_view kModes[] = {"DIGITAL", "TAPE"};
+constexpr EffectOptionDef kOptions[] = {
+    {.key = "sync", .label = "SYNC", .shortLabel = "SYNC"},
+    {.key = "type1", .label = "MODE", .shortLabel = "MODE", .enumLabels = kModes},
+};
 
 void addInsertDelayParams(ParamRegistry& r)
 {

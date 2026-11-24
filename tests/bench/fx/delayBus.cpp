@@ -10,7 +10,9 @@
 #include <cmath>
 #include <cstring>
 
-BENCH(fx_delayBus, 9000)
+namespace
+{
+void benchDelayBus(bench::State& state, bool modulate, bool tape)
 {
     using namespace engine::fx;
     constexpr int N = engine::kBlockFrames;
@@ -27,12 +29,15 @@ BENCH(fx_delayBus, 9000)
     const float k[6] = {1.0f, 0.8f, 0.3f, 0.4f, 0.5f, 1.0f};
     for (int i = 0; i < 6; ++i)
         e.setParam(i, k[i]);
+    e.setOption(SendDelay::kOptMode, tape ? 1 : 0);
     e.reset();
     int iter = 0;
     state.run(
         [&]
         {
             ++iter;
+            if (modulate)
+                e.setParam(0, static_cast<float>(iter & 255) / 255.0f);
             if ((iter & 63) == 0)
             {
                 e.setParam(2, (iter & 64) != 0 ? 0.8f : 0.3f);
@@ -45,4 +50,20 @@ BENCH(fx_delayBus, 9000)
             e.process(l, r, ctx);
             bench::doNotOptimize(l[3]);
         });
+}
+} // namespace
+
+BENCH(fx_delayBus, 9000)
+{
+    benchDelayBus(state, false, false);
+}
+
+BENCH(fx_delayBus_digital_sweep, 9000)
+{
+    benchDelayBus(state, true, false);
+}
+
+BENCH(fx_delayBus_tape_sweep, 9000)
+{
+    benchDelayBus(state, true, true);
 }

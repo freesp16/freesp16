@@ -382,3 +382,143 @@ TEST_CASE("fx.delayBus: 4000 ms with feedback 1 — two echoes at exact position
     CHECK(p2 > 0.75f * p1); // unity loop gain: only the 20 kHz LP smears the impulse a little more each pass
     CHECK(firstNonZero(o.r) < 0);
 }
+
+TEST_CASE("delay: digital retiming preserves a filled ring during rapid changes", "[fx][delay][delayBus]")
+{
+    // A constant ring isolates gain discontinuities from cancellation between unrelated taps.
+    for (double fs : {44100.0, 48000.0, 96000.0})
+    {
+        auto sweep = [&](auto& e, float spanMs)
+        {
+            alignas(16) float l[N], r[N];
+            const auto ctx = fxtest::context(fs, 120.0);
+            const int fillBlocks = static_cast<int>(0.100 * fs / N) + 1;
+            float maxError = 0.0f;
+            for (int block = 0; block < fillBlocks + 450; ++block)
+            {
+                if (block >= fillBlocks)
+                    e.setParam(0, static_cast<float>(block % 41) / spanMs);
+                std::fill_n(l, N, 0.25f);
+                std::fill_n(r, N, -0.5f);
+                e.process(l, r, ctx);
+                if (block >= fillBlocks)
+                    for (int i = 0; i < N; ++i)
+                        maxError = std::max({maxError, std::abs(l[i] - 0.25f), std::abs(r[i] + 0.5f)});
+            }
+            CHECK(maxError < 1e-4f);
+        };
+        // The bus's permanent low cut also removes DC, so test its shared mono reader directly.
+        auto ins = make<InsertDelay>(fs, {{0, 0.0f}, {1, 0.0f}});
+        sweep(*ins, 990.0f);
+        dsp::delay::Module<1> mono;
+        mono.prepare(fs, 4000.0f);
+        mono.setDelay(10.0f);
+        mono.reset(false, false);
+        float input[N], output[N];
+        std::fill_n(input, N, 0.25f);
+        const float* in[] = {input};
+        float* wet[] = {output};
+        float worst = 0.0f;
+        for (int block = 0; block < 800; ++block)
+        {
+            if (block >= 100)
+                mono.setDelay(10.0f + static_cast<float>(block % 41));
+            mono.read<false>(wet, N, false);
+            mono.write(in, N);
+            if (block >= 100)
+                for (float v : output)
+                    worst = std::max(worst, std::abs(v - 0.25f));
+        }
+        CHECK(worst < 1e-6f);
+    }
+}
+
+TEST_CASE("delay: tape bends the playing echo in both directions, then recovers pitch", "[fx][delay][delayBus]")
+{
+    auto check = [](auto& e, float spanMs)
+    {
+        constexpr int fs = 48000;
+        constexpr float hz = 400.0f;
+        const auto ctx = fxtest::context(fs, 120.0);
+        e.setParam(0, 240.0f / spanMs); // 250 ms
+        e.setOption(e.kOptMode, 1);
+        e.reset();
+        alignas(16) float l[N], r[N];
+        int t = 0;
+        float last = 0;
+        auto countCycles = [&](int blocks)
+        {
+            int cycles = 0;
+            float maxStep = 0;
+            for (int b = 0; b < blocks; ++b)
+            {
+                for (int i = 0; i < N; ++i, ++t)
+                    l[i] = r[i] = 0.3f * std::sin(static_cast<float>(2.0 * dsp::delay::kPi * hz * t / fs));
+                e.process(l, r, ctx);
+                for (float v : l)
+                {
+                    cycles += (v >= 0 && last < 0);
+                    maxStep = std::max(maxStep, std::abs(v - last));
+                    last = v;
+                }
+            }
+            CHECK(maxStep < 0.05f);
+            return cycles;
+        };
+        (void)countCycles(900);
+        e.setParam(0, 40.0f / spanMs); // shorten to 50 ms
+        CHECK(countCycles(75) > 65);   // unshifted: 40 cycles in this window
+        (void)countCycles(650);
+        e.setParam(0, 240.0f / spanMs);
+        CHECK(countCycles(75) < 18);
+        (void)countCycles(850); // wraps even the 1 s insert ring
+        CHECK(std::abs(countCycles(75) - 40) <= 1);
+        e.setOption(e.kOptMode, 0);
+        CHECK(std::abs(countCycles(75) - 40) <= 1);
+    };
+    auto ins = make<InsertDelay>(48000, {{1, 0.0f}});
+    auto bus = make<SendDelay>(48000, {{1, 0.0f}, {3, 0.0f}, {4, 0.0f}});
+    check(*ins, 990.0f);
+    check(*bus, 3990.0f);
+}
+
+TEST_CASE("delay: tape high frequencies decay faster on successive feedback repeats", "[fx][delay][delayBus]")
+{
+    auto check = [](auto& e)
+    {
+        // First difference energy / signal energy measures brightness independently of level.
+        const std::size_t length = 64 * 180;
+        const auto click = impulse(length, 300, 2.0f);
+        const auto silence = std::vector<float>(length);
+        auto capture = [&](int mode)
+        {
+            e.setOption(e.kOptMode, mode);
+            e.reset();
+            return run(e, click, silence, 120, 48000);
+        };
+        const auto digital = capture(0);
+        const auto tape = capture(1);
+        const auto brightness = [](const Out& o, int start)
+        {
+            double diff = 0, energy = 0;
+            for (int i = start; i < start + 128; ++i)
+            {
+                const float v = o.l[i];
+                diff += (v - o.l[i - 1]) * (v - o.l[i - 1]);
+                energy += v * v;
+            }
+            REQUIRE(energy > 1e-6);
+            return diff / energy;
+        };
+        const int d = e.delaySamples();
+        CHECK(brightness(tape, 300 + d) < brightness(digital, 300 + d) * 0.8);
+        CHECK(brightness(tape, 300 + 4 * d) < brightness(tape, 300 + d) * 0.6);
+        CHECK(firstNonZero(tape.r) < 0);
+        for (float x : tape.l)
+            REQUIRE(std::abs(x) < 0.7f);
+    };
+    auto ins = make<InsertDelay>(48000, {{0, 0}, {1, 1}, {2, 1}});
+    auto bus = make<SendDelay>(48000, {{0, 0}, {1, 1}, {2, 1}, {3, 0}, {4, 0}});
+    check(*ins);
+    check(*bus);
+}

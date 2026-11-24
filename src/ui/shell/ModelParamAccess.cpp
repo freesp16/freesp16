@@ -222,6 +222,23 @@ void setLfoDestination(core::model::Lfo& l, float v) noexcept
     l.extras.set(std::string(kDestKey), "\"" + std::string(reg[core::ParamId{static_cast<std::uint16_t>(k)}].id) + "\"");
 }
 
+// DELAY MODE uses the slot's per-effect type1 memory. A delayed edit for an inactive
+// delay must never change the compressor/filter/etc. that now owns that field.
+bool isDelay(const core::model::EffectSlot& slot) noexcept
+{
+    using core::model::EffectType;
+    return slot.type == EffectType::InsertDelay || slot.type == EffectType::SendDelay;
+}
+int delayMode(const core::model::EffectSlot& slot) noexcept
+{
+    return isDelay(slot) && slot.type1 == 1 ? 1 : 0;
+}
+void setDelayMode(core::model::EffectSlot& slot, float value) noexcept
+{
+    if (isDelay(slot))
+        slot.type1 = toInt(value);
+}
+
 using core::ampenv::EnvStage;
 using core::model::EnvelopeCurve;
 using core::model::StretchMode;
@@ -307,6 +324,10 @@ const ModelField kFields[] = {
     APP_TRACK_FIELD("seq.retrigSpeed", false, x.seq.retriggerSpeed, x.seq.retriggerSpeed = std::clamp(toInt(v), 0, 5)),
     APP_TRACK_FIELD("seq.transpose", false, x.seq.transpose, x.seq.transpose = std::clamp(toInt(v), -24, 24)),
     APP_TRACK_FIELD("seq.shiftArea", false, x.seq.stepShiftArea, x.seq.stepShiftArea = std::clamp(toInt(v), 0, 1)),
+    APP_TRACK_FIELD("fx1.delay.type1", false, delayMode(x.insertFx[0]), setDelayMode(x.insertFx[0], v)),
+    APP_TRACK_FIELD("fx2.delay.type1", false, delayMode(x.insertFx[1]), setDelayMode(x.insertFx[1], v)),
+    APP_SCENE_FIELD("send.delayBus.type1", delayMode(x.sendFx), setDelayMode(x.sendFx, v)),
+    APP_SCENE_FIELD("master.delayBus.type1", delayMode(x.masterFx), setDelayMode(x.masterFx, v)),
     // MIXER project levels
     APP_PROJECT_FIELD("mixer.masterVolume", x.masterVolume, x.masterVolume = toInt(v)),
     APP_PROJECT_FIELD("mixer.sendReturnVolume", x.sendTrackVolume, x.sendTrackVolume = toInt(v)),
@@ -523,7 +544,7 @@ void ModelParamAccess::setRemote(const core::ParamSpec& s, std::uint16_t scope, 
         return;
     }
     const float v = s.clamp(value);
-    const int scene = (scope >> 4) & 15, track = scope & 15;
+    const int scene = f->scene ? scope & 15 : (scope >> 4) & 15, track = f->scene ? 0 : scope & 15;
     if (f->get(core::commands::project(bus_), scene, track) == v)
         return;
     bus_.execute(std::make_unique<SetModelParam>(*f, s.label, scene, track, v, false));

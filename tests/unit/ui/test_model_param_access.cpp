@@ -236,3 +236,44 @@ TEST_CASE("ui.model: MUTE MODE is a saved, undoable, per-track model field poste
     CHECK(w.values->get(spec, scope) == 0);
     CHECK(w.project().scenes[0].tracks[4].extras.empty()); // STOP SOUND leaves no trace in the file
 }
+
+TEST_CASE("ui.model: delay MODE edits are scoped, undoable and survive a native save", "[ui][model][delay]")
+{
+    World w;
+    auto& scene = w.project().scenes[2];
+    constexpr std::uint16_t track = (2 << 4) | 4;
+    using core::model::EffectType;
+    scene.tracks[4].insertFx[0].type = scene.tracks[4].insertFx[1].type = EffectType::InsertDelay;
+    scene.masterFx.type = scene.sendFx.type = EffectType::SendDelay;
+    for (const auto id : {"fx1.delay.type1", "fx2.delay.type1", "send.delayBus.type1", "master.delayBus.type1"})
+    {
+        const auto& mode = w.spec(id);
+        const auto scope = mode.scope == core::ParamScope::Track ? track : std::uint16_t{2};
+        REQUIRE(mode.enumLabels.size() == 2);
+        CHECK(mode.enumLabels[0] == "DIGITAL");
+        CHECK(mode.enumLabels[1] == "TAPE");
+        CHECK(w.values->get(mode, scope) == 0);
+        w.values->set(mode, scope, 1);
+        float posted = 0;
+        REQUIRE(w.posts(id, scope, &posted) == 1);
+        CHECK(posted == 1);
+        CHECK(w.values->get(mode, scope) == 1);
+    }
+    juce::TemporaryFile temp;
+    auto bundle = temp.getFile().getChildFile("Delay.sixteen");
+    REQUIRE(temp.getFile().createDirectory());
+    REQUIRE(services::store::NativeCodec::save(w.project(), bundle).ok());
+    auto restored = std::make_unique<core::model::Project>();
+    services::store::ImportReport report;
+    REQUIRE(services::store::NativeCodec::readInto(bundle, *restored, report).ok());
+    const auto& back = restored->scenes[2];
+    CHECK(back.sendFx.type1 == 1);
+    CHECK(back.masterFx.type1 == 1);
+    CHECK(back.tracks[4].insertFx[0].type1 == 1);
+    CHECK(back.tracks[4].insertFx[1].type1 == 1);
+    CHECK(back.tracks[3].insertFx[0].type1 == 0);
+    REQUIRE(w.bus.undo());
+    CHECK(scene.masterFx.type1 == 0);
+    CHECK(scene.sendFx.type1 == 1);
+    temp.getFile().deleteRecursively();
+}
