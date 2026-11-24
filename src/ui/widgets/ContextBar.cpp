@@ -3,6 +3,7 @@
 #include "ui/shell/Layout.h"
 #include "ui/theme/Draw.h"
 #include "ui/theme/Glyphs.h"
+#include "ui/widgets/TrackTile.h"
 
 #include <cstdio>
 
@@ -106,7 +107,7 @@ void ContextBar::build(DrawList& dl, const UiContext& ctx) const
     {
         const auto& r = L::slotE;
         const auto colour = theme::trackColour(m.track);
-        dl.fill(r, m.pressed == TrackBox ? p.surface3 : p.surface2, tk::radiusM);
+        dl.fill(r, m.pressed == (m.pluginPresets ? PluginPresets : TrackBox) ? p.surface3 : p.surface2, tk::radiusM);
         dl.stroke(r, colour, tk::borderTrackFrame, tk::radiusM);
         // TrackChip 40 × 40 at x + 16.
         dl.fill({r.x + 16, r.y + 16, 40, 40}, colour, tk::radiusXs);
@@ -114,6 +115,18 @@ void ContextBar::build(DrawList& dl, const UiContext& ctx) const
         std::snprintf(number, sizeof number, "%d", m.track);
         dl.text(r.x + 36, r.y + 37, Align::Centre, TextStyleId::Title, p.onAccent, number);
         float nameX = r.x + 72;
+        if (m.pluginPresets)
+        {
+            const RectF button{r.right() - 148, r.y + 8, 140, r.h - 16};
+            char buf[256];
+            const auto name = TrackTile::middleTruncate(m.trackName, button.x - nameX - 8, TextStyleId::Title,
+                                                        ctx.measure, buf, sizeof buf);
+            dl.text(nameX, r.y + 36, Align::Left, TextStyleId::Title, p.text1, name);
+            dl.fill(button, p.surface3, tk::radiusS);
+            dl.text(button.x + 56, r.y + 36, Align::Centre, TextStyleId::Label, p.text1, "PRESETS");
+            glyph::draw(dl, glyph::Kind::ChevronDown, button.right() - 32, r.y + 26, tk::sizeIconS, p.text2);
+            break;
+        }
         if (m.missing) // ⚠ before the name (popups-and-feedback.md "Missing-sample warning")
         {
             glyph::draw(dl, glyph::Kind::Caution, nameX, r.y + 28, tk::sizeIconS, p.warn);
@@ -169,7 +182,7 @@ ContextBar::Item ContextBar::hit(float x, float y) const noexcept
         break;
     case ContextBarKind::TrackContext:
         if (in(L::slotE, x, y))
-            return TrackBox;
+            return model_.pluginPresets ? PluginPresets : TrackBox;
         break;
     case ContextBarKind::TrackTypeBypass:
         if (in(L::trackTypeBox, x, y))

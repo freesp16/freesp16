@@ -20,6 +20,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -132,8 +133,8 @@ public:
     }
     std::vector<ui::plugin::PluginPresetEntry> presets(int, int) const override
     {
-        return loaded_ ? std::vector<ui::plugin::PluginPresetEntry> {{"fm-perc", "FM Perc"}}
-                       : std::vector<ui::plugin::PluginPresetEntry> {};
+        return loaded_ ? std::vector<ui::plugin::PluginPresetEntry>{{"fm-perc", "FM Perc"}, {"kick", "Kick"}}
+                       : std::vector<ui::plugin::PluginPresetEntry>{};
     }
     std::string_view currentPreset(int, int) const noexcept override { return loaded_ ? preset_ : std::string_view {}; }
     bool loadPreset(int, int, std::string_view key) override
@@ -409,6 +410,34 @@ TEST_CASE("plugin: TRACK TYPE -> PLUGIN (mode-only) -> SELECT PLUGIN -> track.pl
         if (cmd.op == ui::DrawCmd::Op::Blit && cmd.srcW == 780 && cmd.srcH == 285)
             sawBlit = true;
     CHECK(sawBlit);
+
+    auto visible = [&](std::string_view text)
+    {
+        return std::any_of(dl.commands().begin(), dl.commands().end(), [&](const ui::DrawCmd& cmd)
+                           { return cmd.op == ui::DrawCmd::Op::Text && dl.textOf(cmd) == text; });
+    };
+    REQUIRE(visible("PRESETS"));
+    touch(1190, 88);
+    frame();
+    REQUIRE(shell.popupDepth() == 1);
+    CHECK(visible("FM Perc"));
+    CHECK(visible("Kick"));
+    send(io::ControlEvent::Kind::Turn, io::Control::Selector, 1);
+    CHECK(access.currentPreset(1, 1) == "fm-perc");
+    send(io::ControlEvent::Kind::Press, io::Control::SelectorPush);
+    frame();
+    CHECK(shell.popupDepth() == 0);
+    CHECK(access.currentPreset(1, 1) == "kick");
+    touch(1190, 88);
+    frame();
+    send(io::ControlEvent::Kind::Turn, io::Control::Selector, -1);
+    send(io::ControlEvent::Kind::Press, io::Control::Back);
+    frame();
+    CHECK(shell.popupDepth() == 0);
+    CHECK(access.currentPreset(1, 1) == "kick");
+    CHECK(access.selectorPushes == 0);
+    CHECK(access.selectorDelta == 0);
+    CHECK(access.lastTouchPhase == -1);
 
     // Turn hardware knob 1 -> updates plugin param 0 via StripOwner::stripTurnUnbound.
     const float before = shell.column(0).value;

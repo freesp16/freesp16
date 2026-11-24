@@ -188,7 +188,7 @@ std::unique_ptr<PopupWidget> makePluginPresets(const PopupSpec&, ShellApi& shell
 
     ListRequest req;
     req.title = "PRESETS";
-    req.current = 0;
+    req.current = -1;
     if (storage->presets.empty())
     {
         storage->labels.emplace_back(access.hasLoaded(scene, track) ? "NO PRESETS" : "NO PLUGIN LOADED");
@@ -206,13 +206,19 @@ std::unique_ptr<PopupWidget> makePluginPresets(const PopupSpec&, ShellApi& shell
                 req.current = static_cast<int>(i);
         }
     }
-    req.onChoose = [storage, scene, track](int, const ListItem& item)
+    req.onChoose = [storage, scene, track, &shell](int, const ListItem& item)
     {
         if (item.value < 0)
             return;
         const auto idx = static_cast<std::size_t>(item.value);
         if (idx < storage->presets.size())
-            plugin::environment().pluginAccess().loadPreset(scene, track, storage->presets[idx].key);
+        {
+            const bool loaded =
+                plugin::environment().pluginAccess().loadPreset(scene, track, storage->presets[idx].key);
+            ToastRequest toast;
+            toast.text = loaded ? storage->labels[idx] : "Could not load preset";
+            shell.showToast(std::move(toast));
+        }
     };
     return std::make_unique<OwningListPopup>(storage, std::move(req));
 }

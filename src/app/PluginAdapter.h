@@ -129,10 +129,15 @@ public:
 
     std::vector<ui::plugin::PluginPresetEntry> presets(int scene, int track) const override
     {
-        if (host_.mounted(scene - 1, track - 1) == nullptr)
-            return {};
-        // Factory preset discovery (CLAP preset-discovery extension) plugs in here; init default for now.
-        return {{"init", "INIT"}};
+        std::vector<ui::plugin::PluginPresetEntry> entries;
+        if (auto* node = host_.mounted(scene - 1, track - 1))
+        {
+            for (const auto& preset : node->bundledPresets())
+                entries.push_back({preset.key, preset.name});
+            if (entries.empty() && node->paramCount() > 0)
+                entries.push_back({"init", "INIT (parameter defaults)"});
+        }
+        return entries;
     }
 
     std::string_view currentPreset(int scene, int track) const noexcept override
@@ -147,7 +152,7 @@ public:
         auto* n = host_.mounted(s0, t0);
         if (n == nullptr)
             return false;
-        if (key == "init")
+        if (key == "init" && n->bundledPresets().empty())
         {
             for (std::size_t i = 0; i < n->paramCount(); ++i)
                 if (const auto* meta = n->paramByIndex(i))
@@ -156,7 +161,19 @@ public:
             host_.bumpChanges();
             return true;
         }
-        return false;
+        const bool hasProject = core::commands::hasProject(bus_);
+        const auto before = hasProject ? n->saveStateBase64() : std::string{};
+        if (! host_.loadPreset(s0, t0, std::string(key)))
+            return false;
+        if (hasProject)
+        {
+            // Capture live knob edits in the inverse of the preset change.
+            auto& old = core::commands::project(bus_).scenes[s0].tracks[t0].plugin;
+            if (! before.empty())
+                old.stateBase64 = before;
+            bus_.execute(core::commands::track::setPlugin(s0, t0, host_.mountedSpec(s0, t0)));
+        }
+        return true;
     }
 
     bool readKnobs(int scene, int track, ui::plugin::PluginKnobBank& out) const noexcept override

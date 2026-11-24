@@ -15,6 +15,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -24,6 +25,7 @@ struct clap_host;
 struct clap_plugin;
 struct clap_plugin_params;
 struct clap_plugin_state;
+struct clap_plugin_preset_load;
 
 namespace core
 {
@@ -44,6 +46,12 @@ struct CatalogueEntry
     std::string path {};    // relative to pluginsDir (or absolute if outside)
     std::string absPath {}; // resolved binary path passed to dlopen
     bool hasCustomScreen = false;
+};
+
+struct BundledPreset
+{
+    std::string key;
+    std::string name;
 };
 
 struct ParamMeta
@@ -130,6 +138,8 @@ public:
     bool selectorTurn(int delta) noexcept;
     bool selectorPush() noexcept;
 
+    const std::vector<BundledPreset>& bundledPresets();
+    bool loadBundledPreset(const std::string& key);
     std::string saveStateBase64() const;
     bool loadStateBase64(std::string_view b64);
 
@@ -168,6 +178,8 @@ private:
     const clap_plugin* plugin_ = nullptr;
     const clap_plugin_params* paramsExt_ = nullptr;
     const clap_plugin_state* stateExt_ = nullptr;
+    const clap_plugin_preset_load* presetLoad_ = nullptr;
+    std::optional<std::vector<BundledPreset>> presets_;
     const sixteen_plugin_screen_t* screenExt_ = nullptr;
     clap_host* hostStorage_ = nullptr; // heap-allocated clap_host_t with host_data = this
     bool activated_ = false;
@@ -225,6 +237,7 @@ public:
 
     // Scene and track are 0-based (0..15).
     bool mount(int scene0, int track0, const core::model::PluginTrack& spec);
+    bool loadPreset(int scene0, int track0, const std::string& key);
     void unmount(int scene0, int track0);
     void unmountAll();
 

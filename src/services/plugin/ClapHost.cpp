@@ -349,6 +349,11 @@ ClapAudioNode* ClapAudioNode::create(const std::string& absPath, const std::stri
     {
         node->paramsExt_ = static_cast<const clap_plugin_params_t*>(node->plugin_->get_extension(node->plugin_, CLAP_EXT_PARAMS));
         node->stateExt_ = static_cast<const clap_plugin_state_t*>(node->plugin_->get_extension(node->plugin_, CLAP_EXT_STATE));
+        auto getPresetLoad = [&](const char* ext)
+        { return static_cast<const clap_plugin_preset_load_t*>(node->plugin_->get_extension(node->plugin_, ext)); };
+        node->presetLoad_ = getPresetLoad(CLAP_EXT_PRESET_LOAD);
+        if (! node->presetLoad_)
+            node->presetLoad_ = getPresetLoad(CLAP_EXT_PRESET_LOAD_COMPAT);
         node->screenExt_ =
             static_cast<const sixteen_plugin_screen_t*>(node->plugin_->get_extension(node->plugin_, SIXTEEN_EXT_SCREEN));
     }
@@ -913,12 +918,18 @@ bool ClapHostService::mount(int scene0, int track0, const core::model::PluginTra
         return true;
     }
 
-    // Same plugin already mounted: just sync bypass and state if changed.
-    if (slot.node != nullptr && slot.spec.path == spec.path && slot.spec.pluginId == spec.pluginId)
+    // Undo to the initial sound of a stateless plugin needs a fresh instance.
+    const bool needsInitialSound = spec.stateBase64.empty() && spec.presetKey.empty() && ! slot.spec.presetKey.empty();
+    if (slot.node != nullptr && slot.spec.path == spec.path && slot.spec.pluginId == spec.pluginId &&
+        ! needsInitialSound)
     {
         slot.node->setBypassed(spec.bypass);
-        if (! spec.stateBase64.empty() && spec.stateBase64 != slot.spec.stateBase64)
+        if (! spec.stateBase64.empty() &&
+            (spec.stateBase64 != slot.spec.stateBase64 || spec.presetKey != slot.spec.presetKey))
             slot.node->loadStateBase64(spec.stateBase64);
+        else if (spec.stateBase64.empty() && spec.presetKey != slot.spec.presetKey &&
+                 ! slot.node->loadBundledPreset(spec.presetKey))
+            return false;
         slot.spec = spec;
         ++changes_;
         return true;
@@ -943,8 +954,10 @@ bool ClapHostService::mount(int scene0, int track0, const core::model::PluginTra
                  " path=" + absPath + " err=" + err);
         return false;
     }
-    if (! spec.stateBase64.empty())
-        node->loadStateBase64(spec.stateBase64);
+    const bool restoredState = ! spec.stateBase64.empty() && node->loadStateBase64(spec.stateBase64);
+    const bool missingPreset = ! restoredState && ! spec.presetKey.empty() && ! node->loadBundledPreset(spec.presetKey);
+    if (missingPreset && log_)
+        log_("PLUGIN preset unavailable id=" + node->id() + " key=" + spec.presetKey);
     node->setBypassed(spec.bypass);
 
     // Retain one reference for the engine's SwapTable; post swap.
@@ -962,12 +975,25 @@ bool ClapHostService::mount(int scene0, int track0, const core::model::PluginTra
         slot.node->release();
     slot.node = node;
     slot.spec = spec;
+    if (missingPreset)
+        slot.spec.presetKey.clear();
     if (slot.spec.name.empty())
         slot.spec.name = node->name();
     ++changes_;
     if (log_)
         log_("PLUGIN mounted s=" + std::to_string(scene0 + 1) + " t=" + std::to_string(track0 + 1) +
              " id=" + node->id() + " screen=" + (node->hasCustomScreen() ? "custom" : "generic"));
+    return true;
+}
+
+bool ClapHostService::loadPreset(int scene0, int track0, const std::string& key)
+{
+    auto& slot = slots_[idx(scene0, track0)];
+    if (! slot.node || ! slot.node->loadBundledPreset(key))
+        return false;
+    slot.spec.presetKey = key;
+    slot.spec.stateBase64 = slot.node->saveStateBase64();
+    ++changes_;
     return true;
 }
 

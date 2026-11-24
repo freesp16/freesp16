@@ -1,5 +1,6 @@
 #include "ui/shell/Shell.h"
 
+#include "ui/screens/plugin/PluginSlots.h"
 #include "ui/shell/ColumnRules.h"
 #include "ui/shell/Layout.h"
 #include "ui/shell/PopupFactory.h"
@@ -449,6 +450,8 @@ void Shell::updateFrameModels(double nowMs)
                                : tr.typeBadge == "PLUG" ? 4
                                                         : 0);
     cb.trackType = kTrackTypeNames[modeVal >= 0 && modeVal < 5 ? modeVal : 0];
+    cb.pluginPresets = s.id == "track.plugin" &&
+                       plugin::environment().pluginAccess().hasCustomScreen(state_.scene, state_.selectedTrack);
     cb.missing = tr.missing;
     cb.bypass = state_.bypassMode;
     if (nowMs - pressedAtMs_ > tk::motionFastMs)
@@ -798,6 +801,9 @@ void Shell::contextAction(ContextBar::Item item)
             open(target);
         break;
     }
+    case ContextBar::PluginPresets:
+        open("plugin.presets");
+        break;
     case ContextBar::TrackType:
         open(kTrackType);
         break;
