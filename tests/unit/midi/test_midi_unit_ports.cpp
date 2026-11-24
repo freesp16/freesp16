@@ -323,7 +323,8 @@ TEST_CASE("midi.unit: DIN = slot 0, USB = slot 1 in card order, kept in storage 
     }
     // A port without a switch (USB): THRU B from its own input is asked of it, refused, and stays in software.
     hub->setPortMode(1, 4);
-    service.poll(t += 1000);
+    service.poll(t += 1000); // the THRU wait starts
+    service.poll(t += 1000); // over: asked
     CHECK_FALSE(service.hardwareThru(1));
     {
         std::lock_guard<std::mutex> lock(usb.m);
