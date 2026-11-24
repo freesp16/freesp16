@@ -16,7 +16,8 @@
 //   ducks         Full/Half from any source on an unmuted track (SEQ-027, consumed by the Ducker)
 //   live hits     Full pad/MIDI hits also go to the LiveHitSink (the sequencer records them, PAD-005), and the touch
 //                 strip's REPEAT hits (recorded onto the steps while REC is armed; the reference does not, RIB-008);
-//                 MIDI notes and SCALE pads are "pitched": the recorder keeps their semitones
+//                 MIDI notes, SCALE pads and the REPEAT hits of a held SCALE pad are "pitched": the recorder keeps
+//                 their semitones
 //
 // blockEvents() lists the block's applied events (with `ducks` set) for the Ducker; hits(t) counts track t's
 // Full / Half triggers for the pad-flash feed (PlayheadFeed::trackHits).
@@ -41,7 +42,8 @@ class LiveHitSink
 {
 public:
     virtual ~LiveHitSink() = default;
-    // The sequencer records (PAD-005). `pitched`: a MIDI note or a SCALE pad, whose semitones are the note played.
+    // The sequencer records (PAD-005). `pitched`: a MIDI note, a SCALE pad or a REPEAT hit in SCALE pad mode, whose
+    // semitones are the note played.
     virtual void onLiveHit(const TriggerEvent&, bool pitched) noexcept = 0;
 };
 

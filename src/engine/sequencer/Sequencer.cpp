@@ -255,14 +255,15 @@ void Sequencer::onLiveHit(const trigger::TriggerEvent& e, bool pitched) noexcept
     if (e.source != trigger::TriggerSource::Pad && e.source != trigger::TriggerSource::Midi && ! repeat)
         return; // SEQ-016: pad and MIDI hits are recorded, and the touch strip's REPEAT hits (ours, RIB-008)
     const int track = e.track & 15;
-    const RecordPitch pitch {pitched && ! repeat, pitched && ! repeat ? e.semitones : std::int8_t {0}};
+    // A pitched hit (a MIDI note, a SCALE pad or the touch strip's REPEAT of a held SCALE pad) keeps its semitones.
+    const RecordPitch pitch{pitched, pitched ? e.semitones : std::int8_t{0}};
     if (repeat) // a repeat is recorded into the running pass only: it never starts the transport or fills a count-in
     {
         if (playing_ && ! preCount_)
         {
             const double hit = p0_ + e.frame * ppf_;
             const bool before = boundary_ && e.frame < boundaryFrame_;
-            record(track, e.velocity, hit, before ? prev_ : cur_, ! before, EngineEvent::kOriginRepeat);
+            record(track, e.velocity, hit, before ? prev_ : cur_, ! before, EngineEvent::kOriginRepeat, pitch);
         }
         return;
     }

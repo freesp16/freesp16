@@ -5,6 +5,7 @@
 #include "tests/unit/sequencer/SeqRig.h"
 
 #include "core/util/ribbon/Ribbon.h"
+#include "engine/trigger/TrackParams.h"
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -392,6 +393,45 @@ TEST_CASE("seq.engine: touch strip REPEAT hits are recorded on the steps while R
     rig.until(static_cast<long>(12.0 * st));
     CHECK(rig.events().empty());
     CHECK(rig.hits.size() >= sounded + 3);
+}
+
+TEST_CASE("seq.engine: the REPEAT of a held SCALE pad is recorded at the pad's pitch; the root's drops the lock",
+          "[seq][engine][record][ribbon]")
+{
+    Rig rig;
+    auto p = pattern(16);
+    REQUIRE(rig.install(*p));
+    REQUIRE(rig.param("ribbon.mode", 1.0f));        // REPEAT
+    REQUIRE(rig.param("seq.recordQuantize", 3.0f)); // 1/16
+    REQUIRE(rig.param("pads.selected", 3.0f, 0xFFFF));
+    REQUIRE(rig.param("pads.mode", static_cast<float>(engine::trigger::PadMode::Scale), 0xFFFF));
+    REQUIRE(rig.param("seq.record", 1.0f));
+    REQUIRE(rig.play());
+    const double st = stepFrames();
+    rig.until(static_cast<long>(2.0 * st) - 64);
+    REQUIRE(rig.e->triggers().push({7, 100, 60, 7})); // SCALE pad 8 held: 7 semitones (chromatic) on track 4
+    REQUIRE(rig.e->triggers().push(strip(80, true)));
+    rig.block();
+    rig.until(static_cast<long>(6.5 * st));
+    auto ev = rig.events();
+    REQUIRE(repeatsRecorded(ev, 3) >= 3);
+    for (const auto& e : ev)
+    {
+        CHECK(e.track == 3);
+        CHECK(e.pitched); // the pad hit and its repeats: the key played
+        CHECK(e.semitones == 7);
+    }
+    // The root pad's repeats are pitched too, at 0 semitones: the recorder drops an older PITCH lock there.
+    REQUIRE(rig.e->triggers().push(engine::TriggerNow{7, 0, 60, 7})); // pad 8 up
+    REQUIRE(rig.e->triggers().push({0, 100, 60, 0}));                 // pad 1 (the root) held
+    rig.until(static_cast<long>(10.0 * st) - 64);
+    ev = rig.events();
+    REQUIRE(repeatsRecorded(ev, 3) >= 2);
+    for (const auto& e : ev)
+    {
+        CHECK(e.pitched);
+        CHECK(e.semitones == 0);
+    }
 }
 
 TEST_CASE("seq.engine: REPEAT hits never start the transport or fill a count-in", "[seq][engine][record][ribbon]")

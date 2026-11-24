@@ -23,11 +23,11 @@
 //   recording  armed (`seq.record`) and playing: every live Full pad / MIDI hit (the router's LiveHitSink, PAD-005,
 //              SEQ-041/048) — and every touch strip REPEAT hit of the running pass (origin kOriginRepeat, ours,
 //              RIB-008) — is placed at its exact PPQ, quantised (core/util/sequencer/RecordQuantize.h, SEQ-042) and
-//              sent to the UI as EngineEvent::RecordedHit {track, step, velocity, offset24; a MIDI note's or SCALE
-//              pad's semitones} (lossless queue); the message thread writes it with recordHit inside the pass's
-//              CommandGroup (EDT-U3), the semitones as the step's PITCH lock. A hit whose stored
-//              trigger plays later in the pass sets a per-track "recorded this pass" bit, so that step does not sound
-//              a second time (the live hit already did) whether or not the new pattern object arrived. ERASE held
+//              sent to the UI as EngineEvent::RecordedHit {track, step, velocity, offset24; a MIDI note's, SCALE
+//              pad's or its REPEAT's semitones} (lossless queue); the message thread writes it with recordHit inside
+//              the pass's CommandGroup (EDT-U3), the semitones as the step's PITCH lock. A hit whose stored trigger
+//              plays later in the pass sets a per-track "recorded this pass" bit, so that step does not sound a second
+//              time (the live hit already did) whether or not the new pattern object arrived. ERASE held
 //              (`seq.erase`, SEQ-046) removes the track's triggers as the playhead passes: EngineEvent::ErasedStep,
 //              the step is not played. Pre-count blocks (timing.preCount) play nothing; a hit late in the count-in that
 //              quantises onto step 1 is recorded there (SEQ-044, our choice), any other count-in hit is not.

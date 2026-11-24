@@ -220,8 +220,9 @@ void TriggerRouter::process(BlockContext& ctx) noexcept
             sources_[t].onEvent(e, ts.triggerMode);
         if (liveHits_ != nullptr && e.kind == TriggerKind::Full
             && (e.source == TriggerSource::Pad || e.source == TriggerSource::Midi || e.source == TriggerSource::Repeat))
-            liveHits_->onLiveHit(e, e.source == TriggerSource::Midi
-                                        || (e.source == TriggerSource::Pad && pads_.mode == PadMode::Scale));
+            liveHits_->onLiveHit(e, e.source == TriggerSource::Midi ||
+                                        ((e.source == TriggerSource::Pad || e.source == TriggerSource::Repeat) &&
+                                         pads_.mode == PadMode::Scale)); // a repeat: the held pad's key
     }
     numApplied_ = numEvents_;
     numEvents_ = 0;
