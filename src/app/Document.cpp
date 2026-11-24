@@ -395,6 +395,9 @@ struct Document::Impl
         fxMeters.install(ui::fx::environment());
         plugins.emplace(bridge, dataDir.getChildFile("Plugins").getFullPathName().toStdString(), config.sampleRate,
                         [this](const std::string& line) { log("%s", line.c_str()); });
+        const auto capturePluginStates = [this](core::model::Project& snapshot) { plugins->snapshotStates(snapshot); };
+        session->store().captureRuntimeState = capturePluginStates;
+        session->autosave().captureRuntimeState = capturePluginStates;
         pluginAdapter.emplace(bus, *plugins);
         ui::plugin::environment().access = &*pluginAdapter;
 

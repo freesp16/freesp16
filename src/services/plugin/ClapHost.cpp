@@ -1069,12 +1069,13 @@ void ClapHostService::snapshotStates(core::model::Project& project) const
     for (int s = 0; s < 16; ++s)
         for (int t = 0; t < 16; ++t)
         {
-            const auto* node = slots_[idx(s, t)].node;
-            if (node == nullptr)
-                continue;
+            const auto& slot = slots_[idx(s, t)];
             auto& tr = project.scenes[static_cast<std::size_t>(s)].tracks[static_cast<std::size_t>(t)];
-            if (tr.mode == core::model::TrackMode::Plugin)
-                tr.plugin.stateBase64 = node->saveStateBase64();
+            if (tr.mode != core::model::TrackMode::Plugin || slot.node == nullptr || slot.spec.path != tr.plugin.path ||
+                slot.spec.pluginId != tr.plugin.pluginId)
+                continue;
+            if (auto state = slot.node->saveStateBase64(); ! state.empty())
+                tr.plugin.stateBase64 = std::move(state);
         }
 }
 

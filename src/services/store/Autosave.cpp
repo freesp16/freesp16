@@ -103,7 +103,9 @@ void Autosave::start()
     pendingSinceMs_.reset();
     if (! snapshot_)
         snapshot_ = std::make_shared<model::Project>();
-    *snapshot_ = core::commands::project(bus_); // the message-thread cost (bench_project `snapshot`)
+    *snapshot_ = core::commands::project(bus_);
+    if (captureRuntimeState)
+        captureRuntimeState(*snapshot_);
 
     const auto target = file();
     // PRJ-031: never the user's project (the folder is System/autosave; refuse a target inside the bundle anyway).

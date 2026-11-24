@@ -65,6 +65,7 @@ public:
     int writes() const noexcept { return writes_; } // completed writes (tests, log)
     juce::File file() const { return fileFor(config_.folder, name_); }
     std::function<void(Result<void>)> onWritten; // message thread, after each write
+    std::function<void(core::model::Project&)> captureRuntimeState; // message thread, before sending the copy to the worker
 
     // ---- the file (any thread but audio) ----
     static juce::File fileFor(const juce::File& folder, const juce::String& name);
