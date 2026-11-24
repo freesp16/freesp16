@@ -257,41 +257,66 @@ std::uint16_t Shell::scopeOf(const core::ParamSpec& s) const noexcept
     }
 }
 
-void Shell::turnEncoder(int n0, int detents, double nowMs)
+void Shell::turnEncoder(int n0, int detents, double nowMs, bool accelerate)
 {
-    const auto* spec = bound_[static_cast<std::size_t>(n0)];
-    const auto& col = strip_.model().columns[static_cast<std::size_t>(n0)];
+    const auto n = static_cast<std::size_t>(n0);
+    const auto* spec = bound_[n];
+    const auto& col = strip_.model().columns[n];
     if (spec == nullptr || col.disabled || col.readOnly || detents == 0)
         return; // an empty or disabled column ignores its encoder (UI-002/003)
+    // Acceleration (EncoderAccel.h): the run belongs to this column's parameter at this SHIFT state; `turn` scales
+    // by the cap of whatever applies the detents (the screen's own span, or the parameter's).
+    EncoderTurn turn {detents, 0, 0};
+    if (accelerate)
+    {
+        if (accelSpec_[n] != spec || accelFine_[n] != state_.shift)
+        {
+            accel_.reset(n0);
+            accelSpec_[n] = spec;
+            accelFine_[n] = state_.shift;
+        }
+        turn = accel_.turn(n0, detents, nowMs);
+    }
+    char accelText[16] = "";
+    auto scaled = [&](long long steps) {
+        const int d = turn.scaled(EncoderAccel::maxMultiplier(steps));
+        if (d != detents)
+            std::snprintf(accelText, sizeof accelText, " accel %+d", d);
+        return d;
+    };
     const auto scope = scopeOf(*spec);
     float v = values_->get(*spec, scope);
-    if (stripOwner_ != nullptr && ! popupStrip_ &&
-        stripOwner_->stripTurn(n0, *spec, detents, state_.shift))
+    const bool owned = stripOwner_ != nullptr && ! popupStrip_;
+    const long long span = owned ? stripOwner_->stripSteps(n0, *spec, state_.shift) : -1; // StripOwner.h
+    if (owned && stripOwner_->stripTurn(n0, *spec, scaled(std::max(0LL, span)), state_.shift))
     {
-        touchedMs_[static_cast<std::size_t>(n0)] = nowMs;
+        touchedMs_[n] = nowMs;
         strip_.lastTouchMs = nowMs;
         changedSinceFrame_ = true;
-        log("INPUT knob%d %+d (%.*s, screen)", n0 + 1, detents, static_cast<int>(spec->id.size()), spec->id.data());
+        log("INPUT knob%d %+d (%.*s, screen)%s", n0 + 1, detents, static_cast<int>(spec->id.size()), spec->id.data(),
+            accelText);
         return; // the screen applied it (StripOwner)
     }
+    accelText[0] = '\0';
+    const int applied = scaled(span >= 0 ? span : EncoderAccel::stepsOf(*spec, state_.shift));
     if (state_.stepHeld > 0)
     {
         if (! spec->lockable)
             return; // greyed while a step is held (UI-204)
         values_->lockOf(*spec, scope, state_.stepHeld, v);
-        values_->setLock(*spec, scope, state_.stepHeld, spec->step(v, detents, state_.shift));
+        values_->setLock(*spec, scope, state_.stepHeld, spec->step(v, applied, state_.shift));
     }
     else
-        values_->set(*spec, scope, spec->step(v, detents, state_.shift));
-    touchedMs_[static_cast<std::size_t>(n0)] = nowMs;
+        values_->set(*spec, scope, spec->step(v, applied, state_.shift));
+    touchedMs_[n] = nowMs;
     strip_.lastTouchMs = nowMs;
     changedSinceFrame_ = true;
     char buf[32];
     const float now =
         state_.stepHeld > 0 ? (values_->lockOf(*spec, scope, state_.stepHeld, v), v) : values_->get(*spec, scope);
     const int len = std::max(0, spec->formatValue(now, buf, sizeof buf));
-    log("INPUT knob%d %+d (%.*s = %.*s%s)", n0 + 1, detents, static_cast<int>(spec->id.size()), spec->id.data(), len,
-        buf, state_.stepHeld > 0 ? " lock" : "");
+    log("INPUT knob%d %+d (%.*s = %.*s%s)%s", n0 + 1, detents, static_cast<int>(spec->id.size()), spec->id.data(), len,
+        buf, state_.stepHeld > 0 ? " lock" : "", accelText);
 }
 
 void Shell::updateStripModel(double nowMs)
@@ -975,7 +1000,7 @@ void Shell::dispatch(const io::ControlEvent& e)
             const int n0 = io::indexOf(e.control) - 1;
             resolveStrip();
             updateStripModel(nowMs_);
-            turnEncoder(n0, e.value, e.timeMs);
+            turnEncoder(n0, e.value, e.timeMs, e.source == io::kSourcePanel);
             return;
         }
         if (! encoder && ! io::isPad(e.control) && e.control != io::Control::Play && e.control != io::Control::Stop &&
@@ -1034,7 +1059,7 @@ void Shell::dispatch(const io::ControlEvent& e)
         if (io::isKnob(e.control))
         {
             updateStripModel(nowMs_);
-            turnEncoder(io::indexOf(e.control) - 1, e.value, e.timeMs);
+            turnEncoder(io::indexOf(e.control) - 1, e.value, e.timeMs, e.source == io::kSourcePanel);
             return;
         }
         if (e.control == io::Control::Selector)

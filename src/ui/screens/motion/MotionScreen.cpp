@@ -255,6 +255,12 @@ public:
             c.value = c.locked ? v : base(*c.spec);
         }
     }
+    long long stripSteps(int column, const core::ParamSpec& spec, bool fine) const override
+    {
+        if (column == 0)
+            return length_; // the step cursor
+        return column == 1 ? EncoderAccel::stepsOf(spec, fine) : -1;
+    }
     bool stripTurn(int column, const core::ParamSpec& spec, int detents, bool fine) override
     {
         refresh();

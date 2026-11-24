@@ -97,6 +97,13 @@ all`. Expected: one `INPUT panel <control> <kind> <value>` / `INPUT cdc-strip �
 follow how hard you hit, encoder detents ±1 per click, no stuck lamps, `DIAG input panel ok` (the EBUSY fix:
 launcher's `runner: holders (… before launch): none`).
 
+Encoder acceleration (still `04-trace`, HOME, track 1): turn ENC1 (VOLUME) slowly, about one click every ¼ s — it moves
+±1 per click and no `accel` appears in the `INPUT knob1` lines. Spin it fast — the value jumps up to 4 per click and
+the lines end `accel -4` / `accel +4`. Spin fast, then without pausing slow down or turn back one click — that click
+is ±1 again. Hold SHIFT and spin ENC3 (PITCH) fast — every click is 0.1, never more. On PLAYBACK, a hard spin of START
+on a long sample crosses it in one or two turns of the encoder, then slow clicks are 1/128 of the sample each. Note
+any value that jumps when turned slowly, or that turning N clicks up and N clicks back slowly does not return to.
+
 `pc/hwt.sh use 09-lamps` (a script cycles the pad modes, SCENE / PATTERN / REC / HOLD / ACTIVE, sweeps the strip LEDs
 and the pad lamps; 40 s). **HUMAN:** watch each `MARK` phase light the right lamp; note any lamp that stays dark or
 lights the wrong colour. Send `report lamps all` (the `LAMP` lines show what the app asked for).
