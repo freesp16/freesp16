@@ -7,7 +7,8 @@
 //   transport start   Start (FA) when it starts at PPQ 0, else Song Position (F2, when enabled) + Continue (FB), on
 //                     the transport's start frame (a pre-count's end, an external clock's tick); the message precedes
 //                     the first tick of that frame, and no tick of the block comes before it
-//   transport stop    Stop (FC) at the block start
+//   transport stop    Stop (FC) at the block start; a restart (stopped and started again between two blocks, MIDI
+//                     Start while playing) sends Stop at the block start, then the start's message
 //   locate (stopped)  Song Position (F2) in sixteenths, when enabled
 //   stopped           clock keeps running at the tempo when `clockWhileStopped` (SYN-021), free-running phase
 // Song position follows the arrangement in song mode (the caller passes the position in sixteenths, ARR-008).
@@ -26,6 +27,7 @@ struct ClockOutEdges
     bool located = false;   // the position jumped
     int startFrame = 0;     // the start edge's frame (ctx.startedThisBlock)
     double startPpq = 0.0;  // the position there
+    bool restarted = false; // stopped and started again (Transport::restartedThisBlock)
 };
 
 struct ClockOutSettings

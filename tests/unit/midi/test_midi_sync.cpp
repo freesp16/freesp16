@@ -537,3 +537,38 @@ TEST_CASE("midi.out: with the default preferences a message is due exactly when 
     }
     CHECK(n > 80);
 }
+
+TEST_CASE("midi.sync: a MIDI Start while playing restarts like a stop and a start (Stop then Start out)", "[midi]")
+{
+    Slave s(120.0);
+    std::vector<Slave::Msg> q;
+    q.push_back({s.t0 - s.P / 2, 0xFA, 0, 0});
+    s.ticks(q, 0, 192);
+    // The master restarts (Start while playing, the next tick is beat 0 again) right before its tick: both in one
+    // block, so the transport stops and starts between two blocks (a restart, no stopped block in between).
+    q.push_back({s.t0 + 192 * s.P - 2.0, 0xFA, 0, 0});
+    s.ticks(q, 192, 300);
+    s.run(s.t0 + 290 * s.P, q);
+    std::vector<std::uint8_t> kinds;
+    std::vector<std::int64_t> at;
+    for (const auto& o : s.out)
+        if (o.bytes[0] != 0xF8)
+        {
+            kinds.push_back(o.bytes[0]);
+            at.push_back(o.sampleTime);
+        }
+    // Before: no edge at all (the transport was playing at both block ends): neither Stop nor Start went out.
+    REQUIRE(kinds == std::vector<std::uint8_t> {0xFA, 0xFC, 0xFA});
+    CHECK(at[1] <= at[2]);
+    CHECK(at[2] - at[1] < 64); // the same block
+    CHECK(std::fabs(static_cast<double>(at[2]) - (s.t0 + s.L + 192 * s.P)) <= 1.0);
+    // The transport is at beat 0 on tick 192.
+    double worst = 0.0;
+    for (const auto& [frame, p] : s.ppq)
+    {
+        const double k = (frame - (s.t0 + s.L)) / s.P - 192.0;
+        if (k > 0.0)
+            worst = std::max(worst, std::fabs(p - k / 24.0) * 24.0 * s.P);
+    }
+    CHECK(worst < 0.5);
+}

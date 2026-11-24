@@ -705,8 +705,9 @@ void MidiEngine::processOut(const BlockContext& ctx, const stages::BlockBuffers&
         }
     }
     const bool hardStop = w_.transport != nullptr && w_.transport->hardStopThisBlock();
-    if (ctx.stoppedThisBlock || hardStop)
-        out_.allNotesOff(); // MID-047: stop
+    const bool restarted = w_.transport != nullptr && w_.transport->transport().restartedThisBlock();
+    if (ctx.stoppedThisBlock || hardStop || restarted)
+        out_.allNotesOff(); // MID-047: stop (a restart stopped too)
     const std::uint32_t ports = outputPorts();
     trackOut(ctx, b, ports);
     if (w_.transport != nullptr)
@@ -717,7 +718,7 @@ void MidiEngine::processOut(const BlockContext& ctx, const stages::BlockBuffers&
         const std::int64_t spp16 = w_.arrangement != nullptr && w_.arrangement->engaged()
                                        ? w_.arrangement->songPositionAt(at)
                                        : static_cast<std::int64_t>(std::llround(at * 4.0));
-        const ClockOutEdges edges {w_.transport->locatedThisBlock(), tr.startFrame(), tr.startPpq()};
+        const ClockOutEdges edges {w_.transport->locatedThisBlock(), tr.startFrame(), tr.startPpq(), restarted};
         clockOut_.process(ctx, s, ports, blockStart_, tr.ppqPerFrame(), edges, spp16, out_);
     }
     out_.endBlock();

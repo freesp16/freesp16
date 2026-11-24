@@ -23,6 +23,9 @@
 //
 // Per block (advance): ctx.ppqStart/ppqEnd = [p0, p1) of this block (equal while stopped or paused), ctx.bpm = the
 // effective tempo (nudge applied), ctx.playing, ctx.startedThisBlock / stoppedThisBlock (Playing entered / left).
+// A stop and a start applied between two blocks (MIDI Start while playing: Stop, then startAt) is a restart:
+// startedThisBlock is set (the start resets run), stoppedThisBlock is not (the block plays), and restartedThisBlock()
+// tells the stop's consumers (MIDI Stop out, the hanging-note guard).
 // The block in which a pre-count reaches 0 is a Playing block with ppqStart < 0 < ppqEnd: playback starts on frame
 // startFrame() = frameOf(0, p0, ppqPerFrame) (176,400 frames after a 2-bar pre-count at 120 BPM, 44.1 kHz).
 #pragma once
@@ -82,6 +85,7 @@ public:
     // Edges of the last advance() (one block each).
     bool hardStopThisBlock() const noexcept { return hardStopEdge_; }
     bool locatedThisBlock() const noexcept { return locatedEdge_; } // the position jumped (Locate, Stop to 0, Play)
+    bool restartedThisBlock() const noexcept { return restartEdge_; }  // stopped and started again (see above)
     bool preCountThisBlock() const noexcept { return preCountBlock_; } // the block was (entirely) pre-count
     int startFrame() const noexcept { return startFrame_; }          // frame of the start edge (0 unless pre-count)
     double startPpq() const noexcept { return startPpq_; }           // position on the start edge (its block)
@@ -103,8 +107,8 @@ private:
     std::int64_t frames_ = 0;                  // frames advanced since the anchor
     State state_ = State::Stopped;
     bool wasPlaying_ = false;                  // state_ was Playing at the end of the previous block
-    bool hardStopPending_ = false, locatedPending_ = false;
-    bool hardStopEdge_ = false, locatedEdge_ = false, preCountBlock_ = false;
+    bool hardStopPending_ = false, locatedPending_ = false, restartPending_ = false;
+    bool hardStopEdge_ = false, locatedEdge_ = false, preCountBlock_ = false, restartEdge_ = false;
     int startFrame_ = 0;
     double startPpq_ = 0.0; // where PreCount ends (0 after a counted pre-count, the target of startAt)
     bool leadIn_ = false;   // the PreCount is startAt's lead-in, not a counted pre-count

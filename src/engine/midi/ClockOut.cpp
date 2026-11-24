@@ -14,7 +14,7 @@ void ClockOut::process(const BlockContext& ctx, const ClockOutSettings& s, std::
         const auto v = static_cast<int>(pos16 < 0 ? 0 : (pos16 > 16383 ? 16383 : pos16));
         sendAll(ports, 0xF2, static_cast<std::uint8_t>(v & 127), static_cast<std::uint8_t>(v >> 7), 3, t, out);
     };
-    if (ctx.stoppedThisBlock && s.startStop)
+    if ((ctx.stoppedThisBlock || edges.restarted) && s.startStop)
         sendAll(ports, 0xFC, 0, 0, 1, blockStart, out);
     if (ctx.playing)
     {
