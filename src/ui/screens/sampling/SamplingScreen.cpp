@@ -268,11 +268,11 @@ public:
     }
     long long stripSteps(int column0, const core::ParamSpec&, bool fine) const override
     {
-        if (column0 != 3 && column0 != 4)
-            return -1;
+        if (column0 != kColSelStart && column0 != kColSelEnd)
+            return -1; // REC QUANTIZE and the others: their ParamSpec (an enum never accelerates)
         if (fine)
             return 0;
-        // START / END walk one editor column per detent: the zoomed view's columns across the whole sample.
+        // SELECTION START / END walk one editor column per detent: the zoomed view's columns across the whole sample.
         return static_cast<long long>(zoomX_ * kColumns);
     }
     bool stripTurn(int column0, const core::ParamSpec&, int detents, bool fine) override
