@@ -216,7 +216,7 @@ struct Document::Impl
         : queued(b), bridge(queued), config(std::move(c)), pool(workers, [this](const std::string& p) { return resolve(p); },
                                                  lib::SamplePool::Config{.engineRate = config.sampleRate}),
           sync(pool, bridge), preview(pool, workers, bridge), loader(library, pool, bus),
-          browse(library, loader, preview, bus), views(pool, sync, bus), fxSlots(bus, &bridge), fxMeters(bridge),
+          browse(library, loader, preview, bus, config.device), views(pool, sync, bus), fxSlots(bus, &bridge), fxMeters(bridge),
           values(bus, &bridge), pads(bus, bridge, selection), sceneSync(core::builtinParams(), bridge), sceneKeys(bus),
           steps(bus, &bridge, &values), lockValues(values, steps), recording(lockValues, steps, bridge, selection),
           strip(bridge, core::builtinParams())

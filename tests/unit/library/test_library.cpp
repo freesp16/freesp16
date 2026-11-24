@@ -250,3 +250,90 @@ TEST_CASE("lib.fileops: copy, rename, trash, new folder and the in-use guard", "
     REQUIRE(imported.size() == 1);
     CHECK(imported[0] == f.samples().getChildFile("dropped.wav"));
 }
+
+TEST_CASE("lib.library: the device's BROWSE shows only the sampler's sample folders, and searches only there",
+          "[library][tree]")
+{
+    libtest::Fixture f; // "$Lib": the app's own library folders, never shown
+    libtest::writeSample(f.samples().getChildFile("lib kick.wav"), 10);
+    const juce::File emmc = f.tmp.dir().getChildFile("emmc");
+    const juce::File internal = emmc.getChildFile("PIONEER DJ SAMPLER/Samples");
+    libtest::writeSample(internal.getChildFile("Drums/int kick.wav"), 10);
+    libtest::writeSample(emmc.getChildFile("PIONEER DJ SAMPLER/RenderedAudio/render kick.wav"), 10); // addendum p.79
+    f.library.addLocation({InternalDisk::kAlias, InternalDisk::samplesRoot(emmc), true, true});
+
+    // A stick with the sampler folder and a Linux tree beside it; a pre-1.6 TORAIZ stick (addendum p.84: not read by
+    // BROWSE any more); a system partition; a preference location (not removable).
+    const juce::File sda1 = f.tmp.dir().getChildFile("sda1");
+    libtest::writeSample(sda1.getChildFile("PIONEER DJ SAMPLER/Samples/usb kick.wav"), 10);
+    libtest::writeSample(sda1.getChildFile("rootfs/usr/share/sounds/os kick.wav"), 10);
+    libtest::writeSample(sda1.getChildFile("PIONEER DJ SAMPLER/RenderedAudio/render kick.wav"), 10);
+    f.library.addLocation({"$Ext:sda1", sda1, true, true});
+    const juce::File old = f.tmp.dir().getChildFile("old/TORAIZ/Samples");
+    libtest::writeSample(old.getChildFile("toraiz kick.wav"), 10);
+    f.library.addLocation({"$Ext:old", old, true, true});
+    const juce::File boot = f.tmp.dir().getChildFile("boot");
+    libtest::writeSample(boot.getChildFile("boot kick.wav"), 10);
+    f.library.addLocation({"$Ext:mmcblk0p1", boot, true, true});
+    const juce::File extra = f.tmp.dir().getChildFile("Extra");
+    libtest::writeSample(extra.getChildFile("extra kick.wav"), 10);
+    f.library.addLocation({"$Ext:Extra", extra, false, false});
+
+    auto roots = samplerFolders(f.library.locations()); // "Samples [INTERNAL]", "Samples [USB]" (addendum p.80)
+    REQUIRE(roots.size() == 2);
+    CHECK(roots[0].aliasPath == "$Ext:INTERNAL");
+    CHECK(roots[0].name == "Samples");
+    CHECK(roots[0].internal);
+    CHECK(roots[1].aliasPath == "$Ext:sda1/PIONEER DJ SAMPLER/Samples");
+    CHECK(roots[1].name == "Samples");
+    CHECK_FALSE(roots[1].internal);
+
+    // A root lists its folder; the sample paths stay those of the library's locations.
+    CHECK(names(f.library.listNow(roots[1].aliasPath, SortOrder::AToZ)) == std::vector<std::string>{"usb kick.wav"});
+    CHECK(names(f.library.listNow(roots[0].aliasPath, SortOrder::AToZ)) == std::vector<std::string>{"Drums"});
+
+    std::vector<juce::String> scopes;
+    for (const auto& r : roots)
+        scopes.push_back(r.aliasPath);
+    const auto hits = SampleLibrary::searchIn({f.library.locations().begin(), f.library.locations().end()}, scopes,
+                                              "kick", SampleLibrary::kMaxSearchResults);
+    CHECK(names(hits) == std::vector<std::string>{"int kick.wav", "usb kick.wav"});
+    CHECK(hits[1].aliasPath == "$Ext:sda1/PIONEER DJ SAMPLER/Samples/usb kick.wav");
+    std::vector<Entry> async;
+    f.library.search("kick", scopes, [&](std::vector<Entry> e) { async = std::move(e); });
+    f.workers.drain();
+    CHECK(names(async) == names(hits));
+    CHECK(SampleLibrary::searchIn({}, scopes, "kick", 10).empty()); // unknown aliases: nothing
+
+    // A second stick: each stick's root names its mount.
+    const juce::File sdb1 = f.tmp.dir().getChildFile("sdb1");
+    sdb1.getChildFile("PIONEER DJ SAMPLER/Samples").createDirectory();
+    f.library.addLocation({"$Ext:sdb1", sdb1, true, true});
+    roots = samplerFolders(f.library.locations());
+    REQUIRE(roots.size() == 3);
+    CHECK(roots[0].name == "Samples");
+    CHECK(roots[1].name == "Samples (sda1)");
+    CHECK(roots[2].name == "Samples (sdb1)");
+
+    // Without the internal disk mounted (USB storage mode) only the sticks remain.
+    f.library.removeLocation(InternalDisk::kAlias);
+    CHECK(samplerFolders(f.library.locations()).size() == 2);
+}
+
+TEST_CASE("lib.library: a stick with both TORAIZ/Samples and PIONEER DJ SAMPLER keeps its root", "[library][tree]")
+{
+    libtest::Fixture f;
+    const juce::File mount = f.tmp.dir().getChildFile("both");
+    mount.getChildFile("TORAIZ/Samples").createDirectory();
+    libtest::writeSample(mount.getChildFile("PIONEER DJ SAMPLER/Samples/kick.wav"), 10);
+    const juce::File mounts = f.tmp.dir().getChildFile("mounts");
+    REQUIRE(mounts.replaceWithText("/dev/sda1 " + mount.getFullPathName() + " vfat rw 0 0\n"));
+    f.library.setLocationProvider(std::make_shared<ProcMountsProvider>(mounts));
+    f.library.pollLocations();
+    f.workers.drain();
+    REQUIRE(f.library.findLocation("$Ext:both") != nullptr);
+    CHECK(f.library.findLocation("$Ext:both")->root == mount);
+    const auto roots = samplerFolders(f.library.locations());
+    REQUIRE(roots.size() == 1);
+    CHECK(roots[0].aliasPath == "$Ext:both/PIONEER DJ SAMPLER/Samples");
+}
