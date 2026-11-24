@@ -57,14 +57,14 @@ class EncoderAccel
 {
 public:
     static constexpr int kEncoders = 6;
-    static constexpr int kWarmDetents = 3;        // ×1 at the start of every run
+    static constexpr int kWarmDetents = 3;           // ×1 at the start of every run
     static constexpr std::int64_t kIdleUs = 120'000; // a longer pause ends the run
-    static constexpr int kSweepDetents = 24;      // ≈ one turn of the encoder: a full sweep at the top speed
-    static constexpr int kSpeedLevels = 3;        // ×8 from the speed alone
-    static constexpr int kMaxLevel = 6;           // ×64 with the boost
-    static constexpr int kBoostDetents = 8;       // detents held at the top speed per boost level
+    static constexpr int kSweepDetents = 24;         // ≈ one turn of the encoder: a full sweep at the top speed
+    static constexpr int kSpeedLevels = 3;           // ×8 from the speed alone
+    static constexpr int kMaxLevel = 6;              // ×64 with the boost
+    static constexpr int kBoostDetents = 8;          // detents held at the top speed per boost level
     // Mean µs per detent at which level 1…kSpeedLevels starts (25, 40, 67 detents per second).
-    static constexpr std::array<std::int64_t, kSpeedLevels + 1> kLevelUs {0, 40'000, 25'000, 15'000};
+    static constexpr std::array<std::int64_t, kSpeedLevels + 1> kLevelUs{0, 40'000, 25'000, 15'000};
     static constexpr int kHysteresisPercent = 125; // a level held so far holds until the mean is 25 % slower
 
     // Books one Turn event of encoder `n0` (0–5) at `timeMs` (the event's own timestamp). Out-of-range encoders and
@@ -84,11 +84,11 @@ private:
         bool active = false;
         std::int64_t lastUs = 0;
         int dir = 0;
-        int count = 0;          // detents in the run so far (saturates)
+        int count = 0;           // detents in the run so far (saturates)
         std::int64_t meanUs = 0; // 0 = no interval measured yet
         int level = 0;
-        int atLevel = 0;         // detents since the level last changed (saturates)
+        int atLevel = 0; // detents since the level last changed (saturates)
     };
-    std::array<Run, kEncoders> runs_ {};
+    std::array<Run, kEncoders> runs_{};
 };
 } // namespace ui

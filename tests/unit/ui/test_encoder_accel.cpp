@@ -18,8 +18,7 @@ using ui::EncoderAccel;
 namespace
 {
 // One detent every `intervalMs` from t0: the applied detents per event, capped at `cap`.
-std::vector<int> spin(EncoderAccel& a, int count, double intervalMs, int cap, int dir = 1, double t0 = 1000,
-                      int n0 = 0)
+std::vector<int> spin(EncoderAccel& a, int count, double intervalMs, int cap, int dir = 1, double t0 = 1000, int n0 = 0)
 {
     std::vector<int> out;
     for (int i = 0; i < count; ++i)
@@ -27,7 +26,10 @@ std::vector<int> spin(EncoderAccel& a, int count, double intervalMs, int cap, in
     return out;
 }
 
-bool sameBits(float a, float b) { return std::memcmp(&a, &b, sizeof a) == 0; }
+bool sameBits(float a, float b)
+{
+    return std::memcmp(&a, &b, sizeof a) == 0;
+}
 } // namespace
 
 TEST_CASE("encoder accel: a slow turn is one step per detent", "[ui][encoder]")
@@ -61,7 +63,7 @@ TEST_CASE("encoder accel: a fast steady turn ramps up one level at a time and ho
     int last = 1;
     for (int d : v)
     {
-        CHECK(d >= last);          // never falls during a steady turn
+        CHECK(d >= last);                    // never falls during a steady turn
         CHECK((d == last || d == last * 2)); // never skips a level
         last = d;
     }
@@ -88,7 +90,8 @@ TEST_CASE("encoder accel: a fast steady turn ramps up one level at a time and ho
 TEST_CASE("encoder accel: the same gesture always gives the same result", "[ui][encoder]")
 {
     // An uneven hand: intervals from a fixed pseudo-random sequence.
-    auto gesture = [](EncoderAccel& a, int cap) {
+    auto gesture = [](EncoderAccel& a, int cap)
+    {
         std::vector<int> out;
         double t = 5000;
         unsigned x = 12345;
@@ -168,7 +171,7 @@ TEST_CASE("encoder accel: the six encoders keep separate runs", "[ui][encoder]")
 TEST_CASE("encoder accel: the cap follows the column's span", "[ui][encoder]")
 {
     CHECK(EncoderAccel::maxMultiplier(0) == 1);
-    CHECK(EncoderAccel::maxMultiplier(24) == 1);  // PITCH ±12 and smaller: never
+    CHECK(EncoderAccel::maxMultiplier(24) == 1); // PITCH ±12 and smaller: never
     CHECK(EncoderAccel::maxMultiplier(47) == 1);
     CHECK(EncoderAccel::maxMultiplier(48) == 2);  // PITCH ±24
     CHECK(EncoderAccel::maxMultiplier(127) == 4); // VOLUME 0–127
@@ -213,7 +216,8 @@ namespace
 {
 void panelTurn(uitest::Harness& h, int knob, int d, double t)
 {
-    h.shell->dispatch({io::ControlEvent::Kind::Turn, io::knob(knob), static_cast<std::int16_t>(d), io::kSourcePanel, t});
+    h.shell->dispatch(
+        {io::ControlEvent::Kind::Turn, io::knob(knob), static_cast<std::int16_t>(d), io::kSourcePanel, t});
 }
 
 bool logged(const uitest::Harness& h, std::string_view text)
@@ -265,8 +269,7 @@ TEST_CASE("shell: enums and SHIFT never accelerate", "[ui][shell][encoder]")
     const float start = h.value("playback.pitch");
     for (int i = 0; i < 30; ++i)
         panelTurn(h, 3, 1, t += 5);
-    CHECK(sameBits(h.value("playback.pitch"),
-                   core::builtinParams().find("playback.pitch")->step(start, 30, true)));
+    CHECK(sameBits(h.value("playback.pitch"), core::builtinParams().find("playback.pitch")->step(start, 30, true)));
 }
 
 TEST_CASE("param step: every catalogue parameter steps without drift", "[params][encoder]")
@@ -277,7 +280,7 @@ TEST_CASE("param step: every catalogue parameter steps without drift", "[params]
     int checked = 0;
     for (std::size_t i = 0; i < r.size(); ++i)
     {
-        const auto& s = r[core::ParamId {static_cast<std::uint16_t>(i)}];
+        const auto& s = r[core::ParamId{static_cast<std::uint16_t>(i)}];
         for (bool fine : {false, true})
             for (int n : {1, 7, 37, 300})
             {

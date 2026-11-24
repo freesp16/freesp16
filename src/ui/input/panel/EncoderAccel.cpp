@@ -18,7 +18,7 @@ constexpr int kCountCap = 1 << 20;
 
 EncoderTurn EncoderAccel::turn(int n0, int detents, double timeMs) noexcept
 {
-    EncoderTurn t {detents, 0, 0};
+    EncoderTurn t{detents, 0, 0};
     if (n0 < 0 || n0 >= kEncoders || detents == 0)
         return t;
     auto& r = runs_[static_cast<std::size_t>(n0)];
@@ -27,7 +27,7 @@ EncoderTurn EncoderAccel::turn(int n0, int detents, double timeMs) noexcept
     const int n = detents > 0 ? detents : -detents;
     const std::int64_t dt = std::max<std::int64_t>(0, now - r.lastUs);
     if (! r.active || dir != r.dir || dt > kIdleUs)
-        r = Run {true, now, dir, 0, kStartMeanUs, 0, 0}; // a new run: reversal, pause or first turn
+        r = Run{true, now, dir, 0, kStartMeanUs, 0, 0}; // a new run: reversal, pause or first turn
     else
     {
         r.lastUs = now;
@@ -40,7 +40,8 @@ EncoderTurn EncoderAccel::turn(int n0, int detents, double timeMs) noexcept
         else
             r.meanUs = (3 * r.meanUs + interval) / 4;
         // The speed level the mean holds: a level already reached holds with the hysteresis margin.
-        auto holds = [&](int level) {
+        auto holds = [&](int level)
+        {
             const auto limit = kLevelUs[static_cast<std::size_t>(level)];
             return r.meanUs * 100 <= limit * (std::min(r.level, kSpeedLevels) >= level ? kHysteresisPercent : 100);
         };
@@ -69,7 +70,10 @@ void EncoderAccel::reset(int n0) noexcept
         runs_[static_cast<std::size_t>(n0)] = {};
 }
 
-void EncoderAccel::reset() noexcept { runs_ = {}; }
+void EncoderAccel::reset() noexcept
+{
+    runs_ = {};
+}
 
 int EncoderAccel::maxMultiplier(long long steps) noexcept
 {
