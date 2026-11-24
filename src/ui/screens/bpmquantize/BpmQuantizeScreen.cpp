@@ -235,12 +235,13 @@ private:
         const float cw = ctx.measure ? ctx.measure(TextStyleId::Caption, text) : 8.0f * static_cast<float>(text.size());
         draw::captionLine(dl, ctx.palette, x, y, w, text, cw, ctx.palette.surface1);
     }
-    // The context bar's BPM | QUANTIZE readout follows the values at once (UID-628).
+    // The context bar's BPM | QUANTIZE readout follows the values at once (UID-628). Under an external clock the BPM
+    // text is the followed tempo (TransportController::publish), never the project's.
     void publish() const
     {
         if (state_ == nullptr)
             return;
-        if (tempo_ != nullptr)
+        if (tempo_ != nullptr && state_->syncBadge.empty())
             state_->bpm.format("%.1f", static_cast<double>(value(tempo_, 120)));
         if (quantize_ != nullptr)
             state_->quantize.set(kQuantizeLabels[std::clamp(static_cast<int>(std::lround(value(quantize_, 3))), 0, 5)]);
