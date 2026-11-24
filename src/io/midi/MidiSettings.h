@@ -1,8 +1,10 @@
 // The project's MIDI values → the engine (spec 02-features/midi.md MID-010/011/012/040…050). Message
 // thread. For the composition root's project-open path (app/Document.cpp forwardAll, like
 // io::postRibbonSettings): the MidiSettings enables and channels (project.midi) and every scene's MIDI track values
-// (Scene.track[t].midi). Only values that differ from the engine's defaults (the ParamSpec defaults) are posted, so a
-// default project costs ≈ 40 messages instead of 16 000. Returns false when the bridge refused a message.
+// (Scene.track[t].midi). The 8 enables and 32 channels are always posted (the engine holds the previous project's);
+// the MIDI track values are reset in the engine first (core::midi::kProjectOpenScope), then only values that differ
+// from the defaults (the ParamSpec defaults) are posted, so a default project costs 41 messages instead of 12 000.
+// Returns false when the bridge refused a message.
 //
 // Incoming CCs flow back the other way: drainUiEvents() hands the engine's UiEvents (core/util/midi/MidiWire.h:
 // applied CCs, the followed tempo, activity) to a callback on the message thread; the model write (a non-undoable,

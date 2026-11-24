@@ -138,6 +138,14 @@ bool MidiEngine::onParam(const ParamChange& c) noexcept
             return true;
         default: break;
     }
+    if (c.scope == core::midi::kProjectOpenScope) // a project opens: its MIDI track values start from the defaults
+    {
+        for (auto& scene : tracks_)
+            for (auto& t : scene)
+                t = MidiTrackState{};
+        remoteScene_ = -1;
+        return true;
+    }
     if (c.scope > 0xFF)
         return true; // a MIDI track value needs a track scope
     const int scene = (c.scope >> 4) & 15, track = c.scope & 15;

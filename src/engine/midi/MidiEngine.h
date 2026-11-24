@@ -21,7 +21,7 @@
 //                 CC 0 / CC 32 (manual p.88): CC 0 only holds the scene; CC 32 queues (that scene, else the current
 //                 one, pattern). Between a CC 0 and its CC 32 the other channel messages are ignored, except those that
 //                 only end sound (Note Off, CC 123: nothing hangs); our choice: a CC 0 waits at most kRemoteSelectWait
-//                 (1 s), so a lone CC 0 cannot mute MIDI IN, and SAMPLING/EDIT opening drops it.
+//                 (1 s), so a lone CC 0 cannot mute MIDI IN, and SAMPLING/EDIT opening or a project open drop it.
 //                 applied CCs and the followed tempo go to the UI (UiEvent) for the model / display
 //   step 3        the transport calls the follower's correction (Transport::setCorrection): tempo = the PLL's, phase
 //                 steered onto the clock's ticks by a bounded rate correction (no drift; a jump only when > ½ tick off)
@@ -225,7 +225,8 @@ private:
     core::ParamId sceneQueue_ {};
 
     // Settings (midi.*).
-    // = the ParamSpec / model defaults (utility.md: every enable ENABLE; postMidiSettings posts only differences)
+    // = the ParamSpec / model defaults (utility.md: every enable ENABLE). postMidiSettings posts every enable and
+    // channel on a project open, and the MIDI track values after a reset (core::midi::kProjectOpenScope).
     std::array<bool, 4> inEnable_ {true, true, true, true}, outEnable_ {true, true, true, true};
     std::array<std::int8_t, 16> rxChannel_ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}; // 0 = OFF
     std::array<std::int8_t, 16> txChannel_ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
