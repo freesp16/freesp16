@@ -134,6 +134,54 @@ TEST_CASE("migration: schema 4 writes MIDI NOTE2-4 OFF as 0 (semitones from NOTE
     CHECK_FALSE(root["project"]["scenes"][0]["tracks"][1].hasProperty("midi")); // absent stays absent (the default)
 }
 
+TEST_CASE("migration: schema 4 restores the SP-16 importer's NOTE2-4 offsets kept in the extras; idempotent",
+          "[store][migration]")
+{
+    // Schema 3's importer read the reference's offsets as notes −1…127: 0 (OFF) and every negative offset became −1,
+    // the original kept in the track's MIDI extras. Those are the offsets.
+    const auto extra = [](int k, const char* value)
+    {
+        return juce::String(R"({ "key": "sp16.MidiNoteData.note)") + juce::String(k) +
+               R"(", "encoding": "json", "value": ")" + juce::String(value).replace("\"", "\\\"") + "\" }";
+    };
+    const auto text = juce::String(R"({ "meta": { "format": { "name": "sixteen-project", "version": 3 } },
+        "project": { "scenes": [ { "tracks": [
+            { "midi": { "notes": [62, 4, -1, -1], "_extras": [)") +
+                      extra(3, R"({"int":-5})") + ", " + extra(4, R"({"int":0})") + R"(] } },
+            { "midi": { "program": 3, "_extras": [)" +
+                      extra(2, R"({"int":-12})") + R"(] } },
+            { "midi": { "notes": [60, -1, -1, -1], "_extras": [)" +
+                      extra(2, R"({"int":300})") + ", " + extra(3, R"({"string":"x"})") + R"(] } } ] } ] } })";
+    auto root = juce::JSON::parse(text);
+    REQUIRE(root.isObject());
+    REQUIRE(MigrationRunner::builtin().run(root, 3).ok());
+    const auto notes = [&root](int t) { return root["project"]["scenes"][0]["tracks"][t]["midi"]["notes"]; };
+    CHECK(static_cast<int>(notes(0)[0]) == 62);
+    CHECK(static_cast<int>(notes(0)[1]) == 4);  // in range when imported: no extras, stays
+    CHECK(static_cast<int>(notes(0)[2]) == -5); // −1 in the model, −5 in the extras: a fourth below
+    CHECK(static_cast<int>(notes(0)[3]) == 0);  // the reference's 0: OFF
+    // No "notes" (the schema 3 default) but an offset in the extras: the array is made.
+    REQUIRE(notes(1).isArray());
+    CHECK(static_cast<int>(notes(1)[0]) == 60);
+    CHECK(static_cast<int>(notes(1)[1]) == -12);
+    CHECK(static_cast<int>(notes(1)[2]) == 0);
+    // An extras value that is not an offset (out of range, not an int): the current rule (−1 → OFF).
+    CHECK(static_cast<int>(notes(2)[1]) == 0);
+    CHECK(static_cast<int>(notes(2)[2]) == 0);
+
+    // Idempotent: the same rewrite again changes nothing (a restored −1 keeps its extras entry).
+    const auto once = juce::JSON::toString(root);
+    REQUIRE(MigrationRunner::builtin().run(root, 3).ok());
+    CHECK(juce::JSON::toString(root) == once);
+    auto minusOne =
+        juce::JSON::parse(juce::String(R"({ "meta": { "format": { "name": "sixteen-project", "version": 3 } },
+        "project": { "scenes": [ { "tracks": [ { "midi": { "notes": [60, -1, 5, -1], "_extras": [)") +
+                          extra(2, R"({"int":-1})") + R"(] } } ] } ] } })");
+    REQUIRE(MigrationRunner::builtin().run(minusOne, 3).ok());
+    REQUIRE(MigrationRunner::builtin().run(minusOne, 3).ok());
+    CHECK(static_cast<int>(minusOne["project"]["scenes"][0]["tracks"][0]["midi"]["notes"][1]) == -1);
+}
+
 TEST_CASE("migration: every fixture version migrates to the current one", "[store][migration][codec]")
 {
     const bool regenerate = juce::SystemStats::getEnvironmentVariable("APP_REGENERATE_FIXTURES", {}) == "1";
