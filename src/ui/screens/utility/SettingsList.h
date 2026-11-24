@@ -12,7 +12,9 @@
 // registration) and, for the pages whose rows are data (CHANNEL MAPPING: 16 tracks; MIDI PORTS: one group per port;
 // LIBRARY LOCATIONS: one row per location), from code. A Value row binds, in this order: a project field
 // (services/settings/ProjectSettings.h: saved with the project, undoable, committed on push), the composite SYNC SOURCE
-// ("settings.syncSource" → midi.syncSource + midi.syncPort), a ParamSpec ("id" or "id#scope"; through the shell's
+// ("settings.syncSource" → midi.syncSource + midi.syncPort: INTERNAL / DIN MIDI / USB MIDI, then the other ports by
+// name), a value list of a ParamSpec ("settings.midiOutModeDin" / "…Usb" → midi.portMode#0 / #1 with the manual's
+// labels, the USB port's two values only), a ParamSpec ("id" or "id#scope"; through the shell's
 // ParamAccess, which saves preferences — PrefAccess.h), a PrefSpec (services::settings::Preferences directly). A row
 // whose binding or target screen is not registered is shown disabled with "—" (e.g. MIDI or controller ids
 // in a build without them).
@@ -29,19 +31,35 @@
 #include "services/settings/ProjectSettings.h"
 #include "ui/widgets/Widget.h"
 
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace ui::utility
 {
+struct ValueChoice
+{
+    int value;              // the ParamSpec value
+    std::string_view label; // what the row shows
+};
+
 struct Binding
 {
-    enum class Store : std::uint8_t { None, Param, Pref, Project, Sync } store = Store::None;
+    enum class Store : std::uint8_t
+    {
+        None,
+        Param,
+        Pref,
+        Project,
+        Sync,
+        Choice
+    } store = Store::None;
     const core::ParamSpec* spec = nullptr; // range, labels, format (Project: the field's)
     const services::settings::ProjectField* field = nullptr;
     std::uint16_t scope = 0; // ParamChange scope (Param) / field index (Project)
     std::string key;         // Pref: the preference key ("midi.portIn#2")
+    std::span<const ValueChoice> choices{}; // Choice: the values offered, in order (option i = choices[i])
 };
 
 struct SettingsRow
