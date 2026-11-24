@@ -3,7 +3,7 @@
 // Pops the engine's sample-stamped messages from the hub (core/util/midi/MidiWire.h), converts each stamp to a
 // monotonic deadline — the audio clock anchor (the engine's DLL-filtered period start) + the output latency
 // (midi.outLatency) + the port's offset (midi.portOffset, −50…+50 ms) — and writes it at that deadline:
-// clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME) to `spinUs` before it, then a short busy wait (the sleep's
+// sleep to `spinUs` before it, then a short busy wait (the sleep's
 // wake-up latency is the jitter; the spin trades ≤ 1 % of a core for it). It polls the hub at least every 1 ms.
 // The forwarder (MID-002) copies the inputs' messages to OUT + MERGE A/B and THRU A/B ports at once (A = input port
 // 0, B = input port 1). SCHED_FIFO below the audio thread when the system allows it (best effort).

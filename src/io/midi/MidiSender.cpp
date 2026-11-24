@@ -1,26 +1,14 @@
 #include "io/midi/MidiSender.h"
 
+#include "io/midi/MidiWait.h"
+
 #include <pthread.h>
 #include <sched.h>
-#include <time.h>
 
 #include <cstdio>
 
 namespace io::midi
 {
-namespace
-{
-void sleepUntil(std::int64_t t) noexcept
-{
-    timespec ts {};
-    ts.tv_sec = static_cast<time_t>(t / 1000000000LL);
-    ts.tv_nsec = static_cast<long>(t % 1000000000LL);
-    while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr) != 0)
-    {
-    }
-}
-} // namespace
-
 void MidiSender::setOutput(int port, MidiOutput* output)
 {
     if (port < 0 || port >= kPorts)
@@ -160,14 +148,14 @@ void MidiSender::run()
         const std::int64_t now = core::midi::monotonicNs();
         if (best < 0 || ! anchor.valid)
         {
-            sleepUntil(now + kPollNs);
+            waitUntilMonotonicNs(now + kPollNs);
             continue;
         }
         const auto deadline = static_cast<std::int64_t>(bestNs);
         const std::int64_t spin = static_cast<std::int64_t>(spinUs_.load(std::memory_order_relaxed)) * 1000;
         if (deadline - now > spin)
         {
-            sleepUntil(deadline - spin < now + kPollNs ? deadline - spin : now + kPollNs);
+            waitUntilMonotonicNs(deadline - spin < now + kPollNs ? deadline - spin : now + kPollNs);
             continue; // re-evaluate: new events or a new anchor may have arrived
         }
         while (core::midi::monotonicNs() < deadline) // the last stretch: busy wait to the deadline

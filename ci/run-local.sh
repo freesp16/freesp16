@@ -25,10 +25,13 @@ for stage in $stages; do
       fi;;
     host)
       step "host: Debug + ASan/UBSan + real-time allocation hook, unit tests"
-      cmake --preset host && cmake --build --preset host ${JOBS:+-j"$JOBS"} && ctest --preset host --label-exclude "golden|long";;
+      cmake --preset host
+      cmake --build --preset host ${JOBS:+-j"$JOBS"}
+      ctest --preset host --label-exclude "golden|long";;
     bench)
       step "bench: Release benchmarks vs their performance budgets (3 runs, fastest kept), > 10 % regression fails"
-      cmake --preset host-release && cmake --build --preset host-release ${JOBS:+-j"$JOBS"}
+      cmake --preset host-release
+      cmake --build --preset host-release ${JOBS:+-j"$JOBS"}
       rm -rf build/host-release/artifacts/bench
       for run in 1 2 3; do
         echo "bench run $run/3"
@@ -37,7 +40,8 @@ for stage in $stages; do
       python3 tests/bench/harness/check_regression.py;;   # vs ci/bench-baseline.json (same machine only)
     golden)
       step "golden: effect/mixer goldens from the research models (needs ../PioneerSP16FirmwareResearch)"
-      cmake --preset host >/dev/null && cmake --build --preset host
+      cmake --preset host >/dev/null
+      cmake --build --preset host
       ctest --preset host -L golden --no-tests=ignore;;
     armel)
       step "armel: cross-build in the toolchain container"
@@ -52,7 +56,9 @@ for stage in $stages; do
       scripts/package.sh;;
     long)
       step "long: the tests labelled long (excluded from host)"
-      cmake --preset host && cmake --build --preset host ${JOBS:+-j"$JOBS"} && ctest --preset host -L long;;
+      cmake --preset host
+      cmake --build --preset host ${JOBS:+-j"$JOBS"}
+      ctest --preset host -L long;;
     smoke)
       step "smoke: emulator end-to-end (local only)"
       scripts/emulator-smoke.sh;;
