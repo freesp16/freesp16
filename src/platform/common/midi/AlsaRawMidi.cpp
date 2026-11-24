@@ -27,6 +27,7 @@
 #include "platform/common/midi/UsbMidiMode.h"
 
 #include <alsa/asoundlib.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
@@ -74,16 +75,23 @@ private:
     snd_rawmidi_t* h_;
 };
 
+// One whole message into a raw MIDI output opened non-blocking + append (all or nothing): never blocks — a USB host
+// that stops reading fills the gadget's buffer, and a blocking write would then hold up every port's clock.
+io::midi::WriteResult writeRaw(snd_rawmidi_t* h, const std::uint8_t* bytes, int size) noexcept
+{
+    const ssize_t r = snd_rawmidi_write(h, bytes, static_cast<size_t>(size));
+    if (r == size)
+        return io::midi::WriteResult::Written;
+    return r == -EAGAIN || r == -EINTR || r == -EBUSY || r >= 0 ? io::midi::WriteResult::Busy
+                                                                : io::midi::WriteResult::Gone;
+}
+
 class AlsaOutput final : public io::midi::MidiOutput
 {
 public:
     explicit AlsaOutput(snd_rawmidi_t* h) : h_(h) {}
     ~AlsaOutput() override { snd_rawmidi_close(h_); }
-    bool write(const std::uint8_t* bytes, int size) override
-    {
-        const ssize_t r = snd_rawmidi_write(h_, bytes, static_cast<size_t>(size));
-        return r == size;
-    }
+    io::midi::WriteResult write(const std::uint8_t* bytes, int size) override { return writeRaw(h_, bytes, size); }
 
 private:
     snd_rawmidi_t* h_;
@@ -106,7 +114,7 @@ public:
         unitmidi::setHardwareThru(false); // leave the OUT socket as an output
         snd_rawmidi_close(h_);
     }
-    bool write(const std::uint8_t* bytes, int size) override
+    io::midi::WriteResult write(const std::uint8_t* bytes, int size) override
     {
         if (fd_ >= 0 && size == 1)
         {
@@ -115,7 +123,7 @@ public:
             {
                 const auto r = unitmidi::queueRealtime(fd_, code);
                 if (r == unitmidi::QueueResult::Queued)
-                    return true;
+                    return io::midi::WriteResult::Written;
                 if (r == unitmidi::QueueResult::Disable)
                 {
                     ::close(fd_); // the queue does not work: everything through the raw MIDI device from now on
@@ -123,11 +131,12 @@ public:
                 }
             }
         }
-        const ssize_t r = snd_rawmidi_write(h_, bytes, static_cast<size_t>(size));
-        // A song position on the wire before the Start / Continue / clock that follows it in the priority queue.
-        if (r == size && fd_ >= 0 && bytes[0] == 0xF2)
+        const auto r = writeRaw(h_, bytes, size);
+        // A song position on the wire before the Start / Continue / clock that follows it in the priority queue (the
+        // drain waits, also on a non-blocking handle: the clock thread sends nothing else meanwhile, ~1 ms).
+        if (r == io::midi::WriteResult::Written && fd_ >= 0 && bytes[0] == 0xF2)
             snd_rawmidi_drain(h_);
-        return r == size;
+        return r;
     }
     bool setHardwareThru(bool on) override { return unitmidi::setHardwareThru(on); }
 
@@ -266,15 +275,15 @@ public:
     std::unique_ptr<io::midi::MidiOutput> openOutput(const io::midi::PortInfo& p, std::string& error) override
     {
         snd_rawmidi_t* h = nullptr;
-        // Opened non-blocking: a blocking open waits for as long as another process holds the port (the app would
-        // hang at start-up). Then blocking writes: a message fits the buffer.
-        const int r = snd_rawmidi_open(nullptr, &h, p.id.c_str(), SND_RAWMIDI_NONBLOCK);
+        // Non-blocking: a blocking open waits for as long as another process holds the port (the app would hang at
+        // start-up), and a blocking write waits for room — a USB host that does not read the port would stall the
+        // MIDI clock thread (writeRaw). Append: a message goes into the buffer whole or not at all.
+        const int r = snd_rawmidi_open(nullptr, &h, p.id.c_str(), SND_RAWMIDI_NONBLOCK | SND_RAWMIDI_APPEND);
         if (r < 0)
         {
             error = snd_strerror(r);
             return nullptr;
         }
-        snd_rawmidi_nonblock(h, 0);
         if (p.slot == unitmidi::fixedSlot(unitmidi::UnitPort::Din)) // list() gives slot 0 to the DIN port only
             return std::make_unique<DinOutput>(h);
         return std::make_unique<AlsaOutput>(h);

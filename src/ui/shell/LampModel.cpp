@@ -12,6 +12,7 @@ void LampModel::update(const UiState& s, double nowMs, PadColourFn padColour, co
     io::ModeLamps mode;
     mode.playing = s.playing;
     mode.recArmed = s.recArmed;
+    mode.playArmed = s.playArmed;
     io::modeLamps(mode, frame_);
     bool anySolo = false;
     for (const auto& tr : s.tracks)

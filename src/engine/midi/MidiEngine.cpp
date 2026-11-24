@@ -79,6 +79,7 @@ void MidiEngine::prepare(double sampleRate) noexcept
     out_.reset();
     clockOut_.prepare(sampleRate_);
     pendingStart_ = Pending::None;
+    resumePpq_ = -1.0;
     lostHandled_ = false;
     blockStart_ = 0;
     midiMask_ = 0;
@@ -91,9 +92,9 @@ void MidiEngine::prepare(double sampleRate) noexcept
     correctionInstalled_ = following_ = false;
 }
 
-void MidiEngine::beginPeriod(std::int64_t firstFrame, std::int64_t hostNs, int frames) noexcept
+void MidiEngine::beginPeriod(std::int64_t firstFrame, std::int64_t hostNs, int frames, int outputLatencyFrames) noexcept
 {
-    clock_.period(firstFrame, hostNs, frames);
+    clock_.period(firstFrame, hostNs, frames, outputLatencyFrames);
     hub_.publishAnchor(clock_.anchor());
 }
 
@@ -246,7 +247,14 @@ void MidiEngine::updateFollowing() noexcept
         return;
     following_ = want;
     follower_.reset();
+    if (! want)
+    {
+        core::midi::UiEvent u; // the followed clock's health (the MIDI stats log line): nothing followed now
+        u.kind = core::midi::UiEvent::Kind::ClockIn;
+        hub_.pushUi(u);
+    }
     pendingStart_ = Pending::None;
+    resumePpq_ = -1.0;
     lostHandled_ = false;
     if (w_.transport == nullptr)
         return;
@@ -254,18 +262,24 @@ void MidiEngine::updateFollowing() noexcept
     correctionInstalled_ = want;
 }
 
-void MidiEngine::correction(void* self, double ppq, double& bpm, double& phase) noexcept
+void MidiEngine::correction(void* self, double ppq, double ppqPerFrame, double& bpm, double& phase) noexcept
 {
-    static_cast<MidiEngine*>(self)->correct(ppq, bpm, phase);
+    static_cast<MidiEngine*>(self)->correct(ppq, ppqPerFrame, bpm, phase);
 }
 
-void MidiEngine::correct(double ppq, double& bpm, double& phase) noexcept
+void MidiEngine::correct(double ppq, double ppqPerFrame, double& bpm, double& phase) noexcept
 {
     if (! following_ || ! follower_.locked() || follower_.lost(blockStart_))
         return; // SYN-013: the last tempo is kept (the transport keeps its corrected rate)
     const double tempo = follower_.tempo();
     if (! (tempo > 0.0))
         return;
+    if (! follower_.hasPosition() && ! follower_.positionPending() && pendingStart_ == Pending::None)
+    {
+        // No Start / SPP placed the clock (sync switched on while the unit plays, the clock back after a loss): the
+        // transport keeps its bars and locks onto the tick grid nearest to where it is.
+        follower_.adoptPosition(ppq + (follower_.lastTickTime() - static_cast<double>(blockStart_)) * ppqPerFrame);
+    }
     double b = tempo;
     if (follower_.hasPosition())
     {
@@ -462,46 +476,91 @@ void MidiEngine::handle(const DueEvent& d, BlockContext&) noexcept
             lostHandled_ = false;
             if (pendingStart_ != Pending::None && tr != nullptr)
             {
-                tr->command(TransportCmd {pendingStart_ == Pending::Start ? TransportCmd::Play : TransportCmd::Continue, 0.0});
+                // Start / Continue: the transport is at the start position on this tick — on the fitted line's time of
+                // it once locked (where correct() measures the phase from, so no steering transient follows), else on
+                // its own sample.
+                double at = d.exactFrame - static_cast<double>(blockStart_), q = startPpq_;
+                if (follower_.locked())
+                {
+                    at = follower_.lastTickTime() - static_cast<double>(blockStart_);
+                    if (at < 0.0) // the line puts it in the previous block: where the clock is at this block's start
+                    {
+                        q = follower_.ppqAt(static_cast<double>(blockStart_));
+                        at = 0.0;
+                    }
+                }
+                tr->transport().startAt(q, at, follower_.tempo());
                 pendingStart_ = Pending::None;
+                resumePpq_ = -1.0; // consumed: a later Continue resumes where the clock is then
             }
             return;
         case 0xFA: // Start
             if (! inEnable_[1] || ! fromSync || tr == nullptr)
                 return;
-            if (tr->playing())
+            if (tr->playing() || tr->preCount())
                 tr->command(TransportCmd {TransportCmd::Stop, 1.0});
-            follower_.setNextTickPosition(0.0);
+            resumePpq_ = -1.0;
             if (following_)
-                pendingStart_ = Pending::Start; // the next tick is beat 0
+            {
+                follower_.setNextTickPosition(0.0); // the next tick is beat 0
+                startPpq_ = 0.0;
+                pendingStart_ = Pending::Start;
+            }
             else
                 tr->command(TransportCmd {TransportCmd::Play, 0.0});
             return;
         case 0xFB: // Continue
             if (! inEnable_[1] || ! fromSync || tr == nullptr)
                 return;
-            follower_.setNextTickPosition(tr->ppq());
             if (following_)
+            {
+                // The next tick is where the clock stopped (or the SPP received since), else where the running clock is
+                // (the unit stopped on its own meanwhile), else where the transport is.
+                startPpq_ = resumePpq_ >= 0.0           ? resumePpq_
+                            : follower_.positionKnown() ? follower_.lastTickPpq() + 1.0 / 24.0
+                                                        : tr->ppq();
+                resumePpq_ = -1.0;
+                follower_.setNextTickPosition(startPpq_);
                 pendingStart_ = Pending::Continue;
+            }
             else
                 tr->command(TransportCmd {TransportCmd::Continue, 0.0});
             return;
         case 0xFC: // Stop: pause (a later Continue resumes here, Start restarts from 0)
             if (! inEnable_[1] || ! fromSync || tr == nullptr)
                 return;
+            // The clock's song position: a Start / Continue not begun yet, else the ticks it sent (counted on while the
+            // unit was stopped by its own STOP: the master's clock ran on).
+            if (following_ && pendingStart_ != Pending::None)
+                resumePpq_ = startPpq_;
+            else if (following_ && follower_.positionKnown())
+                resumePpq_ = follower_.lastTickPpq() + 1.0 / 24.0;
             pendingStart_ = Pending::None;
             follower_.clearPosition();
             tr->command(TransportCmd {TransportCmd::Stop, 0.0});
             return;
-        case 0xF2: // Song Position Pointer (sixteenths), obeyed while stopped
+        case 0xF2: // Song Position Pointer (sixteenths)
         {
-            if (! inEnable_[3] || ! fromSync || tr == nullptr || tr->playing())
+            if (! inEnable_[3] || ! fromSync || tr == nullptr)
                 return;
             const int pos16 = (e.bytes[1] & 127) | ((e.bytes[2] & 127) << 7);
-            if (w_.arrangement != nullptr && w_.arrangement->engaged())
-                w_.arrangement->locate16th(pos16); // ARR-008
-            else
-                tr->command(TransportCmd {TransportCmd::Locate, pos16 / 4.0});
+            const bool song = w_.arrangement != nullptr && w_.arrangement->engaged();
+            if (tr->playing() || tr->preCount())
+            {
+                // A jump while the clock runs (a DAW loop): the next tick is there, the phase correction moves the
+                // transport onto it (pattern mode; a song is only located while stopped, ARR-008).
+                if (following_ && ! song)
+                    follower_.setNextTickPosition(pos16 / 4.0);
+                return;
+            }
+            if (song)
+            {
+                w_.arrangement->locate16th(pos16); // ARR-008: the song cues its row, the transport stays where it is
+                resumePpq_ = -1.0;                 // a Continue resumes from the transport's position
+                return;
+            }
+            tr->command(TransportCmd {TransportCmd::Locate, pos16 / 4.0});
+            resumePpq_ = pos16 / 4.0;
             follower_.setNextTickPosition(pos16 / 4.0);
             return;
         }
@@ -515,6 +574,12 @@ void MidiEngine::processIn(BlockContext& ctx) noexcept
     if (const auto* t = hub_.ccTable(); t != cc_.table())
         cc_.setTable(t);
     updateFollowing();
+    // IN START/STOP/CONTINUE disabled: the unit starts itself (PLAY, a pad); stopped or paused, the next start places
+    // the clock afresh (adopted onto the tick grid where the transport starts). Enabled: the master starts it, and the
+    // clock's position counts on through the unit's own STOP (a later Stop / Continue resumes where the master is).
+    if (following_ && ! inEnable_[1] && pendingStart_ == Pending::None && w_.transport != nullptr &&
+        ! w_.transport->playing() && ! w_.transport->preCount())
+        follower_.clearPosition(false);
     in_.collect(hub_, 0xFFu, clock_, blockStart_, inputLatency());
     activity_ = 0;
     for (const DueEvent* d = in_.begin(); d != in_.end(); ++d)
@@ -537,6 +602,15 @@ void MidiEngine::processIn(BlockContext& ctx) noexcept
         core::midi::UiEvent u;
         u.kind = core::midi::UiEvent::Kind::Tempo;
         u.value = static_cast<float>(shownTempo_);
+        hub_.pushUi(u);
+    }
+    if (follower_.locked() && blockStart_ / kBlockFrames % static_cast<std::int64_t>(sampleRate_ / kBlockFrames) == 0)
+    {
+        core::midi::UiEvent u; // once a second: the followed clock's health (the MIDI stats log line)
+        u.kind = core::midi::UiEvent::Kind::ClockIn;
+        u.value = static_cast<float>(follower_.jitterFrames() / sampleRate_ * 1.0e6);
+        const auto relocks = follower_.reacquisitions();
+        u.scope = static_cast<std::uint16_t>(relocks > 65535u ? 65535u : relocks);
         hub_.pushUi(u);
     }
     if (follower_.ticks() > 0 && follower_.lost(blockStart_) && ! lostHandled_)
@@ -661,18 +735,21 @@ void MidiEngine::processOut(const BlockContext& ctx, const stages::BlockBuffers&
         }
     }
     const bool hardStop = w_.transport != nullptr && w_.transport->hardStopThisBlock();
-    if (ctx.stoppedThisBlock || hardStop)
-        out_.allNotesOff(); // MID-047: stop
+    const bool restarted = w_.transport != nullptr && w_.transport->transport().restartedThisBlock();
+    if (ctx.stoppedThisBlock || hardStop || restarted)
+        out_.allNotesOff(); // MID-047: stop (a restart stopped too)
     const std::uint32_t ports = outputPorts();
     trackOut(ctx, b, ports);
     if (w_.transport != nullptr)
     {
         const ClockOutSettings s {outEnable_[0], outEnable_[1], outEnable_[3], clockWhileStopped_};
+        const auto& tr = w_.transport->transport();
+        const double at = ctx.startedThisBlock ? tr.startPpq() : ctx.ppqStart; // a Continue's SPP: where it starts
         const std::int64_t spp16 = w_.arrangement != nullptr && w_.arrangement->engaged()
-                                       ? w_.arrangement->songPositionAt(ctx.ppqStart)
-                                       : static_cast<std::int64_t>(std::llround(ctx.ppqStart * 4.0));
-        clockOut_.process(ctx, s, ports, blockStart_, w_.transport->transport().ppqPerFrame(),
-                          w_.transport->locatedThisBlock(), spp16, out_);
+                                       ? w_.arrangement->songPositionAt(at)
+                                       : static_cast<std::int64_t>(std::llround(at * 4.0));
+        const ClockOutEdges edges {w_.transport->locatedThisBlock(), tr.startFrame(), tr.startPpq(), restarted};
+        clockOut_.process(ctx, s, ports, blockStart_, tr.ppqPerFrame(), edges, spp16, out_);
     }
     out_.endBlock();
 }

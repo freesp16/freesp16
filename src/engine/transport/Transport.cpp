@@ -24,9 +24,11 @@ void Transport::prepare(double sampleRate) noexcept
     sampleRate_ = sampleRate > 0.0 ? sampleRate : 44100.0;
     state_ = State::Stopped;
     wasPlaying_ = false;
-    hardStopPending_ = locatedPending_ = false;
-    hardStopEdge_ = locatedEdge_ = preCountBlock_ = false;
+    hardStopPending_ = locatedPending_ = restartPending_ = false;
+    hardStopEdge_ = locatedEdge_ = preCountBlock_ = restartEdge_ = false;
     startFrame_ = 0;
+    startPpq_ = 0.0;
+    leadIn_ = false;
     locate(0.0);
     updateRate();
 }
@@ -105,14 +107,20 @@ void Transport::command(const TransportCmd& c) noexcept
             if (state_ == State::Playing || state_ == State::PreCount)
                 break;
             const int bars = v < 0.5 ? 0 : (v < 1.5 ? 1 : kMaxPreCountBars);
+            restartPending_ = restartPending_ || wasPlaying_; // stopped since the last block: a restart
             locate(-mt::kQuartersPerBar * bars);
             locatedPending_ = true;
             state_ = bars > 0 ? State::PreCount : State::Playing;
+            startPpq_ = 0.0;
+            leadIn_ = false;
             break;
         }
         case TransportCmd::Continue:
             if (state_ == State::Stopped || state_ == State::Paused)
+            {
                 state_ = State::Playing; // the anchor holds the paused / located position
+                restartPending_ = restartPending_ || wasPlaying_;
+            }
             break;
         case TransportCmd::Pause: command({TransportCmd::Stop, 0.0}); break;
         case TransportCmd::HardStop: command({TransportCmd::Stop, 2.0}); break;
@@ -143,6 +151,24 @@ void Transport::command(const TransportCmd& c) noexcept
     }
 }
 
+void Transport::startAt(double ppq, double frame, double syncBpm) noexcept
+{
+    if (state_ == State::Playing || state_ == State::PreCount)
+        return;
+    if (syncBpm > 0.0 && correction_ != nullptr)
+    {
+        syncBpm_ = syncBpm / (1.0 + nudgeDir_ * static_cast<double>(nudgeAmount_));
+        updateRate(); // no rebase: the locate below sets the anchor
+    }
+    frame = frame > 0.0 ? (frame < kBlockFrames - 1.0 ? frame : kBlockFrames - 1.0) : 0.0; // NaN = 0
+    restartPending_ = restartPending_ || wasPlaying_;
+    locate(ppq - frame * ppf_);
+    locatedPending_ = true;
+    startPpq_ = ppq;
+    leadIn_ = frame > 0.0;
+    state_ = leadIn_ ? State::PreCount : State::Playing;
+}
+
 void Transport::advance(BlockContext& ctx) noexcept
 {
     hardStopEdge_ = hardStopPending_;
@@ -155,7 +181,7 @@ void Transport::advance(BlockContext& ctx) noexcept
     if (moving && correction_ != nullptr)
     {
         double b = effectiveBpm(), phase = 0.0;
-        correction_(correctionUser_, position(0), b, phase);
+        correction_(correctionUser_, position(0), ppf_, b, phase);
         if (phase != 0.0)
         {
             locate(position(0) + phase);
@@ -179,22 +205,26 @@ void Transport::advance(BlockContext& ctx) noexcept
         frames_ += kBlockFrames;
         if (state_ == State::PreCount)
         {
-            if (mt::inBlock(0.0, p0, ppf_, kBlockFrames) || p0 >= 0.0)
+            if (mt::inBlock(startPpq_, p0, ppf_, kBlockFrames) || p0 >= startPpq_)
             {
                 state_ = State::Playing; // the pre-count ends inside this block: playback starts on startFrame()
-                startFrame_ = mt::frameOf(0.0, p0, ppf_);
+                startFrame_ = mt::frameOf(startPpq_, p0, ppf_);
             }
             else
-                preCountBlock_ = true;
+                preCountBlock_ = ! leadIn_; // a lead-in stretched past its block by a rate change: still silent
         }
+        else if (! wasPlaying_ || restartPending_)
+            startPpq_ = p0; // Play without pre-count, Continue: the start edge is the block start
     }
 
     const bool playing = state_ == State::Playing;
+    restartEdge_ = restartPending_ && playing && wasPlaying_;
+    restartPending_ = false;
     ctx.ppqStart = p0;
     ctx.ppqEnd = p1;
     ctx.bpm = effectiveBpm();
     ctx.playing = playing;
-    ctx.startedThisBlock = playing && ! wasPlaying_;
+    ctx.startedThisBlock = playing && (! wasPlaying_ || restartEdge_);
     ctx.stoppedThisBlock = ! playing && wasPlaying_;
     wasPlaying_ = playing;
 }

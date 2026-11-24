@@ -12,25 +12,39 @@ void ClockFollower::prepare(double sampleRate) noexcept
 
 void ClockFollower::reset() noexcept
 {
-    head_ = count_ = 0;
-    index_ = 0.0;
+    head_ = count_ = run_ = 0;
+    index_ = origin_ = 0;
     lastRaw_ = last_ = period_ = 0.0;
     residualAvg_ = 0.0;
+    residualVar_ = 1.0e-6 * sampleRate_ * sampleRate_; // (1 ms)²: no jitter measured yet
     ticks_ = 0;
     display_ = 0.0;
     outsideSince_ = -1;
-    lastPpq_ = nextTickPpq_ = 0.0;
-    hasPosition_ = lastHasPosition_ = false;
+    posBase_ = pendingPpq_ = 0.0;
+    posIndex_ = 0;
+    hasPosition_ = pending_ = false;
+    reacquire_ = 0;
 }
 
 void ClockFollower::restart(double t) noexcept
 {
+    // A new line from this tick on (first tick, or after a gap): the index and the position run on.
     head_ = 0;
     count_ = 1;
-    index_ = 0.0;
+    run_ = 1;
+    origin_ = index_;
     t_[0] = t;
     x_[0] = 0.0;
     residualAvg_ = 0.0;
+    lastRaw_ = last_ = t;
+    period_ = 0.0;
+}
+
+void ClockFollower::adoptPosition(double quarters) noexcept
+{
+    posBase_ = std::nearbyint(quarters * 24.0) / 24.0;
+    posIndex_ = index_;
+    hasPosition_ = true;
 }
 
 void ClockFollower::fit() noexcept
@@ -39,117 +53,101 @@ void ClockFollower::fit() noexcept
     double mx = 0.0, mt = 0.0;
     for (int i = 0; i < count_; ++i)
     {
-        const int k = (head_ + i) & (kMaxTicks - 1);
-        mx += x_[static_cast<std::size_t>(k)];
-        mt += t_[static_cast<std::size_t>(k)];
+        mx += x_[slot(i)];
+        mt += t_[slot(i)];
     }
     mx /= count_;
     mt /= count_;
     double sxx = 0.0, sxt = 0.0;
     for (int i = 0; i < count_; ++i)
     {
-        const int k = (head_ + i) & (kMaxTicks - 1);
-        const double dx = x_[static_cast<std::size_t>(k)] - mx;
+        const double dx = x_[slot(i)] - mx;
         sxx += dx * dx;
-        sxt += dx * (t_[static_cast<std::size_t>(k)] - mt);
+        sxt += dx * (t_[slot(i)] - mt);
     }
+    const double minPeriod = 60.0 * sampleRate_ / (24.0 * kMaxBpm), maxPeriod = 60.0 * sampleRate_ / (24.0 * kMinBpm);
     if (sxx > 0.0)
     {
         const double p = sxt / sxx;
-        if (p > 0.0)
+        if (p >= minPeriod && p <= maxPeriod)
             period_ = p;
     }
-    last_ = mt + period_ * (index_ - mx);
+    if (period_ > 0.0)
+        last_ = mt + period_ * (static_cast<double>(index_ - origin_) - mx);
+    else
+        last_ = lastRaw_;
 }
 
 void ClockFollower::onTick(double t) noexcept
 {
-    lastHasPosition_ = hasPosition_;
-    const double maxPeriod = 60.0 * sampleRate_ / (24.0 * 10.0); // 10 BPM
     ++ticks_;
-    if (count_ > 0 && t <= lastRaw_ && t > lastRaw_ - kLostSeconds * sampleRate_)
+    ++index_;
+    const double gap = kLostSeconds * sampleRate_;
+    const bool fresh = count_ == 0 || t - lastRaw_ > gap || t < lastRaw_ - gap;
+    if (fresh && count_ > 0)
+        hasPosition_ = false; // ticks went missing: the count no longer says where the clock is (re-adopted)
+    if (pending_)
     {
-        // Same stamp as the previous tick (two ticks in one read of the port): count it, keep the line.
-        index_ += 1.0;
-        if (count_ > 0 && period_ > 0.0)
-            last_ += period_;
-        lastPpq_ = nextTickPpq_;
-        if (hasPosition_)
-            nextTickPpq_ += 1.0 / 24.0;
+        posBase_ = pendingPpq_;
+        posIndex_ = index_;
+        hasPosition_ = true;
+        pending_ = false;
+    }
+    if (fresh)
+    {
+        restart(t); // first tick, after a pause of the clock, or the timeline jumped (device restart)
         return;
     }
-    if (count_ == 0 || t - lastRaw_ > kLostSeconds * sampleRate_ || t < lastRaw_ ||
-        (period_ <= 0.0 && t - lastRaw_ > maxPeriod))
-    {
-        // First tick, or after a gap: nothing to estimate yet.
-        restart(t);
-        lastRaw_ = last_ = t;
-        period_ = 0.0;
-        lastPpq_ = nextTickPpq_;
-        if (hasPosition_)
-            nextTickPpq_ += 1.0 / 24.0;
-        return;
-    }
-    // Ticks since the previous one (a lost tick counts as skipped, the position follows).
-    double step = 1.0;
+    if (t < lastRaw_)
+        t = lastRaw_; // never before the previous tick (two ticks in one read, an anchor re-sync)
     if (period_ > 0.0)
     {
-        const double k = std::nearbyint((t - lastRaw_) / period_);
-        step = k < 1.0 ? 1.0 : k;
-        // Deviation of this tick from the line; a sustained one is a tempo change: restart the window.
-        const double predicted = last_ + period_ * step;
-        const double r = t - predicted;
+        // Deviation from the line; only a sustained one is a tempo change (a late tick is jitter: it is counted once).
+        const double r = t - (last_ + period_);
         residualAvg_ += (r - residualAvg_) * 0.125;
-        const double limit = std::fmax(0.1 * period_, 0.002 * sampleRate_);
-        if (std::fabs(residualAvg_) > limit || std::fabs(r) > 0.5 * period_)
+        const double limit = std::fmax(0.002 * sampleRate_, 3.0 * std::sqrt(residualVar_));
+        if (std::fabs(residualAvg_) > limit)
         {
             ++reacquire_;
-            const double p = (t - lastRaw_) / step;
-            if (hasPosition_)
-                nextTickPpq_ += (step - 1.0) / 24.0;
-            restart(lastRaw_);
-            index_ = step;
-            t_[1] = t;
-            x_[1] = step;
-            count_ = 2;
-            period_ = p;
-            last_ = t;
-            lastRaw_ = t;
-            lastPpq_ = nextTickPpq_;
-            if (hasPosition_)
-                nextTickPpq_ += 1.0 / 24.0;
-            return;
+            while (count_ > kRefitTicks - 1)
+            {
+                head_ = (head_ + 1) & (kMaxTicks - 1);
+                --count_;
+            }
+            residualAvg_ = 0.0;
+        }
+        else
+        {
+            const double rc = std::fmin(std::fabs(r), 0.5 * period_); // one wild tick does not blow up the jitter
+            residualVar_ += (rc * rc - residualVar_) * (1.0 / 32.0);
         }
     }
-    if (hasPosition_)
-        nextTickPpq_ += (step - 1.0) / 24.0;
-    index_ += step;
     // Append; drop what is older than the window (or beyond the ring).
     if (count_ == kMaxTicks)
     {
         head_ = (head_ + 1) & (kMaxTicks - 1);
         --count_;
     }
-    const int k = (head_ + count_) & (kMaxTicks - 1);
-    t_[static_cast<std::size_t>(k)] = t;
-    x_[static_cast<std::size_t>(k)] = index_;
+    t_[slot(count_)] = t;
+    x_[slot(count_)] = static_cast<double>(index_ - origin_);
     ++count_;
-    while (count_ > 2 && t - t_[static_cast<std::size_t>(head_)] > kWindowSeconds * sampleRate_)
+    while (count_ > 2 && t - t_[slot(0)] > kWindowSeconds * sampleRate_)
     {
         head_ = (head_ + 1) & (kMaxTicks - 1);
         --count_;
     }
     lastRaw_ = t;
+    if (run_ < kLockTicks)
+        ++run_;
     fit();
-    lastPpq_ = nextTickPpq_;
-    if (hasPosition_)
-        nextTickPpq_ += 1.0 / 24.0;
 }
 
 double ClockFollower::tempo() const noexcept
 {
     return locked() ? 60.0 * sampleRate_ / (24.0 * period_) : 0.0;
 }
+
+double ClockFollower::jitterFrames() const noexcept { return std::sqrt(residualVar_); }
 
 bool ClockFollower::lost(std::int64_t now) const noexcept
 {

@@ -1,7 +1,9 @@
 // Sample-stamped MIDI output (spec 02-features/midi.md MID-047, MID-070).
 // Audio thread only, no allocation. Every message carries the engine sample time it belongs to; endBlock() hands the
-// block's messages, in time order, to the hub's out SPSC, where io::midi::MidiSender converts sample time to
-// monotonic time (anchor + output latency + per-port offset) and sleeps to each absolute deadline.
+// block's messages, in time order, to the hub: the system messages (clock, Start / Continue / Stop, Song Position) to
+// its sync SPSC, for the MIDI clock thread alone, everything else to its out SPSC, for the sender thread.
+// io::midi::MidiSender converts sample time to monotonic time (anchor + output latency + per-port offset) and sleeps to
+// each absolute deadline.
 //
 // Notes: note() sends Note On now and keeps the Note Off for sampleTime + length; a 16 × 128-bit sounding table per
 // port feeds the hanging-note guard: allNotesOff(port) / allNotesOff() send Note Off for every sounding note (stop,
@@ -34,11 +36,14 @@ public:
               int owner = -1) noexcept;
     void noteOff(int port, int ch, int note, std::int64_t sampleTime) noexcept;
     void cc(int port, int ch, int cc, int value, std::int64_t sampleTime) noexcept;
-    void message(int port, std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, int size, std::int64_t sampleTime) noexcept;
+    // `frac` = the exact time − `sampleTime`, −½…+½ frame in 1/65536 frame (clock ticks keep their exact time).
+    void message(int port, std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, int size, std::int64_t sampleTime,
+                 std::int16_t frac = 0) noexcept;
     void allNotesOff(int port) noexcept;   // hanging-note guard: every sounding note of the port, at the block start
     void allNotesOff() noexcept;           // every port
     void trackNotesOff(int track) noexcept; // the sounding notes a track started (its mode left MIDI)
-    // The pending Note Offs due in this block, then the block's messages sorted by time → the hub.
+    // The pending Note Offs due in this block, then the block's messages sorted by time → the hub (system messages to
+    // its sync queue, the rest to its out queue).
     void endBlock() noexcept;
 
     bool sounding(int port, int ch, int note) const noexcept

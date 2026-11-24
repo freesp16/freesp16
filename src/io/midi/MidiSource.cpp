@@ -13,7 +13,8 @@
 //   midi_usb=0|1             1 (default): on the unit, put USB-B into USB MIDI mode once if it was left in storage mode
 // Log lines ("[sp16-mod] <PREFIX> MIDI …"): the start line (ports, sender), a stats line every 10 s and at stop:
 //   MIDI stats in=<messages> sent=<n> clocks=<n> late=<n> dropped=<n> forwarded=<n> jitter_p50=<µs> jitter_p99=<µs>
-//   jitter_max=<µs> samples=<n> tempo=<followed BPM> reconnects=<n>
+//   jitter_max=<µs> samples=<n> tempo=<followed BPM> reconnects=<n> in_dropped=<n> clock_in_jitter=<µs RMS>
+//   clock_in_relocks=<n>   (the clock follower: how much the master's ticks wander, how often its tempo changed)
 #include "ProjectIdentity.h"
 #include "core/params/ParamRegistry.h"
 #include "core/util/midi/MidiWire.h"
@@ -119,17 +120,20 @@ private:
     void report()
     {
         const auto s = service_->sender().stats();
-        char buf[400];
+        const auto clockIn = lastClockIn();
+        char buf[560];
         std::snprintf(buf, sizeof buf,
                       "MIDI stats in=%llu sent=%llu clocks=%llu late=%llu dropped=%llu forwarded=%llu jitter_p50=%.0f "
-                      "jitter_p99=%.0f jitter_max=%.0f samples=%llu tempo=%.1f reconnects=%llu in_dropped=%llu",
+                      "jitter_p99=%.0f jitter_max=%.0f samples=%llu tempo=%.1f reconnects=%llu in_dropped=%llu "
+                      "clock_in_jitter=%.0f clock_in_relocks=%u notes_jitter_p99=%.0f clock_margin=%.0f busy=%llu",
                       static_cast<unsigned long long>(service_->messagesIn()), static_cast<unsigned long long>(s.sent),
                       static_cast<unsigned long long>(s.clocks), static_cast<unsigned long long>(s.late),
                       static_cast<unsigned long long>(s.dropped + hub_.outDropped()),
                       static_cast<unsigned long long>(s.forwarded), s.p50Us, s.p99Us, s.maxUs,
                       static_cast<unsigned long long>(s.samples), lastFollowedTempo(),
                       static_cast<unsigned long long>(service_->reconnects()),
-                      static_cast<unsigned long long>(hub_.inDropped()));
+                      static_cast<unsigned long long>(hub_.inDropped()), clockIn.jitterUs, clockIn.relocks,
+                      s.notesP99Us, s.marginUs, static_cast<unsigned long long>(s.busy));
         logLine(buf);
     }
 

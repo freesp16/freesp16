@@ -305,7 +305,7 @@ TEST_CASE("transport.sync: the correction hook may change the effective tempo an
     struct Hook
     {
         double bpm = 0, phase = 0;
-        static void fn(void* u, double, double& b, double& p) noexcept
+        static void fn(void* u, double, double, double& b, double& p) noexcept
         {
             auto* h = static_cast<Hook*>(u);
             if (h->bpm > 0)
@@ -328,4 +328,53 @@ TEST_CASE("transport.sync: the correction hook may change the effective tempo an
     t.setCorrection(nullptr, nullptr);
     c = block(t);
     CHECK(c.bpm == 120.0);
+}
+
+TEST_CASE("transport.restart: a stop and a start between two blocks is a start edge, flagged as a restart",
+          "[transport]")
+{
+    Transport t;
+    t.prepare(44100.0);
+    t.command({TransportCmd::Play, 0});
+    auto c = block(t);
+    CHECK(c.startedThisBlock);
+    CHECK_FALSE(t.restartedThisBlock()); // a plain start
+    for (int i = 0; i < 100; ++i)
+        block(t);
+    // MIDI Start while playing: Stop(1), then the transport is placed on the first tick (startAt, frame 10).
+    t.command({TransportCmd::Stop, 1.0});
+    t.startAt(0.0, 10.0);
+    c = block(t);
+    CHECK(c.playing);
+    CHECK(c.startedThisBlock); // the start resets (LFO, FX, sections, ratchets) run
+    CHECK_FALSE(c.stoppedThisBlock);
+    CHECK(t.restartedThisBlock()); // MIDI Stop out, the hanging-note guard
+    CHECK(t.startFrame() == 10);
+    CHECK(t.startPpq() == 0.0);
+    c = block(t);
+    CHECK_FALSE(c.startedThisBlock);
+    CHECK_FALSE(t.restartedThisBlock());
+    // STOP then PLAY from the UI in one drain: the same.
+    t.command({TransportCmd::Stop, 1.0});
+    t.command({TransportCmd::Play, 0.0});
+    c = block(t);
+    CHECK(c.startedThisBlock);
+    CHECK(t.restartedThisBlock());
+    CHECK(c.ppqStart == 0.0);
+    CHECK(t.startPpq() == 0.0);
+    // Pause and Continue in one drain.
+    block(t);
+    t.command({TransportCmd::Stop, 0.0});
+    t.command({TransportCmd::Continue, 0.0});
+    c = block(t);
+    CHECK(c.startedThisBlock);
+    CHECK(t.restartedThisBlock());
+    // A stop, then a counted pre-count: the block does not play — a plain stop edge, no restart.
+    block(t);
+    t.command({TransportCmd::Stop, 1.0});
+    t.command({TransportCmd::Play, 1.0});
+    c = block(t);
+    CHECK(c.stoppedThisBlock);
+    CHECK_FALSE(c.startedThisBlock);
+    CHECK_FALSE(t.restartedThisBlock());
 }

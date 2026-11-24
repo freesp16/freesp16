@@ -317,6 +317,37 @@ TEST_CASE("seq.engine: PAD STARTS SEQ — the first hit while stopped and armed 
     CHECK(hits[0].frame == 5 * 64 + static_cast<long>(std::floor(4 * stepFrames())));
 }
 
+TEST_CASE("seq.engine: PAD STARTS SEQ under MIDI clock — blocked (nothing recorded) while only the clock's Start "
+          "starts the transport",
+          "[seq][engine][record]")
+{
+    Rig rig;
+    auto p = pattern(16);
+    put(*p, 4, 2);
+    REQUIRE(rig.install(*p));
+    REQUIRE(rig.param("seq.record", 1.0f));
+    REQUIRE(rig.param("seq.padStartsSequence", 1.0f));
+    REQUIRE(rig.param("midi.syncSource", 1.0f)); // MIDI CLOCK, IN CLOCK and START/STOP/CONTINUE on (defaults)
+    rig.blocks(4);
+    REQUIRE(rig.e->bridge().playhead().externalStart);
+    REQUIRE(rig.e->triggers().push({2, 110, 60, 2}));
+    rig.block();
+    CHECK(rig.events().empty()); // no step-1 hit recorded: no pass starts from it
+    rig.blocks(4);
+    CHECK_FALSE(rig.e->bridge().playhead().playing);
+    // IN START/STOP/CONTINUE off (manual p.45: the master cannot start the unit): the pad starts it, as without sync.
+    REQUIRE(rig.param("midi.in.startStop", 0.0f));
+    rig.blocks(2);
+    REQUIRE_FALSE(rig.e->bridge().playhead().externalStart);
+    REQUIRE(rig.e->triggers().push({2, 110, 60, 2}));
+    rig.block();
+    const auto ev = rig.events();
+    REQUIRE(ev.size() == 1u);
+    CHECK(ev[0].step == 0);
+    rig.blocks(2);
+    CHECK(rig.e->bridge().playhead().playing);
+}
+
 TEST_CASE("seq.engine: an 8-step pattern wraps after 8 steps; STOP rewinds to step 1", "[seq][engine]")
 {
     Rig rig;

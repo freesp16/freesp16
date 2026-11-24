@@ -39,6 +39,11 @@ double& tempo()
     static double t = 0.0;
     return t;
 }
+ClockInHealth& clockIn()
+{
+    static ClockInHealth h;
+    return h;
+}
 } // namespace
 
 bool postMidiSettings(const core::model::Project& p, engine::EngineBridge& b, const core::ParamRegistry& reg)
@@ -174,6 +179,8 @@ int drainUiEvents(core::midi::MidiHub& hub, int max)
         ++n;
         if (e.kind == core::midi::UiEvent::Kind::Tempo)
             tempo() = e.value;
+        if (e.kind == core::midi::UiEvent::Kind::ClockIn)
+            clockIn() = {static_cast<double>(e.value), e.scope};
         if (sink())
             sink()(e);
     }
@@ -181,4 +188,5 @@ int drainUiEvents(core::midi::MidiHub& hub, int max)
 }
 
 double lastFollowedTempo() noexcept { return tempo(); }
+ClockInHealth lastClockIn() noexcept { return clockIn(); }
 } // namespace io::midi

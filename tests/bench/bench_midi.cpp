@@ -102,7 +102,7 @@ struct Rig
         router.process(ctx);
         midi.processOut(ctx, buffers);
         core::midi::MidiOutEvent o;
-        while (midi.hub().popOut(o))
+        while (midi.hub().popOut(o) || midi.hub().popSync(o))
             bench::doNotOptimize(o.sampleTime);
         ++block;
     }

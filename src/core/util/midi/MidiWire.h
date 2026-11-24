@@ -2,8 +2,10 @@
 // 02-features/midi.md MID-001/070, sync-and-transport.md SYN-011/020).
 //
 //   MIDI port thread (io/midi, one per input) ──pushIn (SPSC per port)──────▶ audio thread (engine/midi)
-//                                             ──pushForward (SPSC per port)─▶ MIDI sender thread (merge / thru, MID-002)
+//                                             ──pushForward (SPSC per port)─▶ MIDI sender thread (merge / thru,
+//                                             MID-002)
 //   audio thread ──pushOut (SPSC, sample-stamped)──────────────────────────▶ MIDI sender thread (io/midi/MidiSender)
+//   audio thread ──pushSync (SPSC, sample-stamped: clock, start/stop, SPP)─▶ MIDI clock thread (io/midi/MidiSender)
 //   audio thread ──publishAnchor (seqlock, once per device period)─────────▶ sender (sample time → monotonic time)
 //   audio thread ──pushUi (SPSC)───────────────────────────────────────────▶ message thread (CC → model, activity)
 //
@@ -27,6 +29,7 @@ namespace core::midi
 constexpr int kMaxPorts = 8;               // input ports and output ports, each (DIN + USB on the device; 8 is ours)
 constexpr std::size_t kInQueue = 512;      // per input port: ≥ 160 ms of a saturated 31.25 kbit/s DIN stream
 constexpr std::size_t kOutQueue = 2048;    // engine → sender (all ports)
+constexpr std::size_t kSyncQueue = 512; // engine → clock thread (all ports): ≥ 1 s of ticks at 300 BPM on 2 ports
 constexpr std::size_t kUiQueue = 1024;     // engine → message thread
 // ParamChange scope of the project-open marker (io::midi::postMidiSettings → engine::midi::MidiEngine): a MIDI track
 // value (midi.note1 … midi.mode) posted with it resets every scene's MIDI track values to their defaults (the
@@ -56,34 +59,46 @@ struct MidiEvent
 };
 
 // One outgoing message, stamped with the engine sample time it belongs to (MID-070). port = output port 0–7.
+// `frac`: the exact time minus `sampleTime` (the nearest frame), −½…+½ frame in 1/65536 frame, so a clock tick keeps
+// its exact position (a tick is rarely on a whole frame: 770.98 frames apart at 143 BPM) instead of being rounded by up
+// to half a frame (11 µs at 44.1 kHz).
 struct MidiOutEvent
 {
     std::uint8_t port = 0, size = 0;
     std::uint8_t bytes[3] {};
+    std::int16_t frac = 0;
     std::int64_t sampleTime = 0; // engine frame index (frames rendered since prepare)
+    double exactTime() const noexcept { return static_cast<double>(sampleTime) + frac * (1.0 / 65536.0); }
+    // System messages (clock, Start / Continue / Stop, Song Position): the clock thread's (MidiHub::pushSync).
+    bool system() const noexcept { return bytes[0] >= 0xF0; }
 };
+static_assert(sizeof(MidiOutEvent) == 16);
 
 // The audio clock as the sender sees it: engine frame `frame` leaves the engine at monotonic time `hostNs`
-// (period-start anchor, filtered by the engine's DLL), and one frame lasts `nsPerFrame`.
+// (period-start anchor, filtered by the engine's DLL), and one frame lasts `nsPerFrame`. `leadFrames`: how long after
+// it leaves the engine a frame is heard (the audio device's output buffer, at least one period) — a message is sent
+// when its frame is heard, so it is never due before the engine has produced it and it lines up with the audio.
 struct ClockAnchor
 {
     std::int64_t frame = 0;
     std::int64_t hostNs = 0;
     double nsPerFrame = 1.0e9 / 44100.0;
     bool valid = false;
+    double leadFrames = 0.0;
     // Monotonic time of engine frame `f` (fractional frames allowed).
     double timeOf(double f) const noexcept { return static_cast<double>(hostNs) + (f - static_cast<double>(frame)) * nsPerFrame; }
 };
 
 // Engine → message thread: an incoming CC the engine applied (the UI writes the model with a non-undoable, coalesced
-// command), MIDI activity per port (LEDs), and the followed tempo.
+// command), MIDI activity per port (LEDs), the followed tempo, and once a second the followed clock's health.
 struct UiEvent
 {
-    enum class Kind : std::uint8_t { Param, Activity, Tempo, SceneSelect } kind = Kind::Param;
+    enum class Kind : std::uint8_t { Param, Activity, Tempo, SceneSelect, ClockIn } kind = Kind::Param;
     std::uint8_t port = 0;
-    std::uint16_t scope = 0;  // Param: the ParamChange scope; SceneSelect: scene × 16 + pattern
+    std::uint16_t scope = 0;  // Param: the ParamChange scope; SceneSelect: scene × 16 + pattern; ClockIn: re-locks
     std::uint16_t param = 0;  // Param: ParamId.value
-    float value = 0.0f;       // Param: the applied value; Tempo: BPM (display, rounded with hysteresis)
+    float value = 0.0f;       // Param: the applied value; Tempo: BPM (display, rounded with hysteresis);
+                              // ClockIn: RMS jitter of the incoming ticks against the followed line (µs)
 };
 
 struct CcTable; // core/util/midi/CcTable.h
@@ -108,6 +123,7 @@ public:
     // ---- audio thread ----
     bool popIn(int port, MidiEvent& e) noexcept { return valid(port) && in_[static_cast<std::size_t>(port)].pop(e); }
     bool pushOut(const MidiOutEvent& e) noexcept { return out_.push(e) || count(outDropped_); }
+    bool pushSync(const MidiOutEvent& e) noexcept { return sync_.push(e) || count(outDropped_); }
     bool pushUi(const UiEvent& e) noexcept { return ui_.push(e) || count(uiDropped_); }
     void publishAnchor(const ClockAnchor& a) noexcept
     {
@@ -119,11 +135,13 @@ public:
         hostNs_.store(a.hostNs, std::memory_order_relaxed);
         nsPerFrame_.store(a.nsPerFrame, std::memory_order_relaxed);
         valid_.store(a.valid, std::memory_order_relaxed);
+        lead_.store(a.leadFrames, std::memory_order_relaxed);
         seq_.store(s + 2, std::memory_order_release);
     }
 
     // ---- sender thread ----
     bool popOut(MidiOutEvent& e) noexcept { return out_.pop(e); }
+    bool popSync(MidiOutEvent& e) noexcept { return sync_.pop(e); } // the clock thread
     bool popForward(int port, MidiEvent& e) noexcept
     {
         return valid(port) && forward_[static_cast<std::size_t>(port)].pop(e);
@@ -140,6 +158,7 @@ public:
             a.hostNs = hostNs_.load(std::memory_order_relaxed);
             a.nsPerFrame = nsPerFrame_.load(std::memory_order_relaxed);
             a.valid = valid_.load(std::memory_order_relaxed);
+            a.leadFrames = lead_.load(std::memory_order_relaxed);
             std::atomic_thread_fence(std::memory_order_acquire);
             if (seq_.load(std::memory_order_relaxed) == s0)
                 return a;
@@ -228,17 +247,18 @@ private:
     std::array<SpscQueue<MidiEvent, kInQueue>, kMaxPorts> in_ {};
     std::array<SpscQueue<MidiEvent, kInQueue>, kMaxPorts> forward_ {};
     SpscQueue<MidiOutEvent, kOutQueue> out_ {};
+    SpscQueue<MidiOutEvent, kSyncQueue> sync_{};
     SpscQueue<UiEvent, kUiQueue> ui_ {};
     std::atomic<std::uint32_t> seq_ {0};
     std::atomic<std::int64_t> frame_ {0}, hostNs_ {0};
-    std::atomic<double> nsPerFrame_ {1.0e9 / 44100.0};
+    std::atomic<double> nsPerFrame_ {1.0e9 / 44100.0}, lead_ {0.0};
     std::atomic<bool> valid_ {false};
     std::atomic<const CcTable*> cc_ {nullptr};
     std::atomic<std::uint32_t> outputs_ {0}, inputs_ {0};
     std::array<std::atomic<std::uint32_t>, kMaxPorts> generation_ {};
     std::array<std::atomic<std::int8_t>, kMaxPorts> mode_ {};
     std::array<std::atomic<std::int16_t>, kMaxPorts> offset_ {};
-    std::atomic<std::int16_t> latency_ {12};
+    std::atomic<std::int16_t> latency_ {0}; // = midi.outLatency's default (an extra trim; the lead is the buffer)
     std::atomic<std::uint64_t> inDropped_ {0}, outDropped_ {0}, uiDropped_ {0}, forwardDropped_ {0};
 };
 

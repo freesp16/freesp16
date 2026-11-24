@@ -19,8 +19,8 @@ void MidiOutScheduler::push(const core::midi::MidiOutEvent& e) noexcept
     events_[static_cast<std::size_t>(numEvents_++)] = e;
 }
 
-void MidiOutScheduler::message(int port, std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, int size,
-                               std::int64_t t) noexcept
+void MidiOutScheduler::message(int port, std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, int size, std::int64_t t,
+                               std::int16_t frac) noexcept
 {
     if (port < 0 || port >= kPorts || size < 1 || size > 3)
         return;
@@ -31,6 +31,7 @@ void MidiOutScheduler::message(int port, std::uint8_t b0, std::uint8_t b1, std::
     e.bytes[1] = b1;
     e.bytes[2] = b2;
     e.sampleTime = t < blockStart_ ? blockStart_ : t;
+    e.frac = t < blockStart_ ? std::int16_t{0} : frac;
     push(e);
 }
 
@@ -164,12 +165,14 @@ void MidiOutScheduler::endBlock() noexcept
         else
             ++i;
     }
-    // Stable insertion sort by sample time (a block holds few messages; already ordered input costs n compares).
+    // Stable insertion sort by time (a block holds few messages; already ordered input costs n compares).
+    const auto later = [](const core::midi::MidiOutEvent& a, const core::midi::MidiOutEvent& b)
+    { return a.sampleTime > b.sampleTime || (a.sampleTime == b.sampleTime && a.frac > b.frac); };
     for (int i = 1; i < numEvents_; ++i)
     {
         const auto e = events_[static_cast<std::size_t>(i)];
         int j = i;
-        while (j > 0 && events_[static_cast<std::size_t>(j - 1)].sampleTime > e.sampleTime)
+        while (j > 0 && later(events_[static_cast<std::size_t>(j - 1)], e))
         {
             events_[static_cast<std::size_t>(j)] = events_[static_cast<std::size_t>(j - 1)];
             --j;
@@ -178,7 +181,8 @@ void MidiOutScheduler::endBlock() noexcept
     }
     for (int i = 0; i < numEvents_; ++i)
     {
-        if (hub_ != nullptr && hub_->pushOut(events_[static_cast<std::size_t>(i)]))
+        const auto& e = events_[static_cast<std::size_t>(i)];
+        if (hub_ != nullptr && (e.system() ? hub_->pushSync(e) : hub_->pushOut(e)))
             ++sent_;
         else
             ++dropped_;

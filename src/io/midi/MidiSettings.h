@@ -48,4 +48,10 @@ using UiEventSink = std::function<void(const core::midi::UiEvent&)>;
 void setUiEventSink(UiEventSink sink); // message thread; null = events are only counted
 int drainUiEvents(core::midi::MidiHub& hub, int max = 256);
 double lastFollowedTempo() noexcept;  // the latest Tempo event (0 = none)
+struct ClockInHealth
+{
+    double jitterUs = 0.0;     // RMS jitter of the followed clock's ticks (0 = not following)
+    unsigned relocks = 0;      // tempo changes the follower re-locked to since sync was switched on
+};
+ClockInHealth lastClockIn() noexcept; // the latest ClockIn event
 } // namespace io::midi

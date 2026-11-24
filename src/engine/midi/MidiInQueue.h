@@ -34,8 +34,10 @@ public:
 
     void prepare(double sampleRate) noexcept;
     // Once per device period: engine frame of the period's first output frame, the callback's monotonic time (0 = no
-    // clock: tests and offline renders, then host time is synthetic = frame · nsPerFrame), frames in the period.
-    void period(std::int64_t frame, std::int64_t hostNs, int frames) noexcept;
+    // clock: tests and offline renders, then host time is synthetic = frame · nsPerFrame), frames in the period, frames
+    // until that first frame is heard (the device's output buffer; 0 = unknown: two periods, the usual buffer). The
+    // anchor's lead is that latency, never under one period (a message is then never due before it is produced).
+    void period(std::int64_t frame, std::int64_t hostNs, int frames, int outputLatencyFrames = 0) noexcept;
     core::midi::ClockAnchor anchor() const noexcept { return anchor_; }
     double frameOf(std::int64_t hostNs) const noexcept
     {

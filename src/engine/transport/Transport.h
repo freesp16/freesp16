@@ -17,9 +17,15 @@
 //   Stop(2)     hard stop: Stopped at 0 and hardStop for one block (voices fade, FX tails are cut)       (= HardStop)
 //   SetTempo    20.0–300.0 BPM on the 0.1 grid (SYN-002); takes effect at the block start, the position is kept
 //   Locate(ppq) jumps to ppq ≥ 0 in any state but PreCount (ignored there)
+// startAt(ppq, frame) (audio thread, not a command): Stopped/Paused → Playing, `ppq` at frame `frame` of the next
+//             block — an external clock's Start / Continue lands on its tick's sample, not on the block start. The
+//             frames before it are a silent lead-in (PreCount state for under one block: no click, nothing plays).
 //
 // Per block (advance): ctx.ppqStart/ppqEnd = [p0, p1) of this block (equal while stopped or paused), ctx.bpm = the
 // effective tempo (nudge applied), ctx.playing, ctx.startedThisBlock / stoppedThisBlock (Playing entered / left).
+// A stop and a start applied between two blocks (MIDI Start while playing: Stop, then startAt) is a restart:
+// startedThisBlock is set (the start resets run), stoppedThisBlock is not (the block plays), and restartedThisBlock()
+// tells the stop's consumers (MIDI Stop out, the hanging-note guard).
 // The block in which a pre-count reaches 0 is a Playing block with ppqStart < 0 < ppqEnd: playback starts on frame
 // startFrame() = frameOf(0, p0, ppqPerFrame) (176,400 frames after a 2-bar pre-count at 120 BPM, 44.1 kHz).
 #pragma once
@@ -38,9 +44,10 @@ enum class State : std::uint8_t
     PreCount
 };
 
-// External tempo/phase correction (SYN-012): called once per block before the position advances; it may change
-// the effective BPM (`bpm`, in and out) and request a phase jump in quarters (`phase`, 0 = none). Null = internal clock.
-using CorrectionFn = void (*)(void* user, double ppq, double& bpm, double& phase) noexcept;
+// External tempo/phase correction (SYN-012): called once per block before the position advances, with the block's
+// start position and the current rate (quarters per frame); it may change the effective BPM (`bpm`, in and out) and
+// request a phase jump in quarters (`phase`, 0 = none). Null = internal clock.
+using CorrectionFn = void (*)(void* user, double ppq, double ppqPerFrame, double& bpm, double& phase) noexcept;
 
 class Transport
 {
@@ -59,6 +66,9 @@ public:
         syncBpm_ = 0.0;
         updateRate();
     }
+    // See above (frame: fractional, 0 ≤ frame < 64); syncBpm > 0: the correction hook's tempo from now on (the
+    // followed clock's), so the lead-in is measured at the rate the transport will run at.
+    void startAt(double ppq, double frame, double syncBpm = 0.0) noexcept;
     void advance(BlockContext&) noexcept;                  // fills ctx (ppqStart, ppqEnd, bpm, playing, edges)
 
     State state() const noexcept { return state_; }
@@ -75,8 +85,10 @@ public:
     // Edges of the last advance() (one block each).
     bool hardStopThisBlock() const noexcept { return hardStopEdge_; }
     bool locatedThisBlock() const noexcept { return locatedEdge_; } // the position jumped (Locate, Stop to 0, Play)
+    bool restartedThisBlock() const noexcept { return restartEdge_; }  // stopped and started again (see above)
     bool preCountThisBlock() const noexcept { return preCountBlock_; } // the block was (entirely) pre-count
     int startFrame() const noexcept { return startFrame_; }          // frame of the start edge (0 unless pre-count)
+    double startPpq() const noexcept { return startPpq_; }           // position on the start edge (its block)
 
 private:
     double position(std::int64_t extraFrames) const noexcept; // anchor + frames · ppqPerFrame (Transport.cpp)
@@ -95,9 +107,11 @@ private:
     std::int64_t frames_ = 0;                  // frames advanced since the anchor
     State state_ = State::Stopped;
     bool wasPlaying_ = false;                  // state_ was Playing at the end of the previous block
-    bool hardStopPending_ = false, locatedPending_ = false;
-    bool hardStopEdge_ = false, locatedEdge_ = false, preCountBlock_ = false;
+    bool hardStopPending_ = false, locatedPending_ = false, restartPending_ = false;
+    bool hardStopEdge_ = false, locatedEdge_ = false, preCountBlock_ = false, restartEdge_ = false;
     int startFrame_ = 0;
+    double startPpq_ = 0.0; // where PreCount ends (0 after a counted pre-count, the target of startAt)
+    bool leadIn_ = false;   // the PreCount is startAt's lead-in, not a counted pre-count
     CorrectionFn correction_ = nullptr;
     void* correctionUser_ = nullptr;
 };

@@ -126,7 +126,10 @@ void modeLamps(const ModeLamps& m, LampFrame& f) noexcept
         f[padModeKey(mode)] = lit(m.padMode == mode, lampcolour::white);
     const LampState recBlink {LampMode::BlinkSlow, lampcolour::red, 0}, playBlink {LampMode::BlinkSlow, lampcolour::green, 0};
     f[Control::Rec] = m.recWaiting ? recBlink : lit(m.recArmed, lampcolour::red);
-    f[Control::Play] = m.paused ? playBlink : lit(m.playing, lampcolour::green);
+    const LampState playArmedBlink {LampMode::BlinkFast, lampcolour::green, 0};
+    f[Control::Play] = m.playArmed && ! m.playing ? playArmedBlink
+                       : m.paused                 ? playBlink
+                                                  : lit(m.playing, lampcolour::green);
     f[Control::Stop] = {};
     f[Control::Scene] = lit(m.sceneMode, lampcolour::white);
     f[Control::Pattern] = lit(m.patternMode, lampcolour::white);

@@ -249,7 +249,7 @@ void Engine::process(const AudioIO& io) noexcept
     // The audio clock anchor of this period — engine frame of its first output frame ↔ hostTimeNs.
     midi_.beginPeriod(static_cast<std::int64_t>(blocks_.load(std::memory_order_relaxed)) * kBlockFrames -
                           (kBlockFrames - blockPos_),
-                      static_cast<std::int64_t>(io.hostTimeNs), frames);
+                      static_cast<std::int64_t>(io.hostTimeNs), frames, io.outputLatencyFrames);
     const int pairs = std::clamp(io.numOutPorts, 0, stages::kPorts);
     const float* inL = io.numIn > 0 && io.in != nullptr ? io.in[0] : nullptr;
     const float* inR = io.numIn > 1 && io.in != nullptr ? io.in[1] : inL;
@@ -323,6 +323,7 @@ void Engine::process(const AudioIO& io) noexcept
     p.bpm = midi_.displayTempo(transport_.bpm()); // the followed clock's tempo (SYN-012 display)
     p.playing = transport_.playing();
     p.externalClock = midi_.following();
+    p.externalStart = midi_.clockStarts();
     p.clockLost = midi_.clockLost();
     sceneSwitch_.publish(p, transport_.ppq()); // scene, pattern, step, pending scene/pattern
     p.preCount = transport_.preCount();
@@ -354,6 +355,7 @@ void Engine::renderBlock() noexcept
     sampling_.install(swaps_.as<sampling::CaptureHub>(sampling::kCaptureHubSlot)); // the capture hub
     sampling_.input(buffers_);        //    input stage: soft limiter + meter → the post-limiter input
     midi_.processIn(ctx);             // 2  MIDI in
+    sequencer_.seq.setStartBlocked(midi_.clockStarts()); // SEQ-047 pad start: not while the clock's Start starts it
     transport_.process(ctx, buffers_); // 3
     sync_.process(ctx, buffers_);     // 4
     chain_.setSuspended(arrangement_.suspendsChain()); // 5: song mode is on, the chain waits
@@ -385,7 +387,9 @@ void Engine::renderBlock() noexcept
     afs_.beginBlock(triggerRouter_.blockEvents(), lfo_.lfo(afs_.track() < 0 ? 0 : afs_.track()).value());
     modSink_.beginBlock(triggerRouter_.scene(), ctx.bpm);
     modMatrix_.applyBlock(fxBank_, modSink_);          //    once per block, after the locks, before the voices
-    if (sequencer_.seq.takeStartRequest())             //    padStartsSequence (SEQ-047): the hit starts the transport
+    // padStartsSequence (SEQ-047): the hit starts the transport (the sequencer asks only while the start is not
+    // blocked: midi_.clockStarts(), see processIn above).
+    if (sequencer_.seq.takeStartRequest())
         transport_.command(TransportCmd {TransportCmd::Play, 0.0});
     midi_.processOut(ctx, buffers_);  // 7  MIDI out
     if (transport_.secondStopThisBlock())
@@ -536,7 +540,11 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
     }
     if (const auto* t = std::get_if<TransportCmd>(&m))
     {
-        transport_.command(*t);
+        // Under MIDI clock sync with IN START/STOP/CONTINUE enabled only the external device starts the transport
+        // (its Start / Continue, MidiEngine): a UI Play / Continue (PLAY, the device-restore resume) is dropped; the
+        // UI shows PLAY armed instead. With it disabled (manual p.45) the unit starts itself and locks to the clock.
+        if (! (midi_.clockStarts() && (t->kind == TransportCmd::Play || t->kind == TransportCmd::Continue)))
+            transport_.command(*t);
         return true;
     }
     if (const auto* s = std::get_if<ObjectSwap>(&m))

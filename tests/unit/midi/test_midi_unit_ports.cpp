@@ -76,11 +76,11 @@ class FakeOutput final : public io::midi::MidiOutput
 {
 public:
     explicit FakeOutput(FakePort& p) : p_(p) {}
-    bool write(const std::uint8_t* b, int n) override
+    io::midi::WriteResult write(const std::uint8_t* b, int n) override
     {
         std::lock_guard<std::mutex> lock(p_.m);
         p_.written.insert(p_.written.end(), b, b + n);
-        return p_.present;
+        return p_.present ? io::midi::WriteResult::Written : io::midi::WriteResult::Gone;
     }
     bool setHardwareThru(bool on) override
     {

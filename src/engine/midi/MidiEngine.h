@@ -3,13 +3,22 @@
 // of engine::Engine, called directly (steps 2 and 7 of audio-engine.md's block order); audio thread only except the
 // set-up calls. Owns the core::midi::MidiHub (the lock-free wire to the port threads and the sender, core/util/midi).
 //
-//   period start  beginPeriod(): the audio clock anchor (DLL) → the hub (the sender's sample → monotonic mapping)
-//   step 1        onParam(): midi.* ParamChanges (core/params/catalogue/midi.cpp)
+//   period start  beginPeriod(): the audio clock anchor (DLL) and the output lead (the device's buffer) → the hub (the
+//                 sender's sample → monotonic mapping: every message leaves when its frame is heard)
+//   step 1        onParam(): midi.* ParamChanges (core/params/catalogue/midi.cpp). While following with IN START/STOP/
+//                 CONTINUE enabled (clockStarts()), the engine drops a UI Play / Continue and the pad start (SEQ-047):
+//                 only the clock's Start / Continue starts the transport (the UI shows PLAY armed); STOP still stops
+//                 it. With it disabled (manual p.45: the unit does not receive them) PLAY, Continue and the pad start
+//                 the transport as usual, and step 3 locks it onto the running clock's tick grid
 //   step 2        processIn(): drain the ports, schedule at arrival + the fixed latency (MidiInQueue.h), then per due
 //                 event in time order:
-//                   F8 clock          → ClockFollower (sync source MIDI CLOCK on the sync port, IN clock enabled)
-//                   FA / FB / FC / F2 → transport Start (on the first tick) / Continue / Stop (pause) / Locate (stopped),
-//                                       IN START/STOP and SONG POSITION enables (SYN-011; ARR-008 in song mode)
+//                   F8 clock          → ClockFollower (sync source MIDI CLOCK on the sync port, IN clock enabled):
+//                                       every F8 is one tick, never inferred from gaps (ClockFollower.h)
+//                   FA / FB / FC / F2 → transport Start / Continue on the sample of the next tick (Transport::startAt:
+//                                       quarter 0, or the clock's song position — the ticks it sent before its Stop,
+//                                       or the SPP since) / Stop (pause) / Locate (stopped; while playing in pattern
+//                                       mode the next tick is there and step 3 jumps), IN START/STOP and SONG POSITION
+//                                       enables (SYN-011; ARR-008 in song mode)
 //                   notes 0–15        → track n + 1, any channel, frame-accurate trigger (MID-020); Sample tracks only
 //                   notes 24–72       → each Sample track on that receive channel, note − 48 semitones, ±12 under
 //                                       MASTER TEMPO (MID-021/022); Note Off → Release (GATE tracks) of the tracks
@@ -23,13 +32,16 @@
 //                 only end sound (Note Off, CC 123: nothing hangs); our choice: a CC 0 waits at most kRemoteSelectWait
 //                 (1 s), so a lone CC 0 cannot mute MIDI IN, and SAMPLING/EDIT opening or a project open drop it.
 //                 applied CCs and the followed tempo go to the UI (UiEvent) for the model / display
-//   step 3        the transport calls the follower's correction (Transport::setCorrection): tempo = the PLL's, phase
-//                 steered onto the clock's ticks by a bounded rate correction (no drift; a jump only when > ½ tick off)
+//   step 3        the transport calls the follower's correction (Transport::setCorrection): tempo = the follower's,
+//                 phase steered onto the clock's ticks by a bounded rate correction (no drift; a jump only when > ½ tick
+//                 off). Without a Start / SPP (sync switched on while the unit plays, the clock back after a loss)
+//                 the transport's position is adopted onto the nearest tick: it keeps its bars and locks.
 //   step 7        processOut(): MIDI and AS-1 tracks (MidiTrackPlayer: notes + chords — NOTE2–4 are semitones from
 //                 NOTE, an AS-1 track sends NOTE alone — a step's PITCH lock, length, the Active CC1/CC2 values (pitch
 //                 bend, aftertouch) before each trigger's notes, bank / program on a scene switch, MID-040…050), the
 //                 hanging-note guard (stop, mode change, port change, MID-047), clock / transport / SPP out (ClockOut,
-//                 SYN-020/021) → sample-stamped → the hub's out SPSC
+//                 SYN-020/021) → sample-stamped → the hub's out SPSC; the sender writes each message when its frame is
+//                 heard (anchor + the device's output latency)
 //
 // Output ports (our choice): MIDI tracks and the clock go to every connected output port whose mode is OUT or OUT +
 // MERGE (THRU ports only forward an input); the sender adds the merge / thru bytes.
@@ -175,7 +187,7 @@ public:
     const core::midi::MidiHub& hub() const noexcept { return hub_; }
 
     // ---- audio thread ----
-    void beginPeriod(std::int64_t firstFrame, std::int64_t hostNs, int frames) noexcept;
+    void beginPeriod(std::int64_t firstFrame, std::int64_t hostNs, int frames, int outputLatencyFrames = 0) noexcept;
     bool onParam(const ParamChange&) noexcept; // a midi.* message (consumed) or false
     void processIn(BlockContext& ctx) noexcept;                                   // step 2
     void processOut(const BlockContext& ctx, const stages::BlockBuffers& b) noexcept; // step 7
@@ -188,6 +200,9 @@ public:
     const MidiOutScheduler& out() const noexcept { return out_; }
     const AudioClock& clock() const noexcept { return clock_; }
     bool following() const noexcept { return following_; }
+    // Only the clock's Start / Continue start the transport (following, IN START/STOP/CONTINUE enabled): the unit's
+    // PLAY arms instead (ours, the user's design), a UI Play / Continue and the pad start are dropped.
+    bool clockStarts() const noexcept { return following_ && inEnable_[1]; }
     bool clockLost() const noexcept { return following_ && follower_.lost(blockStart_); } // SYN-013 (or no clock yet)
     int inputLatency() const noexcept { return MidiInScheduler::latencyFor(clock_.periodFrames()); }
     const MidiTrackState& track(int scene, int t) const noexcept { return tracks_[scene & 15][t & 15]; }
@@ -196,8 +211,8 @@ public:
     std::uint32_t outputPorts() const noexcept; // where MIDI tracks / clock go this block
 
 private:
-    static void correction(void* self, double ppq, double& bpm, double& phase) noexcept;
-    void correct(double ppq, double& bpm, double& phase) noexcept;
+    static void correction(void* self, double ppq, double ppqPerFrame, double& bpm, double& phase) noexcept;
+    void correct(double ppq, double ppqPerFrame, double& bpm, double& phase) noexcept;
     void handle(const DueEvent& d, BlockContext& ctx) noexcept;
     void channelMessage(const MidiEvent& e, int frame) noexcept;
     void controlChange(int ch, int cc, int value, int frame) noexcept;
@@ -238,6 +253,8 @@ private:
     // Runtime state.
     bool following_ = false, correctionInstalled_ = false;
     enum class Pending : std::uint8_t { None, Start, Continue } pendingStart_ = Pending::None;
+    double startPpq_ = 0.0;   // where a pending Start / Continue starts (its first tick)
+    double resumePpq_ = -1.0; // the clock's song position since its Stop / SPP (a Continue resumes there); −1 = none
     bool lostHandled_ = false;
     std::int64_t blockStart_ = 0;
     std::uint16_t midiMask_ = 0;

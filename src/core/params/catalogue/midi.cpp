@@ -127,10 +127,12 @@ void addMidiParams(ParamRegistry& r)
     r.add({.id = "midi.clockWhileStopped", .label = "CLOCK WHILE STOPPED", .shortLabel = "CLK STOP", .group = "SYNC",
            .type = ParamType::Bool, .minValue = 0, .maxValue = 1, .defaultValue = 0, .enumLabels = offOnLabels,
            .scope = ParamScope::Global});
-    // The audio output latency the sender adds to every deadline (frames leave the engine at the period start;
-    // the DAC plays them a buffer later): default 12 ms ≈ 2 × 256-frame periods at 44.1 kHz; confirmed on the unit.
+    // Extra delay the sender adds to every MIDI out deadline, a user trim (e.g. for a receiver that is slow to
+    // sound). The audio output latency is not in it: the anchor's lead (the device's output buffer) already places
+    // every message when its frame is heard (io/midi/MidiSender.h), so the default is 0 (it was 12 ms, the buffer,
+    // when the lead did not exist: services/settings/MidiOutLatency.h migrates a stored 12 to 0 once).
     r.add({.id = "midi.outLatency", .label = "OUTPUT LATENCY", .shortLabel = "LATENCY", .group = "MIDI OUT",
-           .type = ParamType::Integer, .minValue = 0, .maxValue = 100, .defaultValue = 12, .unit = "ms",
+           .type = ParamType::Integer, .minValue = 0, .maxValue = 100, .defaultValue = 0, .unit = "ms",
            .scope = ParamScope::Global});
     r.add({.id = "midi.portMode", .label = "PORT MODE", .shortLabel = "MODE", .group = "MIDI OUT",
            .type = ParamType::Enum, .minValue = 0, .maxValue = 4, .defaultValue = 0, .enumLabels = portModeLabels,

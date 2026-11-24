@@ -180,6 +180,32 @@ has the disk, the log shows `MIDI USB gadget=storage host=configured: left in st
 and say what played. `midi=0` in a variant turns MIDI off (to isolate it); the MIDI benches
 (`bench_midi*`, step 10) carry the A9 numbers.
 
+**Clock sync (HUMAN, 10 min each).** SET › SYNC SOURCE = MIDI CLOCK, a DAW or drum machine as master on MIDI IN (DIN,
+then USB), a pattern with a 4-on-the-floor kick on both. (1) Start from the master at 120, then at 174 BPM: the kicks
+stay together for 10 minutes — no flam growing over time — and BPM shows the master's tempo steadily. (2) Stop and
+Continue from the master mid-bar: the unit resumes on the master's bar; press STOP on the unit while the master plays
+on, then Stop and Continue from the master a few bars later: the unit resumes on the master's current bar (not where it
+was stopped). (3) With the master stopped, press PLAY on the unit: it does not start — PLAY (lamp and the status-row ▶)
+blinks fast, armed — and starts on the master's Start; PLAY again before that disarms, STOP disarms, and PLAY while the
+master plays does nothing. A pad with PAD STARTS SEQUENCE (REC armed) neither starts it nor records a step. With SYNC
+SOURCE back on INTERNAL, PLAY plays at once again. (3b) UTILITY › PROJECT SETTING (MIDI IN) › START/STOP/CONTINUE =
+DISABLE, the master's clock running: PLAY on the unit starts it at once (no arm), at the master's tempo and without
+drifting from where it started (its bar 1 is where PLAY was pressed, on the clock's 1/24-beat tick grid: without a Start
+or SPP the unit cannot know the master's bar); the master's Start / Stop do nothing. (4) Pull the cable for 2 s and plug
+it back: the unit keeps time meanwhile and picks the clock up without jumping back. The `MIDI stats` line then also
+shows `clock_in_jitter=` (µs RMS: how much the master's ticks wander, typically 50–3000 for a DAW over USB) and
+`clock_in_relocks=` (grows only when the master changes tempo). Then the unit as master (SYNC SOURCE = INTERNAL, MIDI
+OUT clock on) into a receiver: the receiver's BPM shows the unit's tempo steadily (at 143 BPM: 143.0, not wandering
+142.9–143.2) and its sound sits on the unit's audio — the clock and notes leave when the matching audio is heard (the
+audio buffer is compensated), `late=0`. The clock has its own thread (`DIAG input midi … clock SCHED_FIFO 80`): the
+`MIDI stats` line's `jitter_p50/p99/max` are its ticks' lateness (µs; expected p99 ≤ 100), `clock_margin=` how early
+it wakes before a tick (µs, learnt from the kernel's wake-up latency, 100–500), `notes_jitter_p99=` the notes'
+lateness and `busy=` writes a port could not take (a USB host that does not read: the DIN clock goes on regardless).
+Also check with a computer on USB-B that has no MIDI program open (it does not read the port): the receiver on DIN OUT
+must stay as steady. OUTPUT LATENCY
+(SET, default 0 ms) only adds delay for slow receiving gear; a 12 ms stored by an older build (the old default) is reset
+to 0 once (`PREFS midi.outLatency:` in the log).
+
 ## 8. LINE IN sampling — `07-linein` (HUMAN: a signal into LINE IN)
 
 Connect a source to LINE IN and keep it playing from 3 s on. `pc/hwt.sh use 07-linein`. The script records 2 bars

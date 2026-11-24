@@ -95,6 +95,7 @@ struct ModeLamps
     bool recArmed = false, recWaiting = false, playing = false, paused = false;
     bool sceneMode = false, patternMode = false, hold = false, afsActive = false, over = false;
     StripMode stripMode = StripMode::Pitch;
+    bool playArmed = false; // MIDI clock sync: waiting for the external Start (PLAY blinks fast)
 };
 void modeLamps(const ModeLamps&, LampFrame&) noexcept;
 

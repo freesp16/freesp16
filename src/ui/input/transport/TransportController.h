@@ -3,6 +3,12 @@
 //
 //   PLAY   Stopped → Play (with the pre-count bars of transport.preCount when REC is armed, SEQ-044);
 //          Playing → Stop(0) (pause, the position is kept); Paused → Continue; during the pre-count → Stop(1)
+//          Under MIDI clock with IN START/STOP/CONTINUE enabled (the feed's externalStart) only the external device
+//          starts the sequencer (its Start / Continue): PLAY while stopped or paused toggles the PLAY arm (lamp
+//          blinking: waiting for the clock's Start) and posts nothing; PLAY while playing does nothing. The arm ends
+//          when the transport starts, on STOP, or when the sync (or IN START/STOP/CONTINUE) is switched off. (The
+//          engine drops a UI Play / Continue then, too.) With IN START/STOP/CONTINUE disabled the master cannot start
+//          the unit (manual p.45), so PLAY works as without sync and the engine locks the transport onto the clock.
 //   STOP   Playing / Paused / pre-count → Stop(1) (back to step 1, tails ring); Stopped → Stop(2) (hard stop:
 //          everything silent, tails included)
 //   REC    toggles the record arm (the sequencer's recorder reads recArmed())
@@ -66,6 +72,7 @@ public:
     State state() const noexcept { return state_; }
     bool playing() const noexcept { return state_ == State::Playing; }
     bool recArmed() const noexcept { return recArmed_; }
+    bool playArmed() const noexcept { return playArmed_; } // under MIDI clock: PLAY pressed, waiting for its Start
     void setRecArmed(bool armed) noexcept { recArmed_ = armed; }
     int nudge() const noexcept { return nudge_; }
     int preCountBars() const; // transport.preCount (0–2), 0 without a ParamAccess
@@ -83,11 +90,12 @@ private:
     const core::ParamSpec *tempo_ = nullptr, *nudgeSpec_ = nullptr, *preCount_ = nullptr;
     core::musictime::TapTempo tap_;
     State state_ = State::Stopped;
-    bool recArmed_ = false;
+    bool recArmed_ = false, playArmed_ = false;
     int nudge_ = 0;
     std::uint64_t feedBlock_ = 0, postedAt_ = 0;
     bool posted_ = false;
     double feedPpq_ = 0.0, feedBpm_ = 120.0;
     bool external_ = false, clockLost_ = false; // the feed: following MIDI clock, no tick lately
+    bool externalStart_ = false;                // the feed: only the clock's Start starts the transport
 };
 } // namespace ui::input::transport

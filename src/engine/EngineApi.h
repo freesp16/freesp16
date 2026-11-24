@@ -68,6 +68,7 @@ struct PlayheadFeed
     double ppq = 0, bpm = 120;        // transport position in quarter notes, tempo
     bool playing = false, preCount = false;
     bool externalClock = false;       // SYN-010: the transport follows MIDI clock (bpm = the followed tempo)
+    bool externalStart = false;       // following, IN START/STOP/CONTINUE on: only the clock starts it (PLAY arms)
     bool clockLost = false;           // SYN-013: following, but no tick for 500 ms (or none yet)
     std::uint8_t scene = 0, pattern = 0, step = 0;
     std::int8_t pendingScene = -1, pendingPattern = -1; // queued switch (SCN-022 blink), -1 = none
@@ -143,7 +144,8 @@ enum class OutPort : std::uint8_t { Main, Out34, Out56, Out78, Phones, FilterSen
 // has no such port (the engine skips it). in: planar input channels (null when numIn == 0). frames: any count (the
 // engine runs fixed 64-frame blocks with a FIFO adapter). hostTimeNs: monotonic time at the period start (MIDI sync).
 struct AudioIO { float* const* out; int numOutPorts;            // planar L/R per platform::AudioPort, 2 * ports
-                 const float* const* in; int numIn; int frames; std::uint64_t hostTimeNs; };
+                 const float* const* in; int numIn; int frames; std::uint64_t hostTimeNs;
+                 int outputLatencyFrames = 0; }; // hostTimeNs → when this period's first frame is heard (0 = unknown)
 class AudioProcessor { public: virtual ~AudioProcessor() = default;
     virtual void prepare(double sampleRate, int maxDeviceFrames) = 0;   // message thread, allocates
     virtual void process(const AudioIO&) noexcept = 0; };              // audio thread, any frame count
