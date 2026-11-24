@@ -197,6 +197,45 @@ TEST_CASE("m5ui.midi: chord notes by SHIFT + tap, NOTE2 offsets, CC ACTIVE / CC 
     CHECK(a == "Brightness");
 }
 
+TEST_CASE("m5ui.midi: an AS-1 track has no NOTE2-4 (no chords, manual p.41): blank knobs, no SHIFT + tap, no keys",
+          "[m5]")
+{
+    MidiFixture m;
+    m.set("track.mode", 10, 3); // TORAIZ AS-1
+    m.state().tracks[9].typeBadge = "AS-1";
+    if (haveMidi())
+    {
+        m.set("midi.note1", 10, 64);
+        m.set("midi.note2", 10, 7); // left from when it was a MIDI track: the AS-1 does not play it
+    }
+    REQUIRE(m.open("track.note"));
+    m.f.settle();
+    CHECK_FALSE(m.hasText("+7")); // neither the strip nor the keyboard shows the chord note
+    m.f.press(io::Control::Shift);
+    m.f.tap(ui::PianoKeyboard::whiteX(11) + 40, 300); // SHIFT + tap on G: no chord note
+    m.f.release(io::Control::Shift);
+    m.knob(5, 3); // NOTE3's column is blank
+    m.knob(6, 3);
+    if (haveMidi())
+    {
+        CHECK(m.get("midi.note2", 10) == 7.0f);
+        CHECK(m.get("midi.note3", 10) == 0.0f);
+        CHECK(m.get("midi.note4", 10) == 0.0f);
+        CHECK(m.get("midi.note1", 10) == 64.0f);
+    }
+    // Back to a MIDI track: the chord columns and keys return.
+    m.set("track.mode", 10, 1);
+    m.state().tracks[9].typeBadge = "MIDI";
+    m.f.settle();
+    m.knob(5, 3);
+    if (haveMidi())
+    {
+        CHECK(m.get("midi.note3", 10) == 3.0f);
+        m.f.settle();
+        CHECK(m.hasText("+7"));
+    }
+}
+
 TEST_CASE("m5ui.keyboard_only.midi_track: set up a MIDI track with the UI-120 keys alone (W-MIDI, UI-420)", "[m5]")
 {
     MidiFixture m;
