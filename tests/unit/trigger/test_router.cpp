@@ -201,7 +201,7 @@ TEST_CASE("trigger.router: pad modes route pad hits (PAD-001/004), releases foll
     CHECK(r->router.blockEvents().empty()); // MUTE: no sound
 
     r->router.setPadParam(PadField::Mode, static_cast<float>(PadMode::Scale));
-    r->param(6, TrackField::ScaleType, 1.0f); // MAJOR on the selected track
+    r->param(6, TrackField::ScaleType, 1.0f);      // IONIAN (major) on the selected track
     r->router.pushLive(TriggerNow {7, 90, 60, 7}); // pad 8 = degree 7 = the octave
     r->block();
     REQUIRE(r->router.blockEvents().size() == 1);
@@ -244,9 +244,9 @@ TEST_CASE("trigger.router: SCALE pads of a MIDI track play SET SCALE (MIDI) from
     r->router.setLiveHitSink(&sink);
     r->router.setPadParam(PadField::Selected, 3.0f);
     r->router.setPadParam(PadField::Mode, static_cast<float>(PadMode::Scale));
-    r->param(3, TrackField::ScaleType, 1.0f);       // SET SCALE (Sample) MAJOR: not used by a MIDI track
+    r->param(3, TrackField::ScaleType, 1.0f);       // SET SCALE (Sample) IONIAN: not used by a MIDI track
     r->param(3, TrackField::Mode, 1.0f);            // MIDI
-    r->param(3, TrackField::MidiScaleType, 2.0f);   // MINOR (C D Eb F G Ab Bb)
+    r->param(3, TrackField::MidiScaleType, 6.0f);   // AEOLIAN (C D Eb F G Ab Bb)
     r->param(3, TrackField::MidiScaleRoot, 62.0f);  // D4
     r->router.setMidiNote1(0, 3, 60);               // NOTE 1 = C4
     r->router.pushLive(TriggerNow {2, 100, 60, 2}); // pad 3 = degree 2 = a minor third over the root: F4 (65)

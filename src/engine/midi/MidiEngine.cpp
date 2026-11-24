@@ -8,6 +8,7 @@
 #include "engine/transport/TransportStage.h"
 #include "engine/trigger/TriggerRouter.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace engine::midi
@@ -80,7 +81,6 @@ void MidiEngine::prepare(double sampleRate) noexcept
     lostHandled_ = false;
     blockStart_ = 0;
     midiMask_ = 0;
-    dirty_.fill(0);
     heldTrackOfNote_.fill(-1);
     for (int p = 0; p < core::midi::kMaxPorts; ++p)
         generation_[static_cast<std::size_t>(p)] = hub_.generation(p);
@@ -136,15 +136,10 @@ bool MidiEngine::onParam(const ParamChange& c) noexcept
         return true; // a MIDI track value needs a track scope
     const int scene = (c.scope >> 4) & 15, track = c.scope & 15;
     MidiTrackState& s = tracks_[scene][track];
-    const bool current = w_.router == nullptr || scene == currentScene();
-    auto mark = [&](int bit) {
-        if (current)
-            dirty_[static_cast<std::size_t>(track)] = static_cast<std::uint16_t>(dirty_[static_cast<std::size_t>(track)] | (1u << bit));
-    };
     switch (field)
     {
         case F::Note1:
-            s.notes[0] = static_cast<std::int8_t>(clampi(iv, 0, 127));
+            s.notes[0] = static_cast<std::int8_t>(clampi(iv, 0, 119)); // C0…B9
             if (w_.router != nullptr) // the reference of the track's SCALE pads (SET SCALE (MIDI), PAD-020)
                 w_.router->setMidiNote1(scene, track, s.notes[0]);
             break;
@@ -159,21 +154,15 @@ bool MidiEngine::onParam(const ParamChange& c) noexcept
         case F::NoteBypass: s.noteBypass = on; break;
         case F::PitchBend:
             s.pitchBend = static_cast<std::int16_t>(clampi(iv, -8192, 8191));
-            mark(0);
             break;
         case F::PitchBendActive:
             s.pitchBendActive = on;
-            if (on)
-                mark(0);
             break;
         case F::Aftertouch:
             s.aftertouch = static_cast<std::uint8_t>(clampi(iv, 0, 127));
-            mark(1);
             break;
         case F::AftertouchActive:
             s.aftertouchActive = on;
-            if (on)
-                mark(1);
             break;
         case F::Cc1Bypass: s.cc1Bypass = on; break;
         case F::Cc2Bypass: s.cc2Bypass = on; break;
@@ -203,16 +192,9 @@ bool MidiEngine::onParam(const ParamChange& c) noexcept
             if (what == 0)
                 s.ccNumber[i] = static_cast<std::uint8_t>(clampi(iv, 0, 127));
             else if (what == 1)
-            {
                 s.ccValue[i] = static_cast<std::uint8_t>(clampi(iv, 0, 127));
-                mark(2 + slot);
-            }
             else
-            {
                 s.ccActive[i] = on;
-                if (on)
-                    mark(2 + slot);
-            }
             break;
         }
     }
@@ -539,10 +521,7 @@ void MidiEngine::trackOut(const BlockContext& ctx, const stages::BlockBuffers& b
             out_.trackNotesOff(static_cast<int>(t)); // MID-047: the track left MIDI mode
     midiMask_ = mask;
     if (! outEnable_[2] || ports == 0 || mask == 0) // OUT NOTE/CC (MID-012)
-    {
-        dirty_.fill(0);
         return;
-    }
     const auto send = [&](std::uint8_t b0, std::uint8_t b1, std::uint8_t b2, int size, std::int64_t t) {
         for (std::uint32_t m = ports, p = 0; m != 0; ++p, m >>= 1)
             if (m & 1u)
@@ -578,9 +557,7 @@ void MidiEngine::trackOut(const BlockContext& ctx, const stages::BlockBuffers& b
             continue;
         if (e.kind != trigger::TriggerKind::Full && e.kind != trigger::TriggerKind::Half)
             continue;
-        const auto& s = tracks_[scene][t];
-        if (s.noteBypass)
-            continue;
+        const auto& s = tracks_[scene][t]; // noteBypass is kept for the file formats: NOTE is not bypassable
         int transpose = w_.perf != nullptr ? w_.perf->transpose(t) : 0;
         // A step's PITCH lock transposes the notes (a recorded MIDI-scale pad or played note keeps its pitch, SEQ-041).
         if (float lock = 0.0f; e.locks != nullptr && e.locks->values != nullptr && e.locks->get(kPitchLockSlot, lock))
@@ -588,8 +565,24 @@ void MidiEngine::trackOut(const BlockContext& ctx, const stages::BlockBuffers& b
         const int vel = s.velocity > 0 ? s.velocity : (e.velocity > 0 ? e.velocity : 100);
         const auto length = static_cast<std::int64_t>(std::llround(static_cast<double>(s.length) * framesPerStep));
         const std::int64_t at = blockStart_ + e.frame;
-        const int ch = (txChannel_[static_cast<std::size_t>(t)] - 1) & 15;
+        const auto ch = static_cast<std::uint8_t>((txChannel_[static_cast<std::size_t>(t)] - 1) & 15);
+        // MIDI CC1 / CC2 (the manual's 2.4, p.51: "sent when pressing pads of a MIDI track or triggered by a
+        // sequence"): the module's Active parameters, unless bypassed, just before the trigger's notes, at their frame.
+        // PARAMETER 1 / 2 of CC1 are pitch bend and aftertouch.
+        if (! s.cc1Bypass && s.pitchBendActive)
+        {
+            const int v = s.pitchBend + 8192;
+            send(static_cast<std::uint8_t>(0xE0 | ch), static_cast<std::uint8_t>(v & 127),
+                 static_cast<std::uint8_t>((v >> 7) & 127), 3, at);
+        }
+        if (! s.cc1Bypass && s.aftertouchActive)
+            send(static_cast<std::uint8_t>(0xD0 | ch), s.aftertouch, 0, 2, at);
+        for (int i = 0; i < 10; ++i)
+            if (s.ccActive[static_cast<std::size_t>(i)] && ! (i < 4 ? s.cc1Bypass : s.cc2Bypass))
+                send(static_cast<std::uint8_t>(0xB0 | ch), s.ccNumber[static_cast<std::size_t>(i)],
+                     s.ccValue[static_cast<std::size_t>(i)], 3, at);
         const int chord = (mono >> t & 1u) ? 1 : 4;
+        std::array<int, 4> played {-1, -1, -1, -1};
         for (int i = 0; i < chord; ++i)
         {
             const int offset = s.notes[static_cast<std::size_t>(i)];
@@ -598,34 +591,13 @@ void MidiEngine::trackOut(const BlockContext& ctx, const stages::BlockBuffers& b
             const int note = s.notes[0] + (i > 0 ? offset : 0) + e.semitones + transpose;
             if (note < 0 || note > 127)
                 continue;
+            // Two of NOTE…NOTE4 on one note number send it once (a second Note On would end the first at once).
+            if (std::find(played.begin(), played.end(), note) != played.end())
+                continue;
+            played[static_cast<std::size_t>(i)] = note;
             for (std::uint32_t m = ports, p = 0; m != 0; ++p, m >>= 1)
                 if (m & 1u)
                     out_.note(static_cast<int>(p), ch, note, vel, at, length, t);
-        }
-    }
-    // MID-041…044: CC1 / CC2 values (and pitch bend / aftertouch) when changed, Active and the module not bypassed.
-    for (int t = 0; t < kTracks; ++t)
-    {
-        const std::uint16_t d = dirty_[static_cast<std::size_t>(t)];
-        dirty_[static_cast<std::size_t>(t)] = 0;
-        if (d == 0 || ! (mask >> t & 1u) || txChannel_[static_cast<std::size_t>(t)] == 0)
-            continue;
-        const auto& s = tracks_[scene][t];
-        const auto ch = static_cast<std::uint8_t>((txChannel_[static_cast<std::size_t>(t)] - 1) & 15);
-        if (! s.cc1Bypass && (d & 1u) && s.pitchBendActive)
-        {
-            const int v = s.pitchBend + 8192;
-            send(static_cast<std::uint8_t>(0xE0 | ch), static_cast<std::uint8_t>(v & 127),
-                 static_cast<std::uint8_t>((v >> 7) & 127), 3, blockStart_);
-        }
-        if (! s.cc1Bypass && (d & 2u) && s.aftertouchActive)
-            send(static_cast<std::uint8_t>(0xD0 | ch), s.aftertouch, 0, 2, blockStart_);
-        for (int i = 0; i < 10; ++i)
-        {
-            if (! (d >> (2 + i) & 1u) || ! s.ccActive[static_cast<std::size_t>(i)] || (i < 4 ? s.cc1Bypass : s.cc2Bypass))
-                continue;
-            send(static_cast<std::uint8_t>(0xB0 | ch), s.ccNumber[static_cast<std::size_t>(i)],
-                 s.ccValue[static_cast<std::size_t>(i)], 3, blockStart_);
         }
     }
 }

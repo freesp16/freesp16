@@ -1,5 +1,5 @@
 {
-  "format": { "name": "sixteen-project", "version": 4 },
+  "format": { "name": "sixteen-project", "version": 5 },
   "origin": { "format": "sp16-prj", "file": "rnd \"6\".PRJ", "contentId": "0123456789abcdef", "sourceVersion": 9, "sourceMinorVersion": 77, "importer": 2 },
   "settings": {
     "tempo": 71.36174061014317,
@@ -179,7 +179,7 @@
           "ampEnv": { "attack": 0.43847412594919605, "hold": 0.32815266820507644, "release": 0.15504161861389829, "volumeIndex": 69, "sync": true, "velocitySensitive": false, "retrigger": true },
           "seq": { "retriggerCount": 1, "retriggerSpeed": "1/2", "offset": -3, "transpose": 2 },
           "slices": { "gridCount": 34 },
-          "padScale": { "scaleType": "MinorPenta", "keyShift": 7 },
+          "padScale": { "scaleType": "MinorPentatonic", "keyShift": 7 },
           "midiScale": { "rootNote": 34 },
           "insertFx": [
             { "type": "Flanger", "sync": true, "type1": 3, "params": [0.5406351197537393, 0.7260913371896262, 0.5163003494892122, 0.7951861955321086, 0.45, 0.25086053299681665], "perType": { "Chorus": { "type1": 2, "params": [0, 0, 0.8359801224621183, 0, 0, 0] }, "2BandEQ": { "params": [0, 0, 0.15643703958839497, 0, 0, 0], "sync": true }, "MultiModeFilter": { "type1": 2, "params": [0, 0, 0, 0, 0, 0.6601973714267058] }, "Phaser": { "params": [0.355972681093504, 0, 0, 0, 0, 0], "sync": true } }, "_extras": [{ "key": "sp16.node3", "encoding": "base64", "value": "AAECAwQFBgc=" }] },
@@ -294,7 +294,7 @@
           "ampEnv": { "attack": 0.3971638350124977, "release": 0.7374052084677953, "volumeIndex": 48, "sync": true, "retrigger": true },
           "seq": { "retriggerCount": 9, "offset": -5, "stepShiftArea": "All", "transpose": -8 },
           "slices": { "gridCount": 44 },
-          "padScale": { "scaleType": "MelodicMinor", "keyShift": 7 },
+          "padScale": { "scaleType": "Hawaiian", "keyShift": 7 },
           "midiScale": { "rootNote": 83 },
           "insertFx": [
             { "type": "InsertDelay", "bypass": true, "type1": 2, "type2": 2, "params": [0.4316595458859893, 0.35, 0.8996473968408728, 0.24435315899801865, 0.3303484781613842, 7.534367087582776e-03], "perType": { "LoFi": { "params": [0.17337360205265342, 0, 0, 0, 0, 0] }, "Compressor": { "type1": 1, "params": [0, 0, 0, 0, 0.410396823430956, 0] } }, "x_future2": -18502430.404581666, "x_future1": 446 },
@@ -329,7 +329,7 @@
           "ampEnv": { "attack": 0.37922858497622264, "hold": 0.7215965538614245, "release": 0.04809464411215696, "volumeIndex": 107, "sync": true, "velocitySensitive": false, "retrigger": true, "attackCurve": "Curve" },
           "seq": { "retriggerCount": 14, "offset": -5, "stepShiftArea": "All", "transpose": -13 },
           "slices": { "gridCount": 34 },
-          "padScale": { "scaleType": "Blues", "keyShift": -4 },
+          "padScale": { "scaleType": "MinorBlues", "keyShift": -4 },
           "midiScale": { "rootNote": 40 },
           "insertFx": [
             { "type": "Phaser", "type1": 1, "type2": 1, "params": [0.4626797854201094, 0.7476093821553004, 0.23221269822155272, 0.3838912226239876, 0.9064721109035003, 0.11689804181057245], "perType": { "MultiModeFilter": { "params": [0, 0, 0, 0.8786291141980387, 0, 0] }, "Compressor": { "type1": 2, "params": [0, 0.7069804659839073, 0, 0, 0, 0] }, "Distortion": { "params": [0, 0, 0, 0, 0.7140640769083727, 0] } } },
@@ -561,7 +561,7 @@
           "ampEnv": { "attack": 0.7444192506490733, "hold": 0.43803366109766795, "release": 0.8610333966066805, "volumeIndex": 86, "sync": true, "velocitySensitive": false, "retrigger": true, "attackCurve": "Curve", "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 11, "retriggerSpeed": "1/4", "offset": 7, "transpose": -3 },
           "slices": { "gridCount": 8 },
-          "padScale": { "scaleType": "MajorPenta", "keyShift": 2 },
+          "padScale": { "scaleType": "MajorPentatonic", "keyShift": 2 },
           "midiScale": { "rootNote": 62 },
           "insertFx": [
             { "type1": 3, "type2": 3, "params": [0.9220488011007772, 0.65, 0.55, 0.9743494569440428, 0.45, 0.2], "perType": { "2BandEQ": { "params": [0, 0, 0, 0, 0.31958942312829247, 0] }, "MultiModeFilter": { "params": [0, 0, 0, 0.0732456049626855, 0, 0] }, "LoFi": { "type1": 2, "params": [0, 0, 0, 0, 0.6693854211154795, 0], "sync": true } } },
@@ -839,7 +839,7 @@
           "ampEnv": { "attack": 0.532117970379192, "hold": 0.8994530862715878, "release": 0.9273664100215322, "volumeIndex": 64, "retrigger": true, "attackCurve": "Curve" },
           "seq": { "retriggerCount": 8, "offset": -6, "stepShiftArea": "All", "transpose": 21 },
           "slices": { "gridCount": 4 },
-          "padScale": { "scaleType": "MajorPenta", "keyShift": 7 },
+          "padScale": { "scaleType": "MajorPentatonic", "keyShift": 7 },
           "midiScale": { "rootNote": 46 },
           "insertFx": [
             { "type": "Chorus", "type1": 1, "params": [0.01480885998688995, 0.5134979595194188, 0.5, 0.48919652296415883, 0.19938081974829527, 0.04233449134803587], "perType": { "Distortion": { "type1": 2, "params": [0.26257237227979546, 0, 0, 0, 0, 0], "sync": true } } },
@@ -912,7 +912,7 @@
           "seq": { "retriggerCount": 15, "retriggerSpeed": "1/2", "offset": -4, "stepShiftArea": "All", "transpose": -2 },
           "slices": { "gridCount": 5 },
           "padScale": { "scaleType": "WholeTone", "keyShift": 2 },
-          "midiScale": { "rootNote": 127 },
+          "midiScale": { "rootNote": 119 },
           "insertFx": [
             { "type": "Compressor", "bypass": true, "type1": 1, "type2": 1, "params": [0.5396158520619507, 0.5, 0.4, 0.3, 0.30091907456774, 0], "perType": { "Chorus": { "params": [0.5348009812406023, 0, 0, 0, 0, 0] }, "Flanger": { "params": [0.6709747148448866, 0, 0, 0, 0, 0], "sync": true }, "Distortion": { "type1": 1, "params": [0.5174610123117747, 0, 0, 0, 0, 0], "sync": true } } },
             { "type": "Distortion", "type1": 2, "type2": 1, "params": [0.8228880654259885, 0.35, 0.9994963531593426, 0.3, 0.22982604422057928, 0.15], "perType": { "MultiModeFilter": { "type1": 1, "params": [0.4759063320169613, 0, 0, 0, 0, 0] }, "LoFi": { "params": [0, 0, 0, 0, 0.31869725583841, 0] } }, "_extras": [{ "key": "sp16.node8", "encoding": "base64", "value": "AAECAwQFBgc=" }] }
@@ -1102,7 +1102,7 @@
           "ampEnv": { "attack": 0.9095385687246815, "hold": 0.6456853299944977, "release": 0.5594021180523159, "volumeIndex": 4, "sync": true, "velocitySensitive": false, "attackCurve": "Curve", "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 9, "retriggerSpeed": "1/2", "offset": 4, "stepShiftArea": "All", "transpose": -22 },
           "slices": { "gridCount": 23 },
-          "padScale": { "scaleType": "MajorPenta", "keyShift": 2 },
+          "padScale": { "scaleType": "MajorPentatonic", "keyShift": 2 },
           "midiScale": { "rootNote": 99 },
           "insertFx": [
             { "type": "Phaser", "sync": true, "type1": 3, "type2": 2, "params": [0.05, 0.2894491968358684, 0.3381109182720959, 0.10150386219502372, 0.4280477985486194, 0.6455339933837455], "perType": { "Chorus": { "params": [0, 0, 0, 0, 0, 0.5048908083039947] }, "LoFi": { "type1": 1, "params": [0.9530743243976865, 0, 0, 0, 0, 0] }, "Compressor": { "type1": 2, "params": [0.7891806577850657, 0, 0, 0, 0, 0], "sync": true } } },
@@ -1125,7 +1125,7 @@
           "ampEnv": { "attack": 0.33747469491227994, "hold": 0.7346544990656861, "release": 0.92777109718109, "volumeIndex": 119, "sync": true, "velocitySensitive": false, "retrigger": true, "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 9, "retriggerSpeed": "1", "offset": -5, "stepShiftArea": "All", "transpose": 7 },
           "slices": { "gridCount": 59 },
-          "padScale": { "scaleType": "MinorPenta", "keyShift": 5 },
+          "padScale": { "scaleType": "MinorPentatonic", "keyShift": 5 },
           "midiScale": { "rootNote": 103 },
           "insertFx": [
             { "type": "Compressor", "type1": 2, "type2": 3, "params": [0.7953253562149105, 0.13554488239281204, 0.735994364646213, 0.23109647907428577, 0.0972813673609972, 0.95], "x_future2": "tab\tx", "x_future1": 722889858.5907576 },
@@ -1201,7 +1201,7 @@
           "ampEnv": { "attack": 0.40680227639572636, "hold": 0.09766107759189956, "release": 0.7933097718850436, "volumeIndex": 46, "sync": true, "velocitySensitive": false, "retrigger": true, "attackCurve": "Curve" },
           "seq": { "retriggerCount": 16, "retriggerSpeed": "1/4", "offset": -2, "stepShiftArea": "All", "transpose": 18 },
           "slices": { "gridCount": 28 },
-          "padScale": { "scaleType": "Minor", "keyShift": -11 },
+          "padScale": { "scaleType": "Aeolian", "keyShift": -11 },
           "midiScale": { "rootNote": 0 },
           "insertFx": [
             { "type": "LoFi", "type1": 3, "type2": 1, "params": [0.4, 0.15, 0.5292555403232437, 0.07323150742542817, 0.5264985294679262, 0.8731592841267931], "perType": { "Flanger": { "params": [0, 0, 0.3537959853821135, 0, 0, 0], "sync": true }, "Compressor": { "params": [0, 0, 0.12282654536260626, 0, 0, 0], "sync": true }, "Phaser": { "type1": 1, "params": [0, 0, 0, 0.3859214335565847, 0, 0] } } },
@@ -1290,7 +1290,7 @@
           "ampEnv": { "attack": 0.40627070229129836, "hold": 0.48858114537494896, "release": 0.4168697831272588, "volumeIndex": 24, "velocitySensitive": false, "attackCurve": "Curve", "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 14, "offset": -1, "transpose": 8 },
           "slices": { "grids": [8882946, 8178332, 754658, 1863229, 489741, 4858311, 10283173, 14628083], "gridCount": 20 },
-          "padScale": { "scaleType": "MinorPenta", "keyShift": 6 },
+          "padScale": { "scaleType": "MinorPentatonic", "keyShift": 6 },
           "midiScale": { "rootNote": 115 },
           "insertFx": [
             { "type": "Phaser", "bypass": true, "type1": 1, "type2": 2, "params": [0, 0.6, 0.9264712102953834, 0.9905151161174317, 0.11585204010522654, 0.18232876328020547], "perType": { "MultiModeFilter": { "type1": 1, "params": [0.7646268965836245, 0, 0, 0, 0, 0] }, "Compressor": { "type1": 2, "params": [0, 0, 0, 0.7762777531827847, 0, 0] }, "Ducker": { "params": [0, 0, 0, 0.3121312212749271, 0, 0] } } },

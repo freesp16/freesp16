@@ -183,9 +183,9 @@ TEST_CASE("trigger.params: track.cpp's ids, ranges, defaults, CC and lock flags"
         {"track.chokeGroup", 0, 8, 0, -1, false, S::Track},     {"track.padColor", 0, 15, 0, -1, false, S::Track},
         {"track.padVelocity", 0, 1, 1, -1, false, S::Track},    {"track.inputSource", 0, 3, 0, -1, false, S::Track},
         {"pads.velocityCurve", 0, 7, 3, -1, false, S::Global},  {"pads.fixedVelocity", 1, 127, 100, -1, false, S::Global},
-        {"scale.type", 0, 13, 0, -1, false, S::Track},          {"scale.keyShift", -12, 12, 0, -1, false, S::Track},
-        {"scale.area", -2, 2, 0, -1, false, S::Track},          {"scaleMidi.type", 0, 13, 0, -1, false, S::Track},
-        {"scaleMidi.root", 0, 127, 60, -1, false, S::Track},    {"scaleMidi.area", -2, 2, 0, -1, false, S::Track},
+        {"scale.type", 0, 21, 0, -1, false, S::Track},          {"scale.keyShift", -12, 12, 0, -1, false, S::Track},
+        {"scale.area", -2, 2, 0, -1, false, S::Track},          {"scaleMidi.type", 0, 21, 0, -1, false, S::Track},
+        {"scaleMidi.root", 0, 119, 60, -1, false, S::Track},    {"scaleMidi.area", -2, 2, 0, -1, false, S::Track},
         {"pads.mode", 0, 4, 0, -1, false, S::Global},           {"pads.selected", 0, 15, 0, -1, false, S::Global},
         {"pads.shift", 0, 1, 0, -1, false, S::Global},
     };
@@ -210,7 +210,17 @@ TEST_CASE("trigger.params: track.cpp's ids, ranges, defaults, CC and lock flags"
     CHECK(fmt("track.chokeGroup", 3) == "3");
     CHECK(fmt("scale.type", 0) == "CHROMATIC");
     CHECK(fmt("scale.keyShift", 5) == "+5");
-    CHECK(fmt("scaleMidi.root", 60) == "C5");
+    CHECK(fmt("scaleMidi.root", 60) == "C5"); // the manual's C0…B9: 0 = C0, 119 = B9
+    CHECK(fmt("scaleMidi.root", 0) == "C0");
+    CHECK(fmt("scaleMidi.root", 119) == "B9");
+    if (const auto* note = r.find("midi.note1")) // NOTE names its notes the same way (the MIDI catalogue)
+    {
+        CHECK(note->maxValue == 119);
+        CHECK(fmt("midi.note1", 0) == "C0");
+        CHECK(fmt("midi.note1", 60) == "C5");
+        CHECK(fmt("midi.note1", 119) == "B9");
+        CHECK(fmt("midi.note1", 61) == "C#5");
+    }
     CHECK(fmt("pads.selected", 0) == "1");
     CHECK(fmt("pads.velocityCurve", 3) == "LINEAR");
 }

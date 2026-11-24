@@ -455,7 +455,10 @@ void Shell::updateFrameModels(double nowMs)
     cb.track = state_.selectedTrack;
     cb.trackName = tr.name;
     cb.typeBadge = tr.typeBadge;
-    cb.trackType = tr.typeBadge == "SMPL" ? std::string_view("SAMPLE") : tr.typeBadge; // TRACK MENU (UI-225)
+    // TRACK MENU (UI-225): the type's full name (the manual's TORAIZ AS-1, p.40); the badges stay short.
+    cb.trackType = tr.typeBadge == "SMPL"   ? std::string_view("SAMPLE")
+                   : tr.typeBadge == "AS-1" ? std::string_view("TORAIZ AS-1")
+                                            : tr.typeBadge;
     cb.stretchBadge = tr.hasContent ? tr.stretchBadge : std::string_view{};
     cb.loopGlyph = tr.hasContent ? tr.loopGlyph : std::string_view{};
     cb.missing = tr.missing;

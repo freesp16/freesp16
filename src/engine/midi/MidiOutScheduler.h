@@ -21,7 +21,7 @@ class MidiOutScheduler
 {
 public:
     static constexpr int kPorts = core::midi::kMaxPorts;
-    static constexpr int kMaxBlockEvents = 512; // per block (16 tracks × 4 notes × 2 ports + clock + CCs, with room)
+    static constexpr int kMaxBlockEvents = 1024; // per block: 16 tracks × (12 CC1/CC2 + 4 notes) × 2 ports, offs, clock
     static constexpr int kMaxPendingOffs = 1024;
 
     void attach(core::midi::MidiHub* hub) noexcept { hub_ = hub; }

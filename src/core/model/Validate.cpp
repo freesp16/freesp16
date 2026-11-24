@@ -159,7 +159,7 @@ void checkTrack(Checker& c, const char* w, const Track& t, const SamplePool& poo
     c.enumInt<ScaleType>(w, "padScale.scaleType", t.padScale.scaleType);
     c.range(w, "padScale.keyShift", t.padScale.keyShift, -12, 12);
     c.enumInt<ScaleType>(w, "midiScale.scaleTypeMidi", t.midiScale.scaleTypeMidi);
-    c.range(w, "midiScale.rootNote", t.midiScale.rootNote, 0, 127);
+    c.range(w, "midiScale.rootNote", t.midiScale.rootNote, 0, 119); // C0…B9
 
     for (std::size_t i = 0; i < t.insertFx.size(); ++i)
     {
@@ -182,7 +182,7 @@ void checkTrack(Checker& c, const char* w, const Track& t, const SamplePool& poo
     c.enumValue(w, "lfo.triggerOn", lfo.triggerOn);
 
     const auto& m = t.midi;
-    c.range(w, "midi.notes[0]", m.notes[0], 0, 127);
+    c.range(w, "midi.notes[0]", m.notes[0], 0, 119); // NOTE C0…B9
     for (std::size_t i = 1; i < m.notes.size(); ++i)
         if (m.notes[i] < -127 || m.notes[i] > 127)
             c.fail("%s.midi.notes[%zu]: %d is not an offset -127…127 (0 = OFF)", w, i, m.notes[i]);

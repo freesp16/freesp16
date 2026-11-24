@@ -92,7 +92,7 @@ public:
             const int note = m.notes[0] + offset;
             m.notes[static_cast<std::size_t>(k)] = offset != 0 && note >= 0 && note <= 127 ? note : -1;
         }
-        const int octave = m.notes[0] / 12 - 1;
+        const int octave = m.notes[0] / 12; // C0 = 0
         if (window_ < 0 || octave < window_ || octave > window_ + 1) // the window follows NOTE
             window_ = std::clamp(octave - 1, 0, 8);
         m.firstOctave = window_;

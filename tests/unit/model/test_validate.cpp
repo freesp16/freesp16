@@ -54,7 +54,7 @@ TEST_CASE("validate: value ranges and enum values", "[model]")
     expectProblem([](Project& q) { q.scenes[0].tracks[0].pan = -65; }, "track[0].pan");
     expectProblem([](Project& q) { q.scenes[0].tracks[0].chokeGroup = 9; }, "chokeGroup");
     expectProblem([](Project& q) { q.scenes[0].tracks[0].mode = static_cast<TrackMode>(9); }, "is not a TrackMode");
-    expectProblem([](Project& q) { q.scenes[0].tracks[0].padScale.scaleType = 14; }, "is not a ScaleType");
+    expectProblem([](Project& q) { q.scenes[0].tracks[0].padScale.scaleType = 22; }, "is not a ScaleType");
     expectProblem([](Project& q) { q.scenes[0].tracks[0].seq.retriggerCount = 0; }, "seq.retriggerCount");
     expectProblem([](Project& q) { q.scenes[0].tracks[0].ampEnv.release = 1.5; }, "ampEnv.release");
     expectProblem([](Project& q) { q.scenes[0].tracks[0].ampEnv.attack = std::nan(""); }, "ampEnv.attack");

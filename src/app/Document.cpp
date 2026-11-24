@@ -99,6 +99,14 @@ int scalePadSemitones(const core::model::Track& tr, int pad) noexcept
                             tr.padScale.windowOffset);
 }
 
+// SET SCALE's selected key of SCALE pad `pad` on track `tr` (ui::TrackSummary::scaleKey): the MIDI note it plays on a
+// MIDI / AS-1 track, its semitones over PITCH on a Sample track.
+int scaleKeyOf(const core::model::Track& tr, int pad) noexcept
+{
+    const bool midi = tr.mode == core::model::TrackMode::Midi || tr.mode == core::model::TrackMode::Instrument;
+    return scalePadSemitones(tr, pad) + (midi ? tr.midi.notes[0] : 0);
+}
+
 // TRK-041: the pad controller's one selected track is the shell's (UiState::selectedTrack, 1–16).
 class ShellSelection final : public ui::input::pads::Selection
 {
@@ -725,9 +733,12 @@ struct Document::Impl
         return std::clamp((length + 15) / 16, 1, 4);
     }
     void sliceStepEntry(int step1to16);         // SLC-005: step entry writes the last-played slice
-    // SET SCALE "selected key" (the manual's 1.6 / 8.4): the SCALE pad last pressed per track (−1 none); a step key
-    // then programs a trigger at its pitch (PITCH lock) — after the pad (release of the key) or while the key is held.
-    std::array<std::int8_t, 16> scaleKey = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+    // SET SCALE "selected key" (the manual's 1.6 / 8.4): the pitch the SCALE pad last pressed per track played
+    // (scaleKeyOf; kNoKey none), so a later AREA / SCALE / ROOT change keeps the key; a step key then programs a
+    // trigger at its pitch (PITCH lock) — after the pad (release of the key) or while the key is held. SET SCALE draws
+    // it white (the shell's TrackSummary::scaleKey, the same value).
+    static constexpr int kNoKey = ui::TrackSummary::kNoKey;
+    std::array<int, 16> scaleKey = [] { std::array<int, 16> k {}; k.fill(kNoKey); return k; }();
     float scalePitchLock(int track) const; // the selected key's PITCH lock; NaN = none (the root, no key, no project)
     void scaleStepEntry(int step1to16);    // a trigger entered after a SCALE pad: it gets the key's pitch
     void scaleStepHeld(int step1to16, int velocity); // SCALE pad hit while a step key is held: that step plays the key
@@ -935,7 +946,9 @@ bool Document::handle(const io::ControlEvent& e)
             {
                 const int t = d.selection.selected();
                 d.selection.shell->state().tracks[static_cast<std::size_t>(t)].lastHitMs = e.timeMs;
-                d.scaleKey[static_cast<std::size_t>(t)] = static_cast<std::int8_t>(n - 1); // the selected key
+                const int key = scaleKeyOf(tracks[static_cast<std::size_t>(t)], n - 1); // the selected key
+                d.scaleKey[static_cast<std::size_t>(t)] = key;
+                d.selection.shell->state().tracks[static_cast<std::size_t>(t)].scaleKey = key;
                 if (const int held = d.steps.heldStep(); held > 0)
                     d.scaleStepHeld(held, e.value); // the velocity the pad played at
                 d.log("INPUT pad%d scale track=%d", n, t + 1);
@@ -1305,13 +1318,13 @@ void Document::Impl::sliceStepEntry(int step1to16)
 float Document::Impl::scalePitchLock(int track) const
 {
     static const auto* pitch = core::builtinParams().find("playback.pitch");
-    const int pad = scaleKey[static_cast<std::size_t>(track & 15)];
-    if (pad < 0 || pitch == nullptr || ! core::commands::hasProject(bus))
+    const int key = scaleKey[static_cast<std::size_t>(track & 15)];
+    if (key == kNoKey || pitch == nullptr || ! core::commands::hasProject(bus))
         return std::numeric_limits<float>::quiet_NaN();
     const auto& p = core::commands::project(bus);
     const int sc = steps.scene() & 15;
     const auto& tr = p.scenes[static_cast<std::size_t>(sc)].tracks[static_cast<std::size_t>(track & 15)];
-    const int semis = scalePadSemitones(tr, pad);
+    const int semis = ui::input::steps::isMidiMode(tr.mode) ? key - tr.midi.notes[0] : key; // over NOTE / over PITCH
     if (semis == 0)
         return std::numeric_limits<float>::quiet_NaN(); // the root key: the track's own pitch / notes, no lock
     // Sample tracks: the root key is the track's PITCH + KEY SHIFT (the manual's 1.8), so the lock is PITCH + the

@@ -40,12 +40,15 @@ void ScaleMap::draw(DrawList& dl, const UiContext& ctx, const ScaleMapModel& m)
             const int d = (kBaseRow - r) * 4 + c + core::scales::kPads * m.area;
             const RectF cell{kX + static_cast<float>(c) * (kCellW + kGap), kY + static_cast<float>(r) * kPitch, kCellW,
                              kCellH};
-            if (d == 0)
+            if (d == m.selectedDegree)
                 dl.fill(cell, p.text1, tk::radiusXs);
             else if (floorMod(d, n) == 0)
                 dl.fill(cell, m.colour, tk::radiusXs);
             else
                 dl.fill(cell, theme::withOpacity(m.colour, 0.35f), tk::radiusXs);
+            if (d == 0) // the root's dog-ear
+                for (int k = 0; k < 8; ++k)
+                    dl.fill({cell.x, cell.y + static_cast<float>(k), 8.0f - static_cast<float>(k), 1}, p.accent);
             if (d == m.flashDegree && f > 0)
                 dl.fill(cell, theme::withOpacity(p.text1, 0.6f * f), tk::radiusXs);
         }
@@ -90,15 +93,11 @@ void PadMap::draw(DrawList& dl, const UiContext& ctx, const PadMapModel& m)
             std::snprintf(lab, sizeof lab, semi > 0 ? "+%d" : "%d", semi);
         }
         const float cx = c.x + kCellW / 2, cy = c.y + kCellH / 2;
-        if (pd == 0 && m.area == 0)
+        const int degree = pd + core::scales::kPads * m.area;
+        if (degree == m.selectedDegree) // the selected key (the manual's 1.6), white
         {
             dl.fill(c, p.text1, tk::radiusM);
-            for (int k = 0; k < 16; ++k) // accent corner triangle (root marker)
-                dl.fill({c.x + (k < 8 ? 8.0f - static_cast<float>(k) : 0.0f), c.y + static_cast<float>(k),
-                         24.0f - static_cast<float>(k) - (k < 8 ? 8.0f - static_cast<float>(k) : 0.0f), 1},
-                        p.accent);
             dl.text(cx, cy, Align::Centre, TextStyleId::Value, p.onAccent, lab);
-            dl.text(cx, c.y + kCellH - 16, Align::Centre, TextStyleId::Caption, p.onAccent, "ROOT \xC2\xB7 PAD 1");
         }
         else if (core::scales::isRootPad(pd, m.mask, m.area))
         {
@@ -110,6 +109,14 @@ void PadMap::draw(DrawList& dl, const UiContext& ctx, const PadMapModel& m)
             dl.fill(c, p.surface2, tk::radiusM);
             dl.fill(c, theme::withOpacity(m.colour, 0.35f), tk::radiusM);
             dl.text(cx, cy, Align::Centre, TextStyleId::Value, p.text1, lab);
+        }
+        if (degree == 0) // the root key: accent corner triangle (the manual's dog-ear) and its caption
+        {
+            for (int k = 0; k < 16; ++k)
+                dl.fill({c.x + (k < 8 ? 8.0f - static_cast<float>(k) : 0.0f), c.y + static_cast<float>(k),
+                         24.0f - static_cast<float>(k) - (k < 8 ? 8.0f - static_cast<float>(k) : 0.0f), 1},
+                        p.accent);
+            dl.text(cx, c.y + kCellH - 16, Align::Centre, TextStyleId::Caption, p.onAccent, "ROOT \xC2\xB7 PAD 1");
         }
         if (pd == m.flashPad && f > 0) // pad-flash like a TrackTile hit (root-octave pads stay solid underneath)
             dl.fill(c, theme::withOpacity(p.text1, 0.3f * f), tk::radiusM);

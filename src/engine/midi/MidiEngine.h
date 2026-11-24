@@ -21,9 +21,10 @@
 //   step 3        the transport calls the follower's correction (Transport::setCorrection): tempo = the PLL's, phase
 //                 steered onto the clock's ticks by a bounded rate correction (no drift; a jump only when > ½ tick off)
 //   step 7        processOut(): MIDI and AS-1 tracks (MidiTrackPlayer: notes + chords — NOTE2–4 are semitones from
-//                 NOTE, an AS-1 track sends NOTE alone — a step's PITCH lock, length, CC1/CC2 values on change, bank /
-//                 program on a scene switch, MID-040…050), the hanging-note guard (stop, mode change, port change,
-//                 MID-047), clock / transport / SPP out (ClockOut, SYN-020/021) → sample-stamped → the hub's out SPSC
+//                 NOTE, an AS-1 track sends NOTE alone — a step's PITCH lock, length, the Active CC1/CC2 values (pitch
+//                 bend, aftertouch) before each trigger's notes, bank / program on a scene switch, MID-040…050), the
+//                 hanging-note guard (stop, mode change, port change, MID-047), clock / transport / SPP out (ClockOut,
+//                 SYN-020/021) → sample-stamped → the hub's out SPSC
 //
 // Output ports (our choice): MIDI tracks and the clock go to every connected output port whose mode is OUT or OUT +
 // MERGE (THRU ports only forward an input); the sender adds the merge / thru bytes.
@@ -117,7 +118,7 @@ struct MidiTrackState
     std::array<std::int8_t, 4> notes {60, 0, 0, 0}; // NOTE, then NOTE2–4 as semitones from it (0 = off)
     std::uint8_t velocity = 100; // 0 = OFF (step / pad velocity)
     float length = 1.0f;         // steps
-    bool noteBypass = false, cc1Bypass = false, cc2Bypass = false;
+    bool noteBypass = false, cc1Bypass = false, cc2Bypass = false; // noteBypass: stored only (NOTE is not bypassable)
     std::int16_t pitchBend = 0;  // −8192…8191
     std::uint8_t aftertouch = 0;
     bool pitchBendActive = false, aftertouchActive = false;
@@ -226,7 +227,6 @@ private:
     bool clockWhileStopped_ = false, remoteBlocked_ = false;
     std::array<std::int8_t, core::midi::kMaxPorts> portMode_ {};
     MidiTrackState tracks_[16][16]; // [scene][track], default-initialised (no braces: GCC 11 build time)
-    std::array<std::uint16_t, 16> dirty_ {}; // per track of the current scene: bit 0 pitch bend, 1 aftertouch, 2+i CC i
 
     // Runtime state.
     bool following_ = false, correctionInstalled_ = false;

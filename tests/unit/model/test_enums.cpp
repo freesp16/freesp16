@@ -119,9 +119,9 @@ TEST_CASE("unknown imported enum values show as ?<stored> (UI-501)", "[model][en
 TEST_CASE("value lists: scales, retrigger, trigger codes, outputs, FX slot lists", "[model][enum]")
 {
     CHECK(scaleIntervals(ScaleType::Chromatic).size() == 12);
-    const auto major = scaleIntervals(ScaleType::Major);
+    const auto major = scaleIntervals(ScaleType::Ionian);
     CHECK(std::vector<int>(major.begin(), major.end()) == std::vector<int> {0, 2, 4, 5, 7, 9, 11});
-    CHECK(scaleIntervals(ScaleType::MinorPenta).size() == 5);
+    CHECK(scaleIntervals(ScaleType::MinorPentatonic).size() == 5);
     for (std::size_t i = 0; i < enumCount<ScaleType>(); ++i)
     {
         const auto iv = scaleIntervals(static_cast<ScaleType>(i));

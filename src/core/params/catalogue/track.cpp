@@ -25,9 +25,29 @@ constexpr std::string_view colourLabels[] = {"RED",    "VERMILION", "ORANGE", "A
 constexpr std::string_view offOnLabels[] = {"OFF", "ON"};
 constexpr std::string_view inputLabels[] = {"STEREO", "L", "R", "MONO"};
 constexpr std::string_view curveLabels[] = {"HARD 3", "HARD 2", "HARD 1", "LINEAR", "SOFT 1", "SOFT 2", "SOFT 3", "FIXED"};
-constexpr std::string_view scaleLabels[] = {"CHROMATIC",   "MAJOR",       "MINOR",    "HARMONIC MINOR", "MELODIC MINOR",
-                                            "DORIAN",      "PHRYGIAN",    "LYDIAN",   "MIXOLYDIAN",     "LOCRIAN",
-                                            "MAJOR PENTA", "MINOR PENTA", "BLUES",    "WHOLE TONE"}; // PAD-010, OQ-10
+// PAD-010: the manual's SET SCALE list (No. 1–22) = core::model::ScaleType's display names.
+constexpr std::string_view scaleLabels[] = {"CHROMATIC",
+                                            "IONIAN",
+                                            "DORIAN",
+                                            "PHRYGIAN",
+                                            "LYDIAN",
+                                            "MIXOLYDIAN",
+                                            "AEOLIAN",
+                                            "LOCRIAN",
+                                            "MAJOR PENTATONIC",
+                                            "MINOR PENTATONIC",
+                                            "WHOLE TONE",
+                                            "DIMINISH",
+                                            "COMBINATION DIMINISH",
+                                            "ALTERED",
+                                            "MAJOR BLUES",
+                                            "MINOR BLUES",
+                                            "RAGA BHAIRAV",
+                                            "RAGA GAMANASRAMA",
+                                            "RAGA TODI",
+                                            "HAWAIIAN",
+                                            "RYUKYU",
+                                            "JAPANESE MIYAKOBUSHI"};
 constexpr std::string_view padModeLabels[] = {"OFF", "TRACK", "MUTE", "SLICE", "SCALE"}; // PAD-001 (OFF = play)
 static_assert(std::size(scaleLabels) == scales::kScales);
 
@@ -42,7 +62,7 @@ int formatSigned(float v, char* buf, int n) noexcept
     return std::snprintf(buf, static_cast<std::size_t>(n), i > 0 ? "+%d" : "%d", i);
 }
 
-int formatNote(float v, char* buf, int n) noexcept // MIDI note name, C5 = 60 (UI-133 convention)
+int formatNote(float v, char* buf, int n) noexcept // MIDI note name, C0 = 0, C5 = 60 (the manual's C0…B9)
 {
     static constexpr const char* names[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
     const int note = static_cast<int>(v + 0.5f);
@@ -113,7 +133,7 @@ void addTrackParams(ParamRegistry& r)
            .type = ParamType::Enum, .minValue = 0, .maxValue = scales::kScales - 1, .defaultValue = 0,
            .enumLabels = scaleLabels, .scope = ParamScope::Track, .storage = {.reference = "scaleTypeMidi"}});
     r.add({.id = "scaleMidi.root", .label = "ROOT", .shortLabel = "ROOT", .group = "SCALE MIDI", .type = ParamType::Note,
-           .minValue = 0, .maxValue = 127, .defaultValue = 60, .format = formatNote, .scope = ParamScope::Track,
+           .minValue = 0, .maxValue = 119, .defaultValue = 60, .format = formatNote, .scope = ParamScope::Track,
            .storage = {.reference = "rootNote"}});
     r.add({.id = "scaleMidi.area", .label = "AREA", .shortLabel = "AREA", .group = "SCALE MIDI",
            .type = ParamType::Integer, .minValue = scales::kMinWindow, .maxValue = scales::kMaxWindow,

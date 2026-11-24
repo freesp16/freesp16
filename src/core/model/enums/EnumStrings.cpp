@@ -122,22 +122,32 @@ constexpr E kAfsRouteMode[] = {
     {2, "Post", "POST FX"},
     {3, "Master", "MASTER"},
 };
-// Scales: reference names not recovered; 1.60 shows CHROMATIC as `CHROMA` [OBS] (alias). The list is our fill-in.
+// Scales: the manual's list and names (addendum "Selection of scale", No. 1–22); stored = the name without spaces
+// (the SP-16 importer also matches the reference's strings loosely, Sp16Import.cpp). 1.60 shows CHROMATIC as `CHROMA`
+// [OBS] (alias). Version 2: the 14-scale fill-in replaced (native schema 5, MigrationV5.cpp).
 constexpr E kScaleType[] = {
     {0, "Chromatic", "CHROMATIC", "CHROMA", "CHROMA"},
-    {1, "Major", "MAJOR"},
-    {2, "Minor", "MINOR"},
-    {3, "HarmonicMinor", "HARMONIC MINOR", "HARM MIN"},
-    {4, "MelodicMinor", "MELODIC MINOR", "MEL MIN"},
-    {5, "Dorian", "DORIAN"},
-    {6, "Phrygian", "PHRYGIAN"},
-    {7, "Lydian", "LYDIAN"},
-    {8, "Mixolydian", "MIXOLYDIAN", "MIXOLYD"},
-    {9, "Locrian", "LOCRIAN"},
-    {10, "MajorPenta", "MAJOR PENTA", "MAJ PENT"},
-    {11, "MinorPenta", "MINOR PENTA", "MIN PENT"},
-    {12, "Blues", "BLUES"},
-    {13, "WholeTone", "WHOLE TONE", "WHOLE"},
+    {1, "Ionian", "IONIAN"},
+    {2, "Dorian", "DORIAN"},
+    {3, "Phrygian", "PHRYGIAN"},
+    {4, "Lydian", "LYDIAN"},
+    {5, "Mixolydian", "MIXOLYDIAN", "MIXOLYD"},
+    {6, "Aeolian", "AEOLIAN"},
+    {7, "Locrian", "LOCRIAN"},
+    {8, "MajorPentatonic", "MAJOR PENTATONIC", "MAJ PENTA"},
+    {9, "MinorPentatonic", "MINOR PENTATONIC", "MIN PENTA"},
+    {10, "WholeTone", "WHOLE TONE", "WHOLE"},
+    {11, "Diminish", "DIMINISH"},
+    {12, "CombinationDiminish", "COMBINATION DIMINISH", "COMB DIM"},
+    {13, "Altered", "ALTERED"},
+    {14, "MajorBlues", "MAJOR BLUES", "MAJ BLUES"},
+    {15, "MinorBlues", "MINOR BLUES", "MIN BLUES"},
+    {16, "RagaBhairav", "RAGA BHAIRAV", "BHAIRAV"},
+    {17, "RagaGamanasrama", "RAGA GAMANASRAMA", "GAMANASRAMA"},
+    {18, "RagaTodi", "RAGA TODI", "TODI"},
+    {19, "Hawaiian", "HAWAIIAN"},
+    {20, "Ryukyu", "RYUKYU"},
+    {21, "JapaneseMiyakobushi", "JAPANESE MIYAKOBUSHI", "MIYAKOBUSHI"},
 };
 // SHIFT AREA BAR, ALL* [MAN] (M p.40), default [OBS].
 constexpr E kStepShiftArea[] = {
@@ -194,7 +204,7 @@ APP_DETAIL_TABLE(FxMode, 1, true)
 APP_DETAIL_TABLE(AssignMode, 1, false)
 APP_DETAIL_TABLE(OutputAssign, 1, true)
 APP_DETAIL_TABLE(AfsRouteMode, 1, true)
-APP_DETAIL_TABLE(ScaleType, 1, true)
+APP_DETAIL_TABLE(ScaleType, 2, false)
 APP_DETAIL_TABLE(StepShiftArea, 1, false)
 APP_DETAIL_TABLE(RetriggerSpeed, 1, true)
 APP_DETAIL_TABLE(MidiTrackMode, 1, true)
@@ -231,7 +241,7 @@ APP_DETAIL_CHECK(FxMode, Master)
 APP_DETAIL_CHECK(AssignMode, EightChannel)
 APP_DETAIL_CHECK(OutputAssign, Mono8)
 APP_DETAIL_CHECK(AfsRouteMode, Master)
-APP_DETAIL_CHECK(ScaleType, WholeTone)
+APP_DETAIL_CHECK(ScaleType, JapaneseMiyakobushi)
 APP_DETAIL_CHECK(StepShiftArea, All)
 APP_DETAIL_CHECK(RetriggerSpeed, Whole)
 APP_DETAIL_CHECK(MidiTrackMode, DrumMap)
@@ -244,24 +254,52 @@ APP_DETAIL_CHECK(PaletteColour, Rose)
 constexpr const EnumTable* kAllTables[] = {APP_MODEL_ENUMS(APP_DETAIL_TABLE_PTR)};
 #undef APP_DETAIL_TABLE_PTR
 
-// Scale intervals (enumerations.md "Scales").
+// Scale intervals (semitones from the root). The manual names the scales only; the intervals are the usual ones
+// (Diminish = whole-half, Combination Diminish = half-whole).
 constexpr std::uint8_t kChromatic[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-constexpr std::uint8_t kMajor[] = {0, 2, 4, 5, 7, 9, 11};
-constexpr std::uint8_t kMinor[] = {0, 2, 3, 5, 7, 8, 10};
-constexpr std::uint8_t kHarmonicMinor[] = {0, 2, 3, 5, 7, 8, 11};
-constexpr std::uint8_t kMelodicMinor[] = {0, 2, 3, 5, 7, 9, 11};
+constexpr std::uint8_t kIonian[] = {0, 2, 4, 5, 7, 9, 11};
 constexpr std::uint8_t kDorian[] = {0, 2, 3, 5, 7, 9, 10};
 constexpr std::uint8_t kPhrygian[] = {0, 1, 3, 5, 7, 8, 10};
 constexpr std::uint8_t kLydian[] = {0, 2, 4, 6, 7, 9, 11};
 constexpr std::uint8_t kMixolydian[] = {0, 2, 4, 5, 7, 9, 10};
+constexpr std::uint8_t kAeolian[] = {0, 2, 3, 5, 7, 8, 10};
 constexpr std::uint8_t kLocrian[] = {0, 1, 3, 5, 6, 8, 10};
-constexpr std::uint8_t kMajorPenta[] = {0, 2, 4, 7, 9};
-constexpr std::uint8_t kMinorPenta[] = {0, 3, 5, 7, 10};
-constexpr std::uint8_t kBlues[] = {0, 3, 5, 6, 7, 10};
+constexpr std::uint8_t kMajorPentatonic[] = {0, 2, 4, 7, 9};
+constexpr std::uint8_t kMinorPentatonic[] = {0, 3, 5, 7, 10};
 constexpr std::uint8_t kWholeTone[] = {0, 2, 4, 6, 8, 10};
-constexpr std::span<const std::uint8_t> kScales[] = {kChromatic, kMajor,      kMinor,      kHarmonicMinor, kMelodicMinor,
-                                                     kDorian,    kPhrygian,   kLydian,     kMixolydian,    kLocrian,
-                                                     kMajorPenta, kMinorPenta, kBlues,     kWholeTone};
+constexpr std::uint8_t kDiminish[] = {0, 2, 3, 5, 6, 8, 9, 11};
+constexpr std::uint8_t kCombinationDiminish[] = {0, 1, 3, 4, 6, 7, 9, 10};
+constexpr std::uint8_t kAltered[] = {0, 1, 3, 4, 6, 8, 10};
+constexpr std::uint8_t kMajorBlues[] = {0, 2, 3, 4, 7, 9};
+constexpr std::uint8_t kMinorBlues[] = {0, 3, 5, 6, 7, 10};
+constexpr std::uint8_t kRagaBhairav[] = {0, 1, 4, 5, 7, 8, 11};
+constexpr std::uint8_t kRagaGamanasrama[] = {0, 1, 4, 6, 7, 9, 11};
+constexpr std::uint8_t kRagaTodi[] = {0, 1, 3, 6, 7, 8, 11};
+constexpr std::uint8_t kHawaiian[] = {0, 2, 3, 5, 7, 9, 11};
+constexpr std::uint8_t kRyukyu[] = {0, 4, 5, 7, 11};
+constexpr std::uint8_t kJapaneseMiyakobushi[] = {0, 1, 5, 7, 8};
+constexpr std::span<const std::uint8_t> kScales[] = {kChromatic,
+                                                     kIonian,
+                                                     kDorian,
+                                                     kPhrygian,
+                                                     kLydian,
+                                                     kMixolydian,
+                                                     kAeolian,
+                                                     kLocrian,
+                                                     kMajorPentatonic,
+                                                     kMinorPentatonic,
+                                                     kWholeTone,
+                                                     kDiminish,
+                                                     kCombinationDiminish,
+                                                     kAltered,
+                                                     kMajorBlues,
+                                                     kMinorBlues,
+                                                     kRagaBhairav,
+                                                     kRagaGamanasrama,
+                                                     kRagaTodi,
+                                                     kHawaiian,
+                                                     kRyukyu,
+                                                     kJapaneseMiyakobushi};
 static_assert(std::size(kScales) == std::size(kScaleType));
 
 // SELECT FX grid order (enumerations.md "Effects", FX-040).

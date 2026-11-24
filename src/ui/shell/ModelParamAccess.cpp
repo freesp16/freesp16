@@ -298,7 +298,7 @@ const ModelField kFields[] = {
     APP_TRACK_FIELD("lfo.bypass", false, x.lfo.bypass ? 1 : 0, x.lfo.bypass = v >= 0.5f),
     // MIDI / AS-1 tracks (MIDI NOTE, CC1, CC2, BANK SELECT, PROG CHANGE; per scene and track): saved with the project,
     // undoable, re-posted after an open. NOTE2–4 are semitones from NOTE (0 = OFF).
-    APP_TRACK_FIELD("midi.note1", false, x.midi.notes[0], x.midi.notes[0] = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.note1", false, x.midi.notes[0], x.midi.notes[0] = std::clamp(toInt(v), 0, 119)),
     APP_TRACK_FIELD("midi.note2", false, x.midi.notes[1], x.midi.notes[1] = std::clamp(toInt(v), -127, 127)),
     APP_TRACK_FIELD("midi.note3", false, x.midi.notes[2], x.midi.notes[2] = std::clamp(toInt(v), -127, 127)),
     APP_TRACK_FIELD("midi.note4", false, x.midi.notes[3], x.midi.notes[3] = std::clamp(toInt(v), -127, 127)),

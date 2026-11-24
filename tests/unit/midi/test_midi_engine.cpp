@@ -13,6 +13,7 @@
 #include <cmath>
 #include <cstdio>
 #include <random>
+#include <vector>
 
 namespace
 {
@@ -305,16 +306,16 @@ TEST_CASE("midi.engine: SCALE pads of a MIDI track send SET SCALE (MIDI)'s notes
     e->midi().hub().setOutputConnected(0, true);
     d.param("track.mode", 2, 1.0f);       // track 3 → MIDI
     d.param("midi.out.channel", 2, 1.0f);
-    d.param("midi.note1", 2, 57.0f);      // NOTE 1 = A3
+    d.param("midi.note1", 2, 57.0f);      // NOTE 1 = A4
     d.param("midi.note2", 2, 4.0f);       // NOTE2 +4: a major third over NOTE
     d.param("midi.velocity", 2, 100.0f);
-    d.param("scaleMidi.type", 2, 1.0f);   // MAJOR
-    d.param("scaleMidi.root", 2, 62.0f);  // root D4
+    d.param("scaleMidi.type", 2, 1.0f);   // IONIAN (major)
+    d.param("scaleMidi.root", 2, 62.0f);  // root D5
     d.param("pads.selected", 0xFFFF, 2.0f);
     d.param("pads.mode", 0xFFFF, 4.0f);   // SCALE
     d.blocks(1);
     miditest::drainOut(*e);
-    e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 = degree 2 = F#4 (66)
+    e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 = degree 2 = F#5 (66)
     d.blocks(2);
     auto out = miditest::drainOut(*e);
     REQUIRE(out.size() == 2);
@@ -350,7 +351,7 @@ TEST_CASE("midi.engine: a TORAIZ AS-1 track sends NOTE alone; its SCALE pads use
     miditest::Driver d {*e, 64};
     e->midi().hub().setOutputConnected(0, true);
     d.param("track.mode", 4, 3.0f);       // track 5 → TORAIZ AS-1
-    d.param("midi.note1", 4, 48.0f);      // C3
+    d.param("midi.note1", 4, 48.0f);      // C4
     d.param("midi.note2", 4, 7.0f);       // a fifth: the AS-1 plays no chords
     d.param("midi.velocity", 4, 100.0f);
     d.blocks(1);
@@ -367,12 +368,12 @@ TEST_CASE("midi.engine: a TORAIZ AS-1 track sends NOTE alone; its SCALE pads use
     e->triggers().push(engine::TriggerNow {4, 0, 60, 4});
     d.blocks(1);
 
-    d.param("scaleMidi.root", 4, 50.0f);  // ROOT NOTE D3: the AS-1's SCALE pads play from it (the manual's 1.4)
+    d.param("scaleMidi.root", 4, 50.0f);  // ROOT NOTE D4: the AS-1's SCALE pads play from it (the manual's 1.4)
     d.param("pads.selected", 0xFFFF, 4.0f);
     d.param("pads.mode", 0xFFFF, 4.0f);   // SCALE (CHROMATIC)
     d.blocks(1);
     miditest::drainOut(*e);
-    e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 = root + 2 = E3
+    e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 = root + 2 = E4
     d.blocks(2);
     on.clear();
     for (const auto& o : miditest::drainOut(*e))
@@ -381,27 +382,119 @@ TEST_CASE("midi.engine: a TORAIZ AS-1 track sends NOTE alone; its SCALE pads use
     CHECK(on == std::vector<int> {52});
 }
 
-TEST_CASE("midi.engine: CC1 / CC2 values are sent when changed and Active (MID-041…044)", "[midi]")
+TEST_CASE("midi.engine: NOTE…NOTE4 on one note number send it once", "[midi]")
 {
     auto e = miditest::make();
     miditest::Driver d {*e, 64};
     e->midi().hub().setOutputConnected(0, true);
-    d.param("track.mode", 2, 1.0f);
+    d.param("track.mode", 1, 1.0f);   // track 2 → MIDI
+    d.param("midi.note2", 1, 12.0f);
+    d.param("midi.note3", 1, 12.0f);  // the same as NOTE2
+    d.param("midi.note4", 1, 7.0f);
+    d.blocks(1);
     miditest::drainOut(*e);
-    d.param("midi.cc2.value1", 2, 33.0f); // not active: nothing
-    CHECK(miditest::drainOut(*e).empty());
-    d.param("midi.cc2.active1", 2, 1.0f); // activating sends the value
+    e->triggers().push(engine::TriggerNow {1, 90, 60, 1});
+    d.blocks(2);
+    std::vector<int> on;
+    for (const auto& o : miditest::drainOut(*e))
+        if ((o.bytes[0] & 0xF0) == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {60, 72, 67});
+    CHECK(e->midi().out().soundingCount() == 3);
+    // A stored NOTE bypass (an older project, an import) does not silence the track: NOTE is not bypassable.
+    d.param("midi.noteBypass", 1, 1.0f);
+    e->triggers().push(engine::TriggerNow {1, 0, 60, 1});
+    d.blocks(1);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {1, 90, 60, 1});
+    d.blocks(2);
+    on.clear();
+    for (const auto& o : miditest::drainOut(*e))
+        if ((o.bytes[0] & 0xF0) == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {60, 72, 67});
+}
+
+TEST_CASE("midi.engine: Active CC1 / CC2 values go out just before each trigger's notes (the manual's 2.4)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d {*e, 64};
+    e->midi().hub().setOutputConnected(0, true);
+    d.param("track.mode", 2, 1.0f);       // track 3 → MIDI, channel 3
+    d.param("midi.velocity", 2, 100.0f);
+    d.param("midi.cc2.value1", 2, 33.0f); // CC2 PARAMETER 1 (CC 71), not Active yet
+    d.param("midi.cc1.value3", 2, 20.0f); // CC1 PARAMETER 3 (CC 7)
+    d.param("midi.cc1.active3", 2, 1.0f);
+    d.param("midi.cc2.active1", 2, 1.0f);
     d.param("midi.cc2.value1", 2, 34.0f);
     d.param("midi.pitchBendActive", 2, 1.0f);
     d.param("midi.pitchBend", 2, -8192.0f);
-    d.param("midi.cc2Bypass", 2, 1.0f);
-    d.param("midi.cc2.value1", 2, 35.0f); // bypassed
-    const auto out = miditest::drainOut(*e);
+    d.param("midi.aftertouch", 2, 90.0f); // aftertouch not Active: never sent
+    d.blocks(2);
+    CHECK(miditest::drainOut(*e).empty()); // a changed value alone sends nothing
+    auto hit = [&] {
+        e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 (PLAY)
+        d.blocks(2);
+        e->triggers().push(engine::TriggerNow {2, 0, 60, 2});
+        d.blocks(1);
+        std::vector<std::vector<int>> v;
+        for (const auto& o : miditest::drainOut(*e))
+            if ((o.bytes[0] & 0xF0) != 0x80)
+                v.push_back({o.bytes[0], o.bytes[1], o.bytes[2], static_cast<int>(o.sampleTime)});
+        return v;
+    };
+    auto out = hit();
     REQUIRE(out.size() == 4);
-    CHECK((out[0].bytes[0] == 0xB2 && out[0].bytes[1] == 71 && out[0].bytes[2] == 33));
-    CHECK((out[1].bytes[0] == 0xB2 && out[1].bytes[1] == 71 && out[1].bytes[2] == 34));
-    CHECK((out[2].bytes[0] == 0xE2 && out[2].bytes[1] == 0 && out[2].bytes[2] == 64)); // centre on activation
-    CHECK((out[3].bytes[0] == 0xE2 && out[3].bytes[1] == 0 && out[3].bytes[2] == 0));
+    CHECK(out[0] == std::vector<int> {0xE2, 0, 0, out[3][3]});    // pitch bend −8192, at the note's frame
+    CHECK(out[1] == std::vector<int> {0xB2, 7, 20, out[3][3]});   // CC1 PARAMETER 3
+    CHECK(out[2] == std::vector<int> {0xB2, 71, 34, out[3][3]});  // CC2 PARAMETER 1
+    CHECK((out[3][0] == 0x92 && out[3][1] == 60 && out[3][2] == 100));
+    // Every trigger sends them again; a bypassed module does not.
+    d.param("midi.cc2Bypass", 2, 1.0f);
+    out = hit();
+    REQUIRE(out.size() == 3);
+    CHECK((out[0][0] == 0xE2 && out[1][1] == 7 && out[2][0] == 0x92));
+    d.param("midi.cc1Bypass", 2, 1.0f); // CC1 holds pitch bend and aftertouch too
+    out = hit();
+    REQUIRE(out.size() == 1);
+    CHECK(out[0][0] == 0x92);
+    d.param("midi.cc1Bypass", 2, 0.0f);
+    d.param("midi.cc2Bypass", 2, 0.0f);
+
+    // A sequence trigger: the values at the step's frame, before its notes.
+    engine::trigger::TriggerEvent step {};
+    step.track = 2;
+    step.velocity = 100;
+    step.frame = 17;
+    step.kind = engine::trigger::TriggerKind::Full;
+    step.source = engine::trigger::TriggerSource::Sequencer;
+    miditest::drainOut(*e);
+    REQUIRE(e->triggerRouter().push(step));
+    d.blocks(1);
+    auto seq = miditest::drainOut(*e);
+    std::erase_if(seq, [](const auto& o) { return (o.bytes[0] & 0xF0) == 0x80; }); // the pad's note ending
+    REQUIRE(seq.size() == 4);
+    CHECK((seq[0].bytes[0] == 0xE2 && seq[1].bytes[0] == 0xB2 && seq[2].bytes[0] == 0xB2 && seq[3].bytes[0] == 0x92));
+    CHECK((seq[0].sampleTime == seq[3].sampleTime && seq[2].sampleTime == seq[3].sampleTime));
+
+    // OUT NOTE/CC DISABLE: neither the values nor the notes.
+    d.param("midi.out.noteCc", 0, 0.0f);
+    CHECK(hit().empty());
+    d.param("midi.out.noteCc", 0, 1.0f);
+
+    // A TORAIZ AS-1 track sends them too, on its channel.
+    d.param("track.mode", 4, 3.0f);
+    d.param("midi.out.channel", 4, 9.0f);
+    d.param("midi.cc2.active2", 4, 1.0f);
+    d.param("midi.cc2.value2", 4, 5.0f);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {4, 90, 60, 4});
+    d.blocks(2);
+    auto as1 = miditest::drainOut(*e);
+    std::erase_if(as1, [](const auto& o) { return (o.bytes[0] & 0xF0) == 0x80; });
+    REQUIRE(as1.size() == 2);
+    CHECK((as1[0].bytes[0] == 0xB8 && as1[0].bytes[1] == 72 && as1[0].bytes[2] == 5));
+    CHECK(as1[1].bytes[0] == 0x98);
 }
 
 namespace

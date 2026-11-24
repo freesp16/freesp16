@@ -374,7 +374,7 @@ TEST_CASE("migration v2 → v3: projects made in the app are left alone", "[inte
     auto root = rootV2(R"({ "index": 1, "steps": [ { "track": 5, "step": 1, "trigger": 0, "velocity": 99 } ] })", "[]",
                        R"({ "attack": 0.07874015718698502 })");
     const auto notes = migrate(root);
-    CHECK(notes.size() == 2); // the 2 → 3 and 3 → 4 descriptions, no repair note
+    CHECK(notes.size() == 3); // the 2 → 3, 3 → 4 and 4 → 5 descriptions, no repair note
     CHECK(static_cast<double>(root["project"]["scenes"][0]["tracks"][0]["ampEnv"]["attack"]) == 0.07874015718698502);
     CHECK(static_cast<int>(firstPattern(root)["steps"][0]["track"]) == 5);
     CHECK_FALSE(root["project"].hasProperty("origin"));
@@ -399,7 +399,7 @@ TEST_CASE("migration v2 → v3: unit cases on the migration root", "[interop][mi
                          { "key": "sp16.step[0].track[1]", "encoding": "json", "value": "{\"vct\":{\"4\":1}}" },
                          { "key": "sp16.step[0].track[6]", "encoding": "json", "value": "{\"words\":{\"9\":5}}" } ] })");
         const auto notes = migrate(root);
-        REQUIRE(notes.size() == 3); // 2 → 3, its note, 3 → 4
+        REQUIRE(notes.size() == 4); // 2 → 3, its note, 3 → 4, 4 → 5
         CHECK(notes[1].find("1 step(s) in 1 pattern(s) moved") != std::string::npos);
         CHECK(notes[1].find("1 dropped") != std::string::npos);
         const auto& pat = firstPattern(root);
@@ -459,7 +459,7 @@ TEST_CASE("migration v2 → v3: unit cases on the migration root", "[interop][mi
         CHECK(static_cast<double>(env["attack"]) == static_cast<double>(core::ampenv::storedFromIndex(10)));
         CHECK(static_cast<double>(env["hold"]) == 1.0);
         CHECK(static_cast<double>(env["release"]) == 0.5); // 64/128: the app's own grid
-        REQUIRE(notes.size() == 3); // 2 → 3, its note, 3 → 4
+        REQUIRE(notes.size() == 4);                        // 2 → 3, its note, 3 → 4, 4 → 5
         CHECK(notes[1].find("1 envelope time(s) rescaled") != std::string::npos);
         CHECK(root["project"]["origin"]["format"].toString() == "sp16-prj");
     }

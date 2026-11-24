@@ -8,8 +8,8 @@
 //   track.triggerMode  0 ONE SHOT, 1 GATE (core::model::TriggerMode)
 //   track.chokeGroup   0 = none ("--"), 1–8
 //   track.inputSource  0 STEREO, 1 L, 2 R, 3 MONO (Thru tracks; the sampling input stage owns the input)
-//   scale.type         0–13 (core::scales::kScaleMasks order), scale.keyShift −12…+12, scale.area −2…+2
-//   scaleMidi.type     0–13, scaleMidi.root 0–127, scaleMidi.area −2…+2: SET SCALE (MIDI), the SCALE pads of a MIDI
+//   scale.type         0–21 (core::scales::kScaleMasks order), scale.keyShift −12…+12, scale.area −2…+2
+//   scaleMidi.type     0–21, scaleMidi.root 0–119, scaleMidi.area −2…+2: SET SCALE (MIDI), the SCALE pads of a MIDI
 //                      or AS-1 track (PAD-020); with NOTE 1 (midi.note1, set by the MIDI engine: setMidiNote1) they
 //                      give the pad's transposition of the track's notes
 //   pads.mode          0 PLAY (no key lit), 1 TRACK, 2 MUTE, 3 SLICE, 4 SCALE (PAD-001), project scope 0xFFFF
