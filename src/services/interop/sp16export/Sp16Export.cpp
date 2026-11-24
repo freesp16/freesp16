@@ -495,8 +495,15 @@ bool hasOptions(m::EffectType t, int which)
     return t == E::MultiModeFilter || t == E::LoFi || t == E::ParametricEq2 || (t == E::Ducker && which == 1);
 }
 
-void writeEffect(Node& n, std::string_view base, const m::EffectSlot& fx, Ctx& c, const std::string& at)
+void writeEffect(Node& n, std::string_view base, const m::EffectSlot& in, Ctx& c, const std::string& at)
 {
+    // Our own effects have no SP-16 type: the slot is written as Off (its parameters stay as stored).
+    m::EffectSlot fx = in;
+    if (fx.type == m::EffectType::VintagePitch)
+    {
+        c.report.drop("VINTAGE PITCH (not an SP-16 effect: written as Off)", at);
+        fx.type = m::EffectType::Off;
+    }
     Props p(n, std::string(base), &fx.extras, c.report, at);
     p.put("effectType", S("FxType_" + std::string(m::storedName(fx.type))),
           [&](const Var& k) { return sameEnum<m::EffectType>(k, fx.type, m::EffectType::Off, "FxType_"); });

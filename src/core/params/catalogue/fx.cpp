@@ -628,6 +628,8 @@ std::string_view effectIdOf(model::EffectType t) noexcept
         return "compressor";
     case EffectType::Ducker:
         return "ducker";
+    case EffectType::VintagePitch:
+        return "vpitch";
     case EffectType::Off:
         break;
     }
@@ -636,7 +638,7 @@ std::string_view effectIdOf(model::EffectType t) noexcept
 
 model::EffectType effectTypeOf(std::string_view id) noexcept
 {
-    for (int i = 1; i <= static_cast<int>(model::EffectType::Ducker); ++i)
+    for (int i = 1; i <= static_cast<int>(model::EffectType::VintagePitch); ++i)
         if (effectIdOf(static_cast<model::EffectType>(i)) == id)
             return static_cast<model::EffectType>(i);
     return model::EffectType::Off;

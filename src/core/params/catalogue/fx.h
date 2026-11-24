@@ -92,7 +92,7 @@ std::vector<std::int8_t> internalIndexTable(const ParamRegistry&);
 float defaultFor(const EffectParamDef&, std::uint8_t slot) noexcept;
 
 // model::EffectType ↔ the registry id ("chorus", "flanger", "eq2", "filter", "delay", "delayBus", "reverb", "lofi",
-// "distortion", "compressor", "ducker", "phaser"); Off ↔ "".
+// "distortion", "compressor", "ducker", "phaser", "vpitch"); Off ↔ "".
 std::string_view effectIdOf(model::EffectType) noexcept;
 model::EffectType effectTypeOf(std::string_view id) noexcept;
 

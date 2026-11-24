@@ -50,6 +50,7 @@ constexpr E kEffectType[] = {
     {10, "Distortion", "DISTORTION", "DIST"},
     {11, "Compressor", "COMPRESSOR", "COMP"},
     {12, "Ducker", "DUCKER"},
+    {13, "VintagePitch", "VINTAGE PITCH"}, // ours: not an SP-16 effect (the SP-16 export writes Off)
 };
 // LFO shapes: only `Sine` was seen stored [FMT]; the others are ours. The enum has SawUp/SawDown and lacks
 // PULSE25/PULSE12 of the 1.60 list: SawDown is the falling SAW of LFO-001.
@@ -230,7 +231,7 @@ APP_DETAIL_CHECK(TrackMode, Instrument)
 APP_DETAIL_CHECK(TriggerMode, Gate)
 APP_DETAIL_CHECK(StretchMode, MasterTempo)
 APP_DETAIL_CHECK(EnvelopeCurve, Curve)
-APP_DETAIL_CHECK(EffectType, Ducker)
+APP_DETAIL_CHECK(EffectType, VintagePitch)
 APP_DETAIL_CHECK(LfoShape, Random)
 APP_DETAIL_CHECK(LfoTriggerMode, OneShot)
 APP_DETAIL_CHECK(LfoTriggerOn, Both)
@@ -303,17 +304,17 @@ constexpr std::span<const std::uint8_t> kScales[] = {kChromatic,
 static_assert(std::size(kScales) == std::size(kScaleType));
 
 // SELECT FX grid order (enumerations.md "Effects", FX-040).
-constexpr EffectType kInsertTypes[] = {EffectType::Off,        EffectType::Chorus,       EffectType::Flanger,
-                                       EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::InsertDelay,
-                                       EffectType::LoFi,       EffectType::Compressor,   EffectType::Distortion,
-                                       EffectType::Phaser,     EffectType::Ducker};
-constexpr EffectType kBusTypes[] = {EffectType::Off,     EffectType::SendDelay,     EffectType::Reverb,
-                                    EffectType::Chorus,  EffectType::Flanger,       EffectType::ParametricEq2,
-                                    EffectType::MultiModeFilter, EffectType::LoFi,  EffectType::Compressor,
-                                    EffectType::Distortion, EffectType::Phaser};
+constexpr EffectType kInsertTypes[] = {
+    EffectType::Off,           EffectType::Chorus,          EffectType::Flanger,
+    EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::InsertDelay,
+    EffectType::LoFi,          EffectType::Compressor,      EffectType::Distortion,
+    EffectType::Phaser,        EffectType::Ducker,          EffectType::VintagePitch};
+constexpr EffectType kBusTypes[] = {
+    EffectType::Off,        EffectType::SendDelay,     EffectType::Reverb,          EffectType::Chorus,
+    EffectType::Flanger,    EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::LoFi,
+    EffectType::Compressor, EffectType::Distortion,    EffectType::Phaser,          EffectType::VintagePitch};
 
-template <std::size_t N>
-constexpr bool contains(const EffectType (&list)[N], EffectType t) noexcept
+template <std::size_t N> constexpr bool contains(const EffectType (&list)[N], EffectType t) noexcept
 {
     for (auto x : list)
         if (x == t)
