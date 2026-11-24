@@ -12,17 +12,24 @@
 //                                       IN START/STOP and SONG POSITION enables (SYN-011; ARR-008 in song mode)
 //                   notes 0–15        → track n + 1, any channel, frame-accurate trigger (MID-020); Sample tracks only
 //                   notes 24–72       → each Sample track on that receive channel, note − 48 semitones, ±12 under
-//                                       MASTER TEMPO (MID-021/022); Note Off → Release (GATE tracks)
+//                                       MASTER TEMPO (MID-021/022); Note Off → Release (GATE tracks) of the tracks
+//                                       whose sounding note it started (same port, channel and note)
 //                   CC                → the fixed map (CcMap) on every Sample/Thru track of the channel (MID-030/031/
 //                                       035), CC 0/32 → queued scene/pattern (SCN-050, ignored while SAMPLING/EDIT is
 //                                       open: midi.remoteSelectBlocked, SCN-051), CC 123 → stop those tracks (MID-023)
 //                   pitch bend        → RibbonEngine::onPitchBend (PITCH mode only, MID-032)
+//                 CC 0 / CC 32 (manual p.88): CC 0 only holds the scene; CC 32 queues (that scene, else the current
+//                 one, pattern). Between a CC 0 and its CC 32 the other channel messages are ignored, except those that
+//                 only end sound (Note Off, CC 123: nothing hangs); our choice: a CC 0 waits at most kRemoteSelectWait
+//                 (1 s), so a lone CC 0 cannot mute MIDI IN, and SAMPLING/EDIT opening or a project open drop it.
 //                 applied CCs and the followed tempo go to the UI (UiEvent) for the model / display
 //   step 3        the transport calls the follower's correction (Transport::setCorrection): tempo = the PLL's, phase
 //                 steered onto the clock's ticks by a bounded rate correction (no drift; a jump only when > ½ tick off)
-//   step 7        processOut(): MIDI tracks (MidiTrackPlayer: notes + chords, length, CC1/CC2 values on change, bank /
-//                 program on a scene switch, MID-040…050), the hanging-note guard (stop, mode change, port change,
-//                 MID-047), clock / transport / SPP out (ClockOut, SYN-020/021) → sample-stamped → the hub's out SPSC
+//   step 7        processOut(): MIDI and AS-1 tracks (MidiTrackPlayer: notes + chords — NOTE2–4 are semitones from
+//                 NOTE, an AS-1 track sends NOTE alone — a step's PITCH lock, length, the Active CC1/CC2 values (pitch
+//                 bend, aftertouch) before each trigger's notes, bank / program on a scene switch, MID-040…050), the
+//                 hanging-note guard (stop, mode change, port change, MID-047), clock / transport / SPP out (ClockOut,
+//                 SYN-020/021) → sample-stamped → the hub's out SPSC
 //
 // Output ports (our choice): MIDI tracks and the clock go to every connected output port whose mode is OUT or OUT +
 // MERGE (THRU ports only forward an input); the sender adds the merge / thru bytes.
@@ -110,13 +117,13 @@ inline constexpr std::string_view kMidiParamIds[] = {
 };
 static_assert(std::size(kMidiParamIds) == static_cast<std::size_t>(MidiField::Count));
 
-// One MIDI track's values per [scene][track] (MID-040…050; core::model::MidiTrack).
+// One MIDI / AS-1 track's values per [scene][track] (MID-040…050; core::model::MidiTrack).
 struct MidiTrackState
 {
-    std::array<std::int8_t, 4> notes {60, -1, -1, -1};
+    std::array<std::int8_t, 4> notes {60, 0, 0, 0}; // NOTE, then NOTE2–4 as semitones from it (0 = off)
     std::uint8_t velocity = 100; // 0 = OFF (step / pad velocity)
     float length = 1.0f;         // steps
-    bool noteBypass = false, cc1Bypass = false, cc2Bypass = false;
+    bool noteBypass = false, cc1Bypass = false, cc2Bypass = false; // noteBypass: stored only (NOTE is not bypassable)
     std::int16_t pitchBend = 0;  // −8192…8191
     std::uint8_t aftertouch = 0;
     bool pitchBendActive = false, aftertouchActive = false;
@@ -181,6 +188,7 @@ public:
     const MidiOutScheduler& out() const noexcept { return out_; }
     const AudioClock& clock() const noexcept { return clock_; }
     bool following() const noexcept { return following_; }
+    bool clockLost() const noexcept { return following_ && follower_.lost(blockStart_); } // SYN-013 (or no clock yet)
     int inputLatency() const noexcept { return MidiInScheduler::latencyFor(clock_.periodFrames()); }
     const MidiTrackState& track(int scene, int t) const noexcept { return tracks_[scene & 15][t & 15]; }
     int receiveChannel(int track) const noexcept { return rxChannel_[static_cast<std::size_t>(track & 15)]; }
@@ -192,8 +200,9 @@ private:
     void correct(double ppq, double& bpm, double& phase) noexcept;
     void handle(const DueEvent& d, BlockContext& ctx) noexcept;
     void channelMessage(const MidiEvent& e, int frame) noexcept;
-    void controlChange(int ch, int cc, int value) noexcept;
+    void controlChange(int ch, int cc, int value, int frame) noexcept;
     void select(int scene, int pattern) noexcept;
+    core::midi::CcKind ccKind(int cc) const noexcept;
     void trackOut(const BlockContext& ctx, const stages::BlockBuffers& b, std::uint32_t ports) noexcept;
     int currentScene() const noexcept;
     bool trackIsSample(int track) const noexcept;
@@ -216,7 +225,8 @@ private:
     core::ParamId sceneQueue_ {};
 
     // Settings (midi.*).
-    // = the ParamSpec / model defaults (utility.md: every enable ENABLE; postMidiSettings posts only differences)
+    // = the ParamSpec / model defaults (utility.md: every enable ENABLE). postMidiSettings posts every enable and
+    // channel on a project open, and the MIDI track values after a reset (core::midi::kProjectOpenScope).
     std::array<bool, 4> inEnable_ {true, true, true, true}, outEnable_ {true, true, true, true};
     std::array<std::int8_t, 16> rxChannel_ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}; // 0 = OFF
     std::array<std::int8_t, 16> txChannel_ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -224,7 +234,6 @@ private:
     bool clockWhileStopped_ = false, remoteBlocked_ = false;
     std::array<std::int8_t, core::midi::kMaxPorts> portMode_ {};
     MidiTrackState tracks_[16][16]; // [scene][track], default-initialised (no braces: GCC 11 build time)
-    std::array<std::uint16_t, 16> dirty_ {}; // per track of the current scene: bit 0 pitch bend, 1 aftertouch, 2+i CC i
 
     // Runtime state.
     bool following_ = false, correctionInstalled_ = false;
@@ -233,7 +242,9 @@ private:
     std::int64_t blockStart_ = 0;
     std::uint16_t midiMask_ = 0;
     std::array<std::uint32_t, core::midi::kMaxPorts> generation_ {};
-    std::array<std::int8_t, 16> heldTrackOfNote_ {}; // notes 0–15 → their track (Release)
+    std::array<std::int16_t, 16> heldNote_{}; // per track: port << 11 | channel << 7 | note that started it, −1 none
+    int remoteScene_ = -1;                    // a CC 0's scene 0–15 waiting for its CC 32, −1 = none
+    std::int64_t remoteSceneAt_ = 0;          // the CC 0's engine frame
     double shownTempo_ = 0.0;
     std::uint32_t activity_ = 0;
     std::uint64_t notesIn_ = 0, ccsIn_ = 0, ticksIn_ = 0;

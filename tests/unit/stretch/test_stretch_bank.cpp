@@ -84,10 +84,10 @@ TEST_CASE("stretch bank: the governor sees last block's players", "[stretch][ban
     bank.beginBlock({1, 33, 0});
     CHECK(bank.decision().tier == 1);
     CHECK(bank.tierNow() == 1);
-    for (int i = 0; i < 6; ++i)
+    for (int i = 0; i < 8; ++i)
         bank.countPlayer();
     bank.beginBlock({1, 33, 0});
-    CHECK(bank.decision().score == 8 + 33 + 12);
+    CHECK(bank.decision().score == 8 + 33 + 16);
     CHECK(bank.holdNew());
     CHECK(bank.holding());
     bank.beginBlock({});

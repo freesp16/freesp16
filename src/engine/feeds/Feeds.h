@@ -66,6 +66,8 @@ public:
     void addSendPeak(float l, float r) noexcept { maxInto(sendPeak_, l, r); }
     void addTrackPeak(int track, float l, float r) noexcept { maxInto(trackPeak_[static_cast<std::size_t>(track)], l, r); }
 
+    void setAfsOverLevel(float v) noexcept { afsOverLevel_ = v; } // already held by the slot: the latest value
+
     // Writes every field of the snapshot (TripleBuffer contract) and resets the accumulation.
     void fill(MeterFeed& m, std::uint64_t blockIndex) noexcept
     {
@@ -76,6 +78,7 @@ public:
         m.sendPeak = sendPeak_;
         m.inputPeak = inputPeak_;
         m.trackPeak = trackPeak_;
+        m.afsOverLevel = afsOverLevel_;
         reset();
     }
 
@@ -94,6 +97,7 @@ private:
 
     std::array<float, 2> masterPeak_ {}, masterSum_ {}, sendPeak_ {}, inputPeak_ {};
     std::array<std::array<float, 2>, kTracks> trackPeak_ {};
+    float afsOverLevel_ = 0.0f;
     int frames_ = 0;
 };
 

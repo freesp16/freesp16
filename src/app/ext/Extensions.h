@@ -1,6 +1,5 @@
-// The composition root's half of the P3 extensions (E11 Toggle, E4 MIDI learn, E8 export for the reference, E12
-// strip moves recorded). Message thread. With every ext.* flag off (the default) nothing here posts, publishes,
-// writes or logs — the app behaves as without the extensions.
+// The composition root's half of the P3 extensions (E11 Toggle, E4 MIDI learn, E8 export for the reference). Message
+// thread. With every ext.* flag off (the default) nothing here posts, publishes, writes or logs — the app behaves as without the extensions.
 //
 //   E11  the model's per-track TOGGLE (Track::extras "native.ext.trk.toggle") → ParamChange ext.trk.toggle, on project
 //        open, on edits and when the flag turns on (0 again when it turns off) → engine/trigger/ext/toggle
@@ -9,8 +8,8 @@
 //        fixed CCs (setRemote: non-undoable, like an incoming fixed CC); bindings saved in Project::extras (undoable)
 //   E8   `cmd ext-export <new folder> [name]`: the open project exported for the reference (services/interop/
 //        sp16export), samples located through the session's resolver
-//   E12  every UI frame while ext.strip.record is on: the strip's live state + the playhead → SetLock commands
-//        (ui/input/ext/striprecord); where the strip acts follows ribbon.applyTo (held pads' tracks by default)
+//   E12  ext.strip.record (strip moves recorded on every track, MOTION RECORD or not) is read by the app's motion
+//        recording (app/Document: ui/input/ext/striprecord in the recording pass's group), not here
 //
 // Scripted diagnostics (`cmd ext-…`, logged "EXT …"): ext-flag <flag> on|off, ext-state, ext-toggle <track 1-16>
 // on|off, ext-learn <param id> [track 1-16] [lo hi], ext-unlearn <channel> <cc>, ext-export <absolute folder> [name].
@@ -25,7 +24,6 @@
 #include "engine/EngineApi.h"
 #include "io/controllers/ControlSurface.h"
 #include "services/midilearn/MidiLearn.h"
-#include "ui/input/ext/striprecord/StripRecorder.h"
 
 #include <juce_core/juce_core.h>
 
@@ -44,10 +42,7 @@ struct ExtEnv
     engine::EngineBridge* bridge = nullptr;
     std::function<void(const std::string&)> log;
     std::function<void(const core::ParamSpec&, std::uint16_t scope, float value)> setRemote; // model path of a CC
-    std::function<float(const core::ParamSpec&, std::uint16_t scope)> value;
     std::function<int()> selectedTrack;   // 0–15
-    std::function<bool()> recArmed;       // REC armed (UiState::recArmed)
-    std::function<int()> padMode;         // ui::input::pads::PadMode (0 PLAY, 1 TRACK, 2 MUTE, 3 SLICE, 4 SCALE)
     std::function<std::optional<juce::File>(const std::string&)> resolveSample;
     // The preferences (Preferences::get): the source of the ext.* flags (an environment value still wins,
     // tests and the smoke check); null = the environment only.
@@ -65,8 +60,7 @@ public:
     void onChange(const core::ChangeSet&, const core::model::Project&); // the bus's bridge hook
     void onProjectReplaced(const core::model::Project&);
     bool onMidiUi(const core::midi::UiEvent&); // true = an E4 carrier event (consumed)
-    void handle(const io::ControlEvent&);       // held pads (E12)
-    void frame(double nowMs, const engine::PlayheadFeed&, int stripMode, bool stripContact, int stripPosition);
+    void frame(double nowMs);
     bool command(const std::string& cmd, std::istringstream& in); // `cmd ext-*`; false = not an ext command
 
 private:
@@ -76,7 +70,6 @@ private:
     void syncToggles(const core::model::Project&);
     void syncLearn(const core::model::Project&);
     void publishOverlay(bool on);
-    std::uint16_t stripTracks() const;
     void storeLearnMap();
 
     ExtEnv env_;
@@ -86,9 +79,5 @@ private:
     services::midilearn::LearnSession session_;
     const core::midi::CcTable* fixed_ = nullptr; // the hub's table before the overlay
     std::uint64_t learnApplied_ = 0;
-    ui::input::ext::StripRecorder strip_;
-    std::vector<ui::input::ext::LockWrite> writes_;
-    std::uint16_t heldPads_ = 0, heldTracks_ = 0;
-    std::uint64_t stripWrites_ = 0;
 };
 } // namespace app::ext

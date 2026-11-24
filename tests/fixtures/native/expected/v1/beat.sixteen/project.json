@@ -1,5 +1,5 @@
 {
-  "format": { "name": "sixteen-project", "version": 2 },
+  "format": { "name": "sixteen-project", "version": 5 },
   "settings": {
     "tempo": 92.5,
     "padQuantize": "Step",

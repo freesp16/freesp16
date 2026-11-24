@@ -13,7 +13,9 @@
 #include "core/commands/ribbon/RibbonCommands.h"
 #include "core/commands/scene/SceneCommands.h"
 #include "core/commands/sequencer/SequencerCommands.h"
+#include "core/util/scales/Scales.h"
 #include "core/commands/slice/SliceCommands.h"
+#include "core/commands/track/TrackCommands.h"
 #include "core/edit/PatternChainBuilder.h"
 #include "core/edit/SharedEditor.h"
 #include "core/edit/WorkerPool.h"
@@ -23,6 +25,7 @@
 #include "io/controllers/profiles/ControllerHub.h"
 #include "io/controllers/StripSource.h"
 #include "io/midi/MidiSettings.h"
+#include "services/ext/ExtFlags.h"
 #include "services/interop/sp16/Sp16Mapping.h"
 #include "services/interop/sp16/Sp16ProjectCodec.h"
 #include "services/library/PreviewService.h"
@@ -37,14 +40,17 @@
 #include "services/render/RenderService.h"
 #include "services/sampling/SamplingSession.h"
 #include "services/store/ProjectStoreSession.h"
+#include "services/settings/MidiPortLayout.h"
 #include "services/settings/Preferences.h"
 #include "services/settings/ProjectSettings.h"
 #include "io/controllers/PanelPads.h"
+#include "ui/input/ext/striprecord/StripRecorder.h"
 #include "ui/input/pads/PadController.h"
 #include "ui/input/pads/PadLamps.h"
 #include "ui/input/panel/PanelKeys.h"
 #include "ui/input/scenes/ScenePatternKeys.h"
 #include "ui/input/scenes/SceneSync.h"
+#include "ui/input/steps/PadStepEntry.h"
 #include "ui/input/steps/PatternSync.h"
 #include "ui/input/steps/StepController.h"
 #include "app/PluginAdapter.h"
@@ -59,11 +65,13 @@
 #include "ui/shell/Root.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <limits>
 #include <optional>
 #include <span>
 #include <sstream>
@@ -78,6 +86,27 @@ namespace
 {
 namespace lib = services::library;
 namespace store = services::store;
+
+// SCALE pad `pad`'s semitones on track `tr` (the engine's engine::trigger::scalePadSemitones from the model): SET SCALE
+// on a Sample track (PAD-010…013), SET SCALE (MIDI)'s note over NOTE on a MIDI / AS-1 track (PAD-020).
+int scalePadSemitones(const core::model::Track& tr, int pad) noexcept
+{
+    namespace sc = core::scales;
+    if (tr.mode == core::model::TrackMode::Midi || tr.mode == core::model::TrackMode::Instrument)
+        return sc::midiPadNote(pad, sc::scaleMask(tr.midiScale.scaleTypeMidi), tr.midiScale.rootNote,
+                               tr.midiScale.scalePosition)
+               - tr.midi.notes[0];
+    return sc::padSemitones(pad, sc::scaleMask(tr.padScale.scaleType), tr.padScale.keyShift,
+                            tr.padScale.windowOffset);
+}
+
+// SET SCALE's selected key of SCALE pad `pad` on track `tr` (ui::TrackSummary::scaleKey): the MIDI note it plays on a
+// MIDI / AS-1 track, its semitones over PITCH on a Sample track.
+int scaleKeyOf(const core::model::Track& tr, int pad) noexcept
+{
+    const bool midi = tr.mode == core::model::TrackMode::Midi || tr.mode == core::model::TrackMode::Instrument;
+    return scalePadSemitones(tr, pad) + (midi ? tr.midi.notes[0] : 0);
+}
 
 // TRK-041: the pad controller's one selected track is the shell's (UiState::selectedTrack, 1–16).
 class ShellSelection final : public ui::input::pads::Selection
@@ -214,7 +243,7 @@ struct Document::Impl
         : queued(b), bridge(queued), config(std::move(c)), pool(workers, [this](const std::string& p) { return resolve(p); },
                                                  lib::SamplePool::Config{.engineRate = config.sampleRate}),
           sync(pool, bridge), preview(pool, workers, bridge), loader(library, pool, bus),
-          browse(library, loader, preview, bus), views(pool, sync, bus), fxSlots(bus, &bridge), fxMeters(bridge),
+          browse(library, loader, preview, bus, config.device), views(pool, sync, bus), fxSlots(bus, &bridge), fxMeters(bridge),
           values(bus, &bridge), pads(bus, bridge, selection), sceneSync(core::builtinParams(), bridge), sceneKeys(bus),
           steps(bus, &bridge, &values), lockValues(values, steps), recording(lockValues, steps, bridge, selection),
           strip(bridge, core::builtinParams())
@@ -276,6 +305,11 @@ struct Document::Impl
                 slices.onInstalled(s, t, sample != nullptr ? sample->frames : 0, core::commands::project(bus));
         };
         ui::slice::sliceLive().buffer = [this](int s, int t) { return sync.current(s, t); }; // SLC-006
+        pads.hasContent = [this](int track) // the pad lamps: dark for an empty track, as the track tiles show it
+        {
+            return selection.shell == nullptr
+                   || selection.shell->state().tracks[static_cast<std::size_t>(track & 15)].hasContent;
+        };
         pads.slicePad = [this](int track, int pad) // SLICE pad lamps (which pads hold a slice)
         {
             if (! core::commands::hasProject(bus))
@@ -450,10 +484,7 @@ struct Document::Impl
             .bridge = &bridge,
             .log = [this](const std::string& line) { log("%s", line.c_str()); },
             .setRemote = [this](const core::ParamSpec& spec, std::uint16_t scope, float v) { values.setRemote(spec, scope, v); },
-            .value = [this](const core::ParamSpec& spec, std::uint16_t scope) { return values.get(spec, scope); },
             .selectedTrack = [this] { return selection.selected(); },
-            .recArmed = [this] { return selection.shell != nullptr && selection.shell->state().recArmed; },
-            .padMode = [this] { return static_cast<int>(pads.effectiveMode()); },
             .resolveSample = [this](const std::string& path) { return resolve(path); },
             .preference = [this](std::string_view key) { return prefs.get(key); }});
     }
@@ -618,6 +649,7 @@ struct Document::Impl
     DocumentConfig config;
 
     void syncSequencer(double nowMs);
+    void recordStrip(); // the touch strip's moves → motion locks while recording (RIB-008, SEQ-023)
     void command(const std::string& text);
     void logState();
     void render(const std::string& file, double seconds, bool withChain = false, bool song = false);
@@ -654,6 +686,10 @@ struct Document::Impl
     ui::input::pads::PadLamps padLamps;
     std::optional<LoggingProjectSource> projectLog;
     io::StripRouter strip; // MODE / HOLD, the strip and pad pressure → engine, the strip lamps
+    ui::input::ext::StripHeld stripHeld;         // the tracks the strip acts on (held pads, HOLD, ribbon.applyTo)
+    ui::input::ext::StripRecorder stripRecorder; // its moves as motion locks (MOTION RECORD)
+    std::vector<ui::input::ext::LockWrite> stripWrites;
+    int stripLocks = 0; // logged "MOTION strip …" lines (the first 64)
     // The preferences (<data dir>/preferences.json, saved on a worker ≤ 1 s after a change) and the
     // shell's ParamAccess that saves every preference edit (ui/screens/utility/PrefAccess.h).
     services::settings::Preferences prefs {core::builtinParams(),
@@ -714,6 +750,15 @@ struct Document::Impl
         return std::clamp((length + 15) / 16, 1, 4);
     }
     void sliceStepEntry(int step1to16);         // SLC-005: step entry writes the last-played slice
+    // SET SCALE "selected key" (the manual's 1.6 / 8.4): the pitch the SCALE pad last pressed per track played
+    // (scaleKeyOf; kNoKey none), so a later AREA / SCALE / ROOT change keeps the key; a step key then programs a
+    // trigger at its pitch (PITCH lock) — after the pad (release of the key) or while the key is held. SET SCALE draws
+    // it white (the shell's TrackSummary::scaleKey, the same value).
+    static constexpr int kNoKey = ui::TrackSummary::kNoKey;
+    std::array<int, 16> scaleKey = [] { std::array<int, 16> k {}; k.fill(kNoKey); return k; }();
+    float scalePitchLock(int track) const; // the selected key's PITCH lock; NaN = none (the root, no key, no project)
+    void scaleStepEntry(int step1to16);    // a trigger entered after a SCALE pad: it gets the key's pitch
+    void scaleStepHeld(int step1to16, int velocity); // SCALE pad hit while a step key is held: that step plays the key
     void sliceCommand(std::istringstream& in);  // `cmd slice count N | move S FRAME | add FRAME | delete S | area A | state`
     // Incoming CCs the engine applied (io::midi::setUiEventSink, drained by the "midi" control source
     // before frame()) → the model, non-undoable and coalesced to the last value per parameter and scope each frame.
@@ -869,8 +914,9 @@ bool Document::handle(const io::ControlEvent& e)
     if (e.control == io::Control::ExtPaste && edge && (! sceneManager || ! press))
         d.steps.setPaste(press);
     d.strip.handle(e); // never consumes
-    if (d.extensions)
-        d.extensions->handle(e); // held pads for recorded strip moves (never consumes)
+    if (io::isPad(e.control) && edge) // the tracks the strip acts on, for its recorded moves
+        d.stripHeld.onPad(io::indexOf(e.control) - 1, press, static_cast<int>(d.pads.effectiveMode()), d.shift,
+                          d.selection.selected());
     if (d.afsControl(e)) // the panel's ANALOG FILTER controls
         return true;
     if (d.panelKeys.handle(e, d.shift)) // before the SCENE / PATTERN keys and the pad modes
@@ -882,9 +928,13 @@ bool Document::handle(const io::ControlEvent& e)
     {
         if (io::isStep(e.control) && edge && core::commands::hasProject(d.bus))
         {
-            d.steps.onStepKey(io::indexOf(e.control), press, e.timeMs); // SEQ-040 / SEQ-022 (the shell sees it too)
-            if (! press)
+            // SEQ-040 / SEQ-022 (the shell sees it too). Only a release that entered a trigger programs the pad's
+            // slice / key (8.4): not one that removed a trigger, ended a hold + turn or a COPY / PASTE gesture.
+            if (d.steps.onStepKey(io::indexOf(e.control), press, e.timeMs))
+            {
                 d.sliceStepEntry(io::indexOf(e.control)); // SLC-005
+                d.scaleStepEntry(io::indexOf(e.control));
+            }
         }
         if (press && e.control >= io::Control::Bar1 && e.control <= io::Control::Bar4 && core::commands::hasProject(d.bus))
         {
@@ -911,17 +961,24 @@ bool Document::handle(const io::ControlEvent& e)
             const auto& tracks = p.scenes[static_cast<std::size_t>(p.settings.currentScene & 15)].tracks;
             if (mode == PadMode::Scale)
             {
-                d.selection.shell->state().tracks[static_cast<std::size_t>(d.selection.selected())].lastHitMs = e.timeMs;
-                d.log("INPUT pad%d scale track=%d", n, d.selection.selected() + 1);
+                const int t = d.selection.selected();
+                d.selection.shell->state().tracks[static_cast<std::size_t>(t)].lastHitMs = e.timeMs;
+                const int key = scaleKeyOf(tracks[static_cast<std::size_t>(t)], n - 1); // the selected key
+                d.scaleKey[static_cast<std::size_t>(t)] = key;
+                d.selection.shell->state().tracks[static_cast<std::size_t>(t)].scaleKey = key;
+                if (const int held = d.steps.heldStep(); held > 0)
+                    d.scaleStepHeld(held, e.value); // the velocity the pad played at
+                d.log("INPUT pad%d scale track=%d", n, t + 1);
             }
             else
             {
                 int muted = 0, soloed = 0;
-                for (const auto& t : tracks)
-                    muted += t.mute ? 1 : 0, soloed += t.solo ? 1 : 0;
+                for (int t = 0; t < 16; ++t)
+                    muted += core::commands::track::isMuted(p, p.settings.currentScene, t) ? 1 : 0,
+                        soloed += tracks[static_cast<std::size_t>(t)].solo ? 1 : 0;
                 d.log("INPUT pad%d %s mute=%d solo=%d muted=%d soloed=%d", n,
                       d.shift ? "mute-others" : d.pads.soloHeld() ? "solo" : "mute",
-                      tracks[static_cast<std::size_t>(n - 1)].mute ? 1 : 0,
+                      core::commands::track::isMuted(p, p.settings.currentScene, n - 1) ? 1 : 0,
                       tracks[static_cast<std::size_t>(n - 1)].solo ? 1 : 0, muted, soloed);
             }
         }
@@ -948,14 +1005,23 @@ void Document::frame(double nowMs)
     d.preview.tick();
     d.pads.sync();
     d.pads.tick(nowMs); // PAD MODE SELECT RESPONSE OVER 1sec (PAD-007)
+    d.pads.observeHits(d.bridge.playhead(), nowMs); // the engine's hits (sequencer, MIDI, repeat) flash the pads
+    if (d.selection.shell != nullptr) // the status row's MUTE / SOLO badge
+    {
+        using View = ui::UiState::PadMuteView;
+        d.selection.shell->state().padMuteView = d.pads.soloHeld() ? View::Solo
+                                                 : d.pads.mode() == ui::input::pads::PadMode::Mute ? View::Mute
+                                                                                                    : View::None;
+    }
     d.syncSequencer(nowMs);
+    d.recordStrip();
     d.frameMs = nowMs;
     auto& live = ui::m4::stripLive(); // TOUCH STRIP SETTING's StripPreview
     live.mode = static_cast<int>(d.strip.mode());
     live.contact = d.strip.contact();
     live.position = d.strip.position();
     if (d.extensions) // flags, MIDI learn's overlay, recorded strip moves
-        d.extensions->frame(nowMs, d.bridge.playhead(), live.mode, live.contact, live.position);
+        d.extensions->frame(nowMs);
     core::commands::flushNotifications(d.bus);
     d.checkKit(nowMs);
     if (nowMs - d.lastPollMs >= 1000.0) // removable volumes (LIB-002), stale waveform conversions
@@ -1006,31 +1072,38 @@ void Document::lamps(io::LampFrame& frame) const
             io::barLamps(d.patternBars(), ui::input::steps::shownBar() + 1, ph.step / 16 + 1,
                          ph.blockIndex > 0 && ph.playing, ph.ppq - std::floor(ph.ppq), frame);
     }
-    // The pad controller's pad-mode lamps and mode keys; its paint is limited to 60 Hz and PadLamps
-    // keeps the last paint, so a skipped paint shows the previous state, not the shell's pads.
+    // The pad controller paints the 16 pads in every pad mode, PLAY too (one rule, io::padLamp), and the mode keys;
+    // its paint is limited to 60 Hz and PadLamps keeps the last paint, so a skipped paint shows the previous state.
     d.pads.paintLamps(d.padLamps, d.frameMs, d.bridge.meters());
-    d.padLamps.overlay(frame, d.pads.effectiveMode());
+    d.padLamps.overlay(frame);
     d.strip.lamps(frame);
-    // UI-156/158: ANALOG FILTER ACTIVE (red) from afs.active; OVER (amber) while the master clip latch holds (our
-    // choice: the engine publishes no AFS overload — MeterFeed is frozen — so OVER shows the output clip that a driven
-    // filter causes, latched 2 s like the meters).
-    if (const auto* active = core::builtinParams().find("afs.active"))
-        frame[io::Control::AfsActive] = {d.values.get(*active, 0) >= 0.5f ? io::LampMode::On : io::LampMode::Off,
-                                         io::lampcolour::red, 0};
+    // UI-156/158: ANALOG FILTER ACTIVE (red) from afs.active; OVER (amber) while the drive output passed +5.1 dBFS
+    // (AFS-011, the slot's own detector, held 0.5 s there), latched 2 s like the meters. As on the reference this is
+    // the only source: the main DAC pair has a fixed −6 dB (F111), so the DAC's full scale is +6 dBFS in the engine and
+    // a master peak at 0 dBFS is 6 dB below clipping. The detector watches the master output with ACTIVE off too.
+    const auto afsValue = [&](std::string_view id, float fallback) {
+        const auto* spec = core::builtinParams().find(id);
+        return spec != nullptr ? d.values.get(*spec, 0) : fallback;
+    };
+    const bool afsOn = afsValue("afs.active", 0.0f) >= 0.5f;
+    frame[io::Control::AfsActive] = {afsOn ? io::LampMode::On : io::LampMode::Off, io::lampcolour::red, 0};
+    // The unit's own filter board (its select line and high-pass DAC; the platform decides what it can switch).
+    frame.analogFilter.inUse = afsOn && std::lround(afsValue("afs.processor", 1.0f)) == 1;
+    frame.analogFilter.hpCutoff = static_cast<int>(std::lround(afsValue("afs.hpCutoff", 0.0f)));
     const auto& m = d.bridge.meters();
-    if (m.masterPeak[0] >= 1.0f || m.masterPeak[1] >= 1.0f)
+    if (m.afsOverLevel >= engine::kAfsOverThreshold)
         d.overAtMs = d.frameMs;
     frame[io::Control::AfsOver] = {d.frameMs - d.overAtMs < 2000.0 ? io::LampMode::On : io::LampMode::Off,
                                    io::lampcolour::amber, 0};
 }
 
-void Document::shutdown()
+void Document::shutdown(bool powerOff)
 {
     io::midi::setUiEventSink(nullptr);
     if (impl_->renderer) // a running render is cancelled, the live output unmuted (before the engine goes)
         impl_->renderer->stop();
     impl_->preview.stop();
-    impl_->session->shutdown();
+    impl_->session->shutdown(powerOff);
     impl_->prefs.flush(); // nothing unsaved at quit
     impl_->log("PREFS flushed writes=%d%s", impl_->prefs.writes(),
                impl_->prefs.lastError().empty() ? "" : (" error=" + impl_->prefs.lastError()).c_str());
@@ -1054,7 +1127,18 @@ void Document::Impl::syncSequencer(double nowMs)
         if (e.kind == engine::EngineEvent::Kind::RecordedHit)
             ++recordedHits;
         steps.onEngineEvent(e);    // RecordedHit / ErasedStep → recordHit / clearStep in the pass's group
-        if (e.kind == engine::EngineEvent::Kind::RecordedHit) // SLC-005: the hit's slice lock
+        if (e.kind == engine::EngineEvent::Kind::RecordedHit && e.origin == engine::EngineEvent::kOriginRepeat)
+        {
+            // A touch strip REPEAT hit: it replays the held pad, so in SLICE pad mode it records that pad's slice (the
+            // last one played) and never takes a pad press's pending slice.
+            log("REPEAT recorded track=%d step=%d velocity=%d", e.track + 1, e.step + 1, e.value);
+            const int t = e.track & 15;
+            const int slice = ui::slice::sliceLive().lastSlice[static_cast<std::size_t>(t)];
+            if (pads.mode() == ui::input::pads::PadMode::Slice && t == selection.selected() && slice >= 0)
+                bus.execute(core::commands::sequencer::setLock(steps.scene(), steps.pattern(), t, e.step, 22,
+                                                               static_cast<float>(slice)));
+        }
+        else if (e.kind == engine::EngineEvent::Kind::RecordedHit) // SLC-005: the hit's slice lock
             if (const auto slice = ui::slice::sliceLive().takeRecorded(e.track, nowMs))
             {
                 bus.execute(core::commands::sequencer::setLock(steps.scene(), steps.pattern(), e.track, e.step, 22,
@@ -1088,6 +1172,54 @@ void Document::Impl::syncSequencer(double nowMs)
     steps.tick(nowMs);
 }
 
+// The touch strip's moves while recording (ui/input/ext/striprecord): on the tracks the strip acts on whose MOTION
+// RECORD is ON (all of them with the ext.strip.record switch), as locks of the playing steps in the recording pass's
+// group — PITCH on the track's own pitch, USER items at their values, also while HOLD keeps a value. REPEAT's hits are
+// recorded by the sequencer (RecordedHit, origin kOriginRepeat).
+void Document::Impl::recordStrip()
+{
+    if (selection.shell == nullptr || ! core::commands::hasProject(bus))
+        return;
+    const auto& ph = bridge.playhead();
+    const auto& p = core::commands::project(bus);
+    const auto& params = core::builtinParams();
+    const int scene = ph.scene & 15, pattern = ph.pattern & 15;
+    ui::input::ext::StripRecordState s;
+    s.recording = ph.playing && ! ph.preCount && selection.shell->state().recArmed;
+    s.scene = scene;
+    s.pattern = pattern;
+    s.step = ph.step;
+    s.length = p.scenes[static_cast<std::size_t>(scene)].patterns[static_cast<std::size_t>(pattern)].length;
+    s.mode = static_cast<int>(strip.mode());
+    s.position = strip.shownPosition();
+    s.contact = s.position >= 0; // touched, or kept by HOLD
+    static const auto* applyTo = params.find("ribbon.applyTo");
+    static const auto* motionRec = params.find("track.motionRec");
+    static const auto* pitch = params.find("playback.pitch");
+    const int apply = applyTo != nullptr ? static_cast<int>(std::lround(values.get(*applyTo, 0))) : 0;
+    s.tracks = stripHeld.tracks(apply, selection.selected(), strip.hold() && s.contact);
+    const bool all = services::ext::flags().isOn(services::ext::kStripRecord);
+    s.record = 0;
+    for (int t = 0; t < 16; ++t)
+    {
+        const auto scope = static_cast<std::uint16_t>(scene << 4 | t);
+        if (all || (motionRec != nullptr && values.get(*motionRec, scope) >= 0.5f))
+            s.record = static_cast<std::uint16_t>(s.record | (1u << t));
+        s.pitch[static_cast<std::size_t>(t)] = pitch != nullptr ? values.get(*pitch, scope) : 0.0f;
+    }
+    stripWrites.clear();
+    stripRecorder.frame(s, p.ribbon, stripWrites);
+    for (const auto& w : stripWrites)
+    {
+        if (! steps.recordStripLocks(w.scene, w.pattern, w.track, std::span<const int>(&w.step, 1), w.slot, w.value))
+            continue;
+        if (++stripLocks <= 64)
+            log("MOTION strip %s track=%d step=%d value=%.2f",
+                w.spec != nullptr ? std::string(w.spec->id).c_str() : "?", w.track + 1, w.step + 1,
+                static_cast<double>(w.value));
+    }
+}
+
 // A pad in SLICE pad mode plays the selected track's slice (the engine routes it: a slice-number lock);
 // here the message thread notes which slice it was (SET SLICE's SLICE No., step entry, the recorded hit's lock) and
 // keeps the press from the shell, whose default pad handling would select track n (the engine would then play that
@@ -1106,6 +1238,8 @@ bool Document::Impl::slicePad(const io::ControlEvent& e)
         }
         return true;
     }
+    if (io::isPad(e.control))
+        pads.sync(); // a MIDI / AS-1 track selected since the last frame ends SLICE mode first (manual p.49)
     if (! io::isPad(e.control) || (e.kind != Kind::Press && e.kind != Kind::Release) || shift
         || pads.effectiveMode() != ui::input::pads::PadMode::Slice) // MUTE held: solo, not slices
         return false;
@@ -1193,23 +1327,45 @@ void Document::Impl::sliceCommand(std::istringstream& in)
 // SLC-005: a step entered in SLICE pad mode gets the slice-number lock of the selected track's last-played slice.
 void Document::Impl::sliceStepEntry(int step1to16)
 {
-    if (pads.mode() != ui::input::pads::PadMode::Slice || ! core::commands::hasProject(bus) || step1to16 < 1
-        || step1to16 > 16)
+    if (pads.mode() != ui::input::pads::PadMode::Slice)
         return;
     const int t = selection.selected();
-    const int slice = ui::slice::sliceLive().lastSlice[static_cast<std::size_t>(t)];
-    if (slice < 0)
-        return;
+    ui::input::steps::sliceStepEntry(bus, steps, t, ui::slice::sliceLive().lastSlice[static_cast<std::size_t>(t)],
+                                     step1to16);
+}
+
+float Document::Impl::scalePitchLock(int track) const
+{
+    static const auto* pitch = core::builtinParams().find("playback.pitch");
+    const int key = scaleKey[static_cast<std::size_t>(track & 15)];
+    if (key == kNoKey || pitch == nullptr || ! core::commands::hasProject(bus))
+        return std::numeric_limits<float>::quiet_NaN();
     const auto& p = core::commands::project(bus);
-    const int sc = steps.scene(), pat = steps.pattern(), step = steps.patternStep(step1to16);
-    const auto& cell = p.scenes[static_cast<std::size_t>(sc & 15)].patterns[static_cast<std::size_t>(pat & 15)]
-                           .steps[static_cast<std::size_t>(step & 63)][static_cast<std::size_t>(t)];
-    float current = -1.0f;
-    if (cell.trigger == core::model::Step::kEmpty
-        || (core::commands::sequencer::lockOf(p.scenes[static_cast<std::size_t>(sc & 15)].patterns[static_cast<std::size_t>(pat & 15)],
-                                    step, t, 22, current) && current == static_cast<float>(slice)))
-        return; // the release cleared the step (or it already plays this slice)
-    bus.execute(core::commands::sequencer::setLock(sc, pat, t, step, 22, static_cast<float>(slice)));
+    const int sc = steps.scene() & 15;
+    const auto& tr = p.scenes[static_cast<std::size_t>(sc)].tracks[static_cast<std::size_t>(track & 15)];
+    const int semis = ui::input::steps::isMidiMode(tr.mode) ? key - tr.midi.notes[0] : key; // over NOTE / over PITCH
+    if (semis == 0)
+        return std::numeric_limits<float>::quiet_NaN(); // the root key: the track's own pitch / notes, no lock
+    // Sample tracks: the root key is the track's PITCH + KEY SHIFT (the manual's 1.8), so the lock is PITCH + the
+    // pad's semitones; MIDI / AS-1 tracks: the transposition of the track's notes.
+    const float base = ui::input::steps::isMidiMode(tr.mode)
+                           ? 0.0f
+                           : values.get(*pitch, static_cast<std::uint16_t>(sc << 4 | (track & 15)));
+    return ui::input::steps::clampPitchLock(*pitch, tr.mode, base + static_cast<float>(semis));
+}
+
+void Document::Impl::scaleStepEntry(int step1to16)
+{
+    if (pads.mode() != ui::input::pads::PadMode::Scale)
+        return;
+    const int t = selection.selected();
+    ui::input::steps::scaleStepEntry(bus, steps, t, scalePitchLock(t), step1to16);
+}
+
+void Document::Impl::scaleStepHeld(int step1to16, int velocity)
+{
+    const int t = selection.selected();
+    ui::input::steps::scaleStepHeld(bus, steps, t, scalePitchLock(t), velocity, step1to16);
 }
 
 void Document::Impl::command(const std::string& text)
@@ -1988,6 +2144,9 @@ void Document::Impl::loadPreferences(const juce::File& dataDir)
     const auto r = prefs.load(file);
     prefs.setProfilesFolder(dataDir.getChildFile("Controllers")); // the controllers' user profiles (SET-012 export)
     st::install(&prefs);
+    // The unit: DIN is port 1 and USB port 2 now (they were in ALSA card order): the saved port settings follow once.
+    if (config.device && st::migrateMidiPortLayout(prefs))
+        log("PREFS midi ports: the settings of ports 1 and 2 swapped (DIN is port 1, USB port 2)");
     // Every stored preference ParamSpec into the shell's values and the engine (pad curve, browse, render, …).
     const int applied = ui::utility::applyPreferences(prefs, recording);
     if (r)

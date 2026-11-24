@@ -30,7 +30,9 @@ Description (all keys optional; scene / track / pattern / step numbers 1-based):
                     "tracks": {"1": {"TrackData": {...}, "PlaybackData": {...}, "InsertFx0": {...}, ...}},
                     "patterns": {"6": {"Length": 16, "mutes": [2], "solos": [], "steps": [STEP, ...]}},
                     "dropPatterns": [2], "SendFx": {...}, "MasterFx": {...}, "RoutingData": {...}}},
-   STEP = {"step": 1, "track": 1, "trigger": 100, "value2": 100, "type": 15,
+   STEP = {"step": 1, "track": 1, "type": 15, "empty": false,
+           "trigger": <track - 1>, "value2": <step - 1>,      the record's own coordinates unless given (an
+                                                              anomalous record); "empty": true = -127 / -126 (locks only)
            "locks": {"<slot 0-34>": {"raw": n} | {"k127": k} | {"norm": 0..1} | {"frames": n} | {"word": w},
                      ... + optional "vct": 0-3, "idx": n per lock}}
    "arrangement": {"length": 3, "records": {"0": [1, 2]}},        non-default Sections records (0-based index)
@@ -203,8 +205,10 @@ def step_records(steps):
     recs = {}
     for st in steps:
         r = P.empty_record()
-        r[0] = int(st.get("trigger", -127))
-        r[1] = int(st.get("value2", -126))
+        step, trk = int(st["step"]) - 1, int(st["track"]) - 1
+        empty = bool(st.get("empty", False))
+        r[0] = int(st.get("trigger", -127 if empty else trk))   # a programmed record holds its own track …
+        r[1] = int(st.get("value2", -126 if empty else step))   # … and step (the file is track-major)
         r[2] = int(st.get("type", 15))
         for slot, lk in (st.get("locks") or {}).items():
             for s, w in lock_words(lk, int(slot)):
@@ -221,7 +225,7 @@ def fill_records(fill, salt):
             if rnd.random() >= float(fill.get("cells", 0.3)):
                 continue
             r = P.empty_record()
-            r[0], r[1], r[2] = 100, rnd.randint(1, 127), rnd.choice([15, 15, 15, 11, 8])
+            r[0], r[1], r[2] = t, st, rnd.choice([15, 15, 15, 11, 8])
             for _ in range(rnd.randint(0, int(fill.get("locks", 4)))):
                 slot = rnd.choice([0, 4, 5, 6, 9, 11, 12, 13, 14, 19, 20, 23, 24, 25, 29, 30])
                 if slot in (5, 6):

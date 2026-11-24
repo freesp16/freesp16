@@ -4,6 +4,7 @@
 // writes onto an instrument disk layout and is off unless ext.enabled + ext.interop.export are on.
 #include "core/commands/sequencer/SequencerCommands.h"
 #include "core/model/ModelOps.h"
+#include "core/model/enums/EnumStrings.h"
 #include "core/params/ParamRegistry.h"
 #include "services/ext/ExtFlags.h"
 #include "services/interop/sp16/Sp16Import.h"
@@ -18,6 +19,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <functional>
 #include <sstream>
 
 using namespace services::interop::sp16;
@@ -302,6 +304,11 @@ TEST_CASE("ext export: a native project exports, samples become 44.1 kHz WAV <= 
     pat.length = 32;
     pat.steps[0][0].trigger = 100;
     pat.steps[0][0].value2 = 100;
+    pat.steps[4][2].trigger = 11; // step 5 track 3, Half
+    pat.steps[4][2].value2 = 90;
+    pat.steps[4][2].triggerType = m::TriggerType::Half;
+    pat.steps[31][15].trigger = 15; // step 32 track 16
+    pat.steps[31][15].value2 = 127;
     const int pitchSlot = core::commands::sequencer::lockSlotOf(*core::builtinParams().find("playback.pitch"));
     REQUIRE(pitchSlot >= 0);
     m::StepLocks l;
@@ -357,7 +364,38 @@ TEST_CASE("ext export: a native project exports, samples become 44.1 kHz WAV <= 
     CHECK(bt.insertFx[0].params[0] == 0.5);
     const auto& bp = b->scenes[0].patterns[0];
     CHECK(bp.length == 32);
-    CHECK(bp.steps[0][0].trigger == 100);
+    CHECK(bp.steps[0][0].trigger == 15); // the model's Full code: the record holds coordinates, not a trigger value
+    CHECK(bp.steps[4][2].trigger == 11);
+    CHECK(bp.steps[4][2].triggerType == m::TriggerType::Half);
+    CHECK(bp.steps[2][4].trigger == m::Step::kEmpty); // not transposed
+    CHECK(bp.steps[31][15].trigger == 15);
+    {
+        // The written records: track-major, each programmed one naming its own track and step.
+        auto tree = readContainer(interop_test::bytesOf(report.projectFile));
+        REQUIRE(tree);
+        const Node* patNode = nullptr;
+        for (const auto& sc : tree.value().children)
+            if (sc.type == "SceneData0")
+                for (const auto& pn : sc.children)
+                    if (pn.type == "PatternData0")
+                        patNode = &pn;
+        REQUIRE(patNode != nullptr);
+        auto recs = decodeSteps(patNode->prop("Steps")->bin);
+        REQUIRE(recs);
+        int programmed = 0;
+        for (std::size_t k = 0; k < recs.value().size(); ++k)
+            if (recs.value()[k].programmed())
+            {
+                ++programmed;
+                CHECK(recs.value()[k].namesPosition(stepOfRecord(k), trackOfRecord(k)));
+            }
+        CHECK(programmed == 3);
+        CHECK(recs.value()[recordIndex(4, 2)].trigger == 2);
+        CHECK(recs.value()[recordIndex(4, 2)].value2 == 4);
+        CHECK(recs.value()[recordIndex(4, 2)].typeFlags == 11);
+        CHECK(recs.value()[recordIndex(31, 15)].trigger == 15);
+        CHECK(recs.value()[recordIndex(31, 15)].value2 == 31);
+    }
     REQUIRE(bp.steps[0][0].lockIndex != m::Step::kNoLocks);
     CHECK(bp.locks[bp.steps[0][0].lockIndex].values[static_cast<std::size_t>(pitchSlot)] == -7.0f);
     CHECK(b->sampleRefs.entries.size() == 3);
@@ -367,6 +405,72 @@ TEST_CASE("ext export: a native project exports, samples become 44.1 kHz WAV <= 
     CHECK(found == 2);
     juce::String out;
     CHECK(prjDumpRoundTrip(report.projectFile, out));
+}
+
+TEST_CASE("ext export: SET SCALE's 22 scales round-trip by name; the importer reads the manual's names loosely",
+          "[ext][interop][export]")
+{
+    auto p = m::newDefaultProject();
+    const int n = static_cast<int>(m::enumCount<m::ScaleType>());
+    REQUIRE(n == 22);
+    for (int k = 0; k < n; ++k) // every scale on a pad scale and a MIDI scale
+    {
+        auto& tr = p->scenes[static_cast<std::size_t>(k / 16)].tracks[static_cast<std::size_t>(k % 16)];
+        tr.padScale.scaleType = k;
+        tr.midiScale.scaleTypeMidi = n - 1 - k;
+    }
+    const auto dir = tempDir("scales");
+    const auto report = exportTo(*p, dir, "Scales");
+    const auto b = importFile(report.projectFile);
+    for (int k = 0; k < n; ++k)
+    {
+        INFO("scale " << k);
+        const auto& tr = b->scenes[static_cast<std::size_t>(k / 16)].tracks[static_cast<std::size_t>(k % 16)];
+        CHECK(tr.padScale.scaleType == k);
+        CHECK(tr.midiScale.scaleTypeMidi == n - 1 - k);
+    }
+
+    // The exported ScaleSetting names; a file naming the scales in other spellings of the manual's names (or by the
+    // list index, No. − 1) reads the same scales.
+    auto tree = readContainer(interop_test::bytesOf(report.projectFile));
+    REQUIRE(tree);
+    std::vector<Node*> pads, midis;
+    std::function<void(Node&)> walk = [&](Node& node)
+    {
+        if (node.type == "ScaleSetting")
+            pads.push_back(&node);
+        else if (node.type == "ScaleSettingMidi")
+            midis.push_back(&node);
+        for (auto& c : node.children)
+            walk(c);
+    };
+    walk(tree.value());
+    REQUIRE(pads.size() >= 3);
+    REQUIRE(midis.size() >= 2);
+    auto set = [](Node& node, std::string_view name, Var v)
+    {
+        for (auto& [k, value] : node.props)
+            if (k == name)
+                value = std::move(v);
+    };
+    REQUIRE(pads[1]->prop("scaleType") != nullptr);
+    CHECK(pads[1]->prop("scaleType")->s == "Ionian");
+    set(*pads[0], "scaleType", Var::ofString("MAJOR_PENTATONIC"));
+    set(*pads[1], "scaleType", Var::ofString("Scale_Raga Todi"));
+    set(*pads[2], "scaleType", Var::ofInt(19)); // No. 20 Hawaiian
+    set(*midis[0], "scaleTypeMidi", Var::ofString("combination diminish"));
+    set(*midis[1], "scaleTypeMidi", Var::ofString("HarmonicMinor")); // not a scale of the manual: kept, reported
+    const auto edited = dir.getChildFile("edited.prj");
+    const auto bytes = writeContainer(tree.value());
+    REQUIRE(edited.replaceWithData(bytes.data(), bytes.size()));
+    const auto c = importFile(edited);
+    const auto& t = c->scenes[0].tracks;
+    CHECK(t[0].padScale.scaleType == static_cast<int>(m::ScaleType::MajorPentatonic));
+    CHECK(t[1].padScale.scaleType == static_cast<int>(m::ScaleType::RagaTodi));
+    CHECK(t[2].padScale.scaleType == static_cast<int>(m::ScaleType::Hawaiian));
+    CHECK(t[0].midiScale.scaleTypeMidi == static_cast<int>(m::ScaleType::CombinationDiminish));
+    CHECK(t[1].midiScale.scaleTypeMidi == 0); // unmapped: the default stays, the text is kept
+    CHECK(t[1].midiScale.extras.find("sp16.ScaleSettingMidi.scaleTypeMidi") != nullptr);
 }
 
 TEST_CASE("ext export: always a new folder, never an instrument disk, never an overwrite", "[ext][interop][export]")

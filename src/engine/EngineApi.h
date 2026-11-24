@@ -67,10 +67,18 @@ struct PlayheadFeed
     std::uint64_t blockIndex = 0;     // engine blocks rendered so far (0 = engine not running)
     double ppq = 0, bpm = 120;        // transport position in quarter notes, tempo
     bool playing = false, preCount = false;
+    bool externalClock = false;       // SYN-010: the transport follows MIDI clock (bpm = the followed tempo)
+    bool clockLost = false;           // SYN-013: following, but no tick for 500 ms (or none yet)
     std::uint8_t scene = 0, pattern = 0, step = 0;
     std::int8_t pendingScene = -1, pendingPattern = -1; // queued switch (SCN-022 blink), -1 = none
     std::array<float, kTracks> trackPosition {};        // PLY-045: play position 0–1 per track, negative = idle
+    // Hits per track (Full / Half triggers from any source: pads, MIDI, sequencer steps, retrigger, repeat; a muted
+    // track's skipped step is none), wrapping. The UI flashes a pad when its count moved since the last frame.
+    std::array<std::uint16_t, kTracks> trackHits {};
 };
+
+// The analog filter's OVER lamp threshold on its drive output: +5.1 dBFS (AFS-011 [OBS]).
+inline constexpr float kAfsOverThreshold = 1.7988709f;
 
 // Meter snapshot (linear peak / RMS of the last period; the UI converts to dB and decays, threading.md "Timing").
 struct MeterFeed
@@ -79,6 +87,7 @@ struct MeterFeed
     std::array<float, 2> masterPeak {}, masterRms {};
     std::array<float, 2> sendPeak {}, inputPeak {};
     std::array<std::array<float, 2>, kTracks> trackPeak {};
+    float afsOverLevel = 0.0f; // the analog-filter drive output's held peak, linear (OVER at ≥ kAfsOverThreshold)
 };
 
 // Lossless audio → UI events (recorded steps, live-sampling marks, switch done), SPSC, drained once per UI frame.
@@ -88,6 +97,12 @@ struct EngineEvent
     std::uint8_t track = 0, step = 0;
     std::int16_t value = 0;   // velocity, scene*16+pattern, mark index … per kind
     std::int8_t offset24 = 0; // micro-timing of a recorded hit, −24…+24 = ±1 step (SEQ-005)
+    std::uint8_t origin = 0;  // RecordedHit: kOriginLive (a pad / MIDI hit) or kOriginRepeat (touch strip REPEAT)
+    static constexpr std::uint8_t kOriginLive = 0, kOriginRepeat = 1;
+    // RecordedHit: a pitched hit (a MIDI note, a SCALE pad) and the semitones it played at (TriggerEvent::semitones);
+    // the recorder stores them as the step's PITCH lock (SEQ-041: the step replays what was heard).
+    std::int8_t semitones = 0;
+    bool pitched = false;
 };
 
 namespace fx

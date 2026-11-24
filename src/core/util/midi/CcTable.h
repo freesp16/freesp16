@@ -4,6 +4,10 @@
 // through MidiHub::setCcTable and read by the audio thread (engine/midi/CcMap). POD: no allocation, no strings.
 //
 // Scaling (MID-031, our law): Linear = lo + cc·(hi − lo)/127 (Integer/Note/Time types rounded to the nearest integer);
+// a bipolar parameter (PAN, PITCH, OFFSET: lo < 0 < hi) is centred instead, 0 → lo, 64 → 0, 127 → hi (lo·(64 − cc)/64
+// below 64, hi·(cc − 64)/63 above) and rounded to an integer (PITCH: whole semitones);
+// Frames = PLAYBACK START / LOOP START / LENGTH (CC 21–23): round(cc·frames/127) of the track's current sample, so
+// the CC spans the sample whatever its length (the parameter's own range, 0…2^24 − 1 frames, would make CC 1 ≈ 3 s);
 // Bands = enumerations and booleans, 0–127 cut into `bands` equal bands (index = cc·bands/128); FX positions map onto
 // the current grid of the page position's knob, i = lo + round_half_even(cc·(hi − 1 − lo)/127), v = (i − lo)/(hi − 1 −
 // lo) (FX-086, the same arithmetic as core::fx::ccToValue).
@@ -26,7 +30,8 @@ enum class CcKind : std::uint8_t
     PatternSelect, // CC 32: pattern 1–16
     Fx1,           // CC 46–51: page position 1–6 of FX1 (MID-035, FX-086)
     Fx2,           // CC 63–68: page position 1–6 of FX2
-    AllNotesOff    // CC 123 (MID-023)
+    AllNotesOff,   // CC 123 (MID-023)
+    Frames         // CC 21–23: a playback frame position, cc/127 of the track's sample (the engine knows its length)
 };
 
 struct CcEntry
@@ -34,6 +39,7 @@ struct CcEntry
     CcKind kind = CcKind::None;
     std::uint8_t bands = 0;    // Bands: number of values; Fx1/Fx2: page position 0–5
     bool integral = false;     // Linear: round to an integer
+    bool bipolar = false;      // Linear: 64 = 0 (lo < 0 < hi)
     core::ParamId param {};    // Linear / Bands: the track-scoped parameter
     float lo = 0.0f, hi = 1.0f;
 };
@@ -55,8 +61,22 @@ struct CcTable
 
 inline float ccLinear(const CcEntry& e, int cc) noexcept
 {
-    const float v = e.lo + static_cast<float>(cc < 0 ? 0 : (cc > 127 ? 127 : cc)) * (e.hi - e.lo) / 127.0f;
-    return e.integral ? std::nearbyint(v) : v;
+    const int c = cc < 0 ? 0 : (cc > 127 ? 127 : cc);
+    float v = e.lo + static_cast<float>(c) * (e.hi - e.lo) / 127.0f;
+    if (e.bipolar && e.lo < 0.0f && e.hi > 0.0f)
+        v = c < 64 ? e.lo * static_cast<float>(64 - c) / 64.0f : e.hi * static_cast<float>(c - 64) / 63.0f;
+    if (e.integral)
+        v = std::nearbyint(v);
+    return v == 0.0f ? 0.0f : v; // −0 → 0
+}
+
+// Frames: cc/127 of a sample of `frames` frames (capped at the parameter's hi), rounded to a whole frame.
+inline float ccFrames(const CcEntry& e, int cc, std::int64_t frames) noexcept
+{
+    const std::int64_t c = cc < 0 ? 0 : (cc > 127 ? 127 : cc);
+    const auto hi = static_cast<std::int64_t>(e.hi);
+    const std::int64_t f = frames < 0 ? 0 : (frames > hi ? hi : frames);
+    return static_cast<float>((2 * c * f + 127) / 254); // round half up
 }
 
 inline int ccBand(int bands, int cc) noexcept

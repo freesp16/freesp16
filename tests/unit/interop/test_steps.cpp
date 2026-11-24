@@ -36,21 +36,35 @@ TEST_CASE("prj steps: the lock word layout [vct:2 | value:22 | idx:8] and the no
     CHECK(kValueFull == 127 * kK127);
 }
 
-TEST_CASE("prj steps: 64 x 16 x 152-byte step-major records round-trip at level 6", "[interop]")
+TEST_CASE("prj steps: 16 x 64 x 152-byte track-major records round-trip at level 6", "[interop]")
 {
+    CHECK(recordIndex(0, 0) == 0);
+    CHECK(recordIndex(4, 0) == 4);    // track 1 step 5: right after track 1 step 4
+    CHECK(recordIndex(0, 1) == 64);   // track 2 step 1: after the 64 steps of track 1
+    CHECK(recordIndex(63, 15) == 1023);
+    for (std::size_t k = 0; k < 1024; ++k)
+        CHECK(recordIndex(stepOfRecord(k), trackOfRecord(k)) == k);
+
     std::vector<StepRecord> recs(1024, StepRecord::emptyRecord());
-    auto& r = recs[static_cast<std::size_t>(5 * 16 + 3)]; // step 6, track 4
-    r.trigger = 100;
-    r.value2 = 99;
+    auto& r = recs[recordIndex(5, 3)]; // step 6, track 4
+    r.trigger = 3;
+    r.value2 = 5;
     r.typeFlags = 11;
     r.slots[4] = LockWord::unpack(static_cast<std::uint32_t>(-1200 & 0x3fffff) << 8 | 4u);
+    CHECK(r.programmed());
+    CHECK(r.namesPosition(5, 3));
+    CHECK_FALSE(r.namesPosition(3, 5));
+    CHECK_FALSE(StepRecord::emptyRecord().programmed());
     const auto raw = encodeStepsRaw(recs);
     REQUIRE(raw.size() == kStepsBytes);
-    // offset = step × 2432 + track × 152; trigger LE at +0, type at +8, slot 4 at +12 + 16
-    const std::size_t at = 5 * 2432 + 3 * 152;
-    CHECK(static_cast<int>(raw[at]) == 100);
+    // offset = track × 9728 + step × 152; the track LE at +0, the step at +4, type at +8, slot 4 at +12 + 16
+    const std::size_t at = 3 * 9728 + 5 * 152;
+    CHECK(static_cast<int>(raw[at]) == 3);
+    CHECK(static_cast<int>(raw[at + 4]) == 5);
     CHECK(static_cast<int>(raw[at + 8]) == 11);
     CHECK(static_cast<int>(raw[at + 12 + 16]) == 4);
+    // the step-major position of (6, 4) holds an empty record
+    CHECK(static_cast<std::uint8_t>(raw[5 * 2432 + 3 * 152]) == 0x81); // −127
     const auto blob = encodeSteps(recs);
     CHECK(static_cast<int>(blob[0]) == 0x78);
     CHECK(static_cast<int>(blob[1]) == 0x9c);

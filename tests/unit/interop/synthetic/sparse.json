@@ -5,7 +5,7 @@
   "defaultPatterns": 0,
   "patternNames": "global",
   "scenes": {
-    "1": {"patterns": {"2": {"Length": 16, "steps": [{"step": 2, "track": 1, "trigger": 100, "value2": 100, "type": 15}]}}},
+    "1": {"patterns": {"2": {"Length": 16, "steps": [{"step": 2, "track": 1, "type": 15}]}}},
     "5": {"patterns": {"1": {"Length": 16}, "12": {"Length": 12}}}
   },
   "removeProps": [{"path": "SceneData3/TrackData2/PlaybackData", "name": "bBypass"}]

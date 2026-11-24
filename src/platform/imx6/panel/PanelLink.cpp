@@ -4,7 +4,10 @@
 #include "platform/imx6/panel/DriverIoctl.h"
 #include "platform/imx6/panel/InputTrace.h"
 
+#include "io/controllers/AppRequests.h"
 #include "io/controllers/PanelPads.h"
+
+#include "core/util/ThreadRole.h"
 
 #include <fcntl.h>
 #include <poll.h>
@@ -38,10 +41,12 @@ double nowMs() noexcept
 }
 } // namespace
 
-PanelLink::PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace,
-                     std::shared_ptr<panel::AnalogBoard> board)
-    : triggers_(triggers), lamps_(std::move(lamps)), board_(std::move(board)), trace_(trace)
+PanelLink::PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace, bool powerActiveLow)
+    : triggers_(triggers), lamps_(std::move(lamps)), trace_(trace), powerActiveLow_(powerActiveLow)
 {
+    auto config = decoder_.config();
+    config.powerActiveLow = powerActiveLow;
+    decoder_.configure(config);
     decoder_.setTriggers(triggers_);
 }
 
@@ -137,6 +142,8 @@ void PanelLink::sendDue(double now, double& waitMs)
 
 void PanelLink::run()
 {
+    // Pad hits leave this thread for the engine (UI-118): real-time, on the control core (core/util/ThreadRole.h).
+    (void) core::threads::apply(core::threads::Role::Panel, "panel");
     std::uint8_t frame[panel::kFrameBytes];
     double waitMs = 0;
     sendDue(nowMs(), waitMs);
@@ -175,6 +182,9 @@ void PanelLink::run()
                 const double t = nowMs();
                 decoder_.decode(frame, t, batch_); // pad hits reach the TriggerSink inside (UI-118)
                 frames_.fetch_add(1, std::memory_order_relaxed);
+                powerLevel_.store(decoder_.powerLevel(), std::memory_order_relaxed);
+                if (decoder_.takePowerPress()) // the POWER/STANDBY key on the back: the app powers off
+                    io::requestStandby();
                 for (int i = 0; i < batch_.count; ++i)
                 {
                     const auto& e = batch_.events[static_cast<std::size_t>(i)];
@@ -182,8 +192,6 @@ void PanelLink::run()
                         dropped_.fetch_add(1, std::memory_order_relaxed);
                     if (lamps_)
                         lamps_->echo(e);
-                    if (board_ && e.control == io::Control::AfsHpCutoff && e.kind == io::ControlEvent::Kind::Value)
-                        board_->setHpCutoff(e.value); // the analog high-pass follows the pot (as on the reference)
                 }
             }
         }
@@ -193,6 +201,15 @@ void PanelLink::run()
 
 void PanelLink::poll(std::vector<io::ControlEvent>& out)
 {
+    // The power key's raw bit, at its first frame and at every change (no control event: diagnostics only).
+    if (const int level = powerLevel_.load(std::memory_order_relaxed); trace_ && level != powerTraced_)
+    {
+        powerTraced_ = level;
+        const bool pressed = (level == 0) == powerActiveLow_;
+        std::printf("[sp16-mod] %s INPUT panel power raw %d (%s, %s)\n", identity::envPrefix, level,
+                    pressed ? "pressed" : "up", powerActiveLow_ ? "active-low" : "active-high");
+        std::fflush(stdout);
+    }
     io::ControlEvent e;
     while (queue_.pop(e))
     {

@@ -1,5 +1,5 @@
 // RailItem (components/controls.md "RailItem"; UID-004, 03-layout-grid.md "Rail"): a Button, Toggle or OptionSelector
-// at rail size 192 × 102 (compact rail: 192 × 80), placed from a ScreenSpec's RailItemSpec. Fewer items leave the
+// at rail size 192 × 102 (compact rail: 192 × 80; a narrower template rail: its width), placed from a ScreenSpec's RailItemSpec. Fewer items leave the
 // bottom empty; nothing stretches.
 #pragma once
 
@@ -21,8 +21,8 @@ struct RailItemState
 class RailItem final : public Widget
 {
 public:
-    RailItem(const RailItemSpec* spec = nullptr, int index = 0, bool compact = false) noexcept
-        : spec_(spec), index_(index), compact_(compact)
+    RailItem(const RailItemSpec* spec = nullptr, int index = 0, bool compact = false, float width = 192) noexcept
+        : spec_(spec), index_(index), compact_(compact), width_(width)
     {
     }
     const RailItemSpec* spec() const noexcept { return spec_; }
@@ -35,6 +35,7 @@ private:
     const RailItemSpec* spec_;
     int index_;
     bool compact_;
+    float width_; // the template's rail width (layout::bodyRects(…).rail.w)
     RailItemState state_;
 };
 } // namespace ui

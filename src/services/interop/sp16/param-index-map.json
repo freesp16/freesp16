@@ -33,6 +33,5 @@
   "volumes": {
     "$Ext0": "",
     "$Int0": ""
-  },
-  "stepValue2": "ignore"
+  }
 }

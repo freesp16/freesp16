@@ -73,7 +73,7 @@ struct InputLevel
     bool clipped(double nowMs) const noexcept { return nowMs - clipAtMs < 2000.0; }
 };
 
-// The INPUT meter column at x 224 (bars at 236 / 248 over y 184–600), the REC THRESHOLD line (warn, 1 lpx, when the
+// The INPUT meter column at x 224 (bars centred at 252 over y 184–600; Meter::drawColumn), the REC THRESHOLD line (warn, 1 lpx, when the
 // threshold is a level: −60 … −20 dB) and the OVER caption (warn) while the clip latch holds (sampling.md "States").
 inline void drawInputMeter(DrawList& dl, const UiContext& ctx, const InputLevel& in, float thresholdDb)
 {
@@ -89,10 +89,10 @@ inline void drawInputMeter(DrawList& dl, const UiContext& ctx, const InputLevel&
     if (thresholdDb > -120.0f)
     {
         const float y = meterY(std::max(thresholdDb, -50.0f), 184, 600);
-        dl.fill({234, y - 0.5f, 24, 1}, ctx.palette.warn);
+        dl.fill({224 + Meter::kColCentre - 12, y - 0.5f, 24, 1}, ctx.palette.warn);
     }
     if (clip)
-        dl.text(268, 176, Align::Centre, TextStyleId::Caption, ctx.palette.warn, "OVER");
+        dl.text(224 + Meter::kColCentre, 176, Align::Centre, TextStyleId::Caption, ctx.palette.warn, "OVER");
 }
 
 // REC THRESHOLD (sampling.threshold: 0 OFF, 1…41 = −60…−20 dB, 42 PLAY) as a level, −120 = no line.

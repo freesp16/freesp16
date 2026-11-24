@@ -44,6 +44,7 @@ struct DecoderConfig
     int touchStableFrames = 3; // frames in the contact rectangle before a touch is down (firmware: 4 samples)
     int touchJumpMax = 48;     // raw units between those frames
     int touchReleaseFrames = 2;
+    bool powerActiveLow = true; // the power key's bit: 0 = pressed on the hardware; false for the emulator
 };
 
 // RX frame → events, stateful (counters are cumulative, buttons and pads report levels). Reader thread only.
@@ -62,6 +63,16 @@ public:
     // and pots held at the first frame are reported (against all-up / unknown).
     void decode(const std::uint8_t* frame, double timeMs, EventBatch& out) noexcept;
     void reset() noexcept;
+    // The POWER/STANDBY key (kPowerKeyByte/Bit, no logical control): true once when it goes down — held for
+    // kPowerDebounceMs, after the released level was seen (a key held, or misread, when the link opens never fires).
+    // One request per press: the key must come up again before the next one. Reader thread.
+    bool takePowerPress() noexcept
+    {
+        const bool r = powerRequest_;
+        powerRequest_ = false;
+        return r;
+    }
+    int powerLevel() const noexcept { return powerLevel_; } // the bit's raw level (-1 before the first frame)
 
     // LCD touch raw point → logical 800 × 480 point (exposed for tests).
     static void touchToScreen(const TouchCalibration&, int rawX, int rawY, int& x, int& y) noexcept;
@@ -75,6 +86,9 @@ private:
     bool haveFrame_ = false;
     std::array<std::uint16_t, 7> counters_ {};
     std::array<std::uint8_t, 6> buttons_ {};
+    int powerLevel_ = -1;       // the bit's raw level
+    double powerSinceMs_ = 0;   // when powerLevel_ last changed
+    bool powerUpSeen_ = false, powerRequest_ = false;
     std::array<bool, 16> padDown_ {};
     std::array<std::uint8_t, 16> padPressure_ {};
     std::array<int, 3> analog_ {-1, -1, -1};
@@ -93,6 +107,9 @@ public:
     void clear() noexcept;
     void setRgb(int channel, std::uint8_t r, std::uint8_t g, std::uint8_t b) noexcept; // 0…kRgbFullScale each
     void setMono(int channel, bool lit, bool dim) noexcept;
+    void setStandby(bool on) noexcept; // TX 0x67 bit 0: the power MCU cuts the power (LampBus::enterStandby only)
+    void setHardMute(bool on) noexcept; // TX 0x66 bit 0: the analog outputs muted (LampBus::hardMute only)
+    bool standby() const noexcept { return (bytes_[kTxStandbyOffset] & 1) != 0; }
     // A logical lamp (LampSink::setLamp semantics: rgb colour, level 0 = off … 255 = full). Mono lamps light for any
     // non-zero colour and level; level < kMonoDimBelow sets the dim flag where the channel has one.
     bool setLamp(io::Control, std::uint32_t rgb, std::uint8_t level) noexcept; // false: the panel has no such lamp

@@ -54,13 +54,13 @@ Engine::Engine(const EngineSetup& setup, const EngineOptions& options) : options
             {"track.mute", T::TrackMute},
             {"track.solo", T::TrackSolo},
             {"track.sendChannel", T::TrackSendChannel},
+            {"track.muteMode", T::TrackMuteMode},
             {"mixer.masterVolume", T::MasterVolume},
             {"mixer.sendReturnVolume", T::SendReturnVolume},
             {"mixer.headphoneVolume", T::HeadphoneVolume},
             {"mixer.softLimiter", T::InputSoftLimiter},
             {"mixer.masterLimiter", T::MasterLimiter},
             {"mixer.outputTrim", T::OutputTrim},
-            {"mixer.muteMode", T::MuteMode},
             {"scene.queue", T::SceneQueue}, // scene.* (scene.cpp)
             {"project.patternQuantize", T::PatternQuantize},
             {"scene.switchMode", T::SceneSwitchMode},
@@ -208,7 +208,7 @@ void Engine::prepare(double sampleRate, int maxDeviceFrames)
         auto& src = sources_[static_cast<std::size_t>(t)];
         src.prepare(sampleRate_, kBlockFrames);
         src.setPlayback(m1_.playback.at(scene, t));
-        env_.setParams(t, m1_.envParams[scene][t], transport_.bpm());
+        env_.setParams(t, m1_.envParams[scene][t], transport_.effectiveBpm());
     }
     triggerRouter_.prepare(sampleRate_, kBlockFrames);
     ribbon_.prepare(sampleRate_);
@@ -324,10 +324,16 @@ void Engine::process(const AudioIO& io) noexcept
     p.ppq = transport_.ppq();
     p.bpm = midi_.displayTempo(transport_.bpm()); // the followed clock's tempo (SYN-012 display)
     p.playing = transport_.playing();
+    p.externalClock = midi_.following();
+    p.clockLost = midi_.clockLost();
     sceneSwitch_.publish(p, transport_.ppq()); // scene, pattern, step, pending scene/pattern
     p.preCount = transport_.preCount();
-    for (int t = 0; t < kTracks; ++t) // PLY-045: play position 0–1, negative = idle
+    for (int t = 0; t < kTracks; ++t) // PLY-045: play position 0–1, negative = idle; the hits for the pad flashes
+    {
         p.trackPosition[static_cast<std::size_t>(t)] = sources_[static_cast<std::size_t>(t)].playPosition();
+        p.trackHits[static_cast<std::size_t>(t)] = triggerRouter_.hits(t);
+    }
+    feeds_.meters().setAfsOverLevel(afs_.overLevel());
     feeds_.publish(blocks, p);
     fxBank_.publish(feeds_.fxWrite()); // the effect panels' feed, same period
     feeds_.fxPublish();
@@ -487,14 +493,14 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
             case T::TrackSendAmount:
             case T::TrackMute:
             case T::TrackSolo:
-            case T::TrackSendChannel: applyStrip(target, *c); break;
+            case T::TrackSendChannel:
+            case T::TrackMuteMode: applyStrip(target, *c); break;
             case T::MasterVolume:
             case T::SendReturnVolume:
             case T::HeadphoneVolume:
             case T::InputSoftLimiter:
             case T::MasterLimiter:
-            case T::OutputTrim:
-            case T::MuteMode: applyMixerGlobal(target, c->value); break;
+            case T::OutputTrim: applyMixerGlobal(target, c->value); break;
             case T::SceneQueue:
                 if (arrangement_.refusesSwitch(c->value)) // no manual switch in song mode (ARR-007)
                     break;
@@ -585,7 +591,7 @@ void Engine::applyTrackSourceParam(bridge::ParamTarget target, const ParamChange
     {
         const auto f = static_cast<modulation::AmpEnvField>(fieldOf(target, T::EnvFirst));
         if (trackScope && modulation::applyParam(m1_.envParams[scene][track], f, c.value) && current)
-            env_.setParams(track, m1_.envParams[scene][track], transport_.bpm());
+            env_.setParams(track, m1_.envParams[scene][track], transport_.effectiveBpm());
     }
     else if (target >= T::TrackFirst && target < T::PadFirst)
     {
@@ -668,7 +674,7 @@ void Engine::switchScene(int scene) noexcept
     {
         auto& src = sources_[static_cast<std::size_t>(t)];
         src.setPlayback(m1_.playback.at(scene, t));
-        env_.setParams(t, m1_.envParams[scene][t], transport_.bpm());
+        env_.setParams(t, m1_.envParams[scene][t], transport_.effectiveBpm());
         src.setSample(voice::asSampleBuffer(swaps_.get(voice::trackSampleSlot(scene, t))));
         src.setPlugin(core::audio::asPluginNode(
             swaps_.get({SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene), static_cast<std::uint8_t>(t)})));
@@ -815,6 +821,7 @@ void Engine::applyStrip(bridge::ParamTarget target, const ParamChange& c) noexce
         case bridge::ParamTarget::TrackMute: p.mute = v >= 0.5f; break;
         case bridge::ParamTarget::TrackSolo: p.solo = v >= 0.5f; break;
         case bridge::ParamTarget::TrackSendChannel: p.sendChannel = static_cast<std::uint8_t>(index(0, 1)); break;
+        case bridge::ParamTarget::TrackMuteMode: p.stopSteps = v >= 0.5f; break;
         default: return;
     }
     mixer_.setStrip(scene, track, p, 0);
@@ -833,7 +840,6 @@ void Engine::applyMixerGlobal(bridge::ParamTarget target, float value) noexcept
             break;
         case bridge::ParamTarget::InputSoftLimiter: mixer_.setGlobal(G::SoftLimiter, value); break;
         case bridge::ParamTarget::MasterLimiter: mixer_.setGlobal(G::MasterLimiter, value); break;
-        case bridge::ParamTarget::MuteMode: mixer_.setGlobal(G::MuteMode, value); break;
         case bridge::ParamTarget::OutputTrim:
             mixer_.setGlobal(G::OutputTrim, value);
             router_.setOutputTrim(value); // every logical output (MIX-023)
@@ -895,6 +901,13 @@ bool Engine::MidiHooks::insertSync(int track, int unit, int type) const noexcept
     const auto& slot = engine->fxScenes_.scene[static_cast<std::size_t>(engine->triggerRouter_.scene() & 15)]
                            .slot[static_cast<std::size_t>(fx::insertSlot(track & 15, unit & 1))];
     return (slot.optionMask >> i & 1u) != 0 && slot.options[i] != 0;
+}
+
+std::int64_t Engine::MidiHooks::sampleFrames(int track) const noexcept
+{
+    const auto* b =
+        engine != nullptr ? engine->sources_[static_cast<std::size_t>(track & 15)].voice().sample() : nullptr;
+    return b != nullptr ? b->frames : 0; // the current scene's sample of the track (switchScene installs it)
 }
 
 void Engine::MidiHooks::applyParam(const ParamChange& c) noexcept

@@ -288,3 +288,80 @@ TEST_CASE("panel frames: the first frame reports held buttons and pads but no co
     CHECK(presses == 2);
     CHECK(turns == 0);
 }
+
+TEST_CASE("panel frames: the power key (active-low on the hardware, debounced) is a standby request when it goes down")
+{
+    using platform::imx6::panel::kPowerKeyBit;
+    using platform::imx6::panel::kPowerKeyByte;
+    for (const bool activeLow : {true, false}) // the hardware; the emulator (power_key=high)
+    {
+        INFO("active-low " << activeLow);
+        paneltest::RxFrame f;
+        auto key = [&](bool pressed) { f.button(kPowerKeyByte, kPowerKeyBit, pressed != activeLow); };
+        platform::imx6::panel::DecoderConfig config;
+        config.powerActiveLow = activeLow;
+        PanelDecoder d(config);
+        double t = 0;
+        auto frames = [&](double ms) { // one frame every 3 ms (the driver's interval) for `ms`
+            for (const double end = t + ms; t < end; t += 3)
+                CHECK(run(d, f, t).size() <= 3); // the first frame reports the pots; never a power event
+        };
+        key(false);
+        frames(100);
+        CHECK_FALSE(d.takePowerPress());
+        CHECK(d.powerLevel() == (activeLow ? 1 : 0));
+
+        key(true);
+        frames(30); // a 30 ms glitch: below the debounce
+        key(false);
+        frames(100);
+        CHECK_FALSE(d.takePowerPress());
+
+        key(true);
+        frames(30);
+        CHECK_FALSE(d.takePowerPress()); // not yet 50 ms down
+        frames(30);
+        CHECK(d.takePowerPress()); // down for 50 ms: no need to let go
+        CHECK_FALSE(d.takePowerPress()); // once
+        frames(300); // still held: no second request
+        CHECK_FALSE(d.takePowerPress());
+        key(false);
+        frames(100); // the release does nothing
+        CHECK_FALSE(d.takePowerPress());
+        key(true);
+        frames(100); // the next press fires again
+        CHECK(d.takePowerPress());
+    }
+}
+
+TEST_CASE("panel frames: power key frames that read pressed when the link opens never fire, the next press does")
+{
+    using platform::imx6::panel::kPowerKeyBit;
+    using platform::imx6::panel::kPowerKeyByte;
+    // Seen on a unit: the first frames read the pressed level (bit 0), then idle (1). They must not power it off.
+    paneltest::RxFrame f;
+    PanelDecoder d; // the hardware's default: active-low
+    double t = 0;
+    auto frames = [&](double ms) {
+        for (const double end = t + ms; t < end; t += 3)
+            run(d, f, t);
+    };
+    f.button(kPowerKeyByte, kPowerKeyBit, false); // reads "pressed"
+    frames(200);
+    CHECK_FALSE(d.takePowerPress());
+    f.button(kPowerKeyByte, kPowerKeyBit, true); // idle
+    frames(200);
+    CHECK_FALSE(d.takePowerPress());
+    // BAR 1 and ACTIVE share byte 5 and never arm it.
+    f.button(5, 0, true);
+    f.button(5, 5, true);
+    frames(100);
+    f.button(5, 0, false);
+    f.button(5, 5, false);
+    frames(100);
+    CHECK_FALSE(d.takePowerPress());
+    // The real press (0).
+    f.button(kPowerKeyByte, kPowerKeyBit, false);
+    frames(100);
+    CHECK(d.takePowerPress());
+}

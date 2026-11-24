@@ -32,11 +32,21 @@ std::unique_ptr<Command> setPadColour(int scene, int track, int colour);        
 std::unique_ptr<Command> setPadVelocity(int scene, int track, bool velocitySensitive); // "track.padVelocity"
 std::unique_ptr<Command> setPlugin(int scene, int track, model::PluginTrack plugin);   // "track.plugin"
 
-// PAD-006: SHIFT + pad n in MUTE mode. When the scene is not already "every track but n muted", mutes every other
-// track and unmutes n; when it is, unmutes all 16. One CommandGroup = one undo step ("MUTE"); only tracks whose
-// state changes get a child. nullptr when nothing would change.
+// Per-pattern mute: the user's mutes (MUTE pads, MIXER) live in the current pattern's `trackMutes`
+// ("scene[s].pattern[p].mutes", saved with the pattern), so every pattern keeps its own set and the engine swaps it
+// at the pattern switch (SCN-012). `track.mute` stays the track-level mute (imports); it mutes in every pattern.
+// isMuted = either of the two, for the current pattern (settings.currentPattern).
+bool isMuted(const model::Project&, int scene, int track) noexcept;
+std::unique_ptr<Command> setPatternMute(int scene, int pattern, int track, bool mute); // one pattern's bit
+// Mutes / unmutes track n in the current pattern; nullptr when isMuted already matches. Unmuting a track-level mute
+// clears it and mutes the track in the scene's other patterns instead (one "MUTE" group), so only this one unmutes.
+std::unique_ptr<Command> setMuted(const model::Project&, int scene, int track, bool mute);
+
+// PAD-006: SHIFT + pad n in MUTE mode. When the current pattern is not already "every track but n muted", mutes
+// every other track and unmutes n; when it is, unmutes all 16. One CommandGroup = one undo step ("MUTE"); only tracks
+// whose state changes get a child. nullptr when nothing would change.
 std::unique_ptr<CommandGroup> muteOthers(const model::Project&, int scene, int track);
-// The plain MUTE-mode toggle of track n (PAD-006).
+// The plain MUTE-mode toggle of track n in the current pattern (PAD-006); nullptr never (the state always flips).
 std::unique_ptr<Command> toggleMute(const model::Project&, int scene, int track);
 // Hold MUTE + pad n: track n's SOLO, the MIXER's `track.solo` field (forwarded to the engine by
 // ui::forwardModelChanges, not by forEachTrackChange).

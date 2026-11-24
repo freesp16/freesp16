@@ -12,13 +12,13 @@
 from . import fx_eq2, fx_filter, fx_shell, gain_test, track_strip
 from . import compressor, ducker
 from . import distortion, distortion_bitexact, lofi, oscillator
-from . import fx_delay, fx_delaybus, fx_reverb, fx_reverb_parity
+from . import fx_delay, fx_delaybus
 
 ADAPTERS = {m.NAME: m for m in (track_strip, gain_test, fx_shell, fx_filter, fx_eq2)}
 ADAPTERS.update({m.NAME: m for m in (compressor, ducker)})
 ADAPTERS.update({m.NAME: m for m in (lofi, distortion, distortion_bitexact, oscillator)})
 from . import chorus, flanger, phaser
 ADAPTERS.update({m.NAME: m for m in (chorus, flanger, phaser)})
-ADAPTERS.update({m.NAME: m for m in (fx_delay, fx_delaybus, fx_reverb, fx_reverb_parity)})
+ADAPTERS.update({m.NAME: m for m in (fx_delay, fx_delaybus)})
 from . import routing_device, routing_headphones, routing_router
 ADAPTERS.update({m.NAME: m for m in (routing_router, routing_headphones, routing_device)})

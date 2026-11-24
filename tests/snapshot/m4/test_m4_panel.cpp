@@ -431,61 +431,81 @@ TEST_CASE("m4panel.keys: ext.undo / ext.redo; ext.clear clears the held step and
     core::commands::endGroup(d.bus);
 }
 
-TEST_CASE("m4panel.lamps: the pad controller's pad-mode lamps over the shell's frame, without flicker", "[m4][panel]")
+TEST_CASE("m4panel.lamps: the pad controller paints the pads in every pad mode over the shell's frame, without flicker",
+          "[m4][panel]")
 {
     Document d;
     using ui::input::pads::PadMode;
     ui::input::pads::PadLamps lamps;
     io::LampFrame base{};
     for (int p = 1; p <= 16; ++p)
-        base[io::pad(p)] = {io::LampMode::On, 0x123456, 0}; // the shell's (pad-mode-less) pads
+        base[io::pad(p)] = {io::LampMode::On, 0x123456, 0}; // the shell's pads
     auto shown = [&](double now)
     {
         io::LampFrame f = base;
         d.pads->paintLamps(lamps, now, d.bridge.meters());
-        lamps.overlay(f, d.pads->mode());
+        lamps.overlay(f);
         return f;
     };
-    // PLAY: the shell's pads stay, the mode keys are off.
+    auto level = [](const io::LampFrame& f, int pad) { return io::resolve(f[io::pad(pad)], 0).level; };
+    // PLAY: the controller's pads (the same ladder as every mode): track 1 selected full, the others dim; mode keys
+    // off.
     auto f = shown(0);
-    CHECK(f[io::pad(1)].rgb == 0x123456);
+    CHECK(f[io::pad(1)].rgb != 0x123456);
+    CHECK(level(f, 1) == 255);
+    CHECK(level(f, 2) == io::kDimLevel);
     CHECK(f[io::Control::PadModeMute].mode == io::LampMode::Off);
-    // MUTE: the mode key white, a muted track's pad dimmed, the others on.
+    // A sequencer step on track 2 (the engine's hit count moves): its pad flashes white, then eases back to dim.
+    engine::PlayheadFeed ph{};
+    d.pads->observeHits(ph, 50); // the first call only takes the counts
+    ph.trackHits[1] = 1;
+    d.pads->observeHits(ph, 100);
+    f = shown(100);
+    CHECK((level(f, 2) == 255 && f[io::pad(2)].rgb == io::lampcolour::white));
+    CHECK(level(f, 3) == io::kDimLevel); // the other pads stay
+    f = shown(1200);
+    CHECK(level(f, 2) == io::kDimLevel);
+    // MUTE: the mode key white, a muted track's pad at the minimum, the others as in PLAY.
     d.pads->onModeKey(PadMode::Mute);
-    d.pads->onPad(2, 100, false, true, 100, true); // mute track 3
-    f = shown(1000);
+    d.pads->onPad(2, 100, false, true, 1300, true); // mute track 3
+    f = shown(2000);
     CHECK(f[io::Control::PadModeMute].mode == io::LampMode::On);
     CHECK(f[io::Control::PadModeTrack].mode == io::LampMode::Off);
     CHECK(f[io::pad(3)].mode == io::LampMode::Faint); // a muted pad: just a small light
-    CHECK(f[io::pad(1)].mode == io::LampMode::On);
-    CHECK(f[io::pad(1)].rgb != 0x123456);
-    // A frame inside the 60 Hz throttle (no new paint) still shows the MUTE lamps, not the shell's pads.
-    f = shown(1005);
-    CHECK(f[io::pad(3)].mode == io::LampMode::Faint); // a muted pad: just a small light
+    CHECK(level(f, 1) == 255);
+    CHECK(level(f, 2) == io::kDimLevel);
+    // A sequencer hit on the muted track does not flash it (it does not sound).
+    ph.trackHits[2] = 1;
+    d.pads->observeHits(ph, 2100);
+    f = shown(2100);
+    CHECK(f[io::pad(3)].mode == io::LampMode::Faint);
+    // A frame inside the 60 Hz throttle (no new paint) still shows the last paint, not the shell's pads.
+    f = shown(2105);
+    CHECK(f[io::pad(3)].mode == io::LampMode::Faint);
     CHECK(f[io::Control::PadModeMute].mode == io::LampMode::On);
-    // SCALE: roots lit, the other notes dim.
+    // SCALE: roots full, the other notes dim.
     d.pads->onModeKey(PadMode::Scale);
-    f = shown(2000);
+    f = shown(3000);
     CHECK(f[io::Control::PadModeScale].mode == io::LampMode::On);
     int on = 0, dim = 0;
     for (int p = 1; p <= 16; ++p)
-        (f[io::pad(p)].mode == io::LampMode::On ? on : dim) += f[io::pad(p)].mode == io::LampMode::Off ? 0 : 1;
+        (level(f, p) == 255 ? on : dim) += level(f, p) == 0 ? 0 : 1;
     CHECK(on > 0);
     CHECK(dim > 0);
-    // TRACK: the selected track's pad brighter.
+    // TRACK: the same ladder as PLAY.
     d.pads->onModeKey(PadMode::Track);
-    f = shown(3000);
-    CHECK(f[io::Control::PadModeTrack].mode == io::LampMode::On);
-    CHECK(f[io::pad(1)].mode == io::LampMode::On); // track 1 selected
-    CHECK(f[io::pad(2)].mode == io::LampMode::Dim);
-    // SLICE: the selected track's slice pads in its colour.
-    d.pads->onModeKey(PadMode::Slice);
     f = shown(4000);
-    CHECK(f[io::Control::PadModeSlice].mode == io::LampMode::On);
-    CHECK(f[io::pad(16)].mode == io::LampMode::On);
-    // Back to PLAY: the shell's pads again, every mode key off.
+    CHECK(f[io::Control::PadModeTrack].mode == io::LampMode::On);
+    CHECK(level(f, 1) == 255); // track 1 selected
+    CHECK(level(f, 2) == io::kDimLevel);
+    // SLICE: the selected track's slice pads in its colour, dim until hit.
     d.pads->onModeKey(PadMode::Slice);
     f = shown(5000);
-    CHECK(f[io::pad(1)].rgb == 0x123456);
+    CHECK(f[io::Control::PadModeSlice].mode == io::LampMode::On);
+    CHECK(level(f, 16) == io::kDimLevel);
+    // Back to PLAY: every mode key off, the pads still the controller's.
+    d.pads->onModeKey(PadMode::Slice);
+    f = shown(6000);
+    CHECK(f[io::pad(1)].rgb != 0x123456);
     CHECK(f[io::Control::PadModeSlice].mode == io::LampMode::Off);
 }

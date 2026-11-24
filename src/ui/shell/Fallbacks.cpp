@@ -11,6 +11,7 @@
 #include "ui/shell/Shell.h"
 #include "ui/shell/UiState.h"
 #include "ui/theme/Draw.h"
+#include "ui/widgets/Meter.h"
 
 #include <algorithm>
 #include <cmath>
@@ -134,45 +135,17 @@ void drawTile(DrawList& dl, const UiContext& ctx, RectF b, int t, const TrackSum
         draw::focusRing(dl, p, b, tk::radiusM);
 }
 
+// The MASTER column (Meter::drawColumn) from the UI state's master level and gain.
 void drawMeter(DrawList& dl, const UiContext& ctx, float x, const UiState& st)
 {
-    const auto& p = ctx.palette;
-    // dB-linear above −50 dB: 3 dB at y 184, −50 dB at y 588, −∞ at the bar bottom (600).
-    auto yOf = [](float db)
-    { return db <= -50.0f ? 588.0f + std::min(12.0f, (-50.0f - db) * 0.4f) : 184.0f + (3.0f - db) * 404.0f / 53.0f; };
-    dl.text(x + 44, 160, Align::Centre, TextStyleId::Caption, p.text2, "MASTER");
-    static constexpr struct
-    {
-        float db;
-        const char* text;
-    } labels[] = {{3, "3"}, {0, "0"}, {-10, "-10"}, {-20, "-20"}, {-30, "-30"}, {-40, "-40"}, {-50, "-50"}};
-    for (const auto& l : labels)
-        dl.text(x + 84, yOf(l.db), Align::Right, TextStyleId::Caption, p.text3, l.text);
+    MeterModel m;
     for (int ch = 0; ch < 2; ++ch)
     {
-        const float bx = x + 12 + 12.0f * static_cast<float>(ch);
-        dl.fill({bx, 184, 8, 416}, p.surface3, 2);
-        const float db = std::clamp(st.masterDb[ch], -120.0f, 3.0f);
-        if (db > -120.0f)
-        {
-            const float top = yOf(db), yMid = yOf(-6.0f), yHigh = yOf(-1.0f);
-            dl.fill({bx, std::max(top, yMid), 8, 600 - std::max(top, yMid)}, p.meterLow, 2);
-            if (top < yMid)
-                dl.fill({bx, std::max(top, yHigh), 8, yMid - std::max(top, yHigh)}, p.meterMid);
-            if (top < yHigh)
-                dl.fill({bx, top, 8, yHigh - top}, p.meterHigh);
-        }
-        if (st.masterPeakDb[ch] > -50.0f)
-            dl.fill({bx, yOf(st.masterPeakDb[ch]) - 1, 8, 2}, p.text1);
+        m.db[ch] = st.masterDb[ch];
+        m.peakDb[ch] = st.masterPeakDb[ch];
     }
-    // Fader marker: a left-pointing triangle 10 × 12 right of the bars (master volume).
-    const float fy = yOf(st.masterGain > 0 ? 20.0f * std::log10(st.masterGain) : -120.0f);
-    for (int k = 0; k < 6; ++k)
-    {
-        const float w = 10.0f * static_cast<float>(k + 1) / 6.0f;
-        dl.fill({x + 46 - w, fy - 6 + static_cast<float>(k), w, 1}, p.text1);
-        dl.fill({x + 46 - w, fy + 5 - static_cast<float>(k), w, 1}, p.text1);
-    }
+    m.faderDb = st.masterGain > 0 ? 20.0f * std::log10(st.masterGain) : -120.0f;
+    Meter::drawColumn(dl, ctx, x, m);
 }
 
 class FallbackHome final : public Widget

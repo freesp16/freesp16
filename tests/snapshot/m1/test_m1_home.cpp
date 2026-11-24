@@ -35,7 +35,9 @@ TEST_CASE("ui.m1.home: HOME matches home.svg", "[snapshot][m1]")
     const auto& mock = mockup("home");
     CHECK(compare(ours, mock, L::canvas, "m1-home").match >= kGate);
     CHECK(compare(ours, mock, kGrid, "m1-home-tiles").match >= kGate);
-    CHECK(compare(ours, mock, kMeter, "m1-home-meter").match >= kGate);
+    // The MASTER column departs from home.svg by request (bars centred, fader cap over the bars, the MIXER's place):
+    // artifacts only.
+    compare(ours, mock, kMeter, "m1-home-meter");
     CHECK(compare(ours, mock, L::knobStrip, "m1-home-strip").match >= kGate);
     writePng(f.image(800, 480), "m1-home-800.png");
 }

@@ -1,6 +1,7 @@
 #include "platform/linux/audio/FileAudioDevice.h"
 
 #include "core/util/Realtime.h"
+#include "core/util/ThreadRole.h"
 
 #include <pthread.h>
 #include <sched.h>
@@ -212,9 +213,7 @@ AudioStats FileAudioDevice::stats() const noexcept
 
 void FileAudioDevice::runDevice()
 {
-    sched_param sp {};
-    sp.sched_priority = config_.rtPriority;
-    realtime_ = pthread_setschedparam(pthread_self(), SCHED_FIFO, &sp) == 0; // best effort
+    realtime_ = core::threads::apply(core::threads::Role::Audio, "audio").realtime; // best effort
     core::rt::enableFlushToZero();
     core::rt::ScopedRealtimeThread realtime;
     using clock = std::chrono::steady_clock;
@@ -269,6 +268,7 @@ void FileAudioDevice::runDevice()
 
 void FileAudioDevice::runWriter()
 {
+    (void) core::threads::apply(core::threads::Role::Recorder, "file-writer"); // drains the ring to the file
     for (;;)
     {
         const bool last = quitWriter_.load(std::memory_order_acquire); // the device thread has stopped: drain all

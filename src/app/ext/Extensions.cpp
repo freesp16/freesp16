@@ -176,42 +176,6 @@ bool Extensions::onMidiUi(const core::midi::UiEvent& e)
     return true;
 }
 
-// --------------------------------------------------------------------------------------------- E12 strip record
-void Extensions::handle(const io::ControlEvent& e)
-{
-    using Kind = io::ControlEvent::Kind;
-    if (! io::isPad(e.control) || (e.kind != Kind::Press && e.kind != Kind::Release))
-        return;
-    const int pad = io::indexOf(e.control) - 1;
-    if (pad < 0 || pad > 15)
-        return;
-    const auto bit = static_cast<std::uint16_t>(1u << pad);
-    heldPads_ = static_cast<std::uint16_t>(e.kind == Kind::Press ? heldPads_ | bit : heldPads_ & ~bit);
-    // The track a held pad plays (the router's pad routing): PLAY = pad n, SLICE / SCALE = the selected track.
-    const int mode = env_.padMode ? env_.padMode() : 0;
-    heldTracks_ = 0;
-    for (int k = 0; k < 16; ++k)
-        if ((heldPads_ >> k & 1u) != 0)
-        {
-            if (mode == 0)
-                heldTracks_ = static_cast<std::uint16_t>(heldTracks_ | (1u << k));
-            else if ((mode == 3 || mode == 4) && env_.selectedTrack)
-                heldTracks_ = static_cast<std::uint16_t>(heldTracks_ | (1u << (env_.selectedTrack() & 15)));
-        }
-}
-
-std::uint16_t Extensions::stripTracks() const
-{
-    int applyTo = 0; // ribbon.applyTo: 0 HELD PADS (the reference), 1 SELECTED TRACK, 2 ALL TRACKS
-    if (const auto* spec = core::builtinParams().find("ribbon.applyTo"); spec != nullptr && env_.value)
-        applyTo = static_cast<int>(env_.value(*spec, 0) + 0.5f);
-    if (applyTo == 1)
-        return env_.selectedTrack ? static_cast<std::uint16_t>(1u << (env_.selectedTrack() & 15)) : 0;
-    if (applyTo == 2)
-        return 0xFFFF;
-    return heldTracks_;
-}
-
 // ---------------------------------------------------------------------------------------------- hooks
 void Extensions::onChange(const core::ChangeSet& changes, const core::model::Project& p)
 {
@@ -236,7 +200,7 @@ void Extensions::onProjectReplaced(const core::model::Project& p)
     syncLearn(p);
 }
 
-void Extensions::frame(double, const engine::PlayheadFeed& ph, int stripMode, bool stripContact, int stripPosition)
+void Extensions::frame(double)
 {
     const bool toggle = flags::flags().isOn(flags::kToggle);
     if (toggle != toggleOn_)
@@ -258,28 +222,6 @@ void Extensions::frame(double, const engine::PlayheadFeed& ph, int stripMode, bo
         publishOverlay(true); // also once the MIDI source has published its fixed table
     else if (fixed_ != nullptr)
         publishOverlay(false);
-
-    if (! flags::flags().isOn(flags::kStripRecord) || ! hasProject())
-        return;
-    ui::input::ext::StripRecordState s;
-    s.recording = ph.playing && env_.recArmed && env_.recArmed();
-    s.scene = ph.scene & 15;
-    s.pattern = ph.pattern & 15;
-    s.step = ph.step;
-    s.mode = stripMode;
-    s.contact = stripContact;
-    s.position = stripPosition;
-    s.tracks = stripTracks();
-    writes_.clear();
-    strip_.frame(s, project().ribbon, writes_);
-    for (const auto& w : writes_)
-    {
-        env_.bus->execute(core::commands::sequencer::setLock(w.scene, w.pattern, w.track, w.step, w.slot, w.value));
-        if (++stripWrites_ <= 16)
-            log("EXT STRIP lock " + std::string(w.spec != nullptr ? w.spec->id : std::string_view("?")) +
-                " scene=" + std::to_string(w.scene + 1) + " pattern=" + std::to_string(w.pattern + 1) + " track=" +
-                std::to_string(w.track + 1) + " step=" + std::to_string(w.step + 1) + " value=" + num(w.value));
-    }
 }
 
 // ---------------------------------------------------------------------------------------------- `cmd ext-*`

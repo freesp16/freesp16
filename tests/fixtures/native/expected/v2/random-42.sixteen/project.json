@@ -1,0 +1,2093 @@
+{
+  "format": { "name": "sixteen-project", "version": 5 },
+  "origin": { "format": "sp16-prj", "importer": 1 },
+  "settings": {
+    "tempo": 71.36174061014317,
+    "swing": 69,
+    "patternQuantize": "Bar",
+    "padQuantize": "Beat",
+    "masterVolume": 76,
+    "monitorVolume": 100,
+    "currentScene": 5,
+    "currentPattern": 9
+  },
+  "scenes": [
+    {
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 3,
+      "bpm": 211.31378680543108,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Thru",
+          "chokeGroup": 7,
+          "volume": 58,
+          "pan": 39,
+          "mute": true,
+          "colour": 14,
+          "name": "Dropx\nyback\\slash",
+          "playback": { "sample": "sha256:2084cf117b4c7821672d48a9bcc4289332f46fbda2c35615e972bc6a491060ab", "start": 333451, "loopStart": 333679, "length": 1141405, "pitchCents": -708, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.4848299765534259, "hold": 0.26941233340647663, "release": 0.2441255206562614, "volumeIndex": 120, "sync": true, "velocitySensitive": false },
+          "seq": { "retriggerCount": 2, "retriggerSpeed": "1", "offset": -4, "stepShiftArea": "All", "transpose": -12 },
+          "slices": { "gridCount": 32 },
+          "padScale": { "scaleType": "Locrian", "keyShift": -5 },
+          "midiScale": { "rootNote": 18 },
+          "insertFx": [
+            { "type": "2BandEQ", "bypass": true, "type1": 3, "type2": 2, "params": [0, 0.6343513431279608, 0.5309345843607781, 0.5528930886615185, 0.08085332593697485, 0.24215993663241098], "perType": { "Distortion": { "params": [0, 0, 0, 0, 0.1865185064981223, 0] } } },
+            {}
+          ],
+          "send": { "amount": 28 },
+          "lfo": { "speed": 25.806911879672356, "depth": 12, "destination": 15, "shape": "SawUp", "triggerMode": "Trigger", "triggerOn": "Step" },
+          "midi": { "notes": [66, 0, 0, 0], "velocity": 43, "length": 7.483937246927533, "pitchBendValue": -4448, "cc1": [{}, {}, { "cc": 26, "value": 118 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 104, "mode": "DrumMap" },
+          "routing": { "output": "Mono3" }
+        },
+        {
+          "mode": "Instrument",
+          "triggerMode": "Gate",
+          "chokeGroup": 5,
+          "volume": 115,
+          "pan": 49,
+          "mute": true,
+          "colour": 5,
+          "name": "x\nyx\nyx\ny",
+          "playback": { "sample": "sha256:6b9b965d984fee00abf01f530c3ccf87a345053b4e3ebaaf2b221c9e5de478c0", "start": 424157, "loopStart": 425008, "length": 2692876, "pitchCents": 1913, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.6635017625382481, "release": 0.16080805642621615, "volumeIndex": 39, "sync": true },
+          "seq": { "retriggerCount": 12, "offset": -4, "transpose": -9 },
+          "slices": { "gridCount": 24 },
+          "padScale": { "scaleType": "Locrian", "keyShift": 6 },
+          "midiScale": { "rootNote": 108 },
+          "insertFx": [
+            { "type": "Compressor", "type2": 2, "params": [0.25046182173891046, 0.9788928567369027, 0.9060987848537151, 0.35007840879140684, 0.6689240593875069, 0.23018526919075358], "perType": { "MultiModeFilter": { "params": [0, 0, 0.9404585873695441, 0, 0, 0], "sync": true } } },
+            {}
+          ],
+          "send": { "amount": 109 },
+          "lfo": { "speed": 11.777955871777108, "depth": 39, "destination": 147, "shape": "Triangle", "triggerMode": "Trigger" },
+          "midi": { "notes": [62, 71, 0, 0], "velocity": 108, "length": 59.53857298844305, "pitchBendValue": 8029, "cc1": [{}, {}, { "cc": 72, "value": 9, "active": true }, {}], "program": 32, "mode": "DrumMap" },
+          "routing": { "output": "Out56" }
+        },
+        {
+          "mode": "Thru",
+          "triggerMode": "Gate",
+          "chokeGroup": 3,
+          "volume": 70,
+          "pan": -27,
+          "colour": 4,
+          "name": "IntroGrößeIntro",
+          "playback": { "sample": "sha256:6b9b965d984fee00abf01f530c3ccf87a345053b4e3ebaaf2b221c9e5de478c0", "start": 525878, "loopStart": 526528, "length": 814844, "pitchCents": -2157, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.43847412594919605, "hold": 0.32815266820507644, "release": 0.15504161861389829, "volumeIndex": 69, "sync": true, "velocitySensitive": false, "retrigger": true },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/2", "offset": -3, "transpose": 2 },
+          "slices": { "gridCount": 34 },
+          "padScale": { "scaleType": "MinorPentatonic", "keyShift": 7 },
+          "midiScale": { "rootNote": 34 },
+          "insertFx": [
+            { "type": "Flanger", "sync": true, "type1": 3, "params": [0.5406351197537393, 0.7260913371896262, 0.5163003494892122, 0.7951861955321086, 0.45, 0.25086053299681665], "perType": { "Chorus": { "type1": 2, "params": [0, 0, 0.8359801224621183, 0, 0, 0] }, "2BandEQ": { "params": [0, 0, 0.15643703958839497, 0, 0, 0], "sync": true }, "MultiModeFilter": { "type1": 2, "params": [0, 0, 0, 0, 0, 0.6601973714267058] }, "Phaser": { "params": [0.355972681093504, 0, 0, 0, 0, 0], "sync": true } }, "_extras": [{ "key": "sp16.node3", "encoding": "base64", "value": "AAECAwQFBgc=" }] },
+            { "type": "InsertDelay", "bypass": true, "type1": 3, "type2": 1, "params": [0.45, 0.04805892552214319, 0.8866803878068676, 0.35, 0.5031362608851484, 0.658693627579924], "perType": { "Chorus": { "type1": 1, "params": [0, 0, 0, 0.9438916032832508, 0, 0], "sync": true } } }
+          ],
+          "send": { "amount": 105 },
+          "lfo": { "speed": 26.05939067864037, "depth": 115, "destination": 115, "triggerMode": "Trigger" },
+          "midi": { "notes": [12, 4, 0, 0], "velocity": 87, "length": 4.788276270370775, "pitchBendValue": -2612, "cc1": [{}, {}, { "cc": 83, "value": 40 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 36 },
+          "routing": { "output": "Out12" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Thru",
+          "chokeGroup": 3,
+          "volume": 96,
+          "pan": 9,
+          "colour": 6,
+          "playback": { "sample": "sha256:6b9b965d984fee00abf01f530c3ccf87a345053b4e3ebaaf2b221c9e5de478c0", "start": 608745, "loopStart": 609307, "length": 3903880, "loop": true, "pitchCents": 1204, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.5052523756246845, "hold": 0.3200496037932155, "release": 0.8955232338741503, "volumeIndex": 12, "sync": true, "velocitySensitive": false },
+          "seq": { "retriggerCount": 6, "retriggerSpeed": "1", "offset": 8, "stepShiftArea": "All", "transpose": 22 },
+          "slices": { "gridCount": 32 },
+          "padScale": { "scaleType": "Mixolydian", "keyShift": -10 },
+          "midiScale": { "rootNote": 57 },
+          "insertFx": [
+            { "type": "Chorus", "type1": 2, "params": [0.7812960482648525, 0.05, 5.7558754220197024e-02, 0.4415304968263654, 0.3509150097486367, 1], "perType": { "Ducker": { "params": [0, 0.08483771339834811, 0, 0, 0, 0] } } },
+            {}
+          ],
+          "send": { "amount": 104 },
+          "lfo": { "speed": 37.88994310644162, "depth": 116, "destination": 17, "shape": "SawUp", "triggerMode": "Trigger", "triggerOn": "Step" },
+          "midi": { "notes": [90, 99, 0, 0], "velocity": 90, "length": 16.106164554318916, "pitchBendValue": -8006, "cc1": [{}, {}, { "cc": 116, "value": 42, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 73 },
+          "routing": { "output": "Mono5" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Instrument",
+          "chokeGroup": 3,
+          "volume": 61,
+          "pan": -28,
+          "colour": 6,
+          "playback": { "sample": "sha256:cab673a17da6ba1e1350600e1581105d4a2559154e49f66861138536c86ffbec", "start": 1025404, "loopStart": 1025727, "length": 181025, "loop": true, "pitchCents": 2367, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.5230978469074319, "hold": 0.6957486898677445, "release": 0.45454106440173786, "volumeIndex": 127, "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 5, "retriggerSpeed": "1", "offset": 8, "transpose": 19 },
+          "slices": { "gridCount": 7 },
+          "padScale": { "scaleType": "Mixolydian", "keyShift": -4 },
+          "midiScale": { "rootNote": 35 },
+          "insertFx": [
+            { "type": "Chorus", "type1": 1, "params": [0.05, 0.9862107483809697, 0.5360963679925342, 0.8137950197353975, 0.1626169449349301, 0.8225372424526607], "perType": { "Distortion": { "params": [0, 0, 0.41125511914174234, 0, 0, 0] }, "Ducker": { "type1": 1, "params": [0, 0, 0.749578303097312, 0, 0, 0] } } },
+            {}
+          ],
+          "send": { "amount": 8 },
+          "lfo": { "speed": 1.4728746606846634, "depth": 53, "destination": 100, "triggerMode": "Trigger" },
+          "midi": { "notes": [110, 0, 0, 0], "velocity": 95, "length": 58.46431648708778, "pitchBendValue": 5728, "cc1": [{}, {}, { "cc": 71, "value": 74 }, {}], "program": 30 },
+          "routing": { "output": "Out34" }
+        },
+        {
+          "triggerMode": "Gate",
+          "chokeGroup": 6,
+          "volume": 96,
+          "pan": 15,
+          "name": "Größe",
+          "playback": { "sample": "sha256:2084cf117b4c7821672d48a9bcc4289332f46fbda2c35615e972bc6a491060ab", "start": 871757, "loopStart": 872574, "length": 3574309, "reverse": true, "pitchCents": 1808, "stretch": "MasterTempo", "bypass": true },
+          "ampEnv": { "attack": 0.7551372531849275, "hold": 0.704079762482867, "release": 0.2129641591583017, "volumeIndex": 115, "velocitySensitive": false, "attackCurve": "Curve", "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 7, "retriggerSpeed": "1/3", "offset": -1, "transpose": 20 },
+          "slices": { "gridCount": 36 },
+          "padScale": { "scaleType": "Lydian", "keyShift": -1 },
+          "midiScale": { "rootNote": 100 },
+          "insertFx": [
+            { "type": "Ducker", "type1": 3, "type2": 2, "params": [0.4593468031722758, 0.768917743231197, 0.45, 0.4926180962055935, 0.6334008523749958, 0.35], "perType": { "LoFi": { "params": [0, 0, 0.3456672857740199, 0, 0, 0] } } },
+            {}
+          ],
+          "send": { "amount": 21 },
+          "lfo": { "speed": 11.143613712350675, "depth": 44, "destination": 104, "shape": "SawDown", "triggerMode": "Trigger" },
+          "midi": { "notes": [68, 26, 0, 0], "velocity": 16, "length": 21.293844024148502, "pitchBendValue": 2095, "cc1": [{}, {}, { "cc": 88, "value": 41, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 65, "mode": "DrumMap" },
+          "routing": { "output": "Out34" }
+        },
+        {
+          "mode": "Instrument",
+          "chokeGroup": 4,
+          "volume": 47,
+          "pan": 55,
+          "colour": 5,
+          "name": "Intro",
+          "playback": { "sample": "sha256:983e93549019e0475dba352880174f8a85c08d40d3b84e328bfb39cd0954b18c", "start": 38465, "loopStart": 39179, "length": 558332, "pitchCents": 1198, "stretch": "Resample" },
+          "ampEnv": { "attack": 0.3971638350124977, "release": 0.7374052084677953, "volumeIndex": 48, "sync": true, "retrigger": true },
+          "seq": { "retriggerCount": 9, "offset": -5, "stepShiftArea": "All", "transpose": -8 },
+          "slices": { "gridCount": 44 },
+          "padScale": { "scaleType": "Hawaiian", "keyShift": 7 },
+          "midiScale": { "rootNote": 83 },
+          "insertFx": [
+            { "type": "InsertDelay", "bypass": true, "type1": 2, "type2": 2, "params": [0.4316595458859893, 0.35, 0.8996473968408728, 0.24435315899801865, 0.3303484781613842, 7.534367087582776e-03], "perType": { "LoFi": { "params": [0.17337360205265342, 0, 0, 0, 0, 0] }, "Compressor": { "type1": 1, "params": [0, 0, 0, 0, 0.410396823430956, 0] } }, "x_future2": -18502430.404581666, "x_future1": 446 },
+            {}
+          ],
+          "send": { "amount": 73 },
+          "lfo": { "speed": 11.199163668571222, "depth": 107, "destination": 110, "shape": "Random", "triggerMode": "Trigger" },
+          "midi": { "notes": [91, 64, 0, 0], "velocity": 67, "length": 45.335918309008896, "pitchBendValue": -5663, "cc1": [{}, {}, { "cc": 78, "value": 98, "active": true }, {}], "program": 41, "mode": "DrumMap" },
+          "routing": { "output": "Mono3" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Midi",
+          "triggerMode": "Gate",
+          "chokeGroup": 7,
+          "volume": 11,
+          "pan": -32,
+          "colour": 1,
+          "name": "日本",
+          "playback": { "sample": "sha256:d791a9d6c001bcd9940f9c3703a6dcb6a1d5fb6a75af2a12f7e808936222b8c4", "start": 431846, "loopStart": 432776, "length": 447529, "pitchCents": -439 },
+          "ampEnv": { "attack": 0.37922858497622264, "hold": 0.7215965538614245, "release": 0.04809464411215696, "volumeIndex": 107, "sync": true, "velocitySensitive": false, "retrigger": true, "attackCurve": "Curve" },
+          "seq": { "retriggerCount": 14, "offset": -5, "stepShiftArea": "All", "transpose": -13 },
+          "slices": { "gridCount": 34 },
+          "padScale": { "scaleType": "MinorBlues", "keyShift": -4 },
+          "midiScale": { "rootNote": 40 },
+          "insertFx": [
+            { "type": "Phaser", "type1": 1, "type2": 1, "params": [0.4626797854201094, 0.7476093821553004, 0.23221269822155272, 0.3838912226239876, 0.9064721109035003, 0.11689804181057245], "perType": { "MultiModeFilter": { "params": [0, 0, 0, 0.8786291141980387, 0, 0] }, "Compressor": { "type1": 2, "params": [0, 0.7069804659839073, 0, 0, 0, 0] }, "Distortion": { "params": [0, 0, 0, 0, 0.7140640769083727, 0] } } },
+            { "type": "MultiModeFilter", "type1": 1, "type2": 2, "params": [0.48635748684171526, 0.771881978195685, 0.65, 0.5427244388418059, 0.6, 0.9590747945899138], "perType": { "Distortion": { "type1": 1, "params": [0, 0.6114542391385871, 0, 0, 0, 0] }, "Ducker": { "type1": 1, "params": [0, 0, 0, 0, 0.6966508189027082, 0], "sync": true } } }
+          ],
+          "send": { "amount": 19 },
+          "lfo": { "speed": 23.05153455372198, "depth": 47, "destination": 123, "triggerMode": "Trigger", "triggerOn": "Both" },
+          "midi": { "notes": [13, 0, 0, 0], "velocity": 57, "length": 7.468925505080071, "pitchBendValue": 5529, "cc1": [{}, {}, { "cc": 30, "value": 126 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 111 },
+          "routing": { "output": "Mono2" }
+        }
+      ],
+      "sendFx": { "sync": true, "type1": 3, "type2": 1, "params": [0.5467102772574736, 0, 0.4497541291115649, 0.9266588622459274, 0.3265407716207845, 0.5208342660209124], "perType": { "Phaser": { "params": [0, 0, 0.986886934846555, 0, 0, 0], "sync": true, "lookAhead": true } }, "x_future2": 414, "x_future1": {"k":0.5803510708403807,"list":[true,null,3]} },
+      "masterFx": { "type": "Chorus", "bypass": true, "type1": 1, "type2": 1, "params": [0.35, 0.6659223521885423, 0.2747217914177006, 0.3829268744383508, 0.8489138192295201, 0.23598491925775938], "perType": { "Reverb": { "type1": 1, "params": [0.42754102095744173, 0, 0, 0, 0, 0], "sync": true, "lookAhead": true }, "Compressor": { "params": [0, 0, 0, 0.4103829219481948, 0, 0], "sync": true } } },
+      "routing": { "headphoneSource": "Cue3", "fxMode": "Send", "afsAssignment": 13 }
+    },
+    {
+      "colour": 2,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "name": "tab\tx",
+      "colour": 14,
+      "bpm": 275.84369902968285,
+      "tracks": [
+        {
+          "mode": "Thru",
+          "chokeGroup": 3,
+          "volume": 32,
+          "pan": 11,
+          "mute": true,
+          "colour": 8,
+          "name": "x\ny日本日本",
+          "playback": { "sample": "sha256:6b9b965d984fee00abf01f530c3ccf87a345053b4e3ebaaf2b221c9e5de478c0", "start": 720830, "loopStart": 720924, "length": 1186509, "pitchCents": -727, "stretch": "Resample" },
+          "ampEnv": { "attack": 0.5892857270804838, "hold": 0.7389283003933302, "release": 0.8126126413842681, "volumeIndex": 20, "velocitySensitive": false, "retrigger": true },
+          "seq": { "retriggerCount": 11, "retriggerSpeed": "1/2", "offset": -6, "stepShiftArea": "All", "transpose": -2 },
+          "slices": { "gridCount": 24 },
+          "padScale": { "scaleType": "Mixolydian", "keyShift": -7 },
+          "midiScale": { "rootNote": 65 },
+          "insertFx": [
+            { "type": "Compressor", "sync": true, "type2": 2, "params": [0.44668872431707063, 0.5, 0.6879100919433999, 0.2988631879689081, 0.05, 0.19623428015416816], "perType": { "LoFi": { "type1": 2, "params": [0, 0, 0, 0.05510963716302808, 0, 0] }, "Ducker": { "type1": 1, "params": [0.8175653354754606, 0, 0, 0, 0, 0] } } },
+            { "bypass": true, "type1": 2, "type2": 3, "params": [0.7536101306635427, 0.7720895221782058, 0.760606581474986, 0.65, 0.2, 0.45864990200780986], "perType": { "2BandEQ": { "type1": 2, "params": [0, 0, 0, 0, 0, 0.6077627677681675] }, "Distortion": { "type1": 1, "params": [0, 0, 0, 0.3734445906946079, 0, 0] } } }
+          ],
+          "send": { "amount": 42 },
+          "lfo": { "speed": 32.71616723659835, "depth": 43, "destination": 148, "triggerMode": "Trigger", "triggerOn": "Step" },
+          "midi": { "notes": [74, 0, 0, 0], "velocity": 85, "length": 1.063795817709888, "pitchBendValue": -7304, "cc1": [{}, {}, { "cc": 69, "value": 111, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }] },
+          "routing": { "output": "Out12" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Thru",
+          "chokeGroup": 7,
+          "volume": 27,
+          "pan": -54,
+          "mute": true,
+          "colour": 13,
+          "name": "tab\txGröße",
+          "playback": { "sample": "sha256:1ce63c66a4dbec6148bc4d87fa10a97ac732e95e41955a57683ab132c5bfdd4f", "start": 530947, "loopStart": 531223, "length": 524661, "pitchCents": 2143, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.9304485992904469, "hold": 0.9954836117626096, "release": 2.2568581275141147e-02, "volumeIndex": 123, "retrigger": true, "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 4, "retriggerSpeed": "1/2", "offset": 5, "stepShiftArea": "All", "transpose": -22 },
+          "slices": { "gridCount": 47 },
+          "padScale": { "scaleType": "Lydian", "keyShift": 4 },
+          "midiScale": { "rootNote": 71 },
+          "insertFx": [
+            { "type": "Ducker", "type1": 2, "type2": 2, "params": [0.55, 0.25944917053624655, 0.4, 0.14863321679285318, 0.49235759671787793, 0.8], "perType": { "MultiModeFilter": { "type1": 2, "params": [0, 0, 0, 0.7717829388708847, 0, 0] }, "InsertDelay": { "type1": 2, "params": [0, 0, 0, 0, 0.4589697159935452, 0], "sync": true } } },
+            { "type": "InsertDelay", "type2": 2, "params": [0.55, 0.7355207111270948, 0.1133871003125913, 0.5003051586199253, 0.9198709333646164, 0.25], "perType": { "Flanger": { "type1": 1, "params": [0, 0, 0, 0.5422999756297554, 0, 0] } } }
+          ],
+          "send": { "amount": 50 },
+          "lfo": { "speed": 0.05137690082287098, "depth": 86, "destination": 12, "shape": "SawUp", "triggerMode": "Trigger", "triggerOn": "Both" },
+          "midi": { "notes": [49, 93, 0, 0], "velocity": 77, "length": 28.57745257438597, "pitchBendValue": 6467, "cc1": [{}, {}, { "cc": 24, "value": 120, "active": true }, {}], "program": 113, "mode": "DrumMap" },
+          "routing": { "output": "Mono6" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "triggerMode": "Gate",
+          "chokeGroup": 5,
+          "volume": 40,
+          "pan": 52,
+          "colour": 13,
+          "name": "x\nyback\\slash",
+          "playback": { "sample": "sha256:d725a3e12040c04650be36a657367bc46b6503ddba79abdb5f50cacec3be089b", "start": 844887, "loopStart": 845183, "length": 1313581, "pitchCents": -494, "stretch": "Resample" },
+          "ampEnv": { "attack": 0.7444192506490733, "hold": 0.43803366109766795, "release": 0.8610333966066805, "volumeIndex": 86, "sync": true, "velocitySensitive": false, "retrigger": true, "attackCurve": "Curve", "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 11, "retriggerSpeed": "1/4", "offset": 7, "transpose": -3 },
+          "slices": { "gridCount": 8 },
+          "padScale": { "scaleType": "MajorPentatonic", "keyShift": 2 },
+          "midiScale": { "rootNote": 62 },
+          "insertFx": [
+            { "type1": 3, "type2": 3, "params": [0.9220488011007772, 0.65, 0.55, 0.9743494569440428, 0.45, 0.2], "perType": { "2BandEQ": { "params": [0, 0, 0, 0, 0.31958942312829247, 0] }, "MultiModeFilter": { "params": [0, 0, 0, 0.0732456049626855, 0, 0] }, "LoFi": { "type1": 2, "params": [0, 0, 0, 0, 0.6693854211154795, 0], "sync": true } } },
+            {}
+          ],
+          "send": { "amount": 35 },
+          "lfo": { "speed": 25.71208192996165, "depth": 92, "destination": 20, "shape": "SawUp", "triggerMode": "Trigger", "triggerOn": "Step" },
+          "midi": { "notes": [97, 71, 0, 0], "velocity": 124, "length": 63.128421078761576, "pitchBendValue": 7613, "cc1": [{}, {}, { "cc": 66, "value": 65 }, {}], "program": 34 },
+          "routing": { "output": "Mono8" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Thru",
+          "chokeGroup": 2,
+          "volume": 79,
+          "pan": -25,
+          "solo": true,
+          "colour": 11,
+          "name": "x\ny",
+          "playback": { "sample": "sha256:604473b19343b5c11d46ad5f7a7b39fbb3a758754a774f9dae80dd9495aed01a", "start": 621790, "loopStart": 622468, "length": 532022, "pitchCents": 1909, "stretch": "Resample", "bypass": true },
+          "ampEnv": { "attack": 0.03354586981022503, "hold": 0.694827580674386, "release": 0.7957867323535404, "volumeIndex": 3, "velocitySensitive": false, "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 2, "offset": -3, "transpose": -3 },
+          "slices": { "gridCount": 29 },
+          "padScale": { "scaleType": "Mixolydian", "keyShift": -11 },
+          "midiScale": { "rootNote": 7 },
+          "insertFx": [
+            { "type": "Ducker", "type2": 1, "params": [0.5540583843958296, 5.348989548489794e-03, 0.9030506528371556, 0.05, 0.7075354346131376, 0.8064959485880999], "perType": { "Chorus": { "params": [0, 0, 7.895100767710729e-04, 0, 0, 0], "sync": true }, "Compressor": { "type1": 1, "params": [0.16393172104707865, 0, 0, 0, 0, 0] } } },
+            { "type": "Distortion", "params": [0.1281880682370054, 0.24720606964998826, 0.2620350023893835, 0.8918202085426706, 0, 0.05], "perType": { "Compressor": { "type1": 1, "params": [0, 0, 0, 0.3387499057499279, 0, 0] } } }
+          ],
+          "send": { "amount": 29 },
+          "lfo": { "speed": 29.98065658868982, "depth": 43, "destination": 17, "shape": "Random", "triggerMode": "Trigger", "triggerOn": "Step" },
+          "midi": { "notes": [66, 80, 0, 0], "velocity": 112, "length": 1.0794013799055273, "pitchBendValue": 5774, "cc1": [{}, {}, { "cc": 36, "value": 120, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }] },
+          "routing": { "output": "Mono4" }
+        }
+      ],
+      "sendFx": { "type": "2BandEQ", "sync": true, "type1": 2, "type2": 3, "params": [0.35, 0.7, 0.6068265622107526, 0.45, 0.24599974366548508, 0.48235621131204437], "perType": { "Reverb": { "type1": 2, "params": [0, 0.7428312798016213, 0, 0, 0, 0], "lookAhead": true } }, "x_future2": "", "x_future1": {"k":0.06723387490984445,"list":[true,null,3]} },
+      "masterFx": { "type": "Distortion", "lookAhead": true, "type1": 1, "params": [0.6755323681213858, 0.5566820565007254, 1.3517268477520085e-02, 0.55, 0.05, 0.17608262993975754], "perType": { "LoFi": { "type1": 1, "params": [0.373207369291149, 0, 0, 0, 0, 0] }, "Compressor": { "type1": 2, "params": [0, 0, 0, 0.6741869453559798, 0, 0], "sync": true, "lookAhead": true } } },
+      "routing": { "headphoneSource": "Cue6", "fxMode": "Master", "afsAssignment": 4 }
+    },
+    {
+      "colour": 4,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 5,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "name": "a/b",
+      "colour": 8,
+      "bpm": 237.44991478292226,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "triggerMode": "Gate",
+          "chokeGroup": 6,
+          "volume": 87,
+          "pan": 55,
+          "colour": 14,
+          "name": "IntroIntrotab\tx",
+          "playback": { "sample": "sha256:6b9b965d984fee00abf01f530c3ccf87a345053b4e3ebaaf2b221c9e5de478c0", "start": 662047, "loopStart": 662365, "length": 1381673, "pitchCents": 1664, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.532117970379192, "hold": 0.8994530862715878, "release": 0.9273664100215322, "volumeIndex": 64, "retrigger": true, "attackCurve": "Curve" },
+          "seq": { "retriggerCount": 8, "offset": -6, "stepShiftArea": "All", "transpose": 21 },
+          "slices": { "gridCount": 4 },
+          "padScale": { "scaleType": "MajorPentatonic", "keyShift": 7 },
+          "midiScale": { "rootNote": 46 },
+          "insertFx": [
+            { "type": "Chorus", "type1": 1, "params": [0.01480885998688995, 0.5134979595194188, 0.5, 0.48919652296415883, 0.19938081974829527, 0.04233449134803587], "perType": { "Distortion": { "type1": 2, "params": [0.26257237227979546, 0, 0, 0, 0, 0], "sync": true } } },
+            {}
+          ],
+          "send": { "amount": 97 },
+          "lfo": { "speed": 31.45287232515171, "depth": 37, "destination": 153, "triggerMode": "Trigger" },
+          "midi": { "notes": [37, 86, 0, 0], "velocity": 84, "length": 24.545158036248235, "pitchBendValue": 2370, "cc1": [{}, {}, { "cc": 9, "value": 92, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 3, "mode": "DrumMap" },
+          "routing": { "output": "Out12" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Instrument",
+          "triggerMode": "Gate",
+          "chokeGroup": 7,
+          "volume": 93,
+          "pan": 19,
+          "colour": 6,
+          "name": "Größe\u0001ctl日本",
+          "playback": { "sample": "sha256:d791a9d6c001bcd9940f9c3703a6dcb6a1d5fb6a75af2a12f7e808936222b8c4", "start": 489986, "loopStart": 490431, "length": 2370091, "pitchCents": 1804, "bypass": true },
+          "ampEnv": { "attack": 0.2651232562554962, "hold": 0.8465344966991455, "release": 0.5051657127543946, "volumeIndex": 8, "sync": true, "velocitySensitive": false, "retrigger": true, "attackCurve": "Curve", "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 3, "retriggerSpeed": "1/4", "offset": -3, "transpose": -12 },
+          "slices": { "gridCount": 46 },
+          "padScale": { "scaleType": "Locrian", "keyShift": 1 },
+          "midiScale": { "rootNote": 47 },
+          "insertFx": [
+            { "type": "Phaser", "type1": 3, "type2": 3, "params": [0.3558459087853632, 0.2, 0.6162242445859296, 0.18233518918565517, 0.7550681992381273, 0.15], "perType": { "LoFi": { "type1": 1, "params": [0, 0, 0, 0, 0.2112629125754014, 0], "sync": true } } },
+            {}
+          ],
+          "send": { "amount": 107 },
+          "lfo": { "speed": 30.469708363265887, "depth": 49, "destination": 155, "shape": "SawDown", "triggerMode": "Trigger", "triggerOn": "Both" },
+          "midi": { "notes": [112, 83, 0, 0], "velocity": 52, "length": 36.00178677324774, "pitchBendValue": -6911, "cc1": [{}, {}, { "cc": 44, "value": 29 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "mode": "DrumMap" },
+          "routing": { "output": "Mono6" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "volume": 64,
+          "pan": 39,
+          "colour": 12,
+          "playback": { "sample": "sha256:d725a3e12040c04650be36a657367bc46b6503ddba79abdb5f50cacec3be089b", "start": 663430, "loopStart": 663509, "length": 209985, "pitchCents": -1216, "stretch": "Resample" },
+          "ampEnv": { "attack": 0.29797979515435175, "release": 0.3006556393062374, "volumeIndex": 126, "velocitySensitive": false, "retrigger": true, "attackCurve": "Curve", "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 15, "retriggerSpeed": "1/2", "offset": -4, "stepShiftArea": "All", "transpose": -2 },
+          "slices": { "gridCount": 5 },
+          "padScale": { "scaleType": "WholeTone", "keyShift": 2 },
+          "midiScale": { "rootNote": 119 },
+          "insertFx": [
+            { "type": "Compressor", "bypass": true, "type1": 1, "type2": 1, "params": [0.5396158520619507, 0.5, 0.4, 0.3, 0.30091907456774, 0], "perType": { "Chorus": { "params": [0.5348009812406023, 0, 0, 0, 0, 0] }, "Flanger": { "params": [0.6709747148448866, 0, 0, 0, 0, 0], "sync": true }, "Distortion": { "type1": 1, "params": [0.5174610123117747, 0, 0, 0, 0, 0], "sync": true } } },
+            { "type": "Distortion", "type1": 2, "type2": 1, "params": [0.8228880654259885, 0.35, 0.9994963531593426, 0.3, 0.22982604422057928, 0.15], "perType": { "MultiModeFilter": { "type1": 1, "params": [0.4759063320169613, 0, 0, 0, 0, 0] }, "LoFi": { "params": [0, 0, 0, 0, 0.31869725583841, 0] } }, "_extras": [{ "key": "sp16.node8", "encoding": "base64", "value": "AAECAwQFBgc=" }] }
+          ],
+          "send": { "amount": 84 },
+          "lfo": { "speed": 13.668475439680513, "depth": 9, "shape": "SawUp", "triggerMode": "Trigger", "triggerOn": "Both" },
+          "midi": { "notes": [57, 104, 0, 0], "velocity": 91, "length": 46.25050329789962, "pitchBendValue": -573, "cc1": [{}, {}, { "cc": 116, "value": 36 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }] },
+          "routing": { "output": "Mono7" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Midi",
+          "chokeGroup": 6,
+          "volume": 14,
+          "pan": 22,
+          "mute": true,
+          "solo": true,
+          "colour": 12,
+          "playback": { "sample": "sha256:6b9b965d984fee00abf01f530c3ccf87a345053b4e3ebaaf2b221c9e5de478c0", "start": 654053, "loopStart": 654055, "length": 5000000000, "pitchCents": -656, "stretch": "Resample" },
+          "ampEnv": { "attack": 0.17917966963009255, "hold": 0.4642723660384883, "release": 0.4953176469038915, "volumeIndex": 26, "sync": true, "attackCurve": "Curve" },
+          "seq": { "retriggerCount": 12, "retriggerSpeed": "1", "offset": 1, "stepShiftArea": "All", "transpose": 21 },
+          "slices": { "gridCount": 61 },
+          "padScale": { "scaleType": "Phrygian", "keyShift": -8 },
+          "midiScale": { "rootNote": 11 },
+          "insertFx": [
+            { "bypass": true, "params": [0.14193321381050866, 0.8225178012387397, 0.15, 0.7203229180635673, 0.39548908109251585, 0.6103938621214235], "perType": { "2BandEQ": { "type1": 1, "params": [0, 0, 0, 0, 0, 0.4645122467681498], "sync": true }, "LoFi": { "type1": 2, "params": [0, 0, 0.15567521469979856, 0, 0, 0] } }, "_extras": [{ "key": "sp16.node1", "encoding": "base64", "value": "AAECAwQFBgc=" }] },
+            { "type": "Distortion", "bypass": true, "sync": true, "type2": 1, "params": [0.4509073405138771, 0.0980054184222705, 0.3379455718552378, 0.9325431281788039, 0.85, 0.25], "perType": { "Ducker": { "type1": 1, "params": [0, 0, 0, 0, 0, 0.8909953742845008], "sync": true } } }
+          ],
+          "send": { "amount": 51 },
+          "lfo": { "speed": 4.095778566522503, "depth": 19, "destination": 102, "shape": "Square", "triggerMode": "Trigger", "triggerOn": "Step" },
+          "midi": { "notes": [45, 0, 0, 64], "velocity": 95, "length": 3.4919405760784064, "pitchBendValue": -2667, "cc1": [{}, {}, { "cc": 20, "value": 28, "active": true }, {}], "program": 17 },
+          "routing": { "output": "Mono8" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ],
+      "sendFx": { "type": "2BandEQ", "type1": 1, "type2": 2, "params": [0.03136156731323351, 0.75, 0.35513176732227913, 0.4091966441047777, 0.5434698725083157, 0.13478578106368178], "perType": { "Reverb": { "params": [0, 0, 0, 0, 0, 0.6561111500780414] } } },
+      "masterFx": { "type": "2BandEQ", "sync": true, "lookAhead": true, "type1": 1, "type2": 1, "params": [0, 0.65, 0.5460499311331364, 0.9346519521898458, 0, 0.40788493263337144], "perType": { "Delay": { "params": [0, 0, 0, 0, 0.6719438861301499, 0] }, "Reverb": { "params": [0, 0, 0, 0, 0.984240710957423, 0], "lookAhead": true }, "LoFi": { "type1": 2, "params": [0, 0, 0, 0, 0, 0.5377724910478057] } } },
+      "routing": { "assignMode": "4Assign", "headphoneSource": "Cue3", "fxMode": "Master", "afsAssignment": 10 }
+    },
+    {
+      "colour": 7,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "name": "Drop",
+      "colour": 7,
+      "tracks": [
+        {
+          "mode": "Midi",
+          "triggerMode": "Gate",
+          "chokeGroup": 2,
+          "volume": 108,
+          "pan": -36,
+          "colour": 4,
+          "name": "tab\tx\u0001ctl日本",
+          "playback": { "sample": "sha256:604473b19343b5c11d46ad5f7a7b39fbb3a758754a774f9dae80dd9495aed01a", "start": 261602, "loopStart": 262064, "length": 3590952, "loop": true, "pitchCents": -1054, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.9095385687246815, "hold": 0.6456853299944977, "release": 0.5594021180523159, "volumeIndex": 4, "sync": true, "velocitySensitive": false, "attackCurve": "Curve", "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 9, "retriggerSpeed": "1/2", "offset": 4, "stepShiftArea": "All", "transpose": -22 },
+          "slices": { "gridCount": 23 },
+          "padScale": { "scaleType": "MajorPentatonic", "keyShift": 2 },
+          "midiScale": { "rootNote": 99 },
+          "insertFx": [
+            { "type": "Phaser", "sync": true, "type1": 3, "type2": 2, "params": [0.05, 0.2894491968358684, 0.3381109182720959, 0.10150386219502372, 0.4280477985486194, 0.6455339933837455], "perType": { "Chorus": { "params": [0, 0, 0, 0, 0, 0.5048908083039947] }, "LoFi": { "type1": 1, "params": [0.9530743243976865, 0, 0, 0, 0, 0] }, "Compressor": { "type1": 2, "params": [0.7891806577850657, 0, 0, 0, 0, 0], "sync": true } } },
+            {}
+          ],
+          "send": { "amount": 21 },
+          "lfo": { "speed": 28.25155255486078, "depth": 119, "destination": 149, "shape": "Square", "triggerMode": "Trigger", "triggerOn": "Both" },
+          "midi": { "notes": [64, 0, 0, 0], "velocity": 85, "length": 50.27669112472166, "pitchBendValue": 2827, "cc1": [{}, {}, { "cc": 69, "value": 125, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }] }
+        },
+        {
+          "mode": "Thru",
+          "chokeGroup": 3,
+          "volume": 6,
+          "pan": 25,
+          "mute": true,
+          "colour": 1,
+          "instrument": 30,
+          "name": "back\\slashtab\tx",
+          "playback": { "sample": "sha256:cab673a17da6ba1e1350600e1581105d4a2559154e49f66861138536c86ffbec", "start": 664092, "loopStart": 664751, "length": 3873340, "pitchCents": 1355, "stretch": "Resample" },
+          "ampEnv": { "attack": 0.33747469491227994, "hold": 0.7346544990656861, "release": 0.92777109718109, "volumeIndex": 119, "sync": true, "velocitySensitive": false, "retrigger": true, "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 9, "retriggerSpeed": "1", "offset": -5, "stepShiftArea": "All", "transpose": 7 },
+          "slices": { "gridCount": 59 },
+          "padScale": { "scaleType": "MinorPentatonic", "keyShift": 5 },
+          "midiScale": { "rootNote": 103 },
+          "insertFx": [
+            { "type": "Compressor", "type1": 2, "type2": 3, "params": [0.7953253562149105, 0.13554488239281204, 0.735994364646213, 0.23109647907428577, 0.0972813673609972, 0.95], "x_future2": "tab\tx", "x_future1": 722889858.5907576 },
+            {}
+          ],
+          "send": { "amount": 24 },
+          "lfo": { "speed": 20.09177644411234, "depth": 41, "destination": 140, "shape": "SawUp", "triggerMode": "Trigger" },
+          "midi": { "notes": [1, 0, 0, 0], "velocity": 116, "length": 61.37251846201034, "pitchBendValue": 4648, "cc1": [{}, {}, { "cc": 36, "value": 98 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 0, "mode": "DrumMap" },
+          "routing": { "output": "Mono5" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "triggerMode": "Gate",
+          "chokeGroup": 5,
+          "volume": 96,
+          "pan": -12,
+          "colour": 8,
+          "name": "IntroDrop",
+          "playback": { "sample": "sha256:1ce63c66a4dbec6148bc4d87fa10a97ac732e95e41955a57683ab132c5bfdd4f", "start": 589771, "loopStart": 589851, "length": 1751384, "reverse": true, "pitchCents": 1875, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.40680227639572636, "hold": 0.09766107759189956, "release": 0.7933097718850436, "volumeIndex": 46, "sync": true, "velocitySensitive": false, "retrigger": true, "attackCurve": "Curve" },
+          "seq": { "retriggerCount": 16, "retriggerSpeed": "1/4", "offset": -2, "stepShiftArea": "All", "transpose": 18 },
+          "slices": { "gridCount": 28 },
+          "padScale": { "scaleType": "Aeolian", "keyShift": -11 },
+          "midiScale": { "rootNote": 0 },
+          "insertFx": [
+            { "type": "LoFi", "type1": 3, "type2": 1, "params": [0.4, 0.15, 0.5292555403232437, 0.07323150742542817, 0.5264985294679262, 0.8731592841267931], "perType": { "Flanger": { "params": [0, 0, 0.3537959853821135, 0, 0, 0], "sync": true }, "Compressor": { "params": [0, 0, 0.12282654536260626, 0, 0, 0], "sync": true }, "Phaser": { "type1": 1, "params": [0, 0, 0, 0.3859214335565847, 0, 0] } } },
+            {}
+          ],
+          "send": { "amount": 111 },
+          "lfo": { "speed": 21.164941665678608, "depth": 30, "destination": 114, "shape": "SawUp", "triggerMode": "Trigger", "triggerOn": "Step" },
+          "midi": { "notes": [115, 31, 0, 0], "velocity": 90, "length": 49.89050986716854, "pitchBendValue": 7475, "cc1": [{}, {}, { "cc": 47, "value": 72, "active": true }, {}], "mode": "DrumMap" },
+          "routing": { "output": "Mono1" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Thru",
+          "triggerMode": "Gate",
+          "chokeGroup": 6,
+          "volume": 31,
+          "pan": -30,
+          "colour": 13,
+          "playback": { "sample": "sha256:d791a9d6c001bcd9940f9c3703a6dcb6a1d5fb6a75af2a12f7e808936222b8c4", "start": 750205, "loopStart": 750465, "length": 1905907, "loop": true, "pitchCents": 2109, "stretch": "MasterTempo", "x_future1": -55606595.52801347, "_extras": [{ "key": "sp16.node8", "encoding": "base64", "value": "AAECAwQFBgc=" }, { "key": "sp16.enum", "encoding": "text", "value": "WOBBLE" }] },
+          "ampEnv": { "attack": 0.31023684991356165, "release": 0.49990795768211077, "volumeIndex": 20, "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 8, "retriggerSpeed": "1", "offset": -6, "stepShiftArea": "All", "transpose": -8 },
+          "slices": { "gridCount": 55 },
+          "padScale": { "scaleType": "Dorian", "keyShift": -9 },
+          "midiScale": { "rootNote": 78 },
+          "insertFx": [
+            { "sync": true, "type2": 3, "params": [0.7534497137283052, 0.1, 0, 0.16962409126295477, 0.2244804979611423, 0.9], "perType": { "LoFi": { "params": [0, 0.37798812048707625, 0, 0, 0, 0], "sync": true } } },
+            { "type": "Distortion", "bypass": true, "type2": 1, "params": [0.9662762549095241, 0.9868768480384728, 0.03086813261607292, 0.95, 0.5806458052984285, 0.6504833538626926], "perType": { "Flanger": { "params": [0, 0, 0.8864360541320894, 0, 0, 0], "sync": true }, "InsertDelay": { "params": [0, 0, 0, 0.36901469992137087, 0, 0] }, "Compressor": { "params": [0, 0, 0, 0.879766933748701, 0, 0], "sync": true } } }
+          ],
+          "send": { "amount": 70 },
+          "lfo": { "speed": 19.231256677393, "depth": 74, "destination": 140, "shape": "SawUp", "triggerMode": "Trigger" },
+          "midi": { "notes": [15, 100, 0, 0], "velocity": 35, "length": 26.192164537498243, "pitchBendValue": 2952, "cc1": [{}, {}, { "cc": 70, "value": 123 }, {}], "program": 117, "mode": "DrumMap" },
+          "routing": { "output": "Mono7" },
+          "x_future1": {"k":0.6161979596672216,"list":[true,null,3]}
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ],
+      "sendFx": { "type": "Delay", "sync": true, "type1": 1, "type2": 1, "params": [0.7782657467291406, 0.7007371005971315, 0.06111357412997753, 0.46692217234479605, 0.37902219544255683, 0.24945126854370717], "perType": { "2BandEQ": { "params": [0, 0.3769938349505206, 0, 0, 0, 0] }, "Distortion": { "type1": 2, "params": [0, 0.930254322162809, 0, 0, 0, 0], "lookAhead": true }, "Phaser": { "type1": 1, "params": [0, 0.4315542899271974, 0, 0, 0, 0], "sync": true, "lookAhead": true } } },
+      "masterFx": { "type": "Flanger", "bypass": true, "type2": 1, "params": [0.85, 0.15794148871142916, 0.9663334269745758, 0.55, 0.2975135040299074, 0.4396423199567866], "perType": { "Reverb": { "type1": 1, "params": [0, 0.7779014951672191, 0, 0, 0, 0] } } },
+      "routing": { "assignMode": "4Assign", "headphoneSource": "Cue4", "fxMode": "Send" }
+    },
+    {
+      "name": "Intro",
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Thru",
+          "triggerMode": "Gate",
+          "chokeGroup": 7,
+          "volume": 45,
+          "pan": 37,
+          "colour": 5,
+          "name": "a/b\"q\"",
+          "playback": { "sample": "sha256:d791a9d6c001bcd9940f9c3703a6dcb6a1d5fb6a75af2a12f7e808936222b8c4", "start": 436482, "loopStart": 437358, "length": 1349603, "loop": true, "pitchCents": 2399, "stretch": "Resample" },
+          "ampEnv": { "attack": 0.40627070229129836, "hold": 0.48858114537494896, "release": 0.4168697831272588, "volumeIndex": 24, "velocitySensitive": false, "attackCurve": "Curve", "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 14, "offset": -1, "transpose": 8 },
+          "slices": { "grids": [8882946, 8178332, 754658, 1863229, 489741, 4858311, 10283173, 14628083], "gridCount": 20 },
+          "padScale": { "scaleType": "MinorPentatonic", "keyShift": 6 },
+          "midiScale": { "rootNote": 115 },
+          "insertFx": [
+            { "type": "Phaser", "bypass": true, "type1": 1, "type2": 2, "params": [0, 0.6, 0.9264712102953834, 0.9905151161174317, 0.11585204010522654, 0.18232876328020547], "perType": { "MultiModeFilter": { "type1": 1, "params": [0.7646268965836245, 0, 0, 0, 0, 0] }, "Compressor": { "type1": 2, "params": [0, 0, 0, 0.7762777531827847, 0, 0] }, "Ducker": { "params": [0, 0, 0, 0.3121312212749271, 0, 0] } } },
+            { "type": "InsertDelay", "bypass": true, "type1": 3, "type2": 2, "params": [0.7625761960307771, 0.05, 1, 0.05, 0.21544398472320875, 0.4457486211877966], "x_future1": {"k":-0.12179839143223614,"list":[true,null,3]} }
+          ],
+          "send": { "amount": 107 },
+          "lfo": { "speed": 21.958516302984528, "depth": 56, "destination": 153, "shape": "Square", "triggerMode": "Trigger", "triggerOn": "Both" },
+          "midi": { "notes": [58, 120, 0, 0], "velocity": 37, "length": 3.3666247332761308, "pitchBendValue": -4697, "cc1": [{}, {}, { "cc": 11, "value": 115, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 113 }
+        },
+        {
+          "mode": "Midi",
+          "chokeGroup": 2,
+          "volume": 11,
+          "pan": -1,
+          "colour": 1,
+          "playback": { "sample": "sha256:d791a9d6c001bcd9940f9c3703a6dcb6a1d5fb6a75af2a12f7e808936222b8c4", "start": 809050, "loopStart": 809740, "length": 2823262, "loop": true, "pitchCents": -1737, "stretch": "Resample" },
+          "ampEnv": { "attack": 0.06064207119899081, "hold": 0.6688175910640745, "release": 0.5935961375729554, "volumeIndex": 74, "sync": true, "velocitySensitive": false, "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 3, "retriggerSpeed": "1", "offset": 1, "transpose": 8 },
+          "padScale": { "scaleType": "Dorian", "keyShift": 3 },
+          "midiScale": { "rootNote": 97 },
+          "insertFx": [
+            { "type": "Distortion", "type1": 2, "type2": 3, "params": [0.6833254378620635, 0.7, 1, 0.6423598258261336, 0.20034936387683092, 0.25] },
+            {}
+          ],
+          "send": { "amount": 89 },
+          "lfo": { "speed": 26.519835879529417, "depth": 113, "destination": 9, "shape": "Triangle", "triggerMode": "Trigger", "triggerOn": "Step" },
+          "midi": { "notes": [30, 0, 0, 64], "velocity": 87, "length": 47.55037739788129, "pitchBendValue": 6552, "cc1": [{}, {}, { "cc": 56, "value": 99, "active": true }, {}], "program": 61, "mode": "DrumMap" },
+          "routing": { "output": "Mono6" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Thru",
+          "chokeGroup": 6,
+          "volume": 72,
+          "pan": -64,
+          "colour": 15,
+          "name": "back\\slashtab\tx",
+          "playback": { "sample": "sha256:983e93549019e0475dba352880174f8a85c08d40d3b84e328bfb39cd0954b18c", "start": 798650, "loopStart": 799351, "length": 3365938, "pitchCents": 97, "stretch": "Resample", "_extras": [{ "key": "sp16.node9", "encoding": "base64", "value": "AAECAwQFBgc=" }] },
+          "ampEnv": { "attack": 5.5300690196276675e-02, "hold": 0.6812785279115932, "release": 0.9858013532296828, "volumeIndex": 71, "velocitySensitive": false, "retrigger": true, "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 7, "retriggerSpeed": "1/4", "offset": 1, "transpose": 11 },
+          "slices": { "gridCount": 63 },
+          "padScale": { "scaleType": "Locrian", "keyShift": 12 },
+          "midiScale": { "rootNote": 54 },
+          "insertFx": [
+            { "type": "Chorus", "type2": 1, "params": [0.4881594779181445, 0.8, 0.25, 0.19001840216013524, 0.4587240582821233, 0.6045628669486489], "perType": { "Flanger": { "type1": 1, "params": [0, 0, 0.4599321982586183, 0, 0, 0], "sync": true }, "2BandEQ": { "type1": 2, "params": [0, 0, 0, 0, 0, 0.7182420196868372], "sync": true }, "InsertDelay": { "type1": 2, "params": [0, 0, 0, 0, 0, 0.16121241395442387], "sync": true }, "Phaser": { "params": [0.4144975250537361, 0, 0, 0, 0, 0] } } },
+            { "type": "LoFi", "type1": 1, "params": [0.44689415635745827, 0.4916387126223881, 0.4167232753060719, 0.4248391911971013, 0.25, 0.8779236100606685], "perType": { "Phaser": { "params": [0, 0, 0, 0, 0, 0.3753078412999789] } } }
+          ],
+          "send": { "amount": 21 },
+          "lfo": { "speed": 14.865104851432513, "depth": 77, "destination": 10, "shape": "Triangle", "triggerMode": "Trigger", "triggerOn": "Both" },
+          "midi": { "notes": [57, 0, 0, 0], "velocity": 114, "length": 20.484590048279696, "pitchBendValue": 4475, "cc1": [{}, {}, { "cc": 17, "value": 123 }, {}], "program": 122 },
+          "routing": { "output": "Mono6" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "mode": "Instrument",
+          "chokeGroup": 1,
+          "volume": 48,
+          "pan": -19,
+          "colour": 3,
+          "playback": { "start": 671515, "loopStart": 672024, "length": 3028076, "loop": true, "reverse": true, "pitchCents": -1794, "stretch": "MasterTempo" },
+          "ampEnv": { "attack": 0.2909504307210313, "hold": 0.7753289820524648, "release": 0.4554027997134542, "volumeIndex": 79, "velocitySensitive": false, "retrigger": true, "releaseCurve": "Curve" },
+          "seq": { "retriggerCount": 16, "retriggerSpeed": "1/6", "offset": -2, "transpose": 11 },
+          "slices": { "gridCount": 19 },
+          "padScale": { "scaleType": "Phrygian", "keyShift": -11 },
+          "midiScale": { "rootNote": 89 },
+          "insertFx": [
+            { "type": "Ducker", "sync": true, "type1": 1, "params": [0.30764731979041876, 0.2, 0.1549296900427141, 0.3076376038420087, 0.22461691871379144, 0.5], "perType": { "2BandEQ": { "params": [0, 0.8655750604649034, 0, 0, 0, 0] } } },
+            { "type": "Ducker", "sync": true, "params": [0.4, 0.22995738131696905, 0.1, 0.6250535734952692, 0.9, 2.0433171438477917e-02], "perType": { "2BandEQ": { "params": [0, 0, 0.39106888007899, 0, 0, 0] } } }
+          ],
+          "send": { "amount": 120 },
+          "lfo": { "speed": 2.3447589662518626, "depth": 6, "destination": 140, "shape": "Square", "triggerMode": "Trigger", "triggerOn": "Both" },
+          "midi": { "notes": [73, 94, 0, 64], "velocity": 47, "length": 28.959618218765108, "pitchBendValue": -2215, "cc1": [{}, {}, { "cc": 44, "value": 104, "active": true }, {}] },
+          "routing": { "output": "Out12" }
+        }
+      ],
+      "sendFx": { "type": "Chorus", "sync": true, "type1": 2, "params": [0.5, 0.5763430093786467, 0.6274888751087034, 0, 0.7799635266244702, 0.3], "perType": { "2BandEQ": { "type1": 1, "params": [0, 0, 0, 0.5961313859310536, 0, 0], "sync": true }, "MultiModeFilter": { "type1": 1, "params": [0, 0, 0, 0.49443220207036676, 0, 0], "sync": true }, "Distortion": { "type1": 1, "params": [0, 0, 0, 0, 0.9839282008682335, 0], "lookAhead": true } } },
+      "masterFx": { "type": "Phaser", "type1": 1, "type2": 2, "params": [0.5389920034279352, 0.4188732256392815, 0.12161211532393087, 0.4, 0.1668073234389883, 0], "perType": { "Compressor": { "type1": 1, "params": [0.8281500088292335, 0, 0, 0, 0, 0], "sync": true, "lookAhead": true } }, "x_future2": -257, "x_future1": "Introa/b", "_extras": [{ "key": "sp16.node5", "encoding": "base64", "value": "AAECAwQFBgc=" }, { "key": "sp16.enum", "encoding": "text", "value": "WOBBLE" }] },
+      "routing": { "headphoneSource": "Cue7", "fxMode": "Send", "afsAssignment": 13 }
+    },
+    {
+      "colour": 10,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 11,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 12,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 13,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "colour": 14,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 14,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ]
+    },
+    {
+      "name": "\u0001ctl\"q\"",
+      "colour": 15,
+      "tracks": [
+        {
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 1,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 2,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 3,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 4,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 5,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 6,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 7,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 8,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 9,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 10,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 11,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 12,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "colour": 13,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        },
+        {
+          "triggerMode": "Gate",
+          "volume": 85,
+          "pan": -20,
+          "mute": true,
+          "name": "x\ny\u0001ctl",
+          "playback": { "sample": "sha256:1ce63c66a4dbec6148bc4d87fa10a97ac732e95e41955a57683ab132c5bfdd4f", "start": 510455, "loopStart": 511280, "length": 752662, "pitchCents": -124, "stretch": "Resample", "_extras": [{ "key": "sp16.node2", "encoding": "base64", "value": "AAECAwQFBgc=" }] },
+          "ampEnv": { "attack": 0.33223886596214874, "hold": 0.24003358897501825, "release": 0.7973753754837483, "volumeIndex": 21, "sync": true, "retrigger": true, "attackCurve": "Curve" },
+          "seq": { "retriggerCount": 10, "retriggerSpeed": "1/6", "offset": 2, "transpose": 4 },
+          "slices": { "grids": [11245187, 12157124, 7881517], "gridCount": 32 },
+          "padScale": { "scaleType": "Phrygian", "keyShift": -12 },
+          "midiScale": { "rootNote": 110 },
+          "insertFx": [
+            { "type": "Flanger", "type2": 3, "params": [0.28992696881193597, 0.6672390273935696, 0.1, 0.9844814789265217, 0.35, 0.19062021328079778] },
+            { "type": "LoFi", "sync": true, "type1": 3, "type2": 2, "params": [0.29498238227592116, 0.4, 0.85, 0.2354399834676842, 0.8558813072762025, 0.9321368158487443], "perType": { "MultiModeFilter": { "params": [0, 0, 0, 0, 0, 0.6167636411721014] }, "InsertDelay": { "type1": 2, "params": [0, 0, 0, 0.731499245528505, 0, 0], "sync": true }, "Phaser": { "type1": 1, "params": [0.7285558088031623, 0, 0, 0, 0, 0], "sync": true } } }
+          ],
+          "send": { "amount": 92 },
+          "lfo": { "speed": 32.978032478162184, "depth": 97, "destination": 121, "shape": "Triangle", "triggerMode": "Trigger", "triggerOn": "Step" },
+          "midi": { "notes": [105, 0, 0, 0], "velocity": 113, "length": 7.2580767516769304, "pitchBendValue": -847, "cc1": [{}, {}, { "cc": 105, "value": 81, "active": true }, {}], "program": 21 },
+          "routing": { "output": "Mono5" },
+          "x_future2": {"k":0.01110604817058558,"list":[true,null,3]},
+          "x_future1": -852031892.0267397,
+          "_extras": [
+            { "key": "sp16.node7", "encoding": "base64", "value": "AAECAwQFBgc=" }
+          ]
+        },
+        {
+          "colour": 15,
+          "ampEnv": { "volumeIndex": 127 },
+          "seq": { "retriggerCount": 1, "retriggerSpeed": "1/4", "stepShiftArea": "All" },
+          "lfo": { "depth": 63, "triggerMode": "Trigger" }
+        }
+      ],
+      "sendFx": { "type": "2BandEQ", "type1": 1, "type2": 2, "params": [0.3, 0.6, 0.9213405577232943, 0.05, 0.9354015259335734, 0.7275414120981565], "perType": { "Delay": { "type1": 1, "params": [0, 0, 0, 0.6103871835742611, 0, 0], "sync": true, "lookAhead": true }, "Compressor": { "params": [0, 0.35730947245358885, 0, 0, 0, 0] } } },
+      "masterFx": { "type": "LoFi", "sync": true, "lookAhead": true, "type2": 3, "params": [0.6481104084116028, 0.8, 0.7548274329318791, 1, 0.8560893511252052, 0.65], "perType": { "Compressor": { "params": [0, 0.41068817254384044, 0, 0, 0, 0], "sync": true, "lookAhead": true }, "Distortion": { "type1": 1, "params": [0.04192752210722231, 0, 0, 0, 0, 0], "sync": true, "lookAhead": true } } },
+      "routing": { "headphoneSource": "Cue7", "fxMode": "Master", "afsAssignment": 11 }
+    }
+  ],
+  "arrangement": {
+    "length": 9,
+    "sections": [
+      { "scene": 8, "pattern": 5, "repeats": 10 },
+      { "scene": 15, "pattern": 13, "repeats": 5 },
+      { "scene": 12, "pattern": 4, "repeats": 12, "_extras": [{ "key": "sp16.record", "encoding": "base64", "value": "AAECAwQFBgc=" }] },
+      { "scene": 11, "pattern": 7, "repeats": 15 },
+      { "scene": 3, "pattern": 15, "repeats": 10 },
+      { "scene": 5, "pattern": 9, "repeats": 7 },
+      { "scene": 12, "pattern": 15, "repeats": 12 },
+      { "scene": 13, "pattern": 15, "repeats": 4 },
+      { "scene": 14, "pattern": 11, "repeats": 15 }
+    ]
+  },
+  "ribbon": {
+    "user": [
+      [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      [
+        {},
+        {},
+        {},
+        { "target": "track.volume", "top": 0.5271010224966205, "bottom": 0.32870792905249546 },
+        {},
+        {},
+        {},
+        {}
+      ]
+    ],
+    "pitchTopCents": 1933,
+    "pitchBottomCents": -200
+  },
+  "midi": {
+    "output": { "channels": [1, 2, 3, 4, 5, 8, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] }
+  }
+}

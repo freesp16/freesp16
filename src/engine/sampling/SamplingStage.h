@@ -15,13 +15,18 @@
 // written every block from its installation on (live sampling needs the past, SMP-024/028), whatever the state.
 //
 // Sampling state machine (SMP-002/005; sampling.rec scope = (scene << 4) | track):
-//   rec 1        Idle/Done → Standby (takeSeq + 1; SOURCE, THRESHOLD, LENGTH are fixed from here, SMP-001/002)
-//   Standby      OFF   → Recording at frame 0 of this block's capture
+//   rec 1        Idle/Done → Standby (takeSeq + 1; SOURCE, THRESHOLD, LENGTH, QUANTIZE are fixed from here,
+//                SMP-001/002)
+//   Standby      QUANTIZE n beats (ours; it replaces the THRESHOLD rule) → Recording at the next multiple of n
+//                      beats of the pattern pass (gridFrame, capped at the pass end), latency compensated; stopped →
+//                      at PLAY
+//                OFF   → Recording at frame 0 of this block's capture
 //                dB    → Recording at the first frame whose |x| exceeds the threshold, minus sampling.preRoll
 //                PLAY  → Recording at the sequencer start edge (Transport::startFrame), latency compensated (OQ-21)
 //   Recording    REC LENGTH n bars: end = start + n × 4 × 60 / BPM × fs exactly (BPM at the start) → Done
 //                REC LENGTH OFF: rec 0 ends it at this block's first frame (the disk is the limit, SMP-005)
 //   rec 0        Standby → Cancelled; Recording → Done (end = now)
+//   drop 1       (ours, scope = the take's scene / track) Standby or Recording → Cancelled: the take is thrown away
 // Latency (SMP-027): LINE IN lags the transport by the engine's input block (64 frames) + live.inputLatency (the
 // device's reported input latency); synced starts (PLAY, live boundaries) add it, RESAMPLE has none.
 //
@@ -64,15 +69,19 @@ enum class SamplingParam : std::uint8_t
     LiveNudge,
     LiveTakeReady,
     InputLatency,
+    Quantize,
+    Drop,
     Count
 };
 inline constexpr std::string_view kSamplingParamIds[] = {
     "sampling.source",  "sampling.threshold", "sampling.length", "sampling.rec",       "sampling.preRoll",
     "sampling.screenOpen", "live.mode",       "live.length",     "live.loopAfterRec", "live.rec",
-    "live.nudge",       "live.takeReady",     "live.inputLatency"};
+    "live.nudge",       "live.takeReady",     "live.inputLatency", "sampling.quantize", "sampling.drop"};
 static_assert(std::size(kSamplingParamIds) == static_cast<std::size_t>(SamplingParam::Count));
 
 enum class Source : std::uint8_t { LineIn, LineInL, LineInR, Resample }; // sampling.source order (SMP-001)
+// REC QUANTIZE (sampling.quantize): the wait of each index in beats (quarter notes); 0 = OFF.
+inline constexpr int kQuantizeBeats[] = {0, 1, 2, 4, 8, 16};
 
 inline constexpr SwapSlot kCaptureHubSlot {SwapSlot::LiveTake, core::sampling::kHubScene, core::sampling::kHubIndex};
 
@@ -117,6 +126,7 @@ private:
     Source ringSource() const noexcept { return ringSource_; } // what the ring captures this block
     int latencyFor(Source s) const noexcept { return s == Source::Resample ? 0 : kBlockFrames + inputLatency_; }
     void rec(bool on, std::uint16_t scope) noexcept;
+    void drop(std::uint16_t scope) noexcept;
     void publishTake() noexcept;
 
     InputStage input_;
@@ -131,6 +141,7 @@ private:
     int threshold_ = 0; // 0 OFF, 1…41 −60…−20 dB, 42 PLAY
     int lengthBars_ = 0; // 0 OFF, 1–4
     int preRollMs_ = 0;
+    int quantize_ = 0; // sampling.quantize index
     int inputLatency_ = 0;
     bool screenOpen_ = false;
     bool liveLoop_ = false;
@@ -140,6 +151,8 @@ private:
     RecState state_ = RecState::Idle;
     Source takeSource_ = Source::LineIn;
     int takeThreshold_ = 0, takeBars_ = 0, takeScene_ = 0, takeTrack_ = 0;
+    int takeBeats_ = 0;     // REC QUANTIZE in beats (0 = OFF)
+    int gridFrame_ = -1;    // schedule(): this block's REC QUANTIZE boundary frame (−1 = none)
     std::int64_t start_ = -1, end_ = -1;
     std::uint32_t seq_ = 0;
     bool stopRequested_ = false;

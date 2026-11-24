@@ -9,7 +9,7 @@ namespace ui
 {
 RectF RailItem::bounds() const noexcept
 {
-    return layout::railItem(index_, compact_);
+    return layout::railItem(index_, compact_, width_);
 }
 
 void RailItem::build(DrawList& dl, const UiContext& ctx) const

@@ -174,7 +174,7 @@ TEST_CASE("bench_fx_effects", "[bench]")
                     p->process(b.l, b.r, ctx);
                     bench::doNotOptimize(b.l[3]);
                 });
-            const double budget = d.id == "reverb" ? 40000.0 : (d.id == "delayBus" ? 12000.0 : 8000.0);
+            const double budget = d.id == "delayBus" ? 12000.0 : 8000.0;
             const std::string name =
                 "bench_fx_effect_" + std::string(d.id) + "_" +
                 (kind == SlotKind::Insert ? "insert" : (kind == SlotKind::Send ? "send" : "master"));

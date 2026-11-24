@@ -15,7 +15,9 @@
 // same JSON); a file not found there is looked up by name below the root (reported as matched by name).
 #pragma once
 
+#include "core/model/enums/Enums.h"
 #include "core/util/Result.h"
+#include "core/util/ampenv/EnvTime.h"
 
 #include <array>
 #include <cstdint>
@@ -62,10 +64,8 @@ struct ParamIndexMap
     std::map<std::string, std::vector<std::string>> pathAliases;
     // Volume token → sub-folder of the disk root ("" = the root itself). Unknown volumes resolve to the root, reported.
     std::map<std::string, std::string> volumes;
-    // PatternData.Steps value2: "ignore" (default) — a real project holds only 0–63 there, low values most common,
-    // which is no 0–127 velocity: the import plays every step at full velocity and keeps the stored pair per cell;
-    // "velocity" reads it as the step velocity (1–127; 0 → full).
-    bool stepValue2AsVelocity = false;
+    // (A "stepValue2" member of older user files is accepted and ignored: the step record's second field is its step
+    // number, never a velocity — StepMatrix.h.)
     std::string source = "built-in"; // or the user file's path
 
     static const ParamIndexMap& builtin();
@@ -74,6 +74,29 @@ struct ParamIndexMap
     int guesses() const noexcept;
     std::string basisSummary() const; // "4 observed, 3 research, 1 not imported, …"
 };
+
+// The importer's version, recorded in every imported project (core::model::ProjectOrigin::importer). Bump it with every
+// change that makes the importer read the same file differently, so projects saved from an older import can be told
+// apart (and re-imported) instead of being patched blindly:
+//   1  (implicit, before this field existed) step matrix read step-major, envelope norms copied as k/128
+//   2  step matrix track-major (record = track × 64 + step), envelope k/127, FX lock index bytes by effect
+inline constexpr int kImporterVersion = 2;
+
+// AmpEnvelopeData attackNorm / holdNorm / releaseNorm and the ordinal 5–7 locks: the reference stores the 0–127 display
+// value as k/127 (every value of two real 1.63 projects is a float32 k/127; the app's own form is k/128, EnvTime.h).
+// HOLD and RELEASE 1.0 is INFINITY (the reference's default HOLD 1.0 is the manual's default HOLD INFINITY); ATTACK
+// 1.0 is 127. The reference cannot hold a finite 127 on HOLD / RELEASE: it is written as 126 (`lossy` set).
+std::uint8_t envIndexFromReference(core::ampenv::EnvStage, double norm) noexcept;
+double envReferenceFromIndex(core::ampenv::EnvStage, std::uint8_t index, bool* lossy = nullptr) noexcept;
+
+// FX lock words (slots 23–28 FX1, 29–34 FX2; sub-slot k = (slot − 23) % 6): the index byte is the reference's
+// FxParamIndex (0–71), not the sub-slot. fxLockIndex is the byte the exporter writes for an effect's sub-slot, −1 when
+// none is known (the lock cannot be exported). Basis: the research's FxParamIndex rows (docs/effects/parameters.md)
+// for the effects that have one; the type-independent indices 11, 12, 13, 16 (sub-slots 0, 1, 2, 5, which "land on the
+// current effect") otherwise — and for the insert delay, whose locks a real project stores as 16, not as the
+// research's row (46–49). knownFxLockIndex: `idx` is a documented index of sub-slot `sub` for some effect.
+int fxLockIndex(core::model::EffectType, int sub) noexcept;
+bool knownFxLockIndex(int idx, int sub) noexcept;
 
 // The table an import uses: the user file when set and valid, else the built-in one (`note` says which / why).
 void setUserMapFile(const juce::File&);

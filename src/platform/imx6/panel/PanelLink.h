@@ -9,7 +9,9 @@
 // Threads: one reader thread (normal priority, never the audio thread) polls the link and a wake pipe. Per RX frame it
 // decodes the events, pushes pad hits straight into the engine's TriggerSink (UI-118) and queues every event into an
 // SPSC queue (reader → UI thread) that poll() drains; between frames it sends the TX frame the LampBus says is due
-// (on change, heartbeat ≤ 4 Hz). Only one process may own the link: this replaces the stock application.
+// (on change, heartbeat ≤ 4 Hz). The POWER/STANDBY key (RX 5.4) is no control event: its press is
+// io::requestStandby(), and after the app's enterStandby() the frames it sends carry the standby flag (PanelLamps.h).
+// Only one process may own the link: this replaces the stock application.
 #pragma once
 
 #include "core/util/SpscQueue.h"
@@ -35,9 +37,8 @@ struct PanelStats
 class PanelLink final : public io::ControlSource
 {
 public:
-    // `board` (may be null): every HP CUTOFF pot change also goes to the analog filter's DAC (AnalogBoard.h).
-    PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace,
-              std::shared_ptr<panel::AnalogBoard> board = {});
+    // `powerActiveLow`: the power key's bit reads 0 when pressed (the hardware; false for the emulator).
+    PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace, bool powerActiveLow = true);
     ~PanelLink() override;
     std::string_view id() const override { return "panel"; }
     bool start(std::string& info) override; // opens and configures the link, starts the reader thread
@@ -52,7 +53,6 @@ private:
 
     engine::TriggerSink* triggers_;
     std::shared_ptr<panel::LampBus> lamps_;
-    std::shared_ptr<panel::AnalogBoard> board_;
     bool trace_;
     panel::PanelDecoder decoder_;
     io::PadCalibration padBase_ {}; // the calibration UTILITY's pad preferences apply over (PanelPads.h)
@@ -62,6 +62,9 @@ private:
     int fd_ = -1, wakeRead_ = -1, wakeWrite_ = -1;
     std::thread thread_;
     std::atomic<bool> quit_ {false}, running_ {false};
+    std::atomic<int> powerLevel_ {-1}; // the power key's raw bit (reader → poll's trace)
+    int powerTraced_ = -1;
+    bool powerActiveLow_;
     std::atomic<long> frames_ {0}, badCrc_ {0}, shortReads_ {0}, txFrames_ {0}, txErrors_ {0}, dropped_ {0};
 };
 } // namespace platform::imx6

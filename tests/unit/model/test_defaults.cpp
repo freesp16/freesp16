@@ -63,7 +63,7 @@ TEST_CASE("the default project carries the spec's defaults", "[model]")
     CHECK(t.lfo.triggerMode == LfoTriggerMode::Retrigger);
     // MIDI track
     CHECK(t.midi.notes[0] == 60); // C5
-    CHECK(t.midi.notes[1] == -1);
+    CHECK(t.midi.notes[1] == 0); // NOTE2: OFF (semitones from NOTE)
     CHECK(t.midi.velocity == 100);
     CHECK(t.midi.length == 1.0);
     CHECK(t.midi.cc1[0].cc == 7);

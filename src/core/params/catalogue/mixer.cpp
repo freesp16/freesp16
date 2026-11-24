@@ -53,6 +53,12 @@ void addMixerParams(ParamRegistry& r)
            .storage = {.reference = "mute"}});
     r.add({.id = "track.solo", .label = "SOLO", .shortLabel = "SOLO", .group = "TRACK", .type = ParamType::Bool,
            .minValue = 0, .maxValue = 1, .defaultValue = 0, .scope = ParamScope::Track, .storage = {.reference = "solo"}});
+    // What MUTE (and another track's SOLO) does to this track — our addition, per track: STOP SOUND (default: the
+    // track is silenced at once) or STOP STEPS (the sequencer skips the track's steps; what is sounding rings out,
+    // pads still play). Saved in the track's extras ("native.muteMode"); the TRACK MENU's MUTE button toggles it.
+    r.add({.id = "track.muteMode", .label = "MUTE MODE", .shortLabel = "MUTEMODE", .group = "TRACK",
+           .type = ParamType::Enum, .minValue = 0, .maxValue = 1, .defaultValue = 0, .enumLabels = muteModeLabels,
+           .scope = ParamScope::Track});
     r.add({.id = "track.sendChannel", .label = "SEND TO", .shortLabel = "SEND TO", .group = "TRACK",
            .type = ParamType::Enum, .minValue = 0, .maxValue = 1, .defaultValue = 0, .enumLabels = sendChannelLabels,
            .scope = ParamScope::Track, .storage = {.key = "track.send.channel", .reference = "channel"}});
@@ -78,11 +84,6 @@ void addMixerParams(ParamRegistry& r)
     r.add({.id = "mixer.masterLimiter", .label = "MASTER LIMITER", .shortLabel = "MSTR LIM", .group = "MIXER",
            .type = ParamType::Enum, .minValue = 0, .maxValue = 1, .defaultValue = 0, .enumLabels = offOnLabels,
            .scope = ParamScope::Global, .storage = {.key = "prefs.mixer.masterLimiter"}});
-    // What MUTE does — STOP SOUND (default: the track is silenced at once) or STOP STEPS (the sequencer
-    // skips the track's steps; what is sounding rings out, pads still play). The pad's muted lamp is the same.
-    r.add({.id = "mixer.muteMode", .label = "MUTE MODE", .shortLabel = "MUTEMODE", .group = "MIXER",
-           .type = ParamType::Enum, .minValue = 0, .maxValue = 1, .defaultValue = 0, .enumLabels = muteModeLabels,
-           .scope = ParamScope::Global, .storage = {.key = "prefs.mixer.muteMode"}});
     r.add({.id = "mixer.outputTrim", .label = "OUTPUT TRIM", .shortLabel = "TRIM", .group = "MIXER",
            .type = ParamType::Integer, .minValue = 0, .maxValue = 1023, .defaultValue = 1023, .coarseStep = 8,
            .fineStep = 1, .format = formatIndex, .scope = ParamScope::Global,

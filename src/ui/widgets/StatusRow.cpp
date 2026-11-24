@@ -106,11 +106,33 @@ void StatusRow::build(DrawList& dl, const UiContext& ctx) const
     }
     // CPU: the value left-aligned in a fixed "100%" field ending at the slot, so the label does not move as the digits
     // change.
+    const auto width = [&ctx](std::string_view s)
+    { return ctx.measure ? ctx.measure(TextStyleId::Caption, s) : 8.0f * static_cast<float>(s.size()); };
     if (! model_.cpu.empty())
     {
-        const float field = ctx.measure ? ctx.measure(TextStyleId::Caption, "100%") : 32.0f;
+        const float field = width("100%");
         dl.text(ix - field, cy, Align::Left, TextStyleId::Caption, model_.cpuHigh ? p.warn : p.text2, model_.cpu);
         dl.text(ix - field - kCpuGap, cy, Align::Right, TextStyleId::Caption, p.text3, "CPU");
+        ix -= field + kCpuGap + width("CPU") + tk::space[5];
+    }
+    // MUTE / SOLO: a filled badge, right-aligned before the indicators, the MUTE MODE detail after it.
+    if (model_.padMute != UiState::PadMuteView::None)
+    {
+        const bool solo = model_.padMute == UiState::PadMuteView::Solo;
+        const std::string_view label = solo ? "SOLO" : "MUTE";
+        const auto detail = solo ? std::string_view{} : model_.muteMode;
+        // In the breadcrumb's Label style, so the badge reads as well as the screen's name.
+        const auto labelW = [&ctx](std::string_view s)
+        { return ctx.measure ? ctx.measure(TextStyleId::Label, s) : 9.0f * static_cast<float>(s.size()); };
+        float right = ix;
+        if (! detail.empty())
+        {
+            dl.text(right, cy, Align::Right, TextStyleId::Label, p.text1, detail);
+            right -= labelW(detail) + static_cast<float>(tk::space[3]);
+        }
+        const float w = labelW(label) + 2 * static_cast<float>(tk::space[4]), h = 30;
+        dl.fill({right - w, cy - h / 2, w, h}, solo ? p.warn : p.accent, tk::radiusXs);
+        dl.text(right - w / 2, cy, Align::Centre, TextStyleId::Label, p.onAccent, label);
     }
 }
 

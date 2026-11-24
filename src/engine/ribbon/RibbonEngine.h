@@ -29,6 +29,8 @@
 //     moment REPEAT became active (first hit one interval later; the pad hit itself is the first note). A rate change
 //     applies from the last hit. A pad newly held skips repeats within half an interval of its own hit (no flam).
 //     Velocity = the pad's last pressure (pressure 0 → 1), the hit's velocity until a pressure arrives (RIB-003).
+//     A repeat replays the last pad hit of its track: its scale note (SCALE pad mode: the hit's semitones) and, in
+//     the track source, its slice (SLICE pad mode). With REC armed the sequencer records the repeats (RIB-008, ours).
 //
 // Real-time: fixed arrays, no allocation, no locks, no virtual call; publish() touches the matrix only when the
 // ribbon's output changed. Budget: ≤ 1.5k cycles per block with 8 USER items × 4 held tracks (bench_ribbon).
@@ -145,6 +147,7 @@ private:
     // Pads (observe): presses minus releases per track, the hit velocity, the last pressure (−1 = none yet).
     std::array<std::uint8_t, kTracks> heldCount_ {};
     std::array<std::uint8_t, kTracks> velocity_ {};
+    std::array<std::int8_t, kTracks> semitones_ {}; // the held pad's note (SCALE pad mode): the repeats play it too
     std::array<std::int16_t, kTracks> pressure_ {};
     std::array<double, kTracks> sincePress_ {}; // frames since the pad's own hit (REPEAT no-flam rule)
     std::uint16_t held_ = 0, sticky_ = 0, targets_ = 0;

@@ -1,5 +1,7 @@
 #include "io/midi/MidiSender.h"
 
+#include "core/util/ThreadRole.h"
+
 #include <pthread.h>
 #include <sched.h>
 #include <time.h>
@@ -25,22 +27,20 @@ void MidiSender::setOutput(int port, MidiOutput* output)
 {
     if (port < 0 || port >= kPorts)
         return;
-    std::lock_guard<std::mutex> lock(portsMutex_);
+    std::lock_guard<core::PiMutex> lock(portsMutex_);
     outputs_[static_cast<std::size_t>(port)] = output;
     if (output != nullptr)
         clearFailed(port);
 }
 
-bool MidiSender::start(std::string& info, int priority)
+bool MidiSender::start(std::string& info)
 {
     if (thread_.joinable())
         return true;
     quit_ = false;
     std::atomic<int> rt {-1};
-    thread_ = std::thread([this, priority, &rt] {
-        sched_param p {};
-        p.sched_priority = priority;
-        rt = pthread_setschedparam(pthread_self(), SCHED_FIFO, &p) == 0 ? 1 : 0; // best effort
+    thread_ = std::thread([this, &rt] {
+        rt = core::threads::apply(core::threads::Role::MidiOut, "midi-out").realtime ? 1 : 0; // best effort
         run();
     });
     while (rt.load() < 0) // the thread reports its priority at once (no atomic wait: GCC 11 / glibc 2.13 device)
@@ -62,7 +62,7 @@ void MidiSender::stop()
 
 bool MidiSender::write(int port, const std::uint8_t* bytes, int size) noexcept
 {
-    std::lock_guard<std::mutex> lock(portsMutex_);
+    std::lock_guard<core::PiMutex> lock(portsMutex_);
     MidiOutput* out = outputs_[static_cast<std::size_t>(port)];
     if (out == nullptr || failed(port))
         return false;
@@ -95,7 +95,8 @@ void MidiSender::forward() noexcept
             {
                 const int mode = hub_.portMode(p);
                 const bool wants = (in == 0 && (mode == 1 || mode == 3)) || (in == 1 && (mode == 2 || mode == 4));
-                if (wants && (hub_.outputMask() >> p & 1u) && write(p, e.bytes, e.size))
+                const bool hardware = (hardwareThru_.load(std::memory_order_relaxed) >> p & 1u) != 0;
+                if (wants && ! hardware && (hub_.outputMask() >> p & 1u) && write(p, e.bytes, e.size))
                     forwarded_.fetch_add(1, std::memory_order_relaxed);
             }
     }

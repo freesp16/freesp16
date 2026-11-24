@@ -6,17 +6,21 @@
 //   pad routing   a pad hit (TriggerNow::pad ≥ 0) plays by the pad mode (PAD-001): PLAY = track n, TRACK / MUTE =
 //                 no sound (the message thread selects / mutes), SLICE = the selected track playing the pad's slice
 //                 (a slice-number lock, engine/voice/SliceMapPads.h), SCALE = the selected track at the pad's scale
-//                 degree (PAD-010…013); SHIFT held = select only (PAD-004). A pad release goes to the track its press
-//                 played, whatever the mode is by then.
+//                 degree (PAD-010…013; a MIDI track: SET SCALE (MIDI)'s note, PAD-020); SHIFT held = select only
+//                 (PAD-004). A pad release goes to the track its press played, whatever the mode is by then.
 //   MIDI          TriggerNow::pad < 0: track = TriggerNow::track, semitones = note − 60, velocity 0 = note off (TRK-011)
 //   choke         a Full trigger stops every other track of its choke group in the current scene with the voice's
 //                 2 ms fade (TRK-020); groups are one 16-bit mask per scene and group
 //   gate          GATE tracks take pad/MIDI hits gated, release on pad up; sequencer events are One Shot (SEQ-015)
 //   locks         the mixer's volume/pan/send/mute lock slots per trigger (Mixer::applyLocks, null = revert)
 //   ducks         Full/Half from any source on an unmuted track (SEQ-027, consumed by the Ducker)
-//   live hits     Full pad/MIDI hits also go to the LiveHitSink (the sequencer records them, PAD-005)
+//   live hits     Full pad/MIDI hits also go to the LiveHitSink (the sequencer records them, PAD-005), and the touch
+//                 strip's REPEAT hits (recorded onto the steps while REC is armed; the reference does not, RIB-008);
+//                 MIDI notes, SCALE pads and the REPEAT hits of a held SCALE pad are "pitched": the recorder keeps
+//                 their semitones
 //
-// blockEvents() lists the block's applied events (with `ducks` set) for the Ducker and the pad-flash feed.
+// blockEvents() lists the block's applied events (with `ducks` set) for the Ducker; hits(t) counts track t's
+// Full / Half triggers for the pad-flash feed (PlayheadFeed::trackHits).
 // Performance: ≤ 6 µs per block on the A9 for 64 events — insertion sort, no allocation, no
 // virtual call per event except the optional LiveHitSink (one per live hit).
 #pragma once
@@ -38,7 +42,9 @@ class LiveHitSink
 {
 public:
     virtual ~LiveHitSink() = default;
-    virtual void onLiveHit(const TriggerEvent&) noexcept = 0; // the sequencer records (PAD-005)
+    // The sequencer records (PAD-005). `pitched`: a MIDI note, a SCALE pad or a REPEAT hit in SCALE pad mode, whose
+    // semitones are the note played.
+    virtual void onLiveHit(const TriggerEvent&, bool pitched) noexcept = 0;
 };
 
 class TriggerRouter
@@ -71,6 +77,12 @@ public:
     // current scene at once (TRK-002).
     void setTrackParam(int scene, int track, TrackField, float value) noexcept;
     void setPadParam(PadField, float value) noexcept;
+    // NOTE 1 of a MIDI track (midi.note1, from the MIDI engine): the reference of its SCALE pads (scalePadSemitones).
+    void setMidiNote1(int scene, int track, int note) noexcept
+    {
+        settings_[scene & 15][track & 15].midiNote1 =
+            static_cast<std::int8_t>(note < 0 ? 0 : (note > 127 ? 127 : note));
+    }
     void setScene(int scene) noexcept;
     void process(BlockContext&) noexcept; // sort by frame, choke, drive the 16 TrackSources
 
@@ -92,6 +104,8 @@ public:
         return {events_.data(), static_cast<std::size_t>(numEvents_)};
     }
     std::uint64_t dropped() const noexcept { return dropped_; } // events refused because a block was full
+    // Track t's applied Full / Half triggers so far, wrapping (PlayheadFeed::trackHits).
+    std::uint16_t hits(int track) const noexcept { return hits_[static_cast<std::size_t>(track & 15)]; }
 
 private:
     TrackSource* sources_ = nullptr; // kTracks of them
@@ -107,6 +121,7 @@ private:
     std::array<TriggerEvent, kMaxEvents> events_, applied_; // no braces (GCC 11 build time): written before read
     int numEvents_ = 0, numApplied_ = 0;
     std::uint64_t dropped_ = 0;
+    std::array<std::uint16_t, kTracks> hits_ {};
     std::array<std::int8_t, kTracks> chokedAt_ {}, startedAt_ {}; // this block's choke / hit frame per track (−1 none)
     std::uint32_t mixerLocked_ = 0; // bit t = the last trigger of track t locked a mixer slot (its revert is due)
     static constexpr std::uint64_t kMixerLockSlots = 1u << mixer::kLockVolume | 1u << mixer::kLockPan

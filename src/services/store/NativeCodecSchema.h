@@ -716,11 +716,26 @@ void schema(V& v, T& o, const m::SamplePool& d)
     v.end();
 }
 
-// project.json below "format": everything but steps and the sample pool.
+template <typename V, typename T>
+void schema(V& v, T& o, const m::ProjectOrigin& d)
+{
+    v.begin();
+    v.field("format", o.format, d.format);
+    v.field("file", o.file, d.file);
+    v.field("contentId", o.contentId, d.contentId);
+    v.field("sourceVersion", o.sourceVersion, d.sourceVersion);
+    v.field("sourceMinorVersion", o.sourceMinorVersion, d.sourceMinorVersion);
+    v.field("importer", o.importer, d.importer);
+    v.end();
+}
+
+// project.json below "format": everything but steps and the sample pool. "origin" (schema 3) only for an imported
+// project.
 template <typename V, typename T>
 void schema(V& v, T& o, const m::Project& d)
 {
     v.begin(o.extras);
+    v.object("origin", o.origin, d.origin);
     v.object("settings", o.settings, d.settings, Layout::Lines);
     v.objectsUniform("scenes", o.scenes, d.scenes[0], Layout::Lines);
     v.object("arrangement", o.arrangement, d.arrangement, Layout::Lines);

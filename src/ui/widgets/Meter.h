@@ -30,6 +30,7 @@ struct MeterModel
     float faderDb = 0.0f; // fader marker position; < −119 = no marker
     bool scale = true;    // dB labels right of the bars
     bool dim = false;     // 40 % (muted strip, non-soloed strip while a solo is on)
+    bool markerOver = false; // fader marker as a cap across the bars instead of a triangle right of them
 };
 
 class Meter final : public Widget
@@ -43,11 +44,22 @@ public:
     void build(DrawList&, const UiContext&) const override;
     bool dirty(double nowMs) const override;
 
-    // A full 88-wide meter column at x (bars at x + 12 on a 12 lpx pitch, labels to x + 84), y 152–600.
+    // A full 88-wide meter column at x, y 152–608: caption and bars centred at x + kColCentre (two 8 lpx bars on a
+    // 10 lpx pitch, the fader marker a cap across them), the dB scale right-aligned at x + kColScaleR — the same
+    // look as the MIXER's bus meters (drawBusPair).
+    static constexpr float kColCentre = 28, kColScaleR = 86;
     static void drawColumn(DrawList&, const UiContext&, float x, const MeterModel&);
     // Two bars of width 8 at x and x + pitch over [top, bottom] (+ peak lines, clip caps); the fader marker right of
     // the last bar.
     static void drawBars(DrawList&, const UiContext&, float x, float top, float bottom, float pitch, const MeterModel&);
+    // The compact bus pair right of the MIXER / OUTPUT SETTING strips (template rail+content+meters2, its meter and
+    // meter2 columns): two 48-wide columns at kBusX and kBusX + kBusPitch, captions at y 160 and the bars centred under
+    // them over y 184–600 with the fader marker across the bars — bars only, no dB scale (hardware feedback: the
+    // room goes to the strips).
+    static constexpr float kBusX = 1168, kBusPitch = 48, kBusW = 48;
+    static constexpr float kBusTop = 184, kBusBottom = 600;
+    static void drawBusPair(DrawList&, const UiContext&, std::string_view leftCaption, const MeterModel& left,
+                            std::string_view rightCaption, const MeterModel& right);
     // The model of the MASTER (binds "master") or SEND (binds "send") meter at nowMs (feeds null = silent).
     static MeterModel bus(std::string_view binds, const EngineFeeds* feeds, const UiState* state,
                           double nowMs) noexcept;

@@ -7,6 +7,7 @@
 #include "core/model/ModelOps.h"
 #include "core/model/enums/ValueLists.h"
 #include "core/params/ParamRegistry.h"
+#include "core/util/ampenv/EnvTime.h"
 #include "services/interop/sp16/Sp16Import.h"
 #include "services/interop/sp16/Sp16ProjectCodec.h"
 #include "tests/unit/interop/Fixtures.h"
@@ -73,8 +74,9 @@ TEST_CASE("prj observed: the encodings of a real 1.6x project map without unknow
     const auto& t0 = s0.tracks[0];
     CHECK(t0.chokeGroup == 0); // −1 = none
     CHECK(t0.playback.stretchMode == m::StretchMode::MasterTempo); // "MT"
-    CHECK(t0.ampEnv.attack == Approx(10.0 / 127));
-    CHECK(t0.ampEnv.release == Approx(40.0 / 127));
+    // Stored k/127 (float32 widened): the model's own k/128 form of index k.
+    CHECK(t0.ampEnv.attack == core::ampenv::storedFromIndex(10));
+    CHECK(t0.ampEnv.release == core::ampenv::storedFromIndex(40));
     CHECK(t0.ampEnv.velocitySensitive);
     CHECK(t0.ampEnv.retrigger);
     CHECK(t0.insertFx[0].type == m::EffectType::MultiModeFilter);
@@ -92,7 +94,7 @@ TEST_CASE("prj observed: the encodings of a real 1.6x project map without unknow
     const auto def = m::defaultTrack(0);
     CHECK(t0.seq.stepShiftArea == def.seq.stepShiftArea);                        // −1 = none: the default
     CHECK(t0.midi.mode == def.midi.mode);                                        // −1 = none: the default
-    CHECK(t0.midi.notes[1] == -1);                                               // 0 = off
+    CHECK(t0.midi.notes[1] == 0);                                                // 0 = off
     CHECK(t0.midi.length == 1.0);                                                // 4 quarter steps
 
     const auto& t1 = s0.tracks[1];
@@ -132,7 +134,7 @@ TEST_CASE("prj observed: the encodings of a real 1.6x project map without unknow
     CHECK(p.ribbon.pitchBottomCents == -1200);
     CHECK(p.ribbon.user[0][0].target.empty()); // 255 = none
 
-    // Steps: full velocity (value2 kept), the observed lock ordinals.
+    // Steps: full velocity (the record has none), the observed lock ordinals.
     const auto& pat = s0.patterns[0];
     for (const auto [step, track] : {std::pair {0, 0}, {4, 0}, {8, 0}, {12, 0}, {2, 1}, {10, 1}})
         CHECK(pat.steps[static_cast<std::size_t>(step)][static_cast<std::size_t>(track)].value2 == 127);
@@ -159,23 +161,15 @@ TEST_CASE("prj observed: the encodings of a real 1.6x project map without unknow
     REQUIRE(steps != nullptr);
     auto records = decodeSteps(steps->bin);
     REQUIRE(records);
-    CHECK(encodePattern(pat, ParamIndexMap::builtin()) == records.value());
+    const auto fx = insertTypesOf(s0);
+    CHECK(encodePattern(pat, ParamIndexMap::builtin(), &fx) == records.value());
     int cellsWithExtras = 0;
     for (const auto& e : pat.extras.entries)
         cellsWithExtras += e.key.rfind("sp16.step[", 0) == 0 ? 1 : 0;
-    CHECK(cellsWithExtras == 2); // step 9's FX index byte, step 13's ordinal-10 word (value2: one blob per pattern)
-    CHECK(pat.extras.find("sp16.PatternData.value2") != nullptr);
-
-    // stepValue2 "velocity" reads value2 as the step velocity (0 → full).
-    auto custom = ParamIndexMap::builtin();
-    custom.stepValue2AsVelocity = true;
-    const auto user = interop_test::temp().dir().getChildFile("velocity-map.json");
-    REQUIRE(user.replaceWithText(juce::String(custom.toJson())));
-    setUserMapFile(user);
-    services::store::ImportReport r2;
-    auto v = importProjectFile(g.prj, {}, r2);
-    setUserMapFile(juce::File());
-    REQUIRE(v);
-    CHECK(v.value()->scenes[0].patterns[0].steps[4][0].value2 == 22);
-    CHECK(v.value()->scenes[0].patterns[0].steps[0][0].value2 == 127);
+    CHECK(cellsWithExtras == 2); // step 9's FX index byte (9: not the MMF k5 index 45), step 13's ordinal-10 word
+    CHECK(pat.extras.find("sp16.PatternData.value2") == nullptr);
+    for (int k = 0; k < 1024; ++k)
+        if (records.value()[static_cast<std::size_t>(k)].programmed())
+            CHECK(records.value()[static_cast<std::size_t>(k)].namesPosition(stepOfRecord(static_cast<std::size_t>(k)),
+                                                                             trackOfRecord(static_cast<std::size_t>(k))));
 }

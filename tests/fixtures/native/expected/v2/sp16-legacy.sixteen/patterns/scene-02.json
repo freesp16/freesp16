@@ -1,0 +1,13 @@
+{
+  "scene": 2,
+  "patterns": [
+    {
+      "index": 1,
+      "steps": [
+        { "track": 1, "step": 1, "trigger": 15, "velocity": 127 },
+        { "track": 5, "step": 4, "trigger": 15, "velocity": 127 },
+        { "track": 12, "step": 16, "trigger": 15, "velocity": 127, "locks": { "pitch": -12 } }
+      ]
+    }
+  ]
+}

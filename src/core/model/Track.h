@@ -103,7 +103,7 @@ struct MidiCcParam
 
 struct MidiTrack // MIDI track settings (NOTE, CC1, CC2, bank/program, mode)
 {
-    std::array<int, 4> notes {60, -1, -1, -1}; // base + 3 harmony, -1 = off
+    std::array<int, 4> notes {60, 0, 0, 0};    // NOTE 0–127, then NOTE2–4 as semitones from it (−127…127, 0 = off)
     int velocity = 100;                         // 0 = OFF, 1–127
     double length = 1.0;                        // steps, 0.25–64
     bool noteBypass = false;

@@ -14,6 +14,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <vector>
 
 using namespace snapshot;
 using m4test::M4Fixture;
@@ -25,15 +26,38 @@ TEST_CASE("snapshot.m4.set_scale: SET SCALE (ui/screens/setscale) matches set-sc
     Session session;
     M4Fixture m;
     m.shell().selectTrack(5);
-    m.set("scale.type", 5, 2); // MINOR
+    m.set("scale.type", 5, 6); // AEOLIAN (natural minor, the mockup's MINOR)
     REQUIRE(m.open("track.playback"));
     REQUIRE(m.open("track.playback.setScale"));
     CHECK(m.shell().railFocus() == 0); // SCALE holds the focus
+    // Manual p.25–28: AREA knob 1, TIME STRETCH knob 2, KEY SHIFT knob 3.
+    CHECK(m.shell().boundColumn(0)->id == "scale.area");
+    CHECK(m.shell().boundColumn(1)->id == "playback.timeStretch");
+    CHECK(m.shell().boundColumn(2)->id == "scale.keyShift");
     const auto ours = m.f.image();
     const auto& mock = m4test::m4mockup("set-scale");
     CHECK(compare(ours, mock, ui::ScaleMap::kPanel, "m4-set-scale-degrees").match >= kGate);
     CHECK(compare(ours, mock, ui::PadMap::kPanel, "m4-set-scale-pads").match >= kGate);
     CHECK(compare(ours, mock, L::canvas, "m4-set-scale").match >= kGate);
+}
+
+TEST_CASE("m4ui.set_scale: TRACK MENU's SET SCALE button binds AREA to knob 1 and ROOT NOTE to knob 3", "[m4]")
+{
+    M4Fixture m;
+    for (const int mode : {1, 3}) // MIDI, TORAIZ AS-1
+    {
+        m.set("track.mode", 10, static_cast<float>(mode));
+        m.shell().selectTrack(10);
+        REQUIRE(m.open("track.menu"));
+        m.f.turn(io::Control::Selector, 3); // SELECT CH → BANK SELECT → PROG CHANGE → SET SCALE
+        m.f.settle();
+        REQUIRE(m.shell().stripTab() == "SET SCALE");
+        CHECK(m.shell().boundColumn(0)->id == "scaleMidi.area");
+        CHECK(m.shell().boundColumn(1) == nullptr);
+        CHECK(m.shell().boundColumn(2)->id == "scaleMidi.root");
+        m.f.press(io::Control::Back);
+        m.f.settle();
+    }
 }
 
 TEST_CASE("m4ui.set_scale: the MIDI variant shows note names from ROOT; AREA / ROOT columns; SCALE list", "[m4]")
@@ -42,12 +66,14 @@ TEST_CASE("m4ui.set_scale: the MIDI variant shows note names from ROOT; AREA / R
     m.shell().selectTrack(10);
     REQUIRE(m.open("track.setScaleMidi"));
     CHECK(m.shell().current().parent == "track.menu");
+    // Manual p.27–28: AREA on parameter knob 1, ROOT NOTE on parameter knob 3 (knob 2, TIME STRETCH, is SAMPLE only).
     CHECK(m.shell().boundColumn(0)->id == "scaleMidi.area");
-    CHECK(m.shell().boundColumn(1)->id == "scaleMidi.root");
-    CHECK(m.shell().boundColumn(2) == nullptr);
+    CHECK(m.shell().boundColumn(1) == nullptr);
+    CHECK(m.shell().boundColumn(2)->id == "scaleMidi.root");
+    CHECK(m.shell().boundColumn(3) == nullptr);
     CHECK(m.hasText("C5")); // pad 1 = the root C5 (60), chromatic
     CHECK(m.hasText("D#5"));
-    m.f.turn(io::knob(2), 2); // ROOT D5
+    m.f.turn(io::knob(3), 2); // ROOT D5
     m.f.settle();
     CHECK(m.hasText("D5"));
     CHECK_FALSE(m.hasText("C5"));
@@ -58,7 +84,7 @@ TEST_CASE("m4ui.set_scale: the MIDI variant shows note names from ROOT; AREA / R
     m.f.settle();
     CHECK(m.get("scaleMidi.type", 10) == 1);
     CHECK(m.get("scale.type", 10) == 0); // the sample-track scale is a different parameter
-    // The SCALE popup draws a degree strip per row (12 ticks: 7 filled for MAJOR on the current row).
+    // The SCALE popup draws a degree strip per row (12 ticks: 7 filled for IONIAN on the current row).
     m.f.press(io::Control::SelectorPush);
     m.f.settle();
     const auto& dark = ui::theme::palette(true);
@@ -66,6 +92,66 @@ TEST_CASE("m4ui.set_scale: the MIDI variant shows note names from ROOT; AREA / R
     for (const auto& c : m.f.dl.commands())
         ticks += c.op == ui::DrawCmd::Op::Fill && c.argb == dark.accent && c.rect.w == 1.5f;
     CHECK(ticks == 7);
+}
+
+TEST_CASE("m4ui.set_scale: the key last played from a pad is white and keeps its note (the manual's 1.6)", "[m4]")
+{
+    const auto& dark = ui::theme::palette(true);
+    auto whitePads = [&](M4Fixture& m)
+    {
+        std::vector<int> out;
+        for (int pd = 0; pd < 16; ++pd)
+            for (const auto& c : m.f.dl.commands())
+                if (c.op == ui::DrawCmd::Op::Fill && c.argb == dark.text1 && c.rect.x == ui::PadMap::cell(pd).x
+                    && c.rect.y == ui::PadMap::cell(pd).y && c.rect.w == ui::PadMap::kCellW)
+                {
+                    out.push_back(pd);
+                    break;
+                }
+        return out;
+    };
+    SECTION("MIDI: the key is a note")
+    {
+        M4Fixture m;
+        m.set("track.mode", 10, 1);
+        m.shell().selectTrack(10);
+        REQUIRE(m.open("track.setScaleMidi"));
+        m.f.settle();
+        CHECK(whitePads(m) == std::vector<int> {0}); // the root until a pad is pressed
+        m.state().tracks[9].scaleKey = 64;           // a SCALE pad played E5 (pad 5, chromatic from C5)
+        CHECK(m.shell().body()->dirty(m.f.now));
+        m.f.settle();
+        CHECK(whitePads(m) == std::vector<int> {4});
+        m.set("scaleMidi.root", 10, 62); // ROOT D5: E5 is now pad 3
+        m.f.settle();
+        CHECK(whitePads(m) == std::vector<int> {2});
+        m.set("scaleMidi.type", 10, 1); // IONIAN from D: D E F# …, E5 = pad 2
+        m.f.settle();
+        CHECK(whitePads(m) == std::vector<int> {1});
+        m.set("scaleMidi.area", 10, 1); // the next 16 degrees: E5 is not on the pads
+        m.f.settle();
+        CHECK(whitePads(m).empty());
+        m.set("scaleMidi.area", 10, 0);
+        m.set("scaleMidi.type", 10, 8); // MAJOR PENTATONIC from D: D E F# A B, E5 = pad 2 still
+        m.state().tracks[9].scaleKey = 63; // D#5: not in the scale, nothing white
+        m.f.settle();
+        CHECK(whitePads(m).empty());
+    }
+    SECTION("SAMPLE: the key is semitones over PITCH")
+    {
+        M4Fixture m;
+        m.shell().selectTrack(5);
+        REQUIRE(m.open("track.playback"));
+        REQUIRE(m.open("track.playback.setScale"));
+        m.f.settle();
+        CHECK(whitePads(m) == std::vector<int> {0});
+        m.state().tracks[4].scaleKey = 7; // +7
+        m.f.settle();
+        CHECK(whitePads(m) == std::vector<int> {7});
+        m.set("scale.keyShift", 5, 2); // the root at +2: +7 is pad 6
+        m.f.settle();
+        CHECK(whitePads(m) == std::vector<int> {5});
+    }
 }
 
 namespace

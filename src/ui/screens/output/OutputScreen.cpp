@@ -37,7 +37,7 @@ namespace tk = ::theme::tokens;
 namespace L = layout;
 using Kind = io::ControlEvent::Kind;
 
-constexpr RectF kInfo {16, 270, 192, 102};
+constexpr RectF kInfo {16, 270, L::railNarrowW, 102}; // rail slot 2 on the narrow rail
 constexpr int kRailAssign = 2, kRailCue = 3;
 // OUT ASSIGN / HP CUE entries per ASSIGN MODE (03-ui/enumerations.md "Routing and outputs"; catalogue order).
 constexpr int kOutM6[] = {0, 2, 3, 4, 7, 8, 9, 10, 11, 12}, kOut8[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
@@ -82,8 +82,9 @@ public:
         drawInfo(dl, ctx);
         for (int t = 1; t <= 16; ++t)
             ChannelStrip::draw(dl, ctx, strip(t));
-        drawBus(dl, ctx, 1080, "HEADPHONES", "mixer.headphoneVolume");
-        drawBus(dl, ctx, 1176, "MASTER", "mixer.masterVolume");
+        // HP (as in HP CUE): HEADPHONES / PHONES do not fit the compact pair's 48 lpx pitch (bars only, no dB scale).
+        Meter::drawBusPair(dl, ctx, "HP", bus(ctx, "mixer.headphoneVolume"), "MASTER",
+                           bus(ctx, "mixer.masterVolume"));
     }
 
     bool dirty(double) const override
@@ -230,30 +231,19 @@ private:
         const auto& p = ctx.palette;
         dl.fill(kInfo, p.surface1, tk::radiusM);
         dl.stroke(kInfo, p.border, tk::borderHairline, tk::radiusM);
-        static constexpr std::string_view lines[] = {"Send and master FX", "process the master", "only. Direct outputs",
-                                                     "are dry."};
-        for (int i = 0; i < 4; ++i)
-            dl.text(32, 288 + 22.0f * static_cast<float>(i), Align::Left, TextStyleId::Body, p.text2, lines[i]);
+        static constexpr std::string_view lines[] = {"Send and master", "FX process the", "master only.",
+                                                     "Direct outputs", "are dry."};
+        for (int i = 0; i < 5; ++i)
+            dl.text(28, 285 + 18.0f * static_cast<float>(i), Align::Left, TextStyleId::Body, p.text2, lines[i]);
     }
 
-    void drawBus(DrawList& dl, const UiContext& ctx, float x, std::string_view caption, std::string_view level) const
+    // The HEADPHONES meter shows the master feed (the engine publishes no headphone level; MeterFeed is frozen) with
+    // the headphone level's fader marker; MASTER the master feed with mixer.masterVolume's.
+    MeterModel bus(const UiContext& ctx, std::string_view level) const
     {
-        const auto& p = ctx.palette;
-        constexpr float top = 184, bottom = 600;
-        dl.text(x + 44, 160, Align::Centre, TextStyleId::Caption, p.text2, caption);
-        static constexpr struct
-        {
-            float db;
-            const char* text;
-        } labels[] = {{3, "3"}, {0, "0"}, {-10, "-10"}, {-20, "-20"}, {-30, "-30"}, {-40, "-40"}, {-50, "-50"}};
-        for (const auto& l : labels)
-            dl.text(x + 86, meterY(l.db, top, bottom), Align::Right, TextStyleId::Caption, p.text3, l.text);
-        dl.text(x + 86, bottom + 6, Align::Right, TextStyleId::Caption, p.text3, "\xE2\x88\x92\xE2\x88\x9E");
-        // The HEADPHONES meter shows the master feed (the engine publishes no headphone level; MeterFeed is
-        // frozen) with the headphone level's fader marker.
         auto m = Meter::bus("master", &m1::feedsOf(shell_), state_, ctx.nowMs);
         m.faderDb = volumeDb(m1::trackParam(*shell_, level, 1, 100));
-        Meter::drawBars(dl, ctx, x + 12, top, bottom, 10, m);
+        return m;
     }
 
     void assignModePopup()

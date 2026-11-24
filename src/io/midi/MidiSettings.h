@@ -1,8 +1,10 @@
 // The project's MIDI values → the engine (spec 02-features/midi.md MID-010/011/012/040…050). Message
 // thread. For the composition root's project-open path (app/Document.cpp forwardAll, like
 // io::postRibbonSettings): the MidiSettings enables and channels (project.midi) and every scene's MIDI track values
-// (Scene.track[t].midi). Only values that differ from the engine's defaults (the ParamSpec defaults) are posted, so a
-// default project costs ≈ 40 messages instead of 16 000. Returns false when the bridge refused a message.
+// (Scene.track[t].midi). The 8 enables and 32 channels are always posted (the engine holds the previous project's);
+// the MIDI track values are reset in the engine first (core::midi::kProjectOpenScope), then only values that differ
+// from the defaults (the ParamSpec defaults) are posted, so a default project costs 41 messages instead of 12 000.
+// Returns false when the bridge refused a message.
 //
 // Incoming CCs flow back the other way: drainUiEvents() hands the engine's UiEvents (core/util/midi/MidiWire.h:
 // applied CCs, the followed tempo, activity) to a callback on the message thread; the model write (a non-undoable,
@@ -26,8 +28,8 @@ bool postMidiSettings(const core::model::Project&, engine::EngineBridge&, const 
 
 // The app's settings (platform::Settings: the settings file's key=value lines + <PREFIX>_<KEY> environment
 // overrides), handed over by the composition root before the control sources are created. The MIDI source reads
-// midi, midi_providers, midi_virtual, midi_virtual_out, midi_spin_us from here; an environment variable
-// <PREFIX>_<KEY> still wins (the app's rule), so tests and the smoke check need no settings file.
+// midi, midi_providers, midi_virtual, midi_virtual_out, midi_spin_us from here, the ALSA provider midi_usb; an
+// environment variable <PREFIX>_<KEY> still wins (the app's rule), so tests and the smoke check need no settings file.
 using SettingsMap = std::map<std::string, std::string, std::less<>>;
 void configure(const SettingsMap& settings);
 std::string setting(std::string_view key, std::string_view fallback = {});

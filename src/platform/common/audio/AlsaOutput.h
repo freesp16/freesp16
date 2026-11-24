@@ -71,10 +71,18 @@ struct AlsaOutputConfig
     bool auxS16 = false; // force S16_LE on the aux PCM (setting phones_format=s16; default: S24_LE when offered)
     // An optional send/return loop (imx6: the analog filter on hw:ak4452audio,1, "Send & Return"): its playback plays
     // the FilterSend port on channels 0/1 and its capture becomes the engine's input channels 2/3, the AFS return
-    // (AnalogFilterSlot: the EXTERNAL processor). Both non-blocking and linked to the main PCM like auxDevice; a short
-    // or failed read returns silence for the rest of that period (counted in loopDrops()). Empty = none; when either
-    // direction does not open, FilterSend and the return are absent (the AFS runs its MODEL).
+    // (AnalogFilterSlot: the EXTERNAL processor). Both non-blocking and NOT linked to the main PCM. The capture runs
+    // from the open and is read one period behind (a period it cannot fill is silence, counted in loopDrops()); a return
+    // that brings no frame for 0.5 s is reported absent (input 2/3 null: the AFS falls back to its MODEL) until frames
+    // come back. Empty = none; when either direction does not open, FilterSend and the return are absent.
     std::string loopDevice {};
+    // A fixed gain on the loop's send (imx6: 0.5, the reference's FixedAttenuator −6 dB, which is also on its filter
+    // send pair, F111): the drive's +5.1 dBFS OVER threshold then sits just under the send DAC's full scale.
+    float loopGain = 1.0f;
+    // A fixed gain on every port of the main PCM (imx6: 0.5, the reference's FixedAttenuator −6 dB on its main and
+    // assignable DAC pairs, F111; setting main_gain). The engine's float full scale is then +6 dBFS: a track at
+    // VELOCITY 127 (×2) with a full-scale sample reaches the DAC's full scale instead of clipping it.
+    float mainGain = 1.0f;
 };
 
 class AlsaOutput final : public AudioDevice
@@ -88,6 +96,7 @@ public:
     bool start(const AudioConfig&, engine::AudioProcessor&, std::string& info) override; // message thread
     void stop() override;
     AudioStats stats() const noexcept override;
+    std::uint64_t xruns() const noexcept override { return xruns_.load(std::memory_order_relaxed); }
     std::uint64_t reopens() const noexcept { return reopens_.load(std::memory_order_relaxed); }
     std::uint64_t auxDrops() const noexcept { return auxDrops_.load(std::memory_order_relaxed); }
     std::uint64_t loopDrops() const noexcept { return loopDrops_.load(std::memory_order_relaxed); }
@@ -126,6 +135,11 @@ private:
     std::vector<std::int16_t> loopOut16_, loopIn16_;
     std::vector<float> loopReturn_;                     // L then R, one period each
     std::array<const float*, 4> in_ {};                 // AudioIO::in: 0/1 none (LINE IN), 2/3 the loop return
+    unsigned loopStarved_ = 0, loopDeadPeriods_ = 1;   // audio thread: periods without return frames, the limit
+    bool returnLive_ = false;                          // audio thread: in_[2]/[3] point at loopReturn_
+    std::atomic<std::uint64_t> loopFrames_ {0};
+    std::atomic<bool> loopLive_ {false};
+    mutable std::atomic<float> loopSendPeak_ {0.0f}, loopReturnPeak_ {0.0f};
     std::vector<float> planar_;                                         // one period per live port channel
     std::array<float*, 2 * static_cast<int>(AudioPort::Count)> out_ {}; // AudioIO::out (null = absent port)
     std::thread thread_;

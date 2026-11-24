@@ -288,7 +288,7 @@ int RibbonEngine::collectHits(const BlockContext& ctx, std::span<trigger::Trigge
         e.track = static_cast<std::uint8_t>(t);
         const int pr = pressure_[ti];
         e.velocity = static_cast<std::uint8_t>(pr >= 0 ? (pr > 0 ? pr : 1) : (velocity_[ti] > 0 ? velocity_[ti] : 1));
-        e.semitones = 0;
+        e.semitones = semitones_[ti]; // the held pad's scale note (0 in PLAY / SLICE)
         e.kind = trigger::TriggerKind::Full;
         e.source = trigger::TriggerSource::Repeat;
         e.frame = static_cast<std::uint8_t>(hitFrame);
@@ -310,6 +310,7 @@ void RibbonEngine::observe(std::span<const trigger::TriggerEvent> events, const 
             if (heldCount_[t] < 255)
                 ++heldCount_[t];
             velocity_[t] = e.velocity;
+            semitones_[t] = e.semitones;
             pressure_[t] = -1;
             sincePress_[t] = static_cast<double>(kBlockFrames - e.frame); // at the end of this block
         }

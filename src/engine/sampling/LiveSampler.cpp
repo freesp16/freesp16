@@ -17,6 +17,17 @@ double ceilTo(double x, double unit) noexcept // smallest multiple of unit ≥ x
         ++i;
     return static_cast<double>(i) * unit;
 }
+
+int frameAt(const BlockContext& ctx, double at) noexcept // the block frame of PPQ `at`, −1 = not in this block
+{
+    const double p0 = ctx.ppqStart, p1 = ctx.ppqEnd;
+    if (at >= p1)
+        return -1;
+    const double ppf = (p1 - p0) / static_cast<double>(ctx.frames > 0 ? ctx.frames : kBlockFrames);
+    const double f = (at - p0) / ppf + 1e-6;
+    int frame = f <= 0.0 ? 0 : static_cast<int>(f);
+    return frame < kBlockFrames ? frame : -1;
+}
 } // namespace
 
 int boundaryFrame(const BlockContext& ctx, const stages::BlockBuffers::Timing& timing, scene::SwitchUnit unit,
@@ -43,13 +54,31 @@ int boundaryFrame(const BlockContext& ctx, const stages::BlockBuffers::Timing& t
             break;
         case scene::SwitchUnit::Pattern: b = rel <= kEps ? 0.0 : pass; break;
     }
-    const double at = ps + b;
-    if (at >= p1)
+    return frameAt(ctx, ps + b);
+}
+
+int gridFrame(const BlockContext& ctx, const stages::BlockBuffers::Timing& timing, double beats, int patternSteps,
+              double& beatsLeft) noexcept
+{
+    beatsLeft = -1.0;
+    if (! ctx.playing || timing.preCount)
         return -1;
-    const double ppf = (p1 - p0) / static_cast<double>(ctx.frames > 0 ? ctx.frames : kBlockFrames);
-    const double f = (at - p0) / ppf + 1e-6;
-    int frame = f <= 0.0 ? 0 : static_cast<int>(f);
-    return frame < kBlockFrames ? frame : -1;
+    if (timing.boundary.has)
+    {
+        beatsLeft = 0.0;
+        return timing.boundary.frame;
+    }
+    const double p0 = ctx.ppqStart, p1 = ctx.ppqEnd;
+    if (! (p1 > p0) || beats <= 0.0)
+        return -1;
+    const double ps = timing.patternStartPpq;
+    const double pass = static_cast<double>(patternSteps > 0 ? patternSteps : 16) * scene::kQuartersPerStep;
+    const double rel = p0 - ps < 0.0 ? 0.0 : p0 - ps; // a pre-count start's pre-roll: PPQ 0
+    double b = ceilTo(rel, beats);
+    b = b < pass ? b : pass;
+    const double at = ps + b;
+    beatsLeft = at - p0 > 0.0 ? at - p0 : 0.0;
+    return frameAt(ctx, at);
 }
 
 std::int64_t barsToFrames(double bars, double bpm, double sampleRate) noexcept

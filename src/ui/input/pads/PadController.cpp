@@ -7,6 +7,8 @@
 #include "io/controllers/LampRules.h"
 #include "ui/theme/Theme.h"
 
+#include <algorithm>
+
 namespace ui::input::pads
 {
 namespace
@@ -56,8 +58,29 @@ void PadController::select(int track)
     sync();
 }
 
+bool PadController::selectedIsMidi() const
+{
+    if (! cmd::hasProject(bus_))
+        return false;
+    const auto mode = cmd::project(bus_)
+                          .scenes[static_cast<std::size_t>(scene())]
+                          .tracks[static_cast<std::size_t>(selection_.selected() & 15)]
+                          .mode;
+    return mode == core::model::TrackMode::Midi || mode == core::model::TrackMode::Instrument;
+}
+
 void PadController::sync()
 {
+    // "SLICE mode cannot be used for MIDI tracks" (manual p.49): as the SLICE key does not turn it on there, a MIDI /
+    // AS-1 track selected while it is on (SHIFT + pad, the rotary, HOME) or the selected track made one ends it.
+    if ((mode_ == PadMode::Slice || (muteDown_ && modeBeforeMute_ == PadMode::Slice)) && selectedIsMidi())
+    {
+        if (mode_ == PadMode::Slice)
+            mode_ = PadMode::Play;
+        if (modeBeforeMute_ == PadMode::Slice)
+            modeBeforeMute_ = PadMode::Play;
+        postMode();
+    }
     const int s = selection_.selected() & 15;
     if (s == postedSelection_)
         return;
@@ -67,6 +90,9 @@ void PadController::sync()
 
 void PadController::onModeKey(PadMode m)
 {
+    // "SLICE mode cannot be used for MIDI tracks" (manual p.49; AS-1 tracks are MIDI too).
+    if (m == PadMode::Slice && mode_ != PadMode::Slice && selectedIsMidi())
+        return;
     mode_ = (m == mode_ || m == PadMode::Play) ? PadMode::Play : m; // UI-104: the lit key turns its mode off
     if (muteDown_ && m != PadMode::Mute)
         modeBeforeMute_ = mode_; // another mode key while MUTE is held: the release keeps it
@@ -239,6 +265,15 @@ void PadController::onMuteKey(bool pressed, double nowMs)
     postMode();
 }
 
+void PadController::observeHits(const engine::PlayheadFeed& ph, double nowMs) noexcept
+{
+    for (std::size_t t = 0; t < 16; ++t)
+        if (hitsSeen_ && ph.trackHits[t] != seenHits_[t])
+            lastHit_[t] = std::max(lastHit_[t], nowMs);
+    seenHits_ = ph.trackHits;
+    hitsSeen_ = true;
+}
+
 void PadController::paintLamps(io::LampSink& sink, double nowMs, const engine::MeterFeed&) const
 {
     if (nowMs - lastPaintMs_ < kLampFrameMs)
@@ -248,22 +283,25 @@ void PadController::paintLamps(io::LampSink& sink, double nowMs, const engine::M
     const int s = scene();
     const int selected = selection_.selected() & 15;
     const auto m = muteDown_ ? io::PadMode::Solo : lampMode(mode_);
+    // SLICE / SCALE: every pad shows the selected track (MUTE held shows the tracks again).
+    const bool onSelected = ! muteDown_ && (mode_ == PadMode::Slice || mode_ == PadMode::Scale);
     bool anySolo = false;
-    if (muteDown_ && model)
+    if (model)
         for (const auto& tr : cmd::project(bus_).scenes[static_cast<std::size_t>(s)].tracks)
             anySolo = anySolo || tr.solo;
     for (int pad = 0; pad < 16; ++pad)
     {
-        const bool onSelected = ! muteDown_ && (mode_ == PadMode::Slice || mode_ == PadMode::Scale);
         const int t = onSelected ? selected : pad;
         io::PadLamp lamp;
-        lamp.rgb = theme::trackColour(t + 1) & 0xFFFFFFu;
+        // The LED colour (ui::theme::ledColour) before the flash blends it, so a hit fades white → the LED's own
+        // hue, not → the screen palette's (which only maps to the LED colour when it is exact).
+        lamp.rgb = theme::ledColour(theme::trackColour(t + 1)) & 0xFFFFFFu;
         lamp.hasContent = true;
         if (model)
         {
             const auto& tr = cmd::project(bus_).scenes[static_cast<std::size_t>(s)].tracks[static_cast<std::size_t>(t)];
-            lamp.rgb = theme::trackColour((tr.colour & 15) + 1) & 0xFFFFFFu;
-            lamp.muted = tr.mute;
+            lamp.rgb = theme::ledColour(theme::trackColour((tr.colour & 15) + 1)) & 0xFFFFFFu;
+            lamp.muted = cmd::track::isMuted(cmd::project(bus_), s, t);
             lamp.soloed = tr.solo;
             lamp.anySolo = anySolo;
             lamp.hasContent = tr.mode == core::model::TrackMode::Sample
@@ -275,13 +313,12 @@ void PadController::paintLamps(io::LampSink& sink, double nowMs, const engine::M
                 lamp.root = core::scales::isRootPad(pad, core::scales::scaleMask(tr.padScale.scaleType),
                                                     tr.padScale.windowOffset);
         }
+        if (hasContent)
+            lamp.hasContent = hasContent(t);
         lamp.lastHitMs = onSelected ? lastPadHit_[static_cast<std::size_t>(pad)] : lastHit_[static_cast<std::size_t>(t)];
         lamp.selected = t == selected;
-        if (mode_ == PadMode::Slice) // UI-152: the pads holding a slice, in the track colour; a hit flashes
-        {
+        if (mode_ == PadMode::Slice) // UI-152: the pads holding a slice of the selected track
             lamp.inSlices = (slicePad ? slicePad(selected, pad) : pad) >= 0;
-            lamp.playing = true;
-        }
         const auto out = io::resolve(io::padLamp(m, lamp), nowMs);
         sink.setLamp(io::pad(pad + 1), out.rgb, out.level);
     }

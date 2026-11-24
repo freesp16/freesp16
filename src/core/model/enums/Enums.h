@@ -13,7 +13,7 @@ enum class TriggerMode : std::uint8_t { OneShot, Gate };                       /
 enum class StretchMode : std::uint8_t { Off, Resample, MasterTempo };          // PLY-030
 enum class EnvelopeCurve : std::uint8_t { Linear, Curve };                     // ENV, attack/release curve
 // Effect types: Off + the twelve live effects (02-features/effects/README.md); FX-001's popup-only names are P3
-// extensions and are appended when they get a design.
+// extensions and are appended when they get a design. VintagePitch is ours (no SP-16 counterpart).
 enum class EffectType : std::uint8_t
 {
     Off,
@@ -28,7 +28,8 @@ enum class EffectType : std::uint8_t
     LoFi,
     Distortion,
     Compressor,
-    Ducker
+    Ducker,
+    VintagePitch
 };
 enum class LfoShape : std::uint8_t { Sine, Triangle, SawUp, SawDown, Square, Random };   // our list
 enum class LfoTriggerMode : std::uint8_t { Free, Retrigger, OneShot };                 // ours (OQ-19)

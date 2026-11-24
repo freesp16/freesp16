@@ -1,6 +1,6 @@
 // The composition root's extension glue (app/ext/Extensions.h; flags and parity): with every ext.* flag off it posts,
 // writes and logs nothing (the app without extensions); with a flag on it forwards TOGGLE, applies and stores learned
-// CCs through the model path, and records strip moves as step locks.
+// CCs through the model path (recorded strip moves: app/Document, tests/unit/ext/striprecord).
 #include "app/ext/Extensions.h"
 
 #include "core/commands/CommandBusAccess.h"
@@ -26,8 +26,6 @@ struct Rig
     fakes::FakeEngineBridge bridge;
     std::vector<std::string> logs;
     std::vector<std::pair<std::string, float>> remote;
-    std::map<std::string, float> values;
-    bool armed = false;
     std::optional<app::ext::Extensions> ext;
 
     Rig()
@@ -45,10 +43,7 @@ struct Rig
             .bridge = &bridge,
             .log = [this](const std::string& l) { logs.push_back(l); },
             .setRemote = [this](const core::ParamSpec& s, std::uint16_t, float v) { remote.emplace_back(std::string(s.id), v); },
-            .value = [this](const core::ParamSpec& s, std::uint16_t) { return values[std::string(s.id)]; },
             .selectedTrack = [] { return 2; },
-            .recArmed = [this] { return armed; },
-            .padMode = [] { return 0; },
             .resolveSample = [](const std::string&) { return std::optional<juce::File>(); },
             .preference = {}});
     }
@@ -59,10 +54,7 @@ struct Rig
         services::ext::flags().clearOverrides();
     }
     const core::model::Project& project() { return core::commands::project(bus); }
-    void frame(const engine::PlayheadFeed& ph = {}, int mode = 0, bool contact = false, int position = 0)
-    {
-        ext->frame(0, ph, mode, contact, position);
-    }
+    void frame() { ext->frame(0); }
     int posts(std::string_view param, std::uint16_t scope, float value) const
     {
         int n = 0;
@@ -96,14 +88,9 @@ TEST_CASE("ext glue: with every flag off nothing is posted, written or logged", 
     Rig r;
     REQUIRE_FALSE(services::ext::flags().isOn(services::ext::kMaster)); // the test environment sets no ext.* flag
     r.ext->onProjectReplaced(r.project());
-    engine::PlayheadFeed ph;
-    ph.playing = true;
-    r.armed = true;
-    r.frame(ph, 2, true, 100);
+    r.frame();
     CHECK_FALSE(r.ext->onMidiUi(carrierEvent(0, 85, 10)));
-    io::ControlEvent press {io::ControlEvent::Kind::Press, io::Control::Pad1, 100, 0, 0.0};
-    r.ext->handle(press);
-    r.frame(ph, 2, true, 110);
+    r.frame();
     CHECK(r.bridge.posted.empty());
     CHECK(r.remote.empty());
     CHECK(r.logs.empty());
@@ -162,38 +149,6 @@ TEST_CASE("ext glue: MIDI learn captures, stores per project (undoable) and appl
     CHECK(r.project().extras.find(std::string(services::midilearn::kExtrasKey)) == nullptr);
     CHECK(r.ext->onMidiUi(carrierEvent(0, 85, 0)));
     CHECK(r.remote.size() == 1);
-}
-
-TEST_CASE("ext glue: strip moves while recording become step locks of the playing step", "[ext][glue][striprecord]")
-{
-    Rig r;
-    services::ext::flags().set(services::ext::kMaster, true);
-    services::ext::flags().set(services::ext::kStripRecord, true);
-    {
-        auto& p = core::commands::project(r.bus);
-        p.ribbon.user[0][0] = {"track.pan", 1.0, 0.0};
-    }
-    engine::PlayheadFeed ph;
-    ph.playing = true;
-    ph.step = 5;
-    r.armed = true;
-    // HELD PADS (ribbon.applyTo 0): no pad held, nothing recorded; pad 4 held → track 4.
-    r.frame(ph, 2, true, 127);
-    CHECK(r.project().scenes[0].patterns[0].locks.empty());
-    r.ext->handle({io::ControlEvent::Kind::Press, io::pad(4), 100, 0, 0.0});
-    r.frame(ph, 2, true, 127);
-    const auto& cell = r.project().scenes[0].patterns[0].steps[5][3];
-    REQUIRE(cell.lockIndex != core::model::Step::kNoLocks);
-    // SELECTED TRACK (applyTo 1): the selected track (3) on the next step.
-    r.values["ribbon.applyTo"] = 1.0f;
-    ph.step = 6;
-    r.frame(ph, 2, true, 0);
-    CHECK(r.project().scenes[0].patterns[0].steps[6][2].lockIndex != core::model::Step::kNoLocks);
-    // Not recording: nothing.
-    r.armed = false;
-    ph.step = 7;
-    r.frame(ph, 2, true, 0);
-    CHECK(r.project().scenes[0].patterns[0].steps[7][2].lockIndex == core::model::Step::kNoLocks);
 }
 
 TEST_CASE("ext glue: the flags come from the preferences (UTILITY rows), an environment value still wins",

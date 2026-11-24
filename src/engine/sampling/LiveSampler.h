@@ -44,6 +44,12 @@ namespace engine::sampling
 // start when p0 is exactly there).
 int boundaryFrame(const BlockContext& ctx, const stages::BlockBuffers::Timing& timing, scene::SwitchUnit unit,
                   int patternSteps) noexcept;
+// REC QUANTIZE (SAMPLING/EDIT): the frame (0–63) of the first multiple of `beats` quarter notes from the pass start
+// in this block, capped at the pass end (a 16-beat wait on a 2-bar pattern is the next pattern start), −1 when none.
+// A queued pattern switch landing here is one too. beatsLeft = quarter notes from this block's start to that boundary
+// (0 … beats), −1 when stopped or in the pre-count (the take then waits for PLAY).
+int gridFrame(const BlockContext& ctx, const stages::BlockBuffers::Timing& timing, double beats, int patternSteps,
+              double& beatsLeft) noexcept;
 
 // Record lengths of live.length (SMP-021): 1/4, 1/2, 1, 2, 4, 8 bars.
 constexpr float kLiveBars[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f, 8.0f};

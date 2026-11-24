@@ -22,6 +22,20 @@ constexpr int kTouchXOffset = 0x2c, kTouchYOffset = 0x2e;
 constexpr int kTxMarkerOffset = 0x77;
 constexpr std::uint8_t kTxMarker = 0xaa;
 constexpr int kTxBrightnessOffset = 0x6e;                // PAD/BUTTON BRIGHTNESS 1…4 (NORMAL = 4)
+// The standby flag: TX byte 0x67 bit 0 (the stock app's "transition Standby"). Once it is set the unit's power MCU (M1)
+// cuts the power, so only LampBus::enterStandby() sets it (emulator panel_map.py TX_STANDBY_OFFSET, profile 1.60).
+constexpr int kTxStandbyOffset = 0x67;
+// HardMute: TX byte 0x66 bit 0 mutes the analog outputs at once (the Sub-MCU echoes it as RX byte 62 bit 0, which is
+// therefore no key). Set from the power key on, before the audio stops (hardware notes: POWER-BUTTON-FIX).
+constexpr int kTxHardMuteOffset = 0x66;
+// The POWER/STANDBY key on the back: M1 reads it, M2 relays it as RX byte 5 bit 4 (panel_map.py, the service manual's
+// key matrix). Pressing it (down, held 50 ms) asks the app to go to standby — on the press, not the release, as asked on
+// the unit (the stock app's PowerManager waits for the release, button object 14). The bit is
+// active-low on the hardware (1 = idle, 0 = pressed: hardware notes, confirmed on a unit) but active-high in the
+// emulator (DecoderConfig::powerActiveLow, setting power_key=high). A level counts once it held kPowerDebounceMs.
+// (Learning the idle level from the first frames does not work: on a unit those read the pressed level.)
+constexpr int kPowerKeyByte = 5, kPowerKeyBit = 4;
+constexpr double kPowerDebounceMs = 50.0;
 constexpr int kRgbFullScale = 74;                       // E8: lamp bytes reach 0x4a at full
 
 struct ButtonRole
@@ -45,7 +59,7 @@ inline constexpr ButtonRole kButtons[] = {
 };
 // System keys (control-surface.md 1.5, not in the logical set of UI-101): reported nowhere yet.
 inline constexpr ButtonRole kSystemButtons[] = {{5, 6, io::Control::Count} /* usb_stop */,
-                                                {5, 4, io::Control::Count} /* power */};
+                                                {kPowerKeyByte, kPowerKeyBit, io::Control::Count} /* power */};
 
 // Role lookup by (byte 1…5, bit): Control::Count = no role.
 struct ButtonGrid

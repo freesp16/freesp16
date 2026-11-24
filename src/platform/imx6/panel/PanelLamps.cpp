@@ -27,7 +27,7 @@ LampBus::LampBus()
 
 void LampBus::setWake(void (*wake)(void*), void* arg) noexcept
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<core::PiMutex> lock(mutex_);
     wake_ = wake;
     wakeArg_ = arg;
 }
@@ -37,7 +37,9 @@ void LampBus::publish(const TxFrame& f)
     void (*wake)(void*) = nullptr;
     void* arg = nullptr;
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<core::PiMutex> lock(mutex_);
+        if (standby())
+            return;
         external_.store(true, std::memory_order_release);
         if (! (f == frame_))
         {
@@ -51,6 +53,47 @@ void LampBus::publish(const TxFrame& f)
         wake(arg);
 }
 
+bool LampBus::enterStandby()
+{
+    void (*wake)(void*) = nullptr;
+    void* arg = nullptr;
+    {
+        std::lock_guard<core::PiMutex> lock(mutex_);
+        if (wake_ == nullptr)
+            return false; // no panel link: nothing would carry the flag
+        TxFrame f;
+        f.setHardMute(true);
+        f.setStandby(true);
+        f.finish();
+        frame_ = f;
+        changed_ = true;
+        external_.store(true, std::memory_order_release); // no echo render replaces the frame
+        standby_.store(true, std::memory_order_release);
+        hardMute_ = true;
+        wake = wake_;
+        arg = wakeArg_;
+    }
+    wake(arg);
+    return true;
+}
+
+void LampBus::hardMute()
+{
+    void (*wake)(void*) = nullptr;
+    void* arg = nullptr;
+    {
+        std::lock_guard<core::PiMutex> lock(mutex_);
+        if (hardMute_)
+            return;
+        hardMute_ = true;
+        changed_ = true;
+        wake = wake_;
+        arg = wakeArg_;
+    }
+    if (wake != nullptr)
+        wake(arg);
+}
+
 void LampBus::echo(const io::ControlEvent& e)
 {
     if (external())
@@ -59,7 +102,7 @@ void LampBus::echo(const io::ControlEvent& e)
     void (*wake)(void*) = nullptr;
     void* arg = nullptr;
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<core::PiMutex> lock(mutex_);
         const auto info = io::controlInfo(e.control);
         if (io::isPad(e.control) && e.kind == Kind::Press)
         {
@@ -101,7 +144,7 @@ void LampBus::renderEcho(double nowMs)
 
 bool LampBus::take(double nowMs, TxFrame& out, double& waitMs)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<core::PiMutex> lock(mutex_);
     // A running echo fade is recomputed until one render lands after its end.
     const bool fading = lastEchoRenderMs_ <= echoAnimUntilMs_;
     if (! external() && (echoDirty_ || (fading && nowMs - lastEchoRenderMs_ >= kEchoTickMs)))
@@ -112,6 +155,11 @@ bool LampBus::take(double nowMs, TxFrame& out, double& waitMs)
     if (due)
     {
         out = frame_;
+        if (hardMute_ && ! standby())
+        {
+            out.setHardMute(true);
+            out.finish(); // the CRC again
+        }
         changed_ = false;
         lastSentMs_ = nowMs;
     }
@@ -127,6 +175,9 @@ void PanelLamps::flush()
     frame_.finish();
     bus_->publish(frame_);
     if (board_)
-        board_->setActive(active_);
+    {
+        board_->setHpCutoff(hpCutoff_); // first: the filter switches in with its high-pass already set
+        board_->setFilterIn(filterInUse_ && board_->loop());
+    }
 }
 } // namespace platform::imx6::panel

@@ -135,6 +135,24 @@ TEST_CASE("platform script: replay timing, pads to the trigger sink, quit and sc
     io::clearQuitRequest();
 }
 
+TEST_CASE("platform script: standby asks the app to power off", "[platform][script]")
+{
+    io::clearQuitRequest();
+    io::clearStandbyRequest();
+    Sink sink;
+    io::ScriptedInputSource source(&sink, io::parseInputScript("100 standby\n"), "t");
+    std::string info;
+    REQUIRE(source.start(info));
+    std::vector<io::ControlEvent> out;
+    source.pollAt(0.0, out);
+    CHECK_FALSE(io::standbyRequested());
+    source.pollAt(100.0, out);
+    CHECK(io::standbyRequested());
+    CHECK_FALSE(io::quitRequested()); // standby is its own request: the app powers off after quitting
+    CHECK(out.empty());
+    io::clearStandbyRequest();
+}
+
 TEST_CASE("platform script: the registered source exists only with a configured path", "[platform][script]")
 {
     const io::ControlSourceRegistry::Entry* entry = nullptr;

@@ -1,9 +1,9 @@
-// fx.delay: a registered effect (the Insert Delay "delay", the Send/Master Delay "delayBus", the Reverb
-// "reverb") built from its EffectDescriptor and wrapped in engine::fx::FxShell with the descriptor's shell policy, in a
+// fx.delay: a registered effect (the Insert Delay "delay", the Send/Master Delay "delayBus") built from its
+// EffectDescriptor and wrapped in engine::fx::FxShell with the descriptor's shell policy, in a
 // chosen slot kind and the Reference quirk profile (FX-052), with a tempo feed — against the research model run by
 // tools/golden-gen/goldenlib/delayrun.py, which documents the case parameters:
 //   {"effect": id, "slot": "insert"|"send"|"master", "fs": Hz, "bpm": BPM, "init": {"k": v}, "options": {"i": n},
-//    "activate": bool, "constants": {...} (reverb only: ReverbConstants, tests/golden/reverb),
+//    "activate": bool,
 //    "events": [{"block", "k", "v"} | {"block", "option", "value"} | {"block", "op": "activate"|"stop"} |
 //               {"block", "bpm"}]}
 // The knobs start at the descriptor's ParamSpec defaults of the slot kind (core::fx::effectParams), then "init". The
@@ -14,7 +14,6 @@
 #include "core/params/catalogue/fx.h"
 #include "engine/fx/EffectRegistry.h"
 #include "engine/fx/FxShell.h"
-#include "engine/fx/effects/Reverb.h"
 
 #include <cstring>
 #include <memory>
@@ -32,16 +31,6 @@ struct Event
     float value = 0.0f;
     double bpm = 120.0;
 };
-
-template <std::size_t N> bool readArray(const juce::var& v, std::array<float, N>& out)
-{
-    const auto* a = v.getArray();
-    if (a == nullptr || a->size() != static_cast<int>(N))
-        return false;
-    for (std::size_t i = 0; i < N; ++i)
-        out[i] = static_cast<float>(static_cast<double>((*a)[static_cast<int>(i)]));
-    return true;
-}
 
 class DelaySubject final : public Subject
 {
@@ -74,18 +63,6 @@ public:
             return "fx.delay: '" + id + "' is not allowed in slot " + slot;
         const double fs = p["fs"].isVoid() ? c.sampleRate : static_cast<double>(p["fs"]);
         effect_ = d->create();
-        if (auto* k = p["constants"].getDynamicObject())
-        {
-            auto* rv = dynamic_cast<Reverb*>(effect_.get());
-            if (rv == nullptr)
-                return "fx.delay: constants are for the reverb only";
-            ReverbConstants rc;
-            if (! readArray(k->getProperty("combL"), rc.combL) || ! readArray(k->getProperty("combR"), rc.combR) ||
-                ! readArray(k->getProperty("apL"), rc.apL) || ! readArray(k->getProperty("apR"), rc.apR) ||
-                ! readArray(k->getProperty("t60v"), rc.t60v) || ! readArray(k->getProperty("t60s"), rc.t60s))
-                return "fx.delay: constants need combL/combR (5), apL/apR (2), t60v/t60s (5)";
-            rv->overrideConstants(rc);
-        }
         effect_->prepare(fs, engine::kBlockFrames);
         shell_.prepare(*effect_, d->shell, fs, kind, copyL_, copyR_);
         shell_.setQuirkProfile(kQuirkProfileReference);

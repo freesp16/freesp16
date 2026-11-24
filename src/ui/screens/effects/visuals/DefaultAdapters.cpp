@@ -109,6 +109,18 @@ void duck(const EffectVisualInputs& in, VisualModel& m) noexcept
     m.sourceTrack = in.options[1] >= 0 ? in.options[1] + 1 : 1;
     m.sourceColour = theme::trackColour(m.sourceTrack);
 }
+// PITCH · FINE · DELAY · FEEDBACK · AGE · MIX (VINTAGE PITCH; the grids of core/params/catalogue/fx_vpitch.cpp)
+void pitch(const EffectVisualInputs& in, VisualModel& m) noexcept
+{
+    common(in, m);
+    m.pitchSemis = static_cast<int>(std::lround(in.knob01[0] * 24)) - 12;
+    m.pitchCents = static_cast<int>(std::lround(in.knob01[1] * 100)) - 50;
+    m.pitchRatio = std::clamp(std::exp2(static_cast<float>(100 * m.pitchSemis + m.pitchCents) / 1200.0f), 0.5f, 2.0f);
+    m.pitchDelayMs = static_cast<float>(std::lround(in.knob01[2] * 120));
+    m.pitchFeedback = static_cast<float>(std::lround(in.knob01[3] * 200) - 100) / 100.0f;
+    m.pitchAge = static_cast<float>(std::lround(in.knob01[4] * 100)) / 100.0f;
+    m.limit = in.live != nullptr ? in.live->telemetry[0] : 0.0f; // VintagePitch::kTelLimit
+}
 } // namespace
 
 VisualAdapter defaultVisualAdapter(std::string_view kind) noexcept
@@ -127,6 +139,8 @@ VisualAdapter defaultVisualAdapter(std::string_view kind) noexcept
         return &meters;
     if (kind == "duckEnvelope")
         return &duck;
+    if (kind == "pitchSplice")
+        return &pitch;
     return &common;
 }
 } // namespace ui

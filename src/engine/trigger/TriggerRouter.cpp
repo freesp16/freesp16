@@ -74,6 +74,9 @@ bool TriggerRouter::pushLive(const TriggerNow& t) noexcept
             case PadMode::Mute: return true; // select / mute, no sound (PAD-004, PAD-006)
             case PadMode::Slice: // the pad's slice as a slice-number lock (SliceMapPads)
                 e.track = pads_.selected;
+                if (const auto m = settings_[scene_][pads_.selected].mode;
+                    m == TrackMode::Midi || m == TrackMode::Instrument)
+                    return true; // SLICE mode cannot be used for MIDI / AS-1 tracks (the manual): silent
                 if (slicePads_ != nullptr)
                 {
                     const int slice = slicePads_->slice(e.track, pad);
@@ -84,7 +87,7 @@ bool TriggerRouter::pushLive(const TriggerNow& t) noexcept
                 break;
             case PadMode::Scale:
                 e.track = pads_.selected;
-                semis += settings_[scene_][pads_.selected].padSemitones[static_cast<std::size_t>(pad)];
+                semis += scalePadSemitones(settings_[scene_][pads_.selected], pad);
                 break;
         }
         e.semitones = clampSemis(semis);
@@ -180,6 +183,8 @@ void TriggerRouter::process(BlockContext& ctx) noexcept
             e.locks = nullptr;
         }
         const bool hit = e.kind == TriggerKind::Full || e.kind == TriggerKind::Half;
+        if (hit)
+            ++hits_[static_cast<std::size_t>(t)]; // the pad-flash feed (wraps)
         if (e.kind == TriggerKind::Full && ts.chokeGroup > 0 && sources_ != nullptr) // TRK-020
             for (std::uint32_t m = groups[static_cast<std::size_t>(ts.chokeGroup - 1)] & ~(1u << t), u = 0; m != 0;
                  ++u, m >>= 1)
@@ -214,8 +219,10 @@ void TriggerRouter::process(BlockContext& ctx) noexcept
         if (sources_ != nullptr)
             sources_[t].onEvent(e, ts.triggerMode);
         if (liveHits_ != nullptr && e.kind == TriggerKind::Full
-            && (e.source == TriggerSource::Pad || e.source == TriggerSource::Midi))
-            liveHits_->onLiveHit(e);
+            && (e.source == TriggerSource::Pad || e.source == TriggerSource::Midi || e.source == TriggerSource::Repeat))
+            liveHits_->onLiveHit(e, e.source == TriggerSource::Midi ||
+                                        ((e.source == TriggerSource::Pad || e.source == TriggerSource::Repeat) &&
+                                         pads_.mode == PadMode::Scale)); // a repeat: the held pad's key
     }
     numApplied_ = numEvents_;
     numEvents_ = 0;

@@ -1,6 +1,8 @@
-// Strip moves recorded as p-locks (RIB-008; ui/input/ext/striprecord/StripRecorder.h): USER
-// items lock their targets, PITCH locks playback.pitch, only while recording and touching, once per step and value;
-// non-lockable targets (Send FX, FX-094) and REPEAT are not recorded; the writes land as step locks in the pattern.
+// Strip moves recorded as p-locks (RIB-008; ui/input/ext/striprecord/StripRecorder.h): USER items lock their
+// targets, PITCH locks playback.pitch (the track's pitch + the bend), only while recording, touching or held, on the
+// tracks whose MOTION RECORD is on, once per step and value, filling skipped steps; non-lockable targets (Send FX,
+// FX-094) and REPEAT are not recorded; the writes land as step locks in the pattern; StripHeld follows the pads the
+// strip acts on.
 #include "core/commands/CommandBusAccess.h"
 #include "core/commands/sequencer/SequencerCommands.h"
 #include "core/model/ModelOps.h"
@@ -126,4 +128,92 @@ TEST_CASE("ext striprecord: the writes are step locks of the pattern (SetLock co
     const int slot = slotOf("playback.pitch");
     CHECK((l.mask >> slot & 1u) != 0);
     CHECK(l.values[static_cast<std::size_t>(slot)] == 12.0f);
+}
+
+TEST_CASE("ext striprecord: only the tracks whose MOTION RECORD is on record; PITCH adds the track's own pitch",
+          "[ext][striprecord]")
+{
+    ext::StripRecorder rec;
+    const auto rib = ribbon();
+    std::vector<ext::LockWrite> out;
+    auto s = state(2, 0, 127, (1u << 1) | (1u << 2));
+    s.record = 1u << 2; // track 3 records, track 2 does not
+    s.pitch[2] = -5.0f;
+    rec.frame(s, rib, out);
+    REQUIRE(out.size() == 1);
+    CHECK(out[0].track == 2);
+    CHECK(out[0].value == 7.0f); // −5 + 12: the lock is what the track plays live
+    out.clear();
+    s.pitch[2] = 20.0f; // clamped to the parameter's range
+    rec.frame(state(3, 0, 127), rib, out);
+    s.step = 4;
+    rec.frame(s, rib, out);
+    REQUIRE(out.size() == 2);
+    CHECK(out[1].value == core::builtinParams().find("playback.pitch")->maxValue);
+    out.clear();
+    s.record = 0; // no recording track: nothing, and the next touch writes again
+    s.step = 5;
+    rec.frame(s, rib, out);
+    CHECK(out.empty());
+}
+
+TEST_CASE("ext striprecord: the steps a slow frame skipped get the value too (wrapping in the pattern's length)",
+          "[ext][striprecord]")
+{
+    ext::StripRecorder rec;
+    const auto rib = ribbon();
+    std::vector<ext::LockWrite> out;
+    auto s = state(14, 0, 127);
+    s.length = 16;
+    rec.frame(s, rib, out);
+    s.step = 1; // 14 → 1 across the loop point: 15, 0 skipped
+    rec.frame(s, rib, out);
+    REQUIRE(out.size() == 4);
+    CHECK(out[1].step == 15);
+    CHECK(out[2].step == 0);
+    CHECK(out[3].step == 1);
+    // A new touch does not fill from the previous one.
+    out.clear();
+    s.contact = false;
+    rec.frame(s, rib, out);
+    s.contact = true;
+    s.step = 6;
+    rec.frame(s, rib, out);
+    REQUIRE(out.size() == 1);
+    CHECK(out[0].step == 6);
+}
+
+TEST_CASE("ext striprecord: StripHeld follows the pad presses like the engine's pad rule", "[ext][striprecord]")
+{
+    ext::StripHeld held;
+    CHECK(held.tracks(0, 5, false) == 0);
+    held.onPad(3, true, 0, false, 5); // PLAY: pad 4 = track 4
+    CHECK(held.tracks(0, 5, false) == 1u << 3);
+    held.onPad(9, true, 3, false, 5); // SLICE: the selected track
+    CHECK(held.tracks(0, 5, false) == ((1u << 3) | (1u << 5)));
+    held.onPad(9, false, 3, false, 5);
+    held.onPad(3, false, 0, false, 5);
+    CHECK(held.tracks(0, 5, false) == 0);
+    held.onPad(0, true, 4, false, 7); // SCALE: the selected track
+    CHECK(held.tracks(0, 7, false) == 1u << 7);
+    held.onPad(0, false, 4, false, 7);
+    held.onPad(1, true, 1, false, 7); // TRACK: selects, no sound
+    held.onPad(2, true, 2, false, 7); // MUTE
+    held.onPad(3, true, 0, true, 7);  // SHIFT + pad
+    CHECK(held.tracks(0, 7, false) == 0);
+    // ribbon.applyTo SELECTED / ALL replace the held pads.
+    CHECK(held.tracks(1, 7, false) == 1u << 7);
+    CHECK(held.tracks(2, 7, false) == 0xFFFF);
+}
+
+TEST_CASE("ext striprecord: under HOLD the released pad's track keeps recording until HOLD lets go",
+          "[ext][striprecord]")
+{
+    ext::StripHeld held;
+    held.onPad(4, true, 0, false, 0);
+    CHECK(held.tracks(0, 0, true) == 1u << 4);
+    held.onPad(4, false, 0, false, 0);
+    CHECK(held.tracks(0, 0, true) == 1u << 4); // HOLD keeps the value on it
+    CHECK(held.tracks(0, 0, false) == 0);      // HOLD off (or no value shown): forgotten
+    CHECK(held.tracks(0, 0, true) == 0);
 }

@@ -42,8 +42,10 @@ std::unique_ptr<core::Command> removeLock(int scene, int pattern, int track, int
 std::unique_ptr<core::Command> recordLocks(int scene, int pattern, int track, std::span<const int> steps,
                                            model::LockSlot, float value);
 // SEQ-041/046: overdub a recorded hit — a FULL trigger with `velocity`; the micro-timing as the OFF SET lock (slot 15,
-// removed for offset 0).
-std::unique_ptr<core::Command> recordHit(int scene, int pattern, int track, int step, int velocity, int offset24);
+// removed for offset 0). A pitched hit (a MIDI note, a SCALE pad) also sets its pitch: `pitch` in slot `pitchSlot`
+// (PITCH, semitones), NaN removes that lock (the hit played at the track's own pitch); pitchSlot < 0 = unpitched.
+std::unique_ptr<core::Command> recordHit(int scene, int pattern, int track, int step, int velocity, int offset24,
+                                         int pitchSlot = -1, float pitch = 0.0f);
 // SEQUENCE CLEAR TRIGGERS (UID-758): the triggers and locks of `steps`.
 std::unique_ptr<core::Command> clearTriggers(int scene, int pattern, int track, std::span<const int> steps);
 // SEQ-043: moves the OFF SET locks of `steps` toward 0 by `strength` 0–1 (1 = onto the grid; 0 removes the lock).

@@ -11,12 +11,12 @@
       },
       "patterns": {
         "1": {"Length": 16, "steps": [
-          {"step": 1, "track": 1, "trigger": 100, "value2": 120, "type": 15},
-          {"step": 5, "track": 1, "trigger": 100, "value2": 120, "type": 15},
-          {"step": 9, "track": 1, "trigger": 100, "value2": 120, "type": 15, "locks": {"15": {"raw": 40}}},
-          {"step": 13, "track": 1, "trigger": 100, "value2": 120, "type": 15},
-          {"step": 3, "track": 2, "trigger": 100, "value2": 110, "type": 15},
-          {"step": 11, "track": 2, "trigger": 100, "value2": 110, "type": 15}
+          {"step": 1, "track": 1, "type": 15},
+          {"step": 5, "track": 1, "type": 15},
+          {"step": 9, "track": 1, "type": 15, "locks": {"15": {"raw": 40}}},
+          {"step": 13, "track": 1, "type": 15},
+          {"step": 3, "track": 2, "type": 15},
+          {"step": 11, "track": 2, "type": 15}
         ]}
       }
     }

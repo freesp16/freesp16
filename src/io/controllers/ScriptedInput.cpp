@@ -137,9 +137,9 @@ ScriptParseResult parseInputScript(std::string_view text)
         auto& e = step.event;
         e.source = kSourceVirtual;
         e.timeMs = step.atMs;
-        if (cmd == "quit")
+        if (cmd == "quit" || cmd == "standby")
         {
-            step.op = ScriptStep::Op::Quit;
+            step.op = cmd == "quit" ? ScriptStep::Op::Quit : ScriptStep::Op::Standby;
             r.steps.push_back(step);
         }
         else if (cmd == "cmd") // an app command (io::requestAppCommand): the rest of the line, words single-spaced
@@ -286,6 +286,7 @@ void ScriptedInputSource::pollAt(double now, std::vector<ControlEvent>& out)
         switch (s.op)
         {
         case ScriptStep::Op::Quit: requestQuit(); break;
+        case ScriptStep::Op::Standby: requestStandby(); break;
         case ScriptStep::Op::Screenshot: requestScreenshot(s.arg); break;
         case ScriptStep::Op::Command: requestAppCommand(s.arg); break;
         case ScriptStep::Op::Event:

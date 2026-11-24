@@ -21,6 +21,14 @@ using Log = std::function<void(const std::string&)>; // one line, without the `D
 // FAT mounts, sound cards, PCMs, MIDI ports.
 void systemLines(const platform::Paths&, const Log&);
 
+// One line per thread of this process, from /proc/self/task: "thread <name> tid=… policy=FIFO prio=70 nice=0 cpus=1"
+// (policy OTHER / FIFO / RR / BATCH / IDLE): where the thread roles (core/util/ThreadRole.h) really run.
+void threadLines(const Log&);
+
+// Where the interrupts go: "irq cpus <list>=<count> …" over /proc/irq/*/smp_affinity_list, then one line per interrupt
+// of the audio DMA, the GPU, USB, SPI and the audio serial ports ("irq 34 sdma cpus=1").
+void irqLines(const Log&);
+
 // "MAIN=12/14 OUT3-4=8/10 OUT5-6=4/6 OUT7-8=0/2 PHONES=0/1 FILTERSEND=absent" (a started device's ports()).
 std::string describePorts(const platform::AudioDevice&);
 

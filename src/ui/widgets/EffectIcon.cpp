@@ -56,14 +56,28 @@ constexpr IconPart kDistortion[] = {
 // ducker: a level that dips at the side-chain trigger and recovers
 constexpr IconPart kDucker[] = {{K::Path, "M 7 3 V 21", {}, 0, 0, 0, 0, 0.4f},
                                 {K::Path, "M 2 6 H 7 L 8 18 C 11 17 15 9 22 6"}};
+// vpitch: the read pointer's sawtooth (each drop a splice) and its crossfaded twin, half a tooth later
+constexpr IconPart kVpitch[] = {
+    {K::Path, "M 2 19 L 9.5 6 V 19 L 17 6 V 19 L 22 10.5"},
+    {K::Path, "M 2 12.5 L 5.75 6 V 19 L 13.25 6 V 19 L 20.75 6 V 19", {}, 0, 0, 0, 0, 0.35f}};
 // ext: any effect without its own drawing (P3 extensions, test effects)
 constexpr IconPart kExt[] = {{K::Path, "M 4 4 H 20 V 20 H 4 Z"}, {K::Path, "M 12 8 V 16 M 8 12 H 16"}};
 
-constexpr IconDef kIcons[] = {
-    {"none", kNone},     {"chorus", kChorus}, {"flanger", kFlanger},       {"phaser", kPhaser},
-    {"eq2", kEq2},       {"filter", kFilter}, {"delay", kDelay},           {"delayBus", kDelay},
-    {"reverb", kReverb}, {"lofi", kLofi},     {"distortion", kDistortion}, {"compressor", kCompressor},
-    {"ducker", kDucker}, {"ext", kExt}};
+constexpr IconDef kIcons[] = {{"none", kNone},
+                              {"chorus", kChorus},
+                              {"flanger", kFlanger},
+                              {"phaser", kPhaser},
+                              {"eq2", kEq2},
+                              {"filter", kFilter},
+                              {"delay", kDelay},
+                              {"delayBus", kDelay},
+                              {"reverb", kReverb},
+                              {"lofi", kLofi},
+                              {"distortion", kDistortion},
+                              {"compressor", kCompressor},
+                              {"ducker", kDucker},
+                              {"vpitch", kVpitch},
+                              {"ext", kExt}};
 
 // --- flattening into primitives
 // ---------------------------------------------------------------------------------------

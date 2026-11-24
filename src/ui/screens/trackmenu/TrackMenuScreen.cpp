@@ -1,8 +1,10 @@
 // TRACK MENU (07-ui-design/screens/track-menu.md; UI-220…225, UI-258/259, UID-650…666). Template full, context bar
 // TRACK TYPE + BYPASS. The TrackPanel: identity block (chip, type / stretch / loop badges, name — the HOME tile
-// header), four header action slots, six fixed ModuleCard slots per track type with connectors only between chain
-// neighbours, the wide SEQUENCE card and under it the MOTION bar (the track's recorded motion; a tap opens the
-// MOTION page, ui/screens/motion). A SAMPLE track's first header action is MOTION RECORD (track.motionRec: knob turns
+// header; at its right end the small MUTE button: a tap, or the rotary on it and a push, toggles the track's MUTE
+// MODE, track.muteMode, between SOUND = STOP SOUND, the default, and STEPS = STOP STEPS; focused, the knob strip
+// binds it too), four header action slots, six fixed ModuleCard slots per
+// track type with connectors only between chain neighbours, the wide SEQUENCE card and under it the MOTION bar (the
+// track's recorded motion; a tap opens the MOTION page, ui/screens/motion). A SAMPLE track's first header action is MOTION RECORD (track.motionRec: knob turns
 // while recording write motion; red LED = enabled). Nothing moves when a later package registers its screen (UID-665): every
 // card is drawn at its fixed slot from the start; cards whose screen is not registered (FX1/FX2, LFO, SEQUENCE,
 // NOTE/CC) are focusable and bind their strip tab, and the second tap does nothing until the screen exists.
@@ -15,12 +17,14 @@
 //     bound-list path writes the parameter directly).
 //   - BYPASS mode (UI-221, the shell's UiState::bypassMode): while lit, bypassable cards (PLAYBACK playback.bypass,
 //     AMP ENVELOPE env.bypass, FX1 / FX2 the slot's bypass) show the dashed warn outline and a tap or push toggles
-//     their bypass instead of focusing or opening them; bypassed cards stay marked either way.
+//     their bypass instead of focusing or opening them; bypassed cards stay marked either way, and with BYPASS off a
+//     bypassed card focuses but does not open its setting screen (the manual, p.36).
 #include "ui/descriptors/ModuleSpec.h"
 #include "ui/descriptors/PopupSpec.h"
 #include "ui/screens/effects/FxCatalogue.h"
 #include "ui/screens/effects/FxSlots.h"
 #include "ui/screens/home/TrackInfo.h"
+#include "ui/screens/miditrack/As1Popups.h"
 #include "ui/screens/motion/MotionLanes.h"
 #include "ui/screens/playback/SampleViews.h"
 #include "ui/screens/plugin/PluginSlots.h"
@@ -34,6 +38,7 @@
 #include "ui/widgets/TrackTile.h"
 
 #include "core/util/ampenv/EnvTime.h"
+#include "core/util/midi/As1Program.h"
 
 #include <algorithm>
 #include <array>
@@ -53,6 +58,8 @@ using Thumb = ModuleCardModel::Thumb;
 
 constexpr float kActionX[] = {584, 752, 920, 1088};
 constexpr RectF kSequence{48, 448, 1184, 88}, kMotion{48, 544, 1184, 48};
+constexpr RectF kMuteMode{456, 170, 112, 28}; // the identity row's MUTE MODE button (≥ 44 lpx hit, kMuteModeHit)
+constexpr RectF kMuteModeHit{448, 160, 128, 48};
 constexpr RectF actionRect(int slot) noexcept
 {
     return {kActionX[slot], 168, 160, 72};
@@ -72,9 +79,10 @@ constexpr StripSpec kBrowseStrip{"BROWSE", {}}, kLiveStrip{"LIVE SAMPLING", {}},
     // The MIDI track's BANK SELECT / PROG CHANGE values (midi.*; empty columns while those are not registered)
     kBankStrip{"BANK SELECT", {"midi.bankMsb", "midi.bankLsb", "", "", "", ""}},
     kProgStrip{"PROG CHANGE", {"midi.program", "", "", "", "", ""}},
-    kScaleStrip{"SET SCALE", {"scaleMidi.area", "scaleMidi.root", "", "", "", ""}},
+    kScaleStrip{"SET SCALE", {"scaleMidi.area", "", "scaleMidi.root", "", "", ""}},
     kLimiterStrip{"SOFT LIMITER", {"mixer.softLimiter", "", "", "", "", ""}},
     kMotionRecStrip{"MOTION RECORD", {"track.motionRec", "", "", "", "", ""}}, kMotionStrip{"MOTION", {}},
+    kMuteModeStrip{"MUTE MODE", {"track.muteMode", "", "", "", "", ""}},
     kPluginStrip{"PLUGIN", {}}, kSelectPluginStrip{"SELECT PLUGIN", {}}, kPluginPresetsStrip{"PRESETS", {}};
 
 // --- the six slots and four header actions per track type (track-menu.md "The six slots per track type") ---
@@ -152,8 +160,8 @@ const Chain kChains[5] = {
      0b0011,
      true,
      {Action{AK::Button, "SELECT CH", "track.midiChannel", {}, &kSelectChStrip},
-      Action{AK::Value, "BANK SELECT", {}, "U1", &kAs1BankStrip},
-      Action{AK::Value, "PROG CHANGE", {}, "P01", &kAs1ProgStrip},
+      Action{AK::Value, "BANK SELECT", "as1.bankSelect", "U1", &kAs1BankStrip},
+      Action{AK::Value, "PROG CHANGE", "as1.progChange", "P01", &kAs1ProgStrip},
       Action{AK::Button, "SET SCALE", "track.setScaleMidi", {}, &kScaleStrip}},
      0},
     // Plugin (dynamic CLAP synth/instrument)
@@ -168,8 +176,10 @@ const Chain kChains[5] = {
 };
 constexpr std::string_view kTypeBadges[] = {"SMPL", "MIDI", "THRU", "AS-1", "PLUG"};
 
-// Focus items: 0–3 header actions, 4–9 cards, 10 SEQUENCE, 11 MOTION.
-constexpr int kCard0 = 4, kSeqItem = 10, kMotionItem = 11, kLastItem = kMotionItem;
+// Focus items: 0–3 header actions, 4–9 cards, 10 SEQUENCE, 11 MOTION, 12 the MUTE MODE button. The rotary visits them
+// in screen order: the MUTE button (left of the header actions) first.
+constexpr int kCard0 = 4, kSeqItem = 10, kMotionItem = 11, kMuteItem = 12, kLastItem = kMuteItem;
+constexpr int kFocusOrder[] = {kMuteItem, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, kSeqItem, kMotionItem};
 int s_returnFocus = -1; // the module page opened last (BACK lands on it)
 
 class TrackPanel final : public Widget
@@ -266,6 +276,7 @@ private:
         return i < kCard0       ? actionRect(i)
                : i == kSeqItem    ? kSequence
                : i == kMotionItem ? kMotion
+               : i == kMuteItem   ? kMuteModeHit
                                   : ModuleCard::rect(i - kCard0);
     }
     bool focusable(int i) const noexcept
@@ -273,6 +284,8 @@ private:
         const auto& c = chain();
         if (i < 0 || i > kLastItem)
             return false;
+        if (i == kMuteItem)
+            return true;
         if (i < kCard0)
             return c.actions[static_cast<std::size_t>(i)].kind != AK::None;
         if (i == kSeqItem || i == kMotionItem)
@@ -282,18 +295,23 @@ private:
     }
     void moveFocus(int d)
     {
-        int i = focus_;
-        for (int n = 0; n < std::abs(d); ++n)
+        constexpr int n = static_cast<int>(std::size(kFocusOrder));
+        int at = 0; // focus_'s place in kFocusOrder
+        while (at < n && kFocusOrder[at] != focus_)
+            ++at;
+        if (at == n)
+            at = 0;
+        for (int k = 0; k < std::abs(d); ++k)
         {
-            int next = i;
+            int next = at;
             do
                 next += d > 0 ? 1 : -1;
-            while (next >= 0 && next <= kLastItem && ! focusable(next));
-            if (next < 0 || next > kLastItem)
+            while (next >= 0 && next < n && ! focusable(kFocusOrder[next]));
+            if (next < 0 || next >= n)
                 break;
-            i = next;
+            at = next;
         }
-        focus_ = i;
+        focus_ = kFocusOrder[at];
     }
     const StripSpec* stripOf(int i) const noexcept
     {
@@ -306,6 +324,8 @@ private:
             return &kSeqStrip;
         if (i == kMotionItem)
             return &kMotionStrip;
+        if (i == kMuteItem)
+            return &kMuteModeStrip;
         const auto& cd = c.cards[static_cast<std::size_t>(i - kCard0)];
         if (cd.id == "fx1" || cd.id == "fx2")
             return fxStrip(cd.id == "fx1" ? fx::Slot::Fx1 : fx::Slot::Fx2);
@@ -367,7 +387,8 @@ private:
         boundFx_ = key;
         shell_->bindStrip(stripOf(focus_));
     }
-    // UI-221: the bypass of a card (a parameter or an FX slot); null id = not bypassable.
+    // UI-221: the bypass of a card (a parameter or an FX slot); null id = not bypassable. A MIDI / AS-1 track bypasses
+    // CC1, CC2 and LFO alone (the manual's BYPASS button, p.36): NOTE is not a bypassable module.
     std::string_view bypassId(int i) const noexcept
     {
         if (i < kCard0 || i >= kSeqItem)
@@ -381,8 +402,6 @@ private:
             return id;
         if (id == "lfo")
             return "lfo.bypass";
-        if (id == "note")
-            return "midi.noteBypass";
         if (id == "cc1")
             return "midi.cc1Bypass";
         if (id == "cc2")
@@ -430,6 +449,12 @@ private:
             return; // BYPASS mode: the push toggles the module's bypass (UI-221)
         focus_ = i;
         const auto& c = chain();
+        if (i == kMuteItem) // MUTE MODE: STOP SOUND ↔ STOP STEPS
+        {
+            const int t = state_->selectedTrack;
+            m1::setTrackParam(*shell_, "track.muteMode", t, m1::trackFlag(*shell_, "track.muteMode", t) ? 0.0f : 1.0f);
+            return;
+        }
         if (i < kCard0)
         {
             const auto& a = c.actions[static_cast<std::size_t>(i)];
@@ -440,6 +465,8 @@ private:
                 shell_->open(a.opens);
             return;
         }
+        if (bypassedCard(i))
+            return; // BYPASS OFF: a bypassed module's setting screen does not open (the manual's BYPASS button, p.36)
         const auto opens = i == kSeqItem      ? std::string_view("track.sequence")
                            : i == kMotionItem ? std::string_view("track.motion")
                                               : c.cards[static_cast<std::size_t>(i - kCard0)].opens;
@@ -575,12 +602,14 @@ private:
             x = badge(x, s.stretchBadge, p.surface3, p.text2, 0);
             x = badge(x, s.loopGlyph, p.surface3, colour, 32);
         }
-        if (mode_ == 2) // THRU input meters (horizontal, L / R)
+        if (mode_ == 2) // THRU input meters (horizontal, L / R), up to the MUTE MODE button
         {
+            const float w = std::min(360.0f, kMuteMode.x - 40 - x);
             for (int k = 0; k < 2; ++k)
-                dl.fill({x, 174 + 12.0f * static_cast<float>(k), 360, 6}, p.surface3, 3);
-            dl.text(x + 368, 183, Align::Left, TextStyleId::Caption, p.text3, "IN");
+                dl.fill({x, 174 + 12.0f * static_cast<float>(k), w, 6}, p.surface3, 3);
+            dl.text(x + w + 8, 183, Align::Left, TextStyleId::Caption, p.text3, "IN");
         }
+        muteModeButton(dl, ctx, t);
         const float loading = m1::loadProgress()[t - 1];
         if (loading >= 0) // UI-410: a 4 lpx accent bar 536 wide instead of the name
         {
@@ -596,6 +625,24 @@ private:
         }
         else
             dl.text(32, 224, Align::Left, TextStyleId::Title, p.text3, "----");
+    }
+
+    // MUTE MODE: "MUTE" and the mode, SOUND (default) in text-1, STEPS in accent (the MIXER's MUTE colour); the focus
+    // ring while the rotary is on it.
+    void muteModeButton(DrawList& dl, const UiContext& ctx, int t) const
+    {
+        const auto& p = ctx.palette;
+        const bool steps = m1::trackFlag(*shell_, "track.muteMode", t);
+        const auto& r = kMuteMode;
+        dl.fill(r, p.surface2, tk::radiusS);
+        if (steps)
+            dl.stroke(r, p.accent, 1, tk::radiusS);
+        const float cy = r.y + r.h / 2;
+        dl.text(r.x + 10, cy, Align::Left, TextStyleId::Caption, p.text3, "MUTE");
+        dl.text(r.x + r.w - 10, cy, Align::Right, TextStyleId::Caption, steps ? p.accent : p.text1,
+                steps ? "STEPS" : "SOUND");
+        if (focus_ == kMuteItem)
+            draw::focusRing(dl, p, r, tk::radiusS);
     }
 
     void action(DrawList& dl, const UiContext& ctx, int slot, const Action& a, bool focused) const
@@ -637,13 +684,21 @@ private:
     }
 
     // BANK SELECT (`M000 L000`) and PROG CHANGE (`000`) of a MIDI track from the midi.* values
-    // (UI-293/294; `---` = OFF, not sent); the action's own text while those are not registered.
+    // (UI-293/294; `---` = OFF, not sent); an AS-1 track's as its pickers name them (`U1`, `P01`); the action's own
+    // text while those are not registered.
     std::string_view valueOf(int slot, const Action& a) const
     {
         const auto* msb = shell_->params().find("midi.bankMsb");
-        if (msb == nullptr || (a.opens != "midi.bankSelect" && a.opens != "midi.progChange"))
+        const bool as1 = a.opens == "as1.bankSelect" || a.opens == "as1.progChange";
+        if (msb == nullptr || (! as1 && a.opens != "midi.bankSelect" && a.opens != "midi.progChange"))
             return a.value;
         const int t = state_->selectedTrack;
+        auto stored = [&](std::string_view id)
+        { return static_cast<int>(std::lround(m1::trackParam(*shell_, id, t, -1))); };
+        if (a.opens == "as1.bankSelect")
+            return as1BankText(stored("midi.bankMsb"), stored("midi.bankLsb"));
+        if (a.opens == "as1.progChange")
+            return as1ProgramText(core::midi::as1::programShown(stored("midi.program")));
         auto three = [](char* out, int v) { v < 0 ? std::snprintf(out, 4, "---") : std::snprintf(out, 4, "%03d", v & 127); };
         char m[4], l[4], pg[4];
         three(m, static_cast<int>(std::lround(m1::trackParam(*shell_, "midi.bankMsb", t, -1))));
@@ -757,13 +812,14 @@ std::unique_ptr<Widget> makeTrackPanel(const ScreenSpec&, const WidgetArgs& a)
     return std::make_unique<TrackPanel>(a);
 }
 
-// TRACK TYPE ListPopup items in the mockup's order, valued by core::model::TrackMode.
+// TRACK TYPE ListPopup items in the mockup's order, valued by core::model::TrackMode; the AS-1 item is named as in the
+// manual ("Turn the rotary selector to select [TORAIZ AS-1]", p.40).
 void trackTypes(std::string_view, std::vector<ListItem>& out)
 {
     out.push_back({"SAMPLE", {}, {}, 0});
     out.push_back({"THRU", {}, {}, 2});
     out.push_back({"MIDI", {}, {}, 1});
-    out.push_back({"AS-1", {}, {}, 3});
+    out.push_back({"TORAIZ AS-1", {}, {}, 3});
     out.push_back({"PLUGIN", {}, {}, 4});
 }
 constexpr ListSpec kTrackTypeList{

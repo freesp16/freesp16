@@ -142,8 +142,10 @@ TEST_CASE("fx.contract: every registered effect in every slot kind and sample ra
                 }
                 // The delays and the reverb (their mix laws, FX-624/828): the wet signal is an echo by design, so the
                 // impulse appears at the effect's delay (beyond these 8 blocks at 0.5), never before the latency.
+                // VINTAGE PITCH likewise: its wet path is a ≥ 15 ms read delay, and its converters hiss, so the wet
+                // output is never digital silence (the first non-zero sample is noise, not the impulse).
                 const auto law = static_cast<MixLaw>(d.shell.mixLaw);
-                if (law == MixLaw::DelayPiecewise || law == MixLaw::ReverbPiecewise)
+                if (law == MixLaw::DelayPiecewise || law == MixLaw::ReverbPiecewise || d.id == "vpitch")
                     CHECK((first < 0 || first >= lat->latencySamples()));
                 else
                     CHECK(first == lat->latencySamples());

@@ -340,3 +340,26 @@ TEST_CASE("afs.ping: the external loop measures its latency on a loopback exactl
         CHECK(rig.slot.latencySamples() == delay + N);
     }
 }
+
+TEST_CASE("afs.over: with ACTIVE off the drive still reaches the main output, and OVER still watches it", "[afs][over]")
+{
+    SlotRig rig;
+    rig.set(AfsField::Drive, 1023);
+    rig.settle(); // the drive settled at ×4
+    REQUIRE_FALSE(rig.slot.active());
+    std::array<float, N> l {}, r {};
+    l[3] = 0.5f; // +6 dBFS after ×4: over the +5.1 dBFS threshold
+    rig.master(l.data(), r.data());
+    CHECK(l[3] == 2.0f);
+    CHECK(rig.slot.over());
+    int lit = 0;
+    for (int b = 0; b < 400; ++b)
+    {
+        std::array<float, N> z {}, zr {};
+        rig.master(z.data(), zr.data());
+        lit += rig.slot.over() ? 1 : 0;
+    }
+    CHECK(lit * N >= 22050 - N); // held 0.5 s, then dark
+    CHECK(lit * N <= 22050 + N);
+    CHECK_FALSE(rig.slot.over());
+}

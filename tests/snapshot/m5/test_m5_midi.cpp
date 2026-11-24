@@ -52,8 +52,8 @@ TEST_CASE("snapshot.m5.midi_note: MIDI NOTE (track 10, NOTE with NOTE2 +7) match
     MidiFixture m;
     if (haveMidi())
     {
-        m.set("midi.note1", 10, 72);
-        m.set("midi.note2", 10, 79);
+        m.set("midi.note1", 10, 60); // C5: the mockup's NOTE key (the manual's naming, 0 = C0)
+        m.set("midi.note2", 10, 7);  // +7 semitones: G5
     }
     REQUIRE(m.open("track.menu"));
     REQUIRE(m.open("track.note"));
@@ -167,11 +167,11 @@ TEST_CASE("m5ui.midi: chord notes by SHIFT + tap, NOTE2 offsets, CC ACTIVE / CC 
         m.f.press(io::Control::Shift);
         m.f.tap(ui::PianoKeyboard::whiteX(11) + 40, 300); // G: the first free chord note
         m.f.release(io::Control::Shift);
-        CHECK(m.get("midi.note2", 10) == 67.0f);
+        CHECK(m.get("midi.note2", 10) == 3.0f); // G = NOTE (E) + 3
         m.f.settle();
-        CHECK(m.shell().column(3).valueText == "+3");
+        CHECK(m.hasText("+3")); // NOTE2 drawn by its ParamSpec format: semitones from NOTE
         m.knob(4, -3); // NOTE2 offset +3 → 0 = OFF
-        CHECK(m.get("midi.note2", 10) == -1.0f);
+        CHECK(m.get("midi.note2", 10) == 0.0f);
     }
     m.turnSel(1); // the window one octave up
     m.f.settle();
@@ -195,6 +195,141 @@ TEST_CASE("m5ui.midi: chord notes by SHIFT + tap, NOTE2 offsets, CC ACTIVE / CC 
     std::string_view a, b;
     ui::CcCard::nameOf(74, a, b);
     CHECK(a == "Brightness");
+}
+
+TEST_CASE("m5ui.midi: the keyboard names octaves C0…C9 (MIDI 0 = C0, 60 = C5, 119 = B9)", "[m5]")
+{
+    ui::PianoKeyboardModel k;
+    k.firstOctave = 0;
+    CHECK(ui::PianoKeyboard::noteAt(k, ui::PianoKeyboard::whiteX(0) + 40, 300) == 0);   // C0
+    CHECK(ui::PianoKeyboard::noteAt(k, ui::PianoKeyboard::whiteX(13) + 40, 300) == 23); // B1
+    k.firstOctave = 8;
+    CHECK(ui::PianoKeyboard::noteAt(k, ui::PianoKeyboard::whiteX(13) + 40, 300) == 119); // B9, the highest NOTE
+    MidiFixture m;
+    if (! haveMidi())
+        SKIP("midi.* not registered (no MIDI catalogue built in)");
+    m.set("midi.note1", 10, 119);
+    REQUIRE(m.open("track.note"));
+    m.f.settle();
+    CHECK(m.hasText("B9")); // the window follows NOTE up to the C8 / C9 bands
+    CHECK(m.hasText("C8"));
+    m.f.tap(ui::PianoKeyboard::whiteX(7) + 40, 300); // the right band's C
+    CHECK(m.get("midi.note1", 10) == 108.0f);         // C9
+    m.knob(1, 20);
+    CHECK(m.get("midi.note1", 10) == 119.0f); // NOTE stops at B9
+}
+
+TEST_CASE("m5ui.midi: TRACK TYPE names the AS-1 type TORAIZ AS-1 (the manual, p.40) and it fits its box", "[m5]")
+{
+    MidiFixture m;
+    m.set("track.mode", 10, 3); // TORAIZ AS-1
+    m.state().tracks[9].typeBadge = "AS-1";
+    REQUIRE(m.open("track.menu"));
+    CHECK(m.hasText("TORAIZ AS-1")); // the context bar's TRACK TYPE value
+    const float w = measure()(ui::TextStyleId::ValueS, "TORAIZ AS-1");
+    CHECK(w <= L::trackTypeBox.w - 32); // centred with room on both sides: never clipped
+    m.f.tap(L::trackTypeBox.x + L::trackTypeBox.w / 2, L::trackTypeBox.y + L::trackTypeBox.h / 2);
+    m.f.settle();
+    auto* list = dynamic_cast<ui::ListPopup*>(m.shell().topPopup());
+    REQUIRE(list != nullptr);
+    CHECK(list->rowCount() == 4);
+    CHECK(list->focusedItem() == 3);
+    CHECK(m.hasText("TORAIZ AS-1"));
+}
+
+TEST_CASE("m5ui.midi: an AS-1 track picks its bank U1…F5 and program P01…P99 per scene (the manual's 7.1)", "[m5]")
+{
+    MidiFixture m;
+    m.set("track.mode", 10, 3); // TORAIZ AS-1
+    m.state().tracks[9].typeBadge = "AS-1";
+    REQUIRE(m.open("track.menu"));
+    if (! haveMidi())
+        SKIP("midi.* not registered (no MIDI catalogue built in)");
+    CHECK(m.hasText("---")); // nothing stored yet: neither bank nor program is sent
+    m.turnSel(1);            // SELECT CH → BANK SELECT
+    m.push();
+    m.f.settle();
+    auto* list = dynamic_cast<ui::ListPopup*>(m.shell().topPopup());
+    REQUIRE(list != nullptr);
+    CHECK(list->rowCount() == 10);
+    CHECK(m.hasText("BANK SELECT \xC2\xB7 SCENE 01"));
+    CHECK(m.hasText("U1"));
+    CHECK(m.hasText("F1")); // the list's first rows (it scrolls to F5)
+    m.turnSel(6); // U1 → F2
+    m.push();     // the push fixes the bank
+    m.f.settle();
+    CHECK(m.shell().popupDepth() == 0);
+    CHECK(m.get("midi.bankMsb", 10) == 0.0f); // UNVERIFIED mapping: MSB 0, LSB 5–9 = F1–F5
+    CHECK(m.get("midi.bankLsb", 10) == 6.0f);
+    CHECK(m.hasText("F2")); // the button shows the stored bank
+    m.turnSel(1);           // PROG CHANGE
+    m.push();
+    m.f.settle();
+    list = dynamic_cast<ui::ListPopup*>(m.shell().topPopup());
+    REQUIRE(list != nullptr);
+    CHECK(list->rowCount() == 99);
+    m.turnSel(11); // P01 → P12
+    m.push();
+    m.f.settle();
+    CHECK(m.get("midi.program", 10) == 11.0f); // P12 = Program Change 11
+    CHECK(m.hasText("P12"));
+    // The picker opens on the stored value; another bank's numbers (a MIDI track's) show as none.
+    m.turnSel(-1);
+    m.push();
+    m.f.settle();
+    list = dynamic_cast<ui::ListPopup*>(m.shell().topPopup());
+    REQUIRE(list != nullptr);
+    CHECK(list->focusedItem() == 6);
+    m.click(io::Control::Back);
+    m.f.settle();
+    m.set("midi.bankLsb", 10, 40);
+    m.f.settle();
+    CHECK_FALSE(m.hasText("F2"));
+    CHECK(m.hasText("---"));
+    // Per scene: scene 2 keeps its own (unset) values.
+    m.state().scene = 2;
+    m.f.settle();
+    CHECK(m.hasText("---"));
+    CHECK_FALSE(m.hasText("P12"));
+}
+
+TEST_CASE("m5ui.midi: an AS-1 track has no NOTE2-4 (no chords, manual p.41): blank knobs, no SHIFT + tap, no keys",
+          "[m5]")
+{
+    MidiFixture m;
+    m.set("track.mode", 10, 3); // TORAIZ AS-1
+    m.state().tracks[9].typeBadge = "AS-1";
+    if (haveMidi())
+    {
+        m.set("midi.note1", 10, 64);
+        m.set("midi.note2", 10, 7); // left from when it was a MIDI track: the AS-1 does not play it
+    }
+    REQUIRE(m.open("track.note"));
+    m.f.settle();
+    CHECK_FALSE(m.hasText("+7")); // neither the strip nor the keyboard shows the chord note
+    m.f.press(io::Control::Shift);
+    m.f.tap(ui::PianoKeyboard::whiteX(11) + 40, 300); // SHIFT + tap on G: no chord note
+    m.f.release(io::Control::Shift);
+    m.knob(5, 3); // NOTE3's column is blank
+    m.knob(6, 3);
+    if (haveMidi())
+    {
+        CHECK(m.get("midi.note2", 10) == 7.0f);
+        CHECK(m.get("midi.note3", 10) == 0.0f);
+        CHECK(m.get("midi.note4", 10) == 0.0f);
+        CHECK(m.get("midi.note1", 10) == 64.0f);
+    }
+    // Back to a MIDI track: the chord columns and keys return.
+    m.set("track.mode", 10, 1);
+    m.state().tracks[9].typeBadge = "MIDI";
+    m.f.settle();
+    m.knob(5, 3);
+    if (haveMidi())
+    {
+        CHECK(m.get("midi.note3", 10) == 3.0f);
+        m.f.settle();
+        CHECK(m.hasText("+7"));
+    }
 }
 
 TEST_CASE("m5ui.keyboard_only.midi_track: set up a MIDI track with the UI-120 keys alone (W-MIDI, UI-420)", "[m5]")
@@ -228,7 +363,7 @@ TEST_CASE("m5ui.keyboard_only.midi_track: set up a MIDI track with the UI-120 ke
     m.push();
     m.f.settle();
     REQUIRE(m.shell().current().id == "track.note");
-    m.knob(1, 7); // Ctrl+1 ↑ ×7: NOTE G4
+    m.knob(1, 7); // Ctrl+1 ↑ ×7: NOTE G5
     if (haveMidi())
         CHECK(m.get("midi.note1", 10) == 67.0f);
     m.click(io::Control::Back);

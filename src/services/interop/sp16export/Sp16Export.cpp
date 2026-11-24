@@ -495,8 +495,15 @@ bool hasOptions(m::EffectType t, int which)
     return t == E::MultiModeFilter || t == E::LoFi || t == E::ParametricEq2 || (t == E::Ducker && which == 1);
 }
 
-void writeEffect(Node& n, std::string_view base, const m::EffectSlot& fx, Ctx& c, const std::string& at)
+void writeEffect(Node& n, std::string_view base, const m::EffectSlot& in, Ctx& c, const std::string& at)
 {
+    // Our own effects have no SP-16 type: the slot is written as Off (its parameters stay as stored).
+    m::EffectSlot fx = in;
+    if (fx.type == m::EffectType::VintagePitch)
+    {
+        c.report.drop("VINTAGE PITCH (not an SP-16 effect: written as Off)", at);
+        fx.type = m::EffectType::Off;
+    }
     Props p(n, std::string(base), &fx.extras, c.report, at);
     p.put("effectType", S("FxType_" + std::string(m::storedName(fx.type))),
           [&](const Var& k) { return sameEnum<m::EffectType>(k, fx.type, m::EffectType::Off, "FxType_"); });
@@ -599,9 +606,27 @@ Node trackNode(const m::Track& tr, const m::Track& def, Ctx& c, int scene, int t
         Node ch;
         ch.type = "AmpEnvelopeData";
         Props p(ch, "AmpEnvelopeData", &e.extras, c.report, at);
-        p.put("attackNorm", D(e.attack), [&](const Var& k) { return sameDouble(k, e.attack, 0, 1, d.attack); });
-        p.put("holdNorm", D(e.hold), [&](const Var& k) { return sameDouble(k, e.hold, 0, 1, d.hold); });
-        p.put("releaseNorm", D(e.release), [&](const Var& k) { return sameDouble(k, e.release, 0, 1, d.release); });
+        // The model's k/128 → the reference's k/127 (Sp16Mapping.h); a kept original that reads back as the same
+        // model value is written verbatim.
+        auto env = [&](const char* name, double field, double def, core::ampenv::EnvStage stage) {
+            bool lossy = false;
+            const auto index = core::ampenv::indexFromStored(static_cast<float>(field));
+            const double ref = envReferenceFromIndex(stage, stage == core::ampenv::EnvStage::Attack
+                                                                ? std::min(index, core::ampenv::kMaxFiniteIndex)
+                                                                : index,
+                                                     &lossy);
+            if (lossy)
+                c.report.drop("HOLD / RELEASE 127 (written as 126: the format's 127 is INFINITY)", at);
+            p.put(name, D(ref), [&](const Var& k) {
+                if (! k.isNumber() || ! std::isfinite(k.number()))
+                    return field == def;
+                return static_cast<double>(core::ampenv::storedFromIndex(
+                           envIndexFromReference(stage, std::clamp(k.number(), 0.0, 1.0)))) == field;
+            });
+        };
+        env("attackNorm", e.attack, d.attack, core::ampenv::EnvStage::Attack);
+        env("holdNorm", e.hold, d.hold, core::ampenv::EnvStage::Hold);
+        env("releaseNorm", e.release, d.release, core::ampenv::EnvStage::Release);
         p.put("volumeIndex", I(e.volumeIndex),
               [&](const Var& k) { return sameInt(k, e.volumeIndex, 0, 127, d.volumeIndex); });
         p.put("bSync", B(e.sync));
@@ -780,14 +805,10 @@ Node trackNode(const m::Track& tr, const m::Track& def, Ctx& c, int scene, int t
             for (int k = 0; k < 4; ++k)
             {
                 const std::string name = "note" + std::to_string(k + 1);
+                // note1 the base note; note2–4 semitones from it, 0 = off (the model's own encoding).
                 const int note = mt.notes[static_cast<std::size_t>(k)];
-                if (k > 0 && note == 0)
-                    c.report.drop("harmony note 0 (a stored 0 reads as off)", at);
-                const int stored = k > 0 && note < 0 ? 0 : note; // observed: 0 = off for notes 2–4
-                p.put(name, I(stored), [&](const Var& kv) {
-                    if (k > 0 && isInt(kv) && kv.i == 0)
-                        return note == -1;
-                    return sameInt(kv, note, -1, 127, d.notes[static_cast<std::size_t>(k)]);
+                p.put(name, I(note), [&](const Var& kv) {
+                    return sameInt(kv, note, k == 0 ? 0 : -127, 127, d.notes[static_cast<std::size_t>(k)]);
                 });
             }
             p.put("velocity", I(mt.velocity), [&](const Var& k) { return sameInt(k, mt.velocity, 0, 127, d.velocity); });
@@ -854,7 +875,7 @@ Node trackNode(const m::Track& tr, const m::Track& def, Ctx& c, int scene, int t
     return n;
 }
 
-Node patternNode(const m::Pattern& pat, Ctx& c, int scene, int k)
+Node patternNode(const m::Pattern& pat, const m::Scene& sc, Ctx& c, int scene, int k)
 {
     const std::string at = where(scene) + " pattern " + std::to_string(k + 1);
     Node n;
@@ -884,7 +905,27 @@ Node patternNode(const m::Pattern& pat, Ctx& c, int scene, int k)
                 break;
             }
     }
-    auto records = encodePattern(pat, c.map);
+    // FX lock index bytes follow the track's insert effects (Sp16Mapping.h fxLockIndex); a sub-slot without an index
+    // for that effect cannot be written.
+    FxLockTypes fxTypes {};
+    for (int t = 0; t < 16; ++t)
+        for (int u = 0; u < 2; ++u)
+            fxTypes[static_cast<std::size_t>(t)][static_cast<std::size_t>(u)] =
+                sc.tracks[static_cast<std::size_t>(t)].insertFx[static_cast<std::size_t>(u)].type;
+    for (int s = 0; s < m::kSteps; ++s)
+        for (int t = 0; t < 16; ++t)
+        {
+            const auto& cell = pat.steps[static_cast<std::size_t>(s)][static_cast<std::size_t>(t)];
+            if (cell.lockIndex == m::Step::kNoLocks || cell.lockIndex >= pat.locks.size())
+                continue;
+            const auto& l = pat.locks[cell.lockIndex];
+            for (int slot = 23; slot < kLockWords; ++slot)
+                if ((l.mask >> slot & 1u) != 0 &&
+                    fxLockIndex(fxTypes[static_cast<std::size_t>(t)][static_cast<std::size_t>((slot - 23) / 6)],
+                                (slot - 23) % 6) < 0)
+                    c.report.drop("FX locks on an effect parameter the format has no index for", at);
+        }
+    auto records = encodePattern(pat, c.map, &fxTypes);
     if (c.emptyRecords.empty())
     {
         c.emptyRecords.assign(static_cast<std::size_t>(kStepCount * kTrackCount), StepRecord::emptyRecord());
@@ -984,7 +1025,7 @@ Node sceneNode(const m::Scene& sc, Ctx& c, int s)
                                        c, s, t));
     for (int k = 0; k < 16; ++k)
     {
-        n.children.push_back(patternNode(sc.patterns[static_cast<std::size_t>(k)], c, s, k));
+        n.children.push_back(patternNode(sc.patterns[static_cast<std::size_t>(k)], sc, c, s, k));
         ++c.report.patterns;
     }
     {

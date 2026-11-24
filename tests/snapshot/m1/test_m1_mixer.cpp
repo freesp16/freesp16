@@ -5,6 +5,7 @@
 #include "tests/snapshot/m1/M1Fixture.h"
 #include "ui/shell/Layout.h"
 #include "ui/widgets/ChannelStrip.h"
+#include "ui/widgets/Meter.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -84,14 +85,11 @@ TEST_CASE("ui.m1.mixer: MIXER matches mixer.svg", "[snapshot][m1]")
     mixerDemo(f);
     const auto ours = f.image();
     const auto& mock = m1test::m1mockup("mixer");
-    CHECK(compare(ours, mock, L::canvas, "m1-mixer").match >= kGate);
-    // The selected strip (track 1) draws one thin outline inside its bounds instead of the mockup's track frame +
-    // accent ring outside them (hardware feedback: the double ring spilled over the neighbours), so its edges are
-    // compared without the ring: strips 2–16, and strip 1's inside.
-    CHECK(compare(ours, mock, {280, 140, 792, 472}, "m1-mixer-strips").match >= kGate);
-    CHECK(compare(ours, mock, {228, 156, 40, 448}, "m1-mixer-strip1-inside").match >= kGate);
-    CHECK(compare(ours, mock, {1072, 152, 192, 460}, "m1-mixer-bus-meters").match >= kGate);
-    CHECK(compare(ours, mock, {16, 152, 192, 456}, "m1-mixer-rail").match >= kGate);
+    // The strips (58 on a 62 pitch, meter centred, fader marker across the bars), the 144-wide rail and the bars-only
+    // SEND / MASTER pair depart from mixer.svg by request (hardware feedback: more room for the strips): their
+    // geometry is checked below instead, the rest of the screen against the mockup.
+    compare(ours, mock, L::canvas, "m1-mixer"); // artifacts only
+    compare(ours, mock, {16, 152, 192, 456}, "m1-mixer-rail"); // artifacts only
     // The strip's level values read 0–127 instead of the mockup's dB text (by request): a few glyphs differ.
     CHECK(compare(ours, mock, L::knobStrip, "m1-mixer-strip").match >= kGate - 0.01);
     CHECK(compare(ours, mock, L::contextBar, "m1-mixer-context").match >= kGate);
@@ -108,9 +106,26 @@ TEST_CASE("ui.m1.mixer: OUTPUT SETTING matches output-setting.svg", "[snapshot][
     f.shell->state().selectedTrack = 5;
     const auto ours = f.image();
     const auto& mock = m1test::m1mockup("output-setting");
-    CHECK(compare(ours, mock, {216, 140, 856, 472}, "m1-output-strips").match >= kGate);
-    CHECK(compare(ours, mock, {16, 152, 192, 456}, "m1-output-rail").match >= kGate);
+    compare(ours, mock, {216, 140, 1048, 472}, "m1-output-strips"); // artifacts only: the layout departs from the mockup
+    compare(ours, mock, {16, 152, 192, 456}, "m1-output-rail"); // artifacts only: the narrow rail
     CHECK(compare(ours, mock, L::statusRow, "m1-output-breadcrumb").match >= kGate);
+}
+
+TEST_CASE("ui.m1.mixer: the narrow rail, the strips and the compact bus pair share the content width without overlap", "[snapshot][m1]")
+{
+    using ui::ChannelStrip;
+    using ui::Meter;
+    CHECK(ChannelStrip::kW >= 52);
+    for (int t = 1; t < 16; ++t)
+        CHECK(ChannelStrip::rect(t).x + ChannelStrip::kW < ChannelStrip::rect(t + 1).x);
+    const auto last = ChannelStrip::rect(16);
+    CHECK(last.x + last.w <= Meter::kBusX - 8); // a gutter before the bus pair
+    CHECK(Meter::kBusX + Meter::kBusPitch + Meter::kBusW <= 1264);
+    // The narrow rail ends before strip 1 with a gutter.
+    const auto rail = L::bodyRects(ui::BodyTemplate::RailContentMeters2).rail;
+    CHECK(rail.x + rail.w + 8 <= ChannelStrip::rect(1).x);
+    // The meter's bars (and the fader cap 4 lpx past them each side) fit inside the strip.
+    CHECK((ChannelStrip::kW - ChannelStrip::kBarsW) / 2 >= 4);
 }
 
 TEST_CASE("ui.m1.mixer: taps toggle MUTE / SOLO, a meter drag moves the fader, the rotary walks rail then strips",

@@ -46,11 +46,14 @@
 #include "app/Diagnostics.h"
 #include "app/Screenshot.h"
 #include "app/SettingsFile.h"
+#include "app/SystemTuning.h"
+#include "app/UiThrottle.h"
 
 #include "app/Document.h"
 #include "core/params/catalogue/fx.h"
 #include "ProjectIdentity.h"
 #include "core/params/ParamRegistry.h"
+#include "core/util/ThreadRole.h"
 #include "services/library/SampleLibrary.h"
 #include "engine/EngineApi.h"
 #include "io/controllers/AppRequests.h"
@@ -297,6 +300,31 @@ bool measureFrames(ui::Renderer& r, const ui::GlyphAtlas& atlas, int frames, Fra
     return true;
 }
 
+// Power off (the panel's POWER/STANDBY key, io::requestStandby): unsaved changes are autosaved, the resume state and
+// the preferences written (Document::shutdown(true)) and the audio has stopped. Flush the file systems (the data is on the USB stick), then hand the machine to its power
+// controller and wait with the control sources still running: on the imx6 the panel link keeps sending the standby
+// flag until the unit's M1 cuts the power, as after the stock app's standby. If the power stays on (no power controller,
+// e.g. the host or the emulator, or the flag was ignored), the app quits as usual and the boot menu comes back.
+constexpr double kStandbyWaitMs = 20000.0;
+
+void powerOff(platform::Platform& machine)
+{
+    ::sync();
+    std::string info;
+    if (! machine.enterStandby(info))
+    {
+        logLine("STANDBY %.*s has no power controller%s%s: quitting", static_cast<int>(machine.id().size()),
+                machine.id().data(), info.empty() ? "" : ": ", info.c_str());
+        return;
+    }
+    logLine("STANDBY %s; waiting for the power to go", info.c_str());
+    ::sync(); // the log line too
+    const double start = nowMs();
+    while (! quitRequested && nowMs() - start < kStandbyWaitMs)
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    logLine("STANDBY the power stayed on for %.1f s: quitting", (nowMs() - start) / 1000.0);
+}
+
 std::string upper(std::string_view s)
 {
     std::string out(s);
@@ -368,6 +396,48 @@ int run()
     configureDiagnostics(settings); // input_script, screenshot (app/Screenshot.h)
     io::midi::configure(settings);  // midi, midi_providers, midi_virtual… (io/midi/MidiSettings.h)
     machine->configure(settings);
+    // Thread roles and system tuning (platform::Tuning; core/util/ThreadRole.h), before any thread of ours starts: the
+    // platform's map, then thread_map over it ("none" = no map); this thread takes the UI role first, so every thread
+    // started from it without a role of its own (JUCE, X, the GL driver) inherits the UI's cores.
+    const platform::Tuning tuning = machine->tuning();
+    const auto setting = [&](const char* key)
+    {
+        const auto it = settings.find(key);
+        return it == settings.end() ? std::string() : it->second;
+    };
+    std::string threadNote;
+    core::threads::reset();
+    if (setting("thread_map") != "none")
+    {
+        core::threads::configure(tuning.threadMap, threadNote);
+        core::threads::configure(setting("thread_map"), threadNote);
+    }
+    const auto uiRole = core::threads::apply(core::threads::Role::Ui);
+    const std::string threadMapLine = "threads map " + core::threads::describe() + " origin="
+                                    + (setting("thread_map") == "none" ? std::string("none (thread_map=none)")
+                                       : setting("thread_map").empty() ? std::string("platform")
+                                                                       : "thread_map " + setting("thread_map"))
+                                    + " ui_pinned=" + (uiRole.pinned ? "yes" : "no")
+                                    + (threadNote.empty() ? "" : " IGNORED " + threadNote);
+    const std::string governorWanted = setting("cpu_governor").empty() ? tuning.governor
+                                     : setting("cpu_governor") == "keep" ? std::string()
+                                                                         : setting("cpu_governor");
+    const auto governor = app::tuning::setGovernor(governorWanted);
+    const std::string rtRuntimeWanted = setting("rt_runtime_us").empty() ? tuning.rtRuntime
+                                      : setting("rt_runtime_us") == "keep" ? std::string()
+                                                                           : setting("rt_runtime_us");
+    const auto rtRuntime = app::tuning::setRtRuntime(rtRuntimeWanted);
+    struct RestoreTuning // the previous governor and real-time limit come back on every way out of this function
+    {
+        const app::tuning::Governor& g;
+        const app::tuning::RtRuntime& rt;
+        ~RestoreTuning()
+        {
+            app::tuning::restore(rt);
+            app::tuning::restore(g);
+        }
+    } restoreTuning {governor, rtRuntime};
+    const bool lockCode = setting("mem_lock").empty() ? tuning.lockCode : setting("mem_lock") == "1";
     logLine("START %s %s (%s) JUCE %s render=%s compare=%s pid=%d", identity::displayName, identity::version,
             identity::id, juce::SystemStats::getJUCEVersion().toRawUTF8(), settings["render"].c_str(),
             settings["compare"].c_str(), static_cast<int>(getpid()));
@@ -381,6 +451,10 @@ int run()
     diagLine("settings file=" + origin.file + (origin.fileFound ? " (read, " : " (missing, ")
              + std::to_string(origin.fileKeys) + " keys) env_keys=" + std::to_string(origin.envKeys));
     diag::systemLines(paths, diagLine);
+    diagLine(threadMapLine);
+    diagLine(app::tuning::describe(governor, governorWanted));
+    diagLine(app::tuning::describe(rtRuntime, rtRuntimeWanted));
+    diag::irqLines(diagLine);
     {
         const juce::File internal(juce::String::fromUTF8(settings["internal_disk"].c_str()));
         if (internal.isDirectory())
@@ -585,13 +659,14 @@ int run()
 
     // 6. The document: model + CommandBus, sample library, project session, pads (app/Document.h).
     auto& bridge = engine->bridge();
+    const double engineRate = audio != nullptr && audio->stats().sampleRate != 0
+                                ? static_cast<double>(audio->stats().sampleRate)
+                                : static_cast<double>(platform::AudioConfig {}.sampleRate);
     auto appLog = [](const std::string& line) { logLine("%s", line.c_str()); };
     auto document = std::make_unique<Document>(
         bridge, DocumentConfig {.dataDir = machine->paths().dataDir,
                                 .device = machine->id() == "imx6",
-                                .sampleRate = audio != nullptr && audio->stats().sampleRate != 0
-                                                  ? static_cast<double>(audio->stats().sampleRate)
-                                                  : static_cast<double>(platform::AudioConfig {}.sampleRate),
+                                .sampleRate = engineRate,
                                 .devKit = settings["dev_kit"],
                                 .devKitScenes = std::max(1, std::atoi(settings["dev_kit_scenes"].c_str())),
                                 .internalDisk = settings["internal_disk"],
@@ -602,6 +677,11 @@ int run()
                                 document->summaries()});
     document->attach(*root);
     document->startup();
+    // Every library is loaded now (the GL driver with the renderer): lock the code in RAM (platform::Tuning).
+    if (lockCode)
+        diagLine(app::tuning::describe(app::tuning::lockCode()));
+    else
+        diagLine("memlock off (mem_lock=0 or not this platform's default)");
     ui::DrawList dl;
     dl.reserve(2048, 16384);
     std::vector<io::ControlEvent> events;
@@ -620,6 +700,11 @@ int run()
                 static_cast<unsigned long long>(id == "alsa-direct" ? s.periods : 0), static_cast<unsigned long long>(s.xruns),
                 static_cast<unsigned long long>(id == "juce-alsa" ? s.periods : 0),
                 static_cast<unsigned long long>(engine->blocksRendered()), static_cast<int>(id.size()), id.data());
+        if (s.loopFrames >= 0) // the analog filter's send/return loop: is the return alive, does signal come back
+            logLine("AUDIO filter_loop live=%d return_frames=%lld drops=%llu send_peak=%.4f return_peak=%.4f",
+                    s.loopLive ? 1 : 0, static_cast<long long>(s.loopFrames),
+                    static_cast<unsigned long long>(s.loopDrops), static_cast<double>(s.loopSendPeak),
+                    static_cast<double>(s.loopReturnPeak));
         const auto load = engine->load(); // the engine's own per-block LoadMeter
         loadMax = std::max(loadMax, load.maxCycles);
         loadP95Max = std::max(loadP95Max, load.p95Cycles);
@@ -636,6 +721,13 @@ int run()
     Screenshot screenshot(settings, [](const std::string& line) { logLine("%s", line.c_str()); });
     double next = nowMs(), lastReport = next;
     long frame = 0;
+    // The display gives way to audio (app/UiThrottle.h): sampled every 250 ms; the thread table once the start-up's
+    // threads exist (after 2 s), again with every `diag` command.
+    UiThrottle throttle;
+    double lastLoadSample = -1.0e9;
+    std::uint64_t skippedFrames = 0;
+    const double loopStart = next;
+    bool threadsReported = false;
     while (! quitRequested && (runFrames <= 0 || frame < runFrames))
     {
         events.clear();
@@ -657,6 +749,7 @@ int run()
                 stats.print("run", renderer->name());
                 reportAudio();
                 stats = {};
+                diag::threadLines(diagLine);
             }
             else if (cmd.rfind("diag-crash", 0) == 0) // check the CRASH report (deliberately)
             {
@@ -669,32 +762,76 @@ int run()
                 document->command(cmd);
         }
         document->frame(t0); // workers, project session, pool, preview, notifications
-        dl.clear();
-        root->frame(dl, t0); // the Shell drains the engine's event queue itself (≤ 256 per frame)
-        panelHost.frame(dl, ui::theme::palette(), t0); // the virtual panel drawer (hidden: nothing)
-        const double built = nowMs() - t0;
-        if (! lampSinks.empty()) // UI-150: the Shell's lamp model → every LampSink (on change + heartbeat in the sink)
-            if (const auto* lampFrame = root->lamps())
-            {
-                io::LampFrame shown = *lampFrame;
-                document->lamps(shown); // strip LEDs, MODE indicators, HOLD (UI-156/157)
-                for (auto& l : shown.lamps) // track colours → distinct saturated LED colours (ui::theme::ledColour)
-                    l.rgb = ui::theme::ledColour(l.rgb);
-                for (auto* sink : lampSinks)
-                    io::apply(shown, t0, document->lampBrightness(), *sink); // brightness (UI-159)
-            }
-        ui::FrameTiming timing;
-        if (! renderer->render(dl, timing))
+        UiThrottle::Sample loadSample;
+        const UiThrottle::Sample* sampled = nullptr;
+        if (t0 - lastLoadSample >= 250.0)
         {
-            logLine("FATAL renderer lost");
-            rendererLost = true;
-            break;
+            lastLoadSample = t0;
+            const auto load = engine->load();
+            loadSample.p95Fraction = load.p95Cycles / (engine::kBlockFrames * 1.0e9 / engineRate);
+            loadSample.xruns = audio != nullptr ? audio->xruns() : 0;
+            loadSample.overruns = load.overruns;
+            sampled = &loadSample;
         }
-        ++frame;
-        stats.add(built, timing);
-        frameMaxMs = std::max(frameMaxMs, built + timing.rasterMs + timing.presentMs);
-        screenshot.afterFrame(frame, *renderer);
+        const bool draw = throttle.draw(t0, sampled);
+        switch (throttle.takeChange())
+        {
+            case UiThrottle::Change::On:
+                logLine("UI throttle on: 30 Hz (%s)", throttle.reason().c_str());
+                break;
+            case UiThrottle::Change::Off:
+                logLine("UI throttle off after %.1f s (%llu frames skipped so far)", (t0 - throttle.sinceMs()) / 1000.0,
+                        static_cast<unsigned long long>(skippedFrames));
+                break;
+            case UiThrottle::Change::None:
+                break;
+        }
+        if (draw)
+        {
+            dl.clear();
+            root->frame(dl, t0); // the Shell drains the engine's event queue itself (≤ 256 per frame)
+            panelHost.frame(dl, ui::theme::palette(), t0); // the virtual panel drawer (hidden: nothing)
+            const double built = nowMs() - t0;
+            if (! lampSinks.empty()) // UI-150: the Shell's lamp model → every LampSink (on change + heartbeat in the sink)
+                if (const auto* lampFrame = root->lamps())
+                {
+                    io::LampFrame shown = *lampFrame;
+                    document->lamps(shown); // strip LEDs, MODE indicators, HOLD (UI-156/157)
+                    for (auto& l : shown.lamps) // track colours → distinct saturated LED colours (ui::theme::ledColour)
+                        l.rgb = ui::theme::ledColour(l.rgb);
+                    for (auto* sink : lampSinks)
+                        io::apply(shown, t0, document->lampBrightness(), *sink); // brightness (UI-159)
+                }
+            ui::FrameTiming timing;
+            if (! renderer->render(dl, timing))
+            {
+                logLine("FATAL renderer lost");
+                rendererLost = true;
+                break;
+            }
+            ++frame;
+            stats.add(built, timing);
+            frameMaxMs = std::max(frameMaxMs, built + timing.rasterMs + timing.presentMs);
+            screenshot.afterFrame(frame, *renderer);
+        }
+        else
+        {
+            ++skippedFrames;
+            if (vsynced) // no buffer swap paces this frame: wait one display period here (CPU pacing does it below)
+            {
+                const double wait = t0 + 1000.0 / 60.0 - nowMs();
+                if (wait > 0)
+                    std::this_thread::sleep_for(std::chrono::microseconds(static_cast<long>(wait * 1000)));
+            }
+        }
+        if (! threadsReported && t0 - loopStart >= 2000.0)
+        {
+            threadsReported = true;
+            diag::threadLines(diagLine);
+        }
         if (io::quitRequested()) // the window's close button, the scripted `quit` (io/controllers/AppRequests.h)
+            break;
+        if (io::standbyRequested()) // the panel's power key, the scripted `standby`: quit, then power off
             break;
         bridge.retirePending();
         const double now = nowMs();
@@ -725,7 +862,7 @@ int run()
                 next = nowMs();
         }
     }
-    const char* why = rendererLost ? "renderer-lost" : quitRequested ? "signal" : (runFrames > 0 && frame >= runFrames ? "run_frames" : "quit");
+    const char* why = rendererLost ? "renderer-lost" : quitRequested ? "signal" : io::standbyRequested() ? "standby" : (runFrames > 0 && frame >= runFrames ? "run_frames" : "quit");
     if (! stats.total.v.empty())
     {
         stats.print("run", renderer->name());
@@ -747,9 +884,14 @@ int run()
                 static_cast<unsigned long long>(load.overruns), diag::residentKb(), diag::peakResidentKb());
     }
     logLine("STOP");
-    document->shutdown();
+    const bool standby = io::standbyRequested() && ! quitRequested && ! rendererLost;
+    if (standby)
+        machine->muteForStandby(); // the outputs go silent before anything stops (no click at the power cut)
+    document->shutdown(standby);
     for (auto& device : audioDevices)
         device->stop();
+    if (standby)
+        powerOff(*machine); // returns only if the power stayed on
     for (auto& source : sources)
         source->stop();
     audioDevices.clear();

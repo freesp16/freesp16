@@ -28,24 +28,25 @@
           },
           "patterns": {
             "1": {"Length": 32, "mutes": [3], "solos": [1], "steps": [
-              {"step": 1, "track": 1, "trigger": 100, "value2": 120, "type": 15},
-              {"step": 2, "track": 1, "trigger": 100, "value2": 90, "type": 11},
-              {"step": 3, "track": 1, "trigger": -127, "value2": -126, "type": 8, "locks": {"0": {"raw": -1200}}},
-              {"step": 4, "track": 1, "trigger": 100, "value2": 80, "type": 9},
-              {"step": 5, "track": 1, "trigger": 100, "value2": 100, "type": 15, "locks": {
+              {"step": 1, "track": 1, "type": 15},
+              {"step": 2, "track": 1, "type": 11},
+              {"step": 3, "track": 1, "empty": true, "type": 8, "locks": {"0": {"raw": -1200}}},
+              {"step": 4, "track": 1, "type": 9},
+              {"step": 5, "track": 1, "type": 15, "locks": {
                   "15": {"raw": 64}, "1": {"frames": 1500000}, "5": {"k127": 96}, "8": {"k127": 127},
                   "23": {"norm": 0.5}, "29": {"norm": 0.25, "idx": 40}}},
-              {"step": 6, "track": 2, "trigger": 100, "value2": 100, "type": 15, "locks": {"8": {"raw": 5}, "13": {"raw": 70, "vct": 2}}},
-              {"step": 7, "track": 3, "trigger": 100, "value2": 100, "type": 15, "locks": {"2": {"frames": 44100}, "16": {"raw": 3}, "22": {"raw": 5}}}
+              {"step": 6, "track": 2, "type": 15, "locks": {"8": {"raw": 5}, "13": {"raw": 70, "vct": 2}}},
+              {"step": 7, "track": 3, "type": 15, "locks": {"2": {"frames": 44100}, "16": {"raw": 3}, "22": {"raw": 5}}},
+              {"step": 8, "track": 4, "trigger": 9, "value2": 40, "type": 15}
             ]}
           },
           "SendFx": {"effectType": "Reverb", "bypass": true}},
     "2": {"props": {"name": "VERSE", "bpm": 98.5},
           "dropPatterns": [2, 3, 4],
           "patterns": {
-            "3": {"Length": 16, "steps": [{"step": 1, "track": 5, "trigger": 100, "value2": 100, "type": 15}]},
+            "3": {"Length": 16, "steps": [{"step": 1, "track": 5, "type": 15}]},
             "7": {"Length": 8},
-            "16": {"Length": 64, "steps": [{"step": 64, "track": 16, "trigger": 100, "value2": 127, "type": 15}]}
+            "16": {"Length": 64, "steps": [{"step": 64, "track": 16, "type": 15}]}
           }},
     "3": {"props": {"name": "DROP", "bpm": 140.0},
           "RoutingData": {"assignMode": "4Assign", "effectMode": "EffectModeSend"}}

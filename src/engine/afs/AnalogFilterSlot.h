@@ -16,8 +16,9 @@
 //   Model     the 2× oversampled ZDF ladder + high-pass (ModelProcessor, engine/fx/dsp/afs_ladder.h), AFS-004
 //   External  the send/return loop, AFS-005: the driven signal goes to the FilterSend output port and the slot's
 //             output is the return, read from audio input channels 2/3 (the reference's return is device input 2/3,
-//             F189). On the device the codec's FilterSend pair feeds the unit's own analog filter (signal-flow.md
-//             device pair 5, channels 10/11; OQ-14); a device without that port, or without return inputs — the Linux
+//             F189). On the device the FilterSend pair is the second AK4452's "Send & Return" PCM
+//             (hw:ak4452audio,1): its playback feeds the unit's own analog filter, its capture is the filtered return,
+//             for the MASTER route as for a track; a device without that port, or without return inputs — the Linux
 //             desktop — runs the Model instead (our choice).
 // ACTIVE off bypasses every stage, bit-transparent (AFS-012, NFR-030), except the DRIVE gain, which stays on the main
 // output as on the reference (F107; unity at DRIVE 0, so still bit-transparent there; hardware feedback). A change of route, insert order, ACTIVE or the
@@ -211,7 +212,7 @@ inline float driveGain(int index1023) noexcept
     const float x = static_cast<float>(index1023 < 0 ? 0 : (index1023 > 1023 ? 1023 : index1023)) / 1023.0f;
     return 1.0f + 3.0f * (x * x);
 }
-constexpr float kOverThreshold = 1.7988709f; // +5.1 dBFS on the drive output (AFS-011 [OBS])
+constexpr float kOverThreshold = kAfsOverThreshold; // +5.1 dBFS on the drive output (AFS-011 [OBS])
 constexpr int kDipSamples = 128;             // AFS-006
 
 class AnalogFilterSlot
@@ -225,7 +226,7 @@ public:
     core::ParamId paramId(int field) const noexcept { return ids_[static_cast<std::size_t>(field)]; }
     static constexpr int kParams = static_cast<int>(AfsField::Count);
     // Lock-free reads for the UI / app (any thread).
-    float overLevel() const noexcept { return overLevel_.load(std::memory_order_relaxed); } // held peak, linear
+    float overLevel() const noexcept { return overLevel_.load(std::memory_order_relaxed); } // held drive-out peak
     bool over() const noexcept { return overLevel() >= kOverThreshold; }                      // the OVER lamp
     int measuredLatency() const noexcept { return external_.measuredLatency(); }
     std::uint32_t pingCount() const noexcept { return external_.pingCount(); }
@@ -293,6 +294,7 @@ private:
     static std::uint32_t pathBit(const Config& c) noexcept { return c.route == Route::Master ? 1u << kMasterPath : 1u << (c.track & 15); }
     void run(float* l, float* r) noexcept; // drive → OVER → processor, at the current point
     void drive(float* l, float* r) noexcept; // the drive gain and its ramp (sets driveRan_)
+    void meterOver(const float* l, const float* r) noexcept; // OVER: the drive output's peak held 0.5 s (overRan_)
     void warm(const float* l, const float* r) noexcept; // the target's model on a copy (the dip's last block down)
     void applyDip(float* l, float* r) const noexcept;
 
@@ -329,6 +331,7 @@ private:
     alignas(16) float driveGain_[kBlockFrames] {};
     float overPeak_ = 0.0f;
     int overHold_ = 0, overHoldSamples_ = 22050;
+    bool overRan_ = false;
     std::atomic<float> overLevel_ {0.0f};
 
     // External loop: ports of this period, the return adapter (one block late, like the engine's input).

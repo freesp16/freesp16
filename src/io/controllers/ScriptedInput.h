@@ -18,6 +18,7 @@
 //   <ms> tap <x> <y>                 touch + release-touch 50 ms later
 //   <ms> screenshot <file.png>       ask the app for a screenshot after this frame (io::requestScreenshot)
 //   <ms> quit                        ask the app to stop (io::requestQuit)
+//   <ms> standby                     the power key: the app stops, then powers off (io::requestStandby)
 //   <ms> cmd <command> [args…]       an app command (io::requestAppCommand; app/Document.cpp lists them: diagnostics
 //                                    and the sequencing checks — save-as, scene BPM, offline render …)
 // Controls: the spec names and enum names of io::controlFromName ("pad.5", "Pad5", "enc.1", "sel.push") and the
@@ -34,7 +35,7 @@ namespace io
 {
 struct ScriptStep
 {
-    enum class Op : std::uint8_t { Event, Screenshot, Quit, Command } op = Op::Event;
+    enum class Op : std::uint8_t { Event, Screenshot, Quit, Standby, Command } op = Op::Event;
     double atMs = 0;
     ControlEvent event {ControlEvent::Kind::Press, Control::Pad1, 0, kSourceVirtual, 0};
     std::string arg {}; // screenshot path / app command

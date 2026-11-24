@@ -5,7 +5,6 @@
 #include "ui/shell/Layout.h"
 #include "ui/shell/PopupFactory.h"
 #include "ui/shell/Timing.h"
-#include "ui/shell/ValueEntry.h"
 #include "ui/theme/Draw.h"
 #include "ui/widgets/Dialog.h"
 #include "ui/widgets/GridPopup.h"
@@ -75,6 +74,7 @@ Shell::Shell(ShellConfig cfg)
     feeds_.attach(cfg.bridge);
     padColourSpec_ = params_.find("track.padColor");
     showCpuSpec_ = params_.find("ui.showCpu");
+    muteModeSpec_ = params_.find("track.muteMode");
     rail_.reserve(L::railCompactMax);
     slideList_.reserve(2048, 16384);
     popups_.reserve(4);
@@ -121,9 +121,10 @@ void Shell::enterScreen(double nowMs)
     const int remembered = router_.focusOf(s.id);
     const bool compact = s.rail.size() > L::railMax;
     rail_.clear();
-    for (std::size_t i = 0; i < s.rail.size() && i < L::railCompactMax; ++i)
-        rail_.emplace_back(&s.rail[i], static_cast<int>(i), compact);
     const auto rects = L::bodyRects(s.body);
+    const float railWidth = rects.rail.w > 0 ? rects.rail.w : L::railW;
+    for (std::size_t i = 0; i < s.rail.size() && i < L::railCompactMax; ++i)
+        rail_.emplace_back(&s.rail[i], static_cast<int>(i), compact, railWidth);
     WidgetArgs args{rects.content, {}, &params_, this, &state_, &feeds_};
     railOwner_ = nullptr;
     stripOwner_ = nullptr;
@@ -258,52 +259,77 @@ std::uint16_t Shell::scopeOf(const core::ParamSpec& s) const noexcept
     }
 }
 
-void Shell::turnEncoder(int n0, int detents, double nowMs)
+void Shell::turnEncoder(int n0, int detents, double nowMs, bool accelerate)
 {
-    const auto* spec = bound_[static_cast<std::size_t>(n0)];
-    const auto& col = strip_.model().columns[static_cast<std::size_t>(n0)];
+    const auto n = static_cast<std::size_t>(n0);
+    const auto* spec = bound_[n];
+    const auto& col = strip_.model().columns[n];
     if (col.disabled || col.readOnly || detents == 0)
         return; // an empty or disabled column ignores its encoder (UI-002/003)
     if (spec == nullptr)
     {
         if (stripOwner_ != nullptr && ! popupStrip_ && stripOwner_->stripTurnUnbound(n0, detents, state_.shift))
         {
-            touchedMs_[static_cast<std::size_t>(n0)] = nowMs;
+            touchedMs_[n] = nowMs;
             strip_.lastTouchMs = nowMs;
             changedSinceFrame_ = true;
             log("INPUT knob%d %+d (plugin)", n0 + 1, detents);
         }
         return;
     }
+    // Acceleration (EncoderAccel.h): the run belongs to this column's parameter at this SHIFT state; `turn` scales
+    // by the cap of whatever applies the detents (the screen's own span, or the parameter's).
+    EncoderTurn turn {detents, 0, 0};
+    if (accelerate)
+    {
+        if (accelSpec_[n] != spec || accelFine_[n] != state_.shift)
+        {
+            accel_.reset(n0);
+            accelSpec_[n] = spec;
+            accelFine_[n] = state_.shift;
+        }
+        turn = accel_.turn(n0, detents, nowMs);
+    }
+    char accelText[16] = "";
+    auto scaled = [&](long long steps) {
+        const int d = turn.scaled(EncoderAccel::maxMultiplier(steps));
+        if (d != detents)
+            std::snprintf(accelText, sizeof accelText, " accel %+d", d);
+        return d;
+    };
     const auto scope = scopeOf(*spec);
     float v = values_->get(*spec, scope);
-    if (stripOwner_ != nullptr && ! popupStrip_ &&
-        stripOwner_->stripTurn(n0, *spec, detents, state_.shift))
+    const bool owned = stripOwner_ != nullptr && ! popupStrip_;
+    const long long span = owned ? stripOwner_->stripSteps(n0, *spec, state_.shift) : -1; // StripOwner.h
+    if (owned && stripOwner_->stripTurn(n0, *spec, scaled(std::max(0LL, span)), state_.shift))
     {
-        touchedMs_[static_cast<std::size_t>(n0)] = nowMs;
+        touchedMs_[n] = nowMs;
         strip_.lastTouchMs = nowMs;
         changedSinceFrame_ = true;
-        log("INPUT knob%d %+d (%.*s, screen)", n0 + 1, detents, static_cast<int>(spec->id.size()), spec->id.data());
+        log("INPUT knob%d %+d (%.*s, screen)%s", n0 + 1, detents, static_cast<int>(spec->id.size()), spec->id.data(),
+            accelText);
         return; // the screen applied it (StripOwner)
     }
+    accelText[0] = '\0';
+    const int applied = scaled(span >= 0 ? span : EncoderAccel::stepsOf(*spec, state_.shift));
     if (state_.stepHeld > 0)
     {
         if (! spec->lockable)
             return; // greyed while a step is held (UI-204)
         values_->lockOf(*spec, scope, state_.stepHeld, v);
-        values_->setLock(*spec, scope, state_.stepHeld, spec->step(v, detents, state_.shift));
+        values_->setLock(*spec, scope, state_.stepHeld, spec->step(v, applied, state_.shift));
     }
     else
-        values_->set(*spec, scope, spec->step(v, detents, state_.shift));
-    touchedMs_[static_cast<std::size_t>(n0)] = nowMs;
+        values_->set(*spec, scope, spec->step(v, applied, state_.shift));
+    touchedMs_[n] = nowMs;
     strip_.lastTouchMs = nowMs;
     changedSinceFrame_ = true;
     char buf[32];
     const float now =
         state_.stepHeld > 0 ? (values_->lockOf(*spec, scope, state_.stepHeld, v), v) : values_->get(*spec, scope);
     const int len = std::max(0, spec->formatValue(now, buf, sizeof buf));
-    log("INPUT knob%d %+d (%.*s = %.*s%s)", n0 + 1, detents, static_cast<int>(spec->id.size()), spec->id.data(), len,
-        buf, state_.stepHeld > 0 ? " lock" : "");
+    log("INPUT knob%d %+d (%.*s = %.*s%s)%s", n0 + 1, detents, static_cast<int>(spec->id.size()), spec->id.data(), len,
+        buf, state_.stepHeld > 0 ? " lock" : "", accelText);
 }
 
 void Shell::updateStripModel(double nowMs)
@@ -391,6 +417,22 @@ void Shell::pollFeeds(double nowMs)
     feeds_.poll(nowMs, &state_); // levels, playhead and this frame's engine events for the widgets
 }
 
+// The status row's MUTE badge detail: the current scene's tracks' MUTE MODE — one name when they agree, else the split.
+std::string_view Shell::muteModeSummary()
+{
+    if (state_.padMuteView != UiState::PadMuteView::Mute || muteModeSpec_ == nullptr)
+        return {};
+    int steps = 0;
+    for (int t = 1; t <= 16; ++t)
+        steps += values_->get(*muteModeSpec_, state_.trackScope(t)) >= 0.5f ? 1 : 0;
+    if (steps == 0)
+        return "STOP SOUND";
+    if (steps == 16)
+        return "STOP STEPS";
+    muteModeText_.format("SOUND %d \xC2\xB7 STEPS %d", 16 - steps, steps); // ·
+    return muteModeText_.view();
+}
+
 void Shell::updateFrameModels(double nowMs)
 {
     const auto& s = router_.current();
@@ -411,7 +453,9 @@ void Shell::updateFrameModels(double nowMs)
     }
     statusRow_.set({router_.breadcrumb(), state_.playing, state_.recArmed || state_.samplerRec, state_.midiInAtMs,
                     state_.midiOutAtMs, state_.syncBadge, state_.syncLost,
-                    showCpu ? cpuText_.view() : std::string_view{}, showCpu && cpu_.percent() >= kCpuHighPercent});
+                    showCpu ? cpuText_.view() : std::string_view{}, showCpu && cpu_.percent() >= kCpuHighPercent,
+                    state_.padMuteView, muteModeSummary()});
+    drawnPadMuteView_ = state_.padMuteView;
     ContextBarModel cb = contextBar_.model();
     cb.kind = s.contextBar;
     bool projectPage = false;
@@ -440,7 +484,7 @@ void Shell::updateFrameModels(double nowMs)
     cb.typeBadge = tr.typeBadge;
     cb.stretchBadge = tr.hasContent ? tr.stretchBadge : std::string_view{};
     cb.loopGlyph = tr.hasContent ? tr.loopGlyph : std::string_view{};
-    static constexpr std::string_view kTrackTypeNames[] = {"SAMPLE", "MIDI", "THRU", "AS-1", "PLUGIN"};
+    static constexpr std::string_view kTrackTypeNames[] = {"SAMPLE", "MIDI", "THRU", "TORAIZ AS-1", "PLUGIN"};
     const auto* modeSpec = params_.find("track.mode");
     const int modeVal = modeSpec != nullptr
                             ? static_cast<int>(std::lround(values_->get(*modeSpec, state_.trackScope())))
@@ -646,7 +690,7 @@ int Shell::padColourOf(const void* self, int t)
 bool Shell::dirty(double nowMs) const
 {
     if (changedSinceFrame_ || nowMs - screenSinceMs_ < tk::motionSlowMs + 20 || strip_.dirty(nowMs) ||
-        statusRow_.dirty(nowMs))
+        statusRow_.dirty(nowMs) || state_.padMuteView != drawnPadMuteView_)
         return true;
     if (showCpuSpec_ != nullptr && values_->get(*showCpuSpec_, 0) >= 0.5f && nowMs - cpuSampledMs_ >= kCpuIntervalMs)
         return true; // the CPU readout is due
@@ -864,14 +908,6 @@ void Shell::handleTouch(const io::ControlEvent& e, UiContext& ctx)
     if (y >= L::stripY)
     {
         const int column = strip_.columnAt(x, y);
-        if (column >= 0 && column == lastTapColumn_ && e.timeMs - lastTapMs_ < timing::doubleTapMs)
-        {
-            lastTapColumn_ = -1; // a double-tap on a column types its value (UID-912)
-            openValueEntry(column);
-            return;
-        }
-        lastTapColumn_ = column;
-        lastTapMs_ = e.timeMs;
         touchOwner_ = TouchOwner::Strip;
         dragColumn_ = column;
         dragY_ = y;
@@ -1010,7 +1046,7 @@ void Shell::dispatch(const io::ControlEvent& e)
             const int n0 = io::indexOf(e.control) - 1;
             resolveStrip();
             updateStripModel(nowMs_);
-            turnEncoder(n0, e.value, e.timeMs);
+            turnEncoder(n0, e.value, e.timeMs, e.source == io::kSourcePanel);
             return;
         }
         if (! encoder && ! io::isPad(e.control) && e.control != io::Control::Play && e.control != io::Control::Stop &&
@@ -1069,7 +1105,7 @@ void Shell::dispatch(const io::ControlEvent& e)
         if (io::isKnob(e.control))
         {
             updateStripModel(nowMs_);
-            turnEncoder(io::indexOf(e.control) - 1, e.value, e.timeMs);
+            turnEncoder(io::indexOf(e.control) - 1, e.value, e.timeMs, e.source == io::kSourcePanel);
             return;
         }
         if (e.control == io::Control::Selector)
@@ -1174,19 +1210,6 @@ PopupWidget* Shell::pushPopup(std::unique_ptr<PopupWidget> p)
 PopupWidget* Shell::showPopup(std::unique_ptr<PopupWidget> p)
 {
     return pushPopup(std::move(p));
-}
-
-bool Shell::openValueEntry(int n0)
-{
-    if (n0 < 0 || n0 >= 6)
-        return false;
-    updateStripModel(nowMs_);
-    const auto* spec = bound_[static_cast<std::size_t>(n0)];
-    const auto& col = strip_.model().columns[static_cast<std::size_t>(n0)];
-    if (spec == nullptr || col.spec == nullptr || col.disabled || col.readOnly)
-        return false;
-    log("INPUT value entry knob%d (%.*s)", n0 + 1, static_cast<int>(spec->id.size()), spec->id.data());
-    return pushPopup(std::make_unique<ValueEntry>(n0, *spec, scopeOf(*spec), *values_)) != nullptr;
 }
 
 void Shell::showList(ListRequest r)

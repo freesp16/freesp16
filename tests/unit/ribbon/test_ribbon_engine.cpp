@@ -377,6 +377,36 @@ TEST_CASE("ribbon.repeat: HOLD keeps the rate after the release while a pad is h
     CHECK(h.events.size() == before); // RIB-003: only while a pad is held
 }
 
+TEST_CASE("ribbon.repeat: a repeat replays the held pad's scale note (SCALE pad mode)", "[ribbon]")
+{
+    auto r = makeRibbon();
+    REQUIRE(r.onParam(param("ribbon.mode", static_cast<float>(Mode::Repeat))));
+    r.onStrip(80, true); // 1/16
+    auto e = padEvent(2, true, 100);
+    e.semitones = 7; // SCALE: the pad's note, a fifth up
+    r.observe(std::span<const engine::trigger::TriggerEvent>(&e, 1), {});
+    Hits h;
+    for (long n = 0; n < 1000; ++n) // ≈ 11 16ths
+    {
+        r.collect(block(n, 120.0, true), h);
+        idle(r);
+    }
+    REQUIRE(h.events.size() >= 5);
+    for (const auto& ev : h.events)
+        CHECK(ev.semitones == 7);
+    // Another hit of the same track (PLAY: no offset) → the repeats follow it.
+    e.semitones = 0;
+    r.observe(std::span<const engine::trigger::TriggerEvent>(&e, 1), {});
+    Hits after;
+    for (long n = 1000; n < 2000; ++n)
+    {
+        r.collect(block(n, 120.0, true), after);
+        idle(r);
+    }
+    REQUIRE_FALSE(after.events.empty());
+    CHECK(after.events.back().semitones == 0);
+}
+
 TEST_CASE("ribbon.live: the TriggerNow strip stream and pad pressure codes", "[ribbon]")
 {
     auto r = makeRibbon();

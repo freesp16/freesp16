@@ -213,6 +213,12 @@ public:
             break;
         }
     }
+    long long stripSteps(int column0, const core::ParamSpec& spec, bool fine) const override
+    {
+        if (column0 == 0)
+            return 0; // the target track, one by one
+        return column0 == 3 ? EncoderAccel::stepsOf(spec, fine) : -1; // NUDGE
+    }
     bool stripTurn(int column0, const core::ParamSpec& spec, int detents, bool fine) override
     {
         if (column0 == 0)

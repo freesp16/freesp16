@@ -1,5 +1,6 @@
 {
-  "format": { "name": "sixteen-project", "version": 2 },
+  "format": { "name": "sixteen-project", "version": 5 },
+  "origin": { "format": "sp16-prj", "importer": 1 },
   "settings": {
     "tempo": 71.36174061014317,
     "swing": 60,
@@ -147,7 +148,7 @@
           ],
           "send": { "amount": 74 },
           "lfo": { "speed": 6.465148403641162, "depth": 35, "destination": 19, "shape": "Random", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [111, -1, -1, -1], "velocity": 92, "length": 10.501513597171279, "pitchBendValue": -7236, "cc1": [{}, {}, { "cc": 109, "value": 81 }, {}], "program": 32, "mode": "DrumMap" }
+          "midi": { "notes": [111, 0, 0, 0], "velocity": 92, "length": 10.501513597171279, "pitchBendValue": -7236, "cc1": [{}, {}, { "cc": 109, "value": 81 }, {}], "program": 32, "mode": "DrumMap" }
         },
         {
           "colour": 3,
@@ -184,7 +185,7 @@
           "ampEnv": { "attack": 0.9404585873695441, "hold": 0.9148643883596083, "release": 0.37015869535587126, "volumeIndex": 123 },
           "seq": { "retriggerCount": 3, "retriggerSpeed": "1/3", "offset": -8, "stepShiftArea": "All", "transpose": -4 },
           "slices": { "gridCount": 33 },
-          "padScale": { "scaleType": "Minor", "keyShift": 5 },
+          "padScale": { "scaleType": "Aeolian", "keyShift": 5 },
           "midiScale": { "rootNote": 24 },
           "insertFx": [
             { "type": "Phaser", "type1": 3, "type2": 1, "params": [0.7, 0.2541636522254171, 0.05, 0.6970157401749562, 0.3594911507584413, 0.45], "perType": { "MultiModeFilter": { "type1": 1, "params": [0, 0, 0, 0.5015162955981644, 0, 0], "sync": true }, "InsertDelay": { "type1": 1, "params": [0, 0, 0, 0.05076852762042374, 0, 0], "sync": true }, "Compressor": { "type1": 2, "params": [0, 0, 0.03594227639772606, 0, 0, 0], "sync": true } } },
@@ -192,7 +193,7 @@
           ],
           "send": { "amount": 88 },
           "lfo": { "speed": 37.38455992806887, "depth": 116, "destination": 6, "shape": "Square", "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [92, 75, -1, -1], "velocity": 50, "length": 7.910496613723852, "pitchBendValue": 5104, "cc1": [{}, {}, { "cc": 56, "value": 28, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "mode": "DrumMap" },
+          "midi": { "notes": [92, 75, 0, 0], "velocity": 50, "length": 7.910496613723852, "pitchBendValue": 5104, "cc1": [{}, {}, { "cc": 56, "value": 28, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "mode": "DrumMap" },
           "routing": { "output": "Out56" }
         },
         {
@@ -228,7 +229,7 @@
           ],
           "send": { "amount": 16 },
           "lfo": { "speed": 36.307748024791934, "depth": 88, "destination": 3, "shape": "Random", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [18, 53, -1, -1], "velocity": 73, "length": 21.303598952777705, "pitchBendValue": 1243, "cc1": [{}, {}, { "cc": 38, "value": 125, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 19, "mode": "DrumMap" },
+          "midi": { "notes": [18, 53, 0, 0], "velocity": 73, "length": 21.303598952777705, "pitchBendValue": 1243, "cc1": [{}, {}, { "cc": 38, "value": 125, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 19, "mode": "DrumMap" },
           "routing": { "output": "Mono3" }
         },
         {
@@ -247,7 +248,7 @@
           "ampEnv": { "attack": 0.38420182526677715, "hold": 0.9152543419146553, "release": 0.9587024024876215, "volumeIndex": 95, "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 10, "retriggerSpeed": "1/3", "offset": -5, "stepShiftArea": "All", "transpose": -17 },
           "slices": { "gridCount": 50 },
-          "padScale": { "scaleType": "MinorPenta", "keyShift": -8 },
+          "padScale": { "scaleType": "MinorPentatonic", "keyShift": -8 },
           "midiScale": { "rootNote": 40 },
           "insertFx": [
             { "type": "2BandEQ", "sync": true, "params": [0.6027818799050979, 0.6, 0.25, 0.5811626177108193, 0.08274841527879309, 0.5515878784624078], "perType": { "Chorus": { "type1": 2, "params": [0, 0, 0, 0, 0, 0.376463361180214], "sync": true }, "Phaser": { "type1": 1, "params": [0.4148195018146238, 0, 0, 0, 0, 0], "sync": true } } },
@@ -255,7 +256,7 @@
           ],
           "send": { "amount": 4 },
           "lfo": { "speed": 36.526629952682526, "depth": 52, "destination": 20, "shape": "Square", "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [73, 84, -1, -1], "velocity": 109, "length": 61.070753128158266, "pitchBendValue": 4583, "cc1": [{}, {}, { "cc": 44, "value": 76, "active": true }, {}], "program": 91 },
+          "midi": { "notes": [73, 84, 0, 0], "velocity": 109, "length": 61.070753128158266, "pitchBendValue": 4583, "cc1": [{}, {}, { "cc": 44, "value": 76, "active": true }, {}], "program": 91 },
           "routing": { "output": "Mono3" }
         },
         {
@@ -427,7 +428,7 @@
           ],
           "send": { "amount": 70 },
           "lfo": { "speed": 39.46252446744299, "destination": 7, "shape": "Random", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [122, 108, -1, -1], "velocity": 26, "length": 30.561577142837073, "pitchBendValue": 5242, "cc1": [{}, {}, { "cc": 79, "value": 101, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }] }
+          "midi": { "notes": [119, 108, 0, 0], "velocity": 26, "length": 30.561577142837073, "pitchBendValue": 5242, "cc1": [{}, {}, { "cc": 79, "value": 101, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }] }
         },
         {
           "colour": 5,
@@ -508,7 +509,7 @@
           ],
           "send": { "amount": 87 },
           "lfo": { "speed": 20.49571278791598, "depth": 124, "destination": 142, "shape": "SawUp", "triggerMode": "Trigger" },
-          "midi": { "notes": [27, 54, -1, -1], "velocity": 69, "length": 15.086432357117731, "pitchBendValue": 6768, "cc1": [{}, {}, { "cc": 33, "value": 86, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 17, "mode": "DrumMap" },
+          "midi": { "notes": [27, 54, 0, 0], "velocity": 69, "length": 15.086432357117731, "pitchBendValue": 6768, "cc1": [{}, {}, { "cc": 33, "value": 86, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 17, "mode": "DrumMap" },
           "routing": { "output": "Mono8" }
         }
       ],
@@ -648,7 +649,7 @@
           "ampEnv": { "attack": 0.2707337320576509, "hold": 0.30835506336227836, "release": 0.8844965349411471, "volumeIndex": 115, "velocitySensitive": false, "retrigger": true, "attackCurve": "Curve", "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 14, "retriggerSpeed": "1", "offset": -8, "stepShiftArea": "All", "transpose": 16 },
           "slices": { "gridCount": 23 },
-          "padScale": { "scaleType": "MajorPenta", "keyShift": 10 },
+          "padScale": { "scaleType": "MajorPentatonic", "keyShift": 10 },
           "midiScale": { "rootNote": 1 },
           "insertFx": [
             { "type": "Chorus", "type1": 3, "type2": 1, "params": [0.8039435312095211, 0.9357968356249211, 0.7087215088973414, 0.8040227960367298, 0.36790292374100214, 0.25244245913591684], "perType": { "InsertDelay": { "type1": 1, "params": [0, 0.783098678314412, 0, 0, 0, 0], "sync": true } } },
@@ -656,7 +657,7 @@
           ],
           "send": { "amount": 13 },
           "lfo": { "speed": 4.358865278731329, "depth": 57, "destination": 106, "shape": "Square", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [113, 51, -1, 64], "velocity": 124, "length": 33.75379154726587, "pitchBendValue": -4281, "cc1": [{}, {}, { "cc": 23, "value": 39 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 68, "mode": "DrumMap" },
+          "midi": { "notes": [113, 51, 0, 64], "velocity": 124, "length": 33.75379154726587, "pitchBendValue": -4281, "cc1": [{}, {}, { "cc": 23, "value": 39 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 68, "mode": "DrumMap" },
           "routing": { "output": "Out56" }
         },
         {
@@ -702,7 +703,7 @@
           ],
           "send": { "amount": 22 },
           "lfo": { "speed": 23.96050543762634, "depth": 33, "destination": 116, "shape": "SawDown", "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [33, 56, -1, -1], "velocity": 120, "length": 8.834521223928888, "pitchBendValue": 3865, "cc1": [{}, {}, { "cc": 97, "value": 116 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "mode": "DrumMap" },
+          "midi": { "notes": [33, 56, 0, 0], "velocity": 120, "length": 8.834521223928888, "pitchBendValue": 3865, "cc1": [{}, {}, { "cc": 97, "value": 116 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "mode": "DrumMap" },
           "routing": { "output": "Out34" }
         },
         {
@@ -720,15 +721,15 @@
           "playback": { "sample": "sha256:604473b19343b5c11d46ad5f7a7b39fbb3a758754a774f9dae80dd9495aed01a", "start": 310546, "loopStart": 310661, "length": 1653201, "pitchCents": 413, "stretch": "MasterTempo" },
           "ampEnv": { "attack": 0.9849378658250213, "hold": 0.16465469078121414, "release": 5.594154159136251e-03, "volumeIndex": 14, "sync": true, "velocitySensitive": false, "attackCurve": "Curve", "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 13, "retriggerSpeed": "1/3", "offset": -8, "transpose": -18 },
-          "padScale": { "scaleType": "Major", "keyShift": 9 },
-          "midiScale": { "rootNote": 126 },
+          "padScale": { "scaleType": "Ionian", "keyShift": 9 },
+          "midiScale": { "rootNote": 119 },
           "insertFx": [
             { "type": "InsertDelay", "type1": 2, "type2": 1, "params": [0.24869180910021682, 0.6340505069697995, 0.85, 0.9558616864984468, 0.7984945361987571, 0.1512433367873283], "perType": { "Chorus": { "type1": 2, "params": [0, 0, 0, 0, 0.19527333912113823, 0] } } },
             {}
           ],
           "send": { "amount": 47 },
           "lfo": { "speed": 9.137451922799055, "depth": 107, "destination": 16, "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [18, -1, -1, -1], "velocity": 43, "length": 14.596325625872604, "pitchBendValue": 2192, "cc1": [{}, {}, { "cc": 10, "value": 105, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 93, "mode": "DrumMap" },
+          "midi": { "notes": [18, 0, 0, 0], "velocity": 43, "length": 14.596325625872604, "pitchBendValue": 2192, "cc1": [{}, {}, { "cc": 10, "value": 105, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 93, "mode": "DrumMap" },
           "routing": { "output": "Mono2" }
         },
         {
@@ -741,7 +742,7 @@
           "ampEnv": { "attack": 0.33971454788246763, "hold": 0.1647410332791842, "release": 0.04215041708142478, "volumeIndex": 86, "attackCurve": "Curve", "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 7, "retriggerSpeed": "1", "offset": -2, "transpose": -20 },
           "slices": { "gridCount": 18 },
-          "padScale": { "scaleType": "Blues", "keyShift": 12 },
+          "padScale": { "scaleType": "MinorBlues", "keyShift": 12 },
           "midiScale": { "rootNote": 103 },
           "insertFx": [
             { "type": "Compressor", "type1": 2, "type2": 2, "params": [0.06303364954921012, 0.8140682806332057, 0.9735265520691659, 0.75, 0.7576576159228875, 0.1200027495599921], "perType": { "LoFi": { "type1": 1, "params": [0, 0, 0, 0, 0.47948063160504756, 0] }, "Distortion": { "type1": 2, "params": [0, 0, 0, 0, 0.7856177592373638, 0] } } },
@@ -749,7 +750,7 @@
           ],
           "send": { "amount": 9 },
           "lfo": { "speed": 27.24690210564756, "depth": 124, "destination": 138, "shape": "SawUp", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [18, -1, -1, -1], "length": 0.9530406070979147, "pitchBendValue": -7452, "cc1": [{}, {}, { "cc": 45, "value": 75 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "mode": "DrumMap" },
+          "midi": { "notes": [18, 0, 0, 0], "length": 0.9530406070979147, "pitchBendValue": -7452, "cc1": [{}, {}, { "cc": 45, "value": 75 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "mode": "DrumMap" },
           "routing": { "output": "Out12" },
           "x_future2": 71,
           "x_future1": {"k":-0.5142275289424294,"list":[true,null,3]}
@@ -765,7 +766,7 @@
           "ampEnv": { "attack": 0.136136436729961, "release": 0.6838839761897393, "volumeIndex": 92, "sync": true, "velocitySensitive": false, "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 6, "retriggerSpeed": "1/2", "offset": 1, "stepShiftArea": "All", "transpose": 4 },
           "slices": { "gridCount": 2 },
-          "padScale": { "scaleType": "MinorPenta", "keyShift": -8 },
+          "padScale": { "scaleType": "MinorPentatonic", "keyShift": -8 },
           "midiScale": { "rootNote": 36 },
           "insertFx": [
             { "type": "Ducker", "type1": 3, "params": [0.42215516694769223, 0.44381274009536487, 0.8, 0.38715539846412, 0.15813264503179547, 0.4475422365128379], "perType": { "MultiModeFilter": { "type1": 2, "params": [0, 0, 0, 0.1032934705735522, 0, 0], "sync": true }, "Distortion": { "params": [0, 0, 0, 1.9099279254377266e-02, 0, 0], "sync": true }, "Phaser": { "type1": 2, "params": [0, 0, 0, 0, 0.7077026297245204, 0] } }, "x_future1": -385349642.95740426 },
@@ -773,7 +774,7 @@
           ],
           "send": { "amount": 83 },
           "lfo": { "speed": 27.19942035228044, "depth": 4, "destination": 2, "triggerMode": "Trigger" },
-          "midi": { "notes": [110, -1, -1, -1], "velocity": 94, "length": 7.599817554333033, "pitchBendValue": -4335, "cc1": [{}, {}, { "cc": 42 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 0 },
+          "midi": { "notes": [110, 0, 0, 0], "velocity": 94, "length": 7.599817554333033, "pitchBendValue": -4335, "cc1": [{}, {}, { "cc": 42 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 0 },
           "routing": { "output": "Mono4" }
         },
         {
@@ -842,7 +843,7 @@
           ],
           "send": { "amount": 35 },
           "lfo": { "speed": 7.147718157036374, "depth": 95, "destination": 18, "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [54, 1, -1, -1], "velocity": 107, "length": 18.028016279505934, "pitchBendValue": 3161, "cc1": [{}, {}, { "cc": 18, "value": 70 }, {}] },
+          "midi": { "notes": [54, 1, 0, 0], "velocity": 107, "length": 18.028016279505934, "pitchBendValue": 3161, "cc1": [{}, {}, { "cc": 18, "value": 70 }, {}] },
           "routing": { "output": "Mono7" }
         },
         {
@@ -926,7 +927,7 @@
           "ampEnv": { "attack": 0.9835237222689948, "hold": 0.10281438934117956, "release": 0.312569737277377, "volumeIndex": 45, "sync": true, "retrigger": true, "attackCurve": "Curve" },
           "seq": { "retriggerCount": 2, "retriggerSpeed": "1/2", "offset": 5, "stepShiftArea": "All", "transpose": 4 },
           "slices": { "gridCount": 47 },
-          "padScale": { "scaleType": "Minor", "keyShift": -12 },
+          "padScale": { "scaleType": "Aeolian", "keyShift": -12 },
           "midiScale": { "rootNote": 14 },
           "insertFx": [
             { "type": "2BandEQ", "bypass": true, "type2": 2, "params": [0.5261427586499142, 0.9316074939185373, 7.954183753046696e-03, 5.4386972683631074e-02, 0.7, 0.5870043561979955], "perType": { "Distortion": { "type1": 2, "params": [0, 0.681735950893228, 0, 0, 0, 0] }, "Ducker": { "params": [0, 0, 0, 0, 0.14002568579794913, 0], "sync": true } } },
@@ -934,7 +935,7 @@
           ],
           "send": { "amount": 49 },
           "lfo": { "speed": 29.573447745357964, "depth": 106, "destination": 148, "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [13, -1, -1, 64], "velocity": 125, "length": 53.70327121323861, "pitchBendValue": 7562, "cc1": [{}, {}, { "cc": 70, "value": 46 }, {}] },
+          "midi": { "notes": [13, 0, 0, 64], "velocity": 125, "length": 53.70327121323861, "pitchBendValue": 7562, "cc1": [{}, {}, { "cc": 70, "value": 46 }, {}] },
           "routing": { "output": "Out12" }
         }
       ],
@@ -1075,7 +1076,7 @@
           "ampEnv": { "attack": 0.24113701566228535, "hold": 0.6379017262476785, "release": 0.9532633418590462, "volumeIndex": 55, "retrigger": true, "attackCurve": "Curve", "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 5, "retriggerSpeed": "1/4", "offset": -8, "transpose": 8 },
           "slices": { "gridCount": 39 },
-          "padScale": { "scaleType": "MinorPenta", "keyShift": 4 },
+          "padScale": { "scaleType": "MinorPentatonic", "keyShift": 4 },
           "midiScale": { "rootNote": 56 },
           "insertFx": [
             { "type": "InsertDelay", "type2": 3, "params": [0.30295808343382946, 0.15, 0.6845883999286994, 0.9756387219001651, 0.4276995149567935, 0.8294600983142802], "perType": { "Flanger": { "type1": 1, "params": [0, 0, 0, 0.11545679539024802, 0, 0], "sync": true }, "Distortion": { "params": [0, 0.9390691896943727, 0, 0, 0, 0] }, "Phaser": { "type1": 1, "params": [0, 0, 0, 0, 0.24869594322458116, 0], "sync": true } } },
@@ -1083,7 +1084,7 @@
           ],
           "send": { "amount": 127 },
           "lfo": { "speed": 29.18941977943801, "depth": 57, "destination": 105, "shape": "Square", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [105, -1, -1, 64], "velocity": 13, "length": 3.9820154960123775, "pitchBendValue": 7739, "cc1": [{}, {}, { "cc": 9, "value": 60 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 4, "mode": "DrumMap" },
+          "midi": { "notes": [105, 0, 0, 64], "velocity": 13, "length": 3.9820154960123775, "pitchBendValue": 7739, "cc1": [{}, {}, { "cc": 9, "value": 60 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 4, "mode": "DrumMap" },
           "routing": { "output": "Mono5" }
         },
         {
@@ -1097,7 +1098,7 @@
           "ampEnv": { "attack": 0.8547201338810956, "hold": 0.7739920747544723, "release": 8.291805675611351e-03, "volumeIndex": 78, "retrigger": true },
           "seq": { "retriggerCount": 4, "retriggerSpeed": "1/6", "transpose": 24 },
           "slices": { "gridCount": 41 },
-          "padScale": { "scaleType": "MelodicMinor", "keyShift": -9 },
+          "padScale": { "scaleType": "Hawaiian", "keyShift": -9 },
           "midiScale": { "rootNote": 89 },
           "insertFx": [
             { "type": "2BandEQ", "sync": true, "type1": 2, "type2": 1, "params": [1, 0.34431377951387937, 0.747604662526884, 0, 0.12026562514760034, 0.25], "perType": { "Ducker": { "type1": 2, "params": [0, 0, 0.7989768887307555, 0, 0, 0] } } },
@@ -1105,7 +1106,7 @@
           ],
           "send": { "amount": 19 },
           "lfo": { "speed": 21.907429045352117, "depth": 8, "destination": 12, "shape": "Triangle", "triggerMode": "Trigger" },
-          "midi": { "notes": [108, -1, -1, 64], "velocity": 95, "length": 1.039956160275716, "pitchBendValue": 7540, "cc1": [{}, {}, { "cc": 90, "value": 82, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }] },
+          "midi": { "notes": [108, 0, 0, 64], "velocity": 95, "length": 1.039956160275716, "pitchBendValue": 7540, "cc1": [{}, {}, { "cc": 90, "value": 82, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }] },
           "routing": { "output": "Mono2" }
         },
         {
@@ -1177,7 +1178,7 @@
           ],
           "send": { "amount": 60 },
           "lfo": { "speed": 14.404363561691289, "depth": 127, "destination": 19, "shape": "SawDown", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [43, 51, -1, -1], "velocity": 101, "length": 20.40008201737277, "pitchBendValue": 4789, "cc1": [{}, {}, { "cc": 37, "value": 43 }, {}] },
+          "midi": { "notes": [43, 51, 0, 0], "velocity": 101, "length": 20.40008201737277, "pitchBendValue": 4789, "cc1": [{}, {}, { "cc": 37, "value": 43 }, {}] },
           "routing": { "output": "Mono8" }
         },
         {
@@ -1191,7 +1192,7 @@
           "ampEnv": { "attack": 0.4796272371944126, "hold": 0.34189011376757805, "release": 0.10698180849145184, "volumeIndex": 38, "sync": true, "retrigger": true, "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 10, "retriggerSpeed": "1/6", "offset": 1, "transpose": 11 },
           "slices": { "grids": [2210498, 2013748], "gridCount": 19 },
-          "padScale": { "scaleType": "Minor", "keyShift": 9 },
+          "padScale": { "scaleType": "Aeolian", "keyShift": 9 },
           "midiScale": { "rootNote": 114 },
           "insertFx": [
             { "type": "Flanger", "bypass": true, "type1": 1, "type2": 3, "params": [0.9, 0.5, 0.35, 0.49969291853045983, 0.6405537987873121, 4.609935869969414e-03], "perType": { "InsertDelay": { "type1": 2, "params": [0.2237722920691356, 0, 0, 0, 0, 0], "sync": true }, "LoFi": { "type1": 1, "params": [0, 0, 0, 0.6991964783842715, 0, 0] }, "Compressor": { "type1": 1, "params": [0.7556612553304428, 0, 0, 0, 0, 0] } } },
@@ -1199,7 +1200,7 @@
           ],
           "send": { "amount": 75 },
           "lfo": { "speed": 37.889112026073825, "depth": 24, "destination": 4, "shape": "SawDown", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [125, 2, -1, -1], "velocity": 25, "length": 20.816518793118806, "pitchBendValue": -2865, "cc1": [{}, {}, { "cc": 40, "value": 81, "active": true }, {}] },
+          "midi": { "notes": [119, 2, 0, 0], "velocity": 25, "length": 20.816518793118806, "pitchBendValue": -2865, "cc1": [{}, {}, { "cc": 40, "value": 81, "active": true }, {}] },
           "routing": { "output": "Mono5" }
         },
         {
@@ -1221,7 +1222,7 @@
           ],
           "send": { "amount": 33 },
           "lfo": { "speed": 11.464622544763401, "depth": 2, "destination": 137, "shape": "Square", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [69, -1, -1, -1], "velocity": 54, "length": 53.96831997436791, "pitchBendValue": -5258, "cc1": [{}, {}, { "cc": 96, "value": 50 }, {}], "program": 36 },
+          "midi": { "notes": [69, 0, 0, 0], "velocity": 54, "length": 53.96831997436791, "pitchBendValue": -5258, "cc1": [{}, {}, { "cc": 96, "value": 50 }, {}], "program": 36 },
           "routing": { "output": "Out34" }
         }
       ],
@@ -1669,7 +1670,7 @@
           ],
           "send": { "amount": 111 },
           "lfo": { "speed": 1.6652448581745753, "depth": 63, "destination": 106, "shape": "Square", "triggerMode": "Trigger" },
-          "midi": { "notes": [34, -1, -1, 64], "velocity": 29, "length": 8.748968331673403, "pitchBendValue": -6250, "cc1": [{}, {}, { "cc": 15, "value": 14 }, {}], "mode": "DrumMap" },
+          "midi": { "notes": [34, 0, 0, 64], "velocity": 29, "length": 8.748968331673403, "pitchBendValue": -6250, "cc1": [{}, {}, { "cc": 15, "value": 14 }, {}], "mode": "DrumMap" },
           "routing": { "output": "Mono2" }
         },
         {
@@ -1697,7 +1698,7 @@
           ],
           "send": { "amount": 9 },
           "lfo": { "speed": 20.357772366291282, "depth": 92, "destination": 20, "shape": "Random", "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [25, -1, -1, -1], "velocity": 14, "length": 57.80610685833764, "pitchBendValue": 111, "cc1": [{}, {}, { "cc": 5, "value": 106, "active": true }, {}], "program": 8 },
+          "midi": { "notes": [25, 0, 0, 0], "velocity": 14, "length": 57.80610685833764, "pitchBendValue": 111, "cc1": [{}, {}, { "cc": 5, "value": 106, "active": true }, {}], "program": 8 },
           "routing": { "output": "Out34" }
         },
         {
@@ -1754,7 +1755,7 @@
           ],
           "send": { "amount": 86 },
           "lfo": { "speed": 12.429438008235925, "depth": 40, "destination": 17, "shape": "Triangle", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [108, 71, -1, -1], "velocity": 118, "length": 21.6990029673676, "pitchBendValue": -1615, "cc1": [{}, {}, { "value": 20, "active": true }, {}], "program": 8, "mode": "DrumMap" }
+          "midi": { "notes": [108, 71, 0, 0], "velocity": 118, "length": 21.6990029673676, "pitchBendValue": -1615, "cc1": [{}, {}, { "value": 20, "active": true }, {}], "program": 8, "mode": "DrumMap" }
         },
         {
           "triggerMode": "Gate",
@@ -1775,7 +1776,7 @@
           ],
           "send": { "amount": 126 },
           "lfo": { "speed": 31.324184552772568, "depth": 98, "destination": 4, "shape": "Triangle", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [18, -1, -1, -1], "velocity": 42, "length": 11.040294675865338, "pitchBendValue": 5862, "cc1": [{}, {}, { "cc": 32, "value": 23, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 84 },
+          "midi": { "notes": [18, 0, 0, 0], "velocity": 42, "length": 11.040294675865338, "pitchBendValue": 5862, "cc1": [{}, {}, { "cc": 32, "value": 23, "active": true }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 84 },
           "routing": { "output": "Mono4" }
         },
         {
@@ -1796,7 +1797,7 @@
           ],
           "send": { "amount": 53 },
           "lfo": { "speed": 16.667971080582994, "depth": 72, "destination": 2, "shape": "SawDown", "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [90, -1, -1, -1], "velocity": 77, "length": 54.909515935744516, "pitchBendValue": -1200, "cc1": [{}, {}, { "cc": 71, "value": 48 }, {}], "program": 77 },
+          "midi": { "notes": [90, 0, 0, 0], "velocity": 77, "length": 54.909515935744516, "pitchBendValue": -1200, "cc1": [{}, {}, { "cc": 71, "value": 48 }, {}], "program": 77 },
           "routing": { "output": "Mono4" }
         },
         {
@@ -1842,7 +1843,7 @@
           ],
           "send": { "amount": 111 },
           "lfo": { "speed": 37.33760128003646, "depth": 40, "destination": 110, "shape": "SawDown", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [84, -1, -1, -1], "velocity": 122, "length": 17.451981030450245, "pitchBendValue": -4158, "cc1": [{}, {}, { "cc": 80, "value": 101 }, {}], "program": 44, "mode": "DrumMap" },
+          "midi": { "notes": [84, 0, 0, 0], "velocity": 122, "length": 17.451981030450245, "pitchBendValue": -4158, "cc1": [{}, {}, { "cc": 80, "value": 101 }, {}], "program": 44, "mode": "DrumMap" },
           "routing": { "output": "Mono5" }
         },
         {
@@ -1865,7 +1866,7 @@
           ],
           "send": { "amount": 56 },
           "lfo": { "speed": 5.463376209153733, "depth": 69, "destination": 139, "shape": "SawUp", "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [53, 23, -1, -1], "velocity": 33, "length": 10.523633519585461, "pitchBendValue": 2601, "cc1": [{}, {}, { "cc": 62, "value": 35, "active": true }, {}], "program": 73 },
+          "midi": { "notes": [53, 23, 0, 0], "velocity": 33, "length": 10.523633519585461, "pitchBendValue": 2601, "cc1": [{}, {}, { "cc": 62, "value": 35, "active": true }, {}], "program": 73 },
           "routing": { "output": "Mono2" }
         },
         {
@@ -1886,7 +1887,7 @@
           ],
           "send": { "amount": 3 },
           "lfo": { "speed": 21.2699672148327, "depth": 5, "destination": 127, "shape": "Square", "triggerMode": "Trigger" },
-          "midi": { "notes": [54, -1, -1, -1], "velocity": 4, "length": 13.098677619879815, "pitchBendValue": -6527, "cc1": [{}, {}, { "cc": 11, "value": 121 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 123, "mode": "DrumMap" },
+          "midi": { "notes": [54, 0, 0, 0], "velocity": 4, "length": 13.098677619879815, "pitchBendValue": -6527, "cc1": [{}, {}, { "cc": 11, "value": 121 }, {}], "cc2": [{}, {}, {}, {}, {}, { "active": true }], "program": 123, "mode": "DrumMap" },
           "routing": { "output": "Out34" },
           "x_future2": 730459185.0241817,
           "x_future1": -651,
@@ -1918,7 +1919,7 @@
           ],
           "send": { "amount": 47 },
           "lfo": { "speed": 12.461687059787106, "depth": 81, "destination": 10, "shape": "SawDown", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [119, 30, -1, -1], "velocity": 20, "length": 24.08714667893736, "pitchBendValue": -6798, "cc1": [{}, {}, { "cc": 125, "value": 29, "active": true }, {}] },
+          "midi": { "notes": [119, 30, 0, 0], "velocity": 20, "length": 24.08714667893736, "pitchBendValue": -6798, "cc1": [{}, {}, { "cc": 125, "value": 29, "active": true }, {}] },
           "routing": { "output": "Out78" },
           "_extras": [
             { "key": "sp16.node5", "encoding": "base64", "value": "AAECAwQFBgc=" }
@@ -1964,7 +1965,7 @@
           "ampEnv": { "attack": 0.1961914905299922, "hold": 0.18186943907776928, "release": 0.7353901010966594, "volumeIndex": 0, "releaseCurve": "Curve" },
           "seq": { "retriggerCount": 6, "retriggerSpeed": "1/3", "offset": -2, "stepShiftArea": "All", "transpose": 17 },
           "slices": { "gridCount": 3 },
-          "padScale": { "scaleType": "Minor", "keyShift": -11 },
+          "padScale": { "scaleType": "Aeolian", "keyShift": -11 },
           "midiScale": { "rootNote": 27 },
           "insertFx": [
             { "sync": true, "type1": 2, "type2": 2, "params": [0.9949012501992418, 0.5, 0.6792686225088218, 0.65, 4.0512035281989024e-02, 0.634001457542845], "perType": { "Chorus": { "type1": 2, "params": [0.558464644982219, 0, 0, 0, 0, 0], "sync": true } } },
@@ -1972,7 +1973,7 @@
           ],
           "send": { "amount": 92 },
           "lfo": { "speed": 22.75860283463368, "depth": 107, "destination": 121, "shape": "Triangle", "triggerMode": "Trigger", "triggerOn": "Both" },
-          "midi": { "notes": [30, 72, -1, 64], "velocity": 122, "length": 38.158697756346086, "pitchBendValue": -1582, "cc1": [{}, {}, { "cc": 40, "value": 49, "active": true }, {}], "mode": "DrumMap" },
+          "midi": { "notes": [30, 72, 0, 64], "velocity": 122, "length": 38.158697756346086, "pitchBendValue": -1582, "cc1": [{}, {}, { "cc": 40, "value": 49, "active": true }, {}], "mode": "DrumMap" },
           "routing": { "output": "Mono5" }
         },
         {
@@ -2008,7 +2009,7 @@
           ],
           "send": { "amount": 28 },
           "lfo": { "speed": 1.3456403633303091, "depth": 83, "destination": 7, "shape": "SawUp", "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [112, 109, -1, 64], "velocity": 39, "length": 45.873209217825696, "pitchBendValue": -1811, "cc1": [{}, {}, { "cc": 57, "value": 96 }, {}], "mode": "DrumMap" },
+          "midi": { "notes": [112, 109, 0, 64], "velocity": 39, "length": 45.873209217825696, "pitchBendValue": -1811, "cc1": [{}, {}, { "cc": 57, "value": 96 }, {}], "mode": "DrumMap" },
           "routing": { "output": "Out34" }
         },
         {
@@ -2029,7 +2030,7 @@
           "ampEnv": { "attack": 0.7499954614430809, "hold": 0.3743704372852295, "release": 0.15623913911042536, "volumeIndex": 2, "velocitySensitive": false },
           "seq": { "retriggerCount": 8, "retriggerSpeed": "1/2", "offset": -4, "transpose": 19 },
           "slices": { "gridCount": 19 },
-          "padScale": { "scaleType": "Major", "keyShift": -10 },
+          "padScale": { "scaleType": "Ionian", "keyShift": -10 },
           "midiScale": { "rootNote": 38 },
           "insertFx": [
             { "type": "Ducker", "type1": 1, "params": [0.7861970981164228, 0, 0.8728480747858932, 0.6, 0.5064575471745407, 2.8909983917549897e-02], "perType": { "Compressor": { "type1": 2, "params": [0, 0.6760029393256861, 0, 0, 0, 0], "sync": true } } },
@@ -2037,7 +2038,7 @@
           ],
           "send": { "amount": 104 },
           "lfo": { "speed": 14.919203239355818, "depth": 17, "destination": 18, "triggerMode": "Trigger", "triggerOn": "Step" },
-          "midi": { "notes": [111, -1, -1, 64], "velocity": 43, "length": 17.23698010697641, "pitchBendValue": 4259, "cc1": [{}, {}, { "cc": 9, "value": 20 }, {}], "program": 57 },
+          "midi": { "notes": [111, 0, 0, 64], "velocity": 43, "length": 17.23698010697641, "pitchBendValue": 4259, "cc1": [{}, {}, { "cc": 9, "value": 20 }, {}], "program": 57 },
           "routing": { "output": "Mono2" }
         }
       ],

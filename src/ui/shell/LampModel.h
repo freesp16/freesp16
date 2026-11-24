@@ -5,11 +5,12 @@
 //   io::apply(*root->lamps(), nowMs, brightness, *lampSink);
 //
 // Rules applied here (io/controllers/LampRules.h): transport and mode keys (UI-156: PLAY green while running, REC red
-// while armed), the pads (UI-151: track colour when the track has content, dark when empty, a hit flashes white and
-// fades back), the held step key (white while held, our choice: the step-lamp sequence view of UI-153 comes with the
-// sequencer). A screen whose body also derives from LampSource refines the frame after these rules (SCENE MANAGER's
-// pattern keys, the sequencer's step lamps, the BAR keys), so the lamps follow the screen that is shown.
-// Allocation-free.
+// while armed), the pads (UI-151, io::padLamp's ladder: dark when empty, faint when silent, dim, the selected track
+// full, a soloed one breathing, a hit flashes white and fades back — the app's PadController paints over them with
+// the same rule and the sequencer's hits), the held step key (white while held, our choice: the step-lamp sequence view
+// of UI-153 comes with the sequencer). A screen whose body also derives from LampSource refines the frame after these
+// rules (SCENE MANAGER's pattern keys, the sequencer's step lamps, the BAR keys), so the lamps follow the screen that
+// is shown. Allocation-free.
 #pragma once
 
 #include "io/controllers/LampRules.h"

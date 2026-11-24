@@ -7,7 +7,6 @@
 #include "ui/shell/Layout.h"
 #include "ui/shell/PopupFactory.h"
 #include "ui/shell/Root.h"
-#include "ui/shell/ValueEntry.h"
 #include "ui/widgets/GridPopup.h"
 #include "ui/widgets/ListPopup.h"
 #include "ui/widgets/ModuleCard.h"
@@ -441,14 +440,21 @@ TEST_CASE("shell.gaps: the lamp model lights what the screen shows (UI-150, UID-
     st.tracks[4].hasContent = true;
     g.frame();
     auto lamps = [&](io::Control c) { return g.shell->lamps()[c]; };
-    CHECK(lamps(io::pad(5)).mode == io::LampMode::On);
-    CHECK(lamps(io::pad(5)).rgb == (ui::theme::trackColour(5) & 0xFFFFFFu));
+    CHECK(lamps(io::pad(5)).mode == io::LampMode::Dim); // not the selected track (io::padLamp's ladder)
+    CHECK(lamps(io::pad(5)).rgb == ui::theme::kLedColours[4]); // the LED colour (a flash blends in it)
     CHECK(lamps(io::pad(6)).mode == io::LampMode::Off); // an empty track is dark
     g.send(Kind::Press, io::pad(5), 100);
     g.frame(16);
     CHECK(lamps(io::pad(5)).mode == io::LampMode::Flash); // a hit flashes white and fades back (UI-151)
     CHECK(io::resolve(lamps(io::pad(5)), g.now - 16).rgb == io::lampcolour::white);
-    CHECK(io::resolve(lamps(io::pad(5)), g.now + 2000).rgb == (ui::theme::trackColour(5) & 0xFFFFFFu));
+    CHECK(io::resolve(lamps(io::pad(5)), g.now + 2000).rgb == ui::theme::kLedColours[4]);
+    CHECK(io::resolve(lamps(io::pad(5)), g.now + 2000).level == 255); // the hit selected it: full
+    st.tracks[4].soloed = true; // a solo: the soloed pad breathes, the other tracks fall to the minimum
+    st.tracks[0].hasContent = true;
+    g.frame(2000);
+    CHECK(io::resolve(lamps(io::pad(5)), g.now).level > 0);
+    CHECK(lamps(io::pad(1)).mode == io::LampMode::Faint);
+    st.tracks[4].soloed = false;
     st.playing = true;
     g.send(Kind::Press, io::step(3), 100);
     g.frame(16);
@@ -469,68 +475,24 @@ TEST_CASE("shell.gaps: the lamp model lights what the screen shows (UI-150, UID-
     CHECK((*root->lamps())[io::pad(1)].mode != io::LampMode::Off); // the test-tone track has content
 }
 
-TEST_CASE("shell.gaps: a double-tap on a column opens the ValueEntry; typed display units, the encoder stays live "
-          "(UID-912)",
+TEST_CASE("shell.gaps: a double-tap on a column opens no popup; the second touch drags the column like the first "
+          "(no typed value entry)",
           "[ui][shell][popup]")
 {
     uitest::Harness h;
     const auto col = L::column(0);
-    auto doubleTap = [&]
-    {
-        h.touch(col.x + 40, col.y + 40, ui::touch::kDown);
-        h.touch(col.x + 40, col.y + 40, ui::touch::kUp);
-        h.now += 120;
-        h.touch(col.x + 40, col.y + 40, ui::touch::kDown);
-        h.touch(col.x + 40, col.y + 40, ui::touch::kUp);
-    };
-    doubleTap();
-    auto* entry = dynamic_cast<ui::ValueEntry*>(h.shell->topPopup());
-    REQUIRE(entry != nullptr);
-    CHECK(entry->bounds().x == 0); // column x − 16, kept on the canvas
-    CHECK(entry->bounds().y == 520);
-    CHECK(entry->selected()); // the whole value selected: typing replaces it
-    h.frame();
-    CHECK(h.drewText("VOLUME"));
-    // The edited column stays live: its encoder still turns the value; another column's does not.
-    const float v0 = h.value("track.volume"), pan0 = h.value("track.pan");
-    h.turn(io::knob(1), 2);
-    h.turn(io::knob(2), 5);
+    const float x = col.x + 40, y = col.y + 40;
+    h.touch(x, y, ui::touch::kDown);
+    h.touch(x, y, ui::touch::kUp);
+    h.now += 120;
+    h.touch(x, y, ui::touch::kDown);
+    CHECK(h.shell->topPopup() == nullptr);
+    // The second down took the column: a vertical drag turns its value (8 lpx per detent).
+    const float v0 = h.value("track.volume");
+    h.touch(x, y - 16 * ui::touch::kToCanvas, ui::touch::kDrag);
+    h.touch(x, y - 16 * ui::touch::kToCanvas, ui::touch::kUp);
     CHECK(h.value("track.volume") == v0 + 2);
-    CHECK(h.value("track.pan") == pan0);
-    CHECK(h.shell->topPopup() == entry);
-    // Typed in the display unit (the track VOLUME reads 0–127): the raw index whose display reads nearest 64.
-    CHECK(h.shell->typeText("64"));
-    CHECK(entry->typed() == "64");
-    CHECK(h.shell->textKey(ui::TextKey::Return));
     CHECK(h.shell->topPopup() == nullptr);
-    const auto* vol = core::builtinParams().find("track.volume");
-    char buf[32];
-    vol->formatValue(h.value("track.volume"), buf, sizeof buf);
-    INFO(buf);
-    CHECK(std::strtod(buf, nullptr) == 64.0);
-    // Esc cancels without change; a single tap later than 400 ms does not open it.
-    const float v1 = h.value("track.volume");
-    h.now += 1000;
-    doubleTap();
-    REQUIRE(dynamic_cast<ui::ValueEntry*>(h.shell->topPopup()) != nullptr);
-    h.shell->typeText("12");
-    h.shell->textKey(ui::TextKey::Escape);
-    CHECK(h.value("track.volume") == v1);
-    h.now += 1000;
-    h.touch(col.x + 40, col.y + 40, ui::touch::kDown);
-    h.touch(col.x + 40, col.y + 40, ui::touch::kUp);
-    h.now += 600;
-    h.touch(col.x + 40, col.y + 40, ui::touch::kDown);
-    h.touch(col.x + 40, col.y + 40, ui::touch::kUp);
-    CHECK(h.shell->topPopup() == nullptr);
-    // A spec without its own format takes the number as typed.
-    float raw = 0;
-    const core::ParamSpec plain{
-        .id = "x", .label = "X", .type = core::ParamType::Continuous, .minValue = 0, .maxValue = 10};
-    CHECK(ui::ValueEntry::rawFor(plain, 3.5, raw));
-    CHECK(raw == 3.5f);
-    CHECK(ui::ValueEntry::rawFor(plain, 30, raw));
-    CHECK(raw == 10.0f);
 }
 
 TEST_CASE("shell.gaps: popups fade out on close (motion.base), input ends the fade (UID-065)", "[ui][popup]")
@@ -658,12 +620,67 @@ TEST_CASE("shell.gaps: TRACK MENU in BYPASS mode toggles a module's bypass inste
     tap(lfoCard.x + 40, lfoCard.y + 40);
     CHECK(shell.values().get(*lfo, shell.state().trackScope()) == 1.0f);
     CHECK(shell.router().current().id == "track.menu");
-    // Mode off: the first tap focuses, the second opens; the module stays bypassed.
+    // Mode off: a bypassed module's setting screen does not open (the manual's BYPASS button, p.36); once it is not
+    // bypassed, the first tap focuses and the second opens.
     tap(b.x + b.w / 2, b.y + b.h / 2);
     CHECK_FALSE(shell.state().bypassMode);
     tap(card.x + 40, card.y + 40);
     tap(card.x + 40, card.y + 40);
     frame();
-    CHECK(shell.router().current().id == "track.playback");
+    CHECK(shell.router().current().id == "track.menu");
     CHECK(shell.values().get(*bypass, shell.state().trackScope()) == 1.0f);
+    {
+        io::ControlEvent push{Kind::Press, io::Control::SelectorPush, 1, io::kSourceVirtual, now};
+        shell.dispatch(push); // the push on the focused bypassed card does not open it either
+        frame();
+        CHECK(shell.router().current().id == "track.menu");
+    }
+    shell.values().set(*bypass, shell.state().trackScope(), 0.0f);
+    tap(card.x + 40, card.y + 40);
+    frame();
+    CHECK(shell.router().current().id == "track.playback");
+}
+
+TEST_CASE("shell.gaps: a MIDI track's BYPASS covers CC1, CC2 and LFO, not NOTE (the manual, p.36)", "[ui][shell]")
+{
+    ui::ShellConfig cfg{core::builtinParams(), uitest::fixedMeasure()};
+    ui::Shell shell(std::move(cfg));
+    ui::DrawList dl;
+    double now = 1000;
+    auto frame = [&]
+    {
+        now += 500;
+        dl.clear();
+        shell.frame(dl, now);
+    };
+    auto tap = [&](float x, float y)
+    {
+        io::ControlEvent e{Kind::Touch, io::Control::Screen, ui::touch::kDown, io::kSourceVirtual, now};
+        e.x = static_cast<std::int16_t>(x / ui::touch::kToCanvas + 0.5f);
+        e.y = static_cast<std::int16_t>(y / ui::touch::kToCanvas + 0.5f);
+        shell.dispatch(e);
+        e.value = ui::touch::kUp;
+        shell.dispatch(e);
+    };
+    const auto& p = core::builtinParams();
+    const auto scope = shell.state().trackScope();
+    shell.values().set(*p.find("track.mode"), scope, 1.0f); // MIDI
+    REQUIRE(shell.open("track.menu"));
+    frame();
+    const auto b = L::bypassBox;
+    tap(b.x + b.w / 2, b.y + b.h / 2);
+    REQUIRE(shell.state().bypassMode);
+    frame();
+    const auto* noteBypass = p.find("midi.noteBypass");
+    const auto* cc1Bypass = p.find("midi.cc1Bypass");
+    if (noteBypass == nullptr || cc1Bypass == nullptr)
+        SKIP("midi.* not registered (no MIDI catalogue built in)");
+    const auto note = ui::ModuleCard::rect(0), cc1 = ui::ModuleCard::rect(1);
+    tap(cc1.x + 40, cc1.y + 40);
+    CHECK(shell.values().get(*cc1Bypass, scope) == 1.0f); // CC1 toggles
+    tap(note.x + 40, note.y + 40);
+    tap(note.x + 40, note.y + 40);
+    frame();
+    CHECK(shell.values().get(*noteBypass, scope) == 0.0f); // NOTE is not bypassable: it focuses and opens
+    CHECK(shell.router().current().id == "track.note");
 }

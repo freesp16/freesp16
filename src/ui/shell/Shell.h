@@ -19,6 +19,7 @@
 #include "core/params/ParamRegistry.h"
 #include "core/util/CpuUsage.h"
 #include "engine/EngineApi.h"
+#include "ui/input/panel/EncoderAccel.h"
 #include "ui/shell/FeatureFlags.h"
 #include "ui/shell/Feeds.h"
 #include "ui/shell/LampModel.h"
@@ -127,8 +128,6 @@ public:
     // Computed on demand from the last frame's state (outside the frame build), once per frame.
     const io::LampFrame& lamps() const noexcept;
     int touchDragColumn() const noexcept { return dragColumn_; } // the strip column a running drag turns, -1 = none
-    // UID-912: the ValueEntry over strip column n0 (a double-tap on the column opens it); false = nothing editable.
-    bool openValueEntry(int column0);
     int closingPopups() const noexcept { return static_cast<int>(closing_.size()); } // close fades still running
 
     // PopupPresenter (Router::showPopup)
@@ -143,9 +142,11 @@ private:
     PopupWidget* pushPopup(std::unique_ptr<PopupWidget>);
     void resolveStrip();
     void updateFrameModels(double nowMs);
+    std::string_view muteModeSummary();
     void updateStripModel(double nowMs);
     void pollFeeds(double nowMs);
-    void turnEncoder(int n0, int detents, double nowMs);
+    // `accelerate`: a hardware panel encoder (ui/input/panel/EncoderAccel.h); keys, MIDI and drags never accelerate.
+    void turnEncoder(int n0, int detents, double nowMs, bool accelerate = false);
     void activateRail(int index, float x = -1, float y = -1);
     bool railFocusable(int index) const noexcept;
     RectF railRect(int index) const noexcept;
@@ -185,6 +186,9 @@ private:
     const StripSpec* stripOverride_ = nullptr;
     std::array<const core::ParamSpec*, 6> bound_{};
     std::array<double, 6> touchedMs_{};
+    EncoderAccel accel_;                               // the panel encoders' runs
+    std::array<const core::ParamSpec*, 6> accelSpec_{}; // a run ends when its column's parameter or SHIFT changes
+    std::array<bool, 6> accelFine_{};
     std::uint8_t groupMask_ = 0;
     FixedText<24> tab_, tabShown_;
     FixedText<4> sceneText_, patternText_;
@@ -214,8 +218,6 @@ private:
     TouchOwner touchOwner_ = TouchOwner::None;
     float touchY_ = 0;
     int touchDrags_ = 0; // drag events of the running touch (trace line on release)
-    int lastTapColumn_ = -1;
-    double lastTapMs_ = -1e9;
     RailOwner* railOwner_ = nullptr;         // the body, when it takes part in its rail
     StripOwner* stripOwner_ = nullptr;       // the body, when it refines its knob-strip columns
     bool popupStrip_ = false;                // the strip is bound to a popup's bindings (not the screen's)
@@ -227,6 +229,9 @@ private:
     double frameMs_ = 0;
     const core::ParamSpec* padColourSpec_ = nullptr; // track.padColor, looked up once (lamp colours per frame)
     const core::ParamSpec* showCpuSpec_ = nullptr;   // ui.showCpu (UTILITY › CPU USAGE), looked up once
+    const core::ParamSpec* muteModeSpec_ = nullptr;  // track.muteMode (the status row's MUTE badge detail)
+    FixedText<24> muteModeText_;
+    UiState::PadMuteView drawnPadMuteView_ = UiState::PadMuteView::None;
     core::CpuUsage cpu_;                             // sampled once a second while CPU USAGE is ON
     double cpuSampledMs_ = -1e18;
     FixedText<8> cpuText_;                           // "37%", the status row's readout

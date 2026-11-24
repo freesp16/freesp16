@@ -94,7 +94,7 @@ TEST_CASE("ui.m1.playback: SET SLICE opens; SET SCALE matches set-scale.svg", "[
     CHECK(f.shell->open("track.playback.setSlice")); // ui.setSlice is gone: SET SLICE is the reference screen
     f.press(io::Control::Back);
     f.settle();
-    f.set("scale.type", 5, 2);                             // MINOR
+    f.set("scale.type", 5, 6); // AEOLIAN (the mockup's MINOR)
     REQUIRE(f.shell->open("track.playback.setScale"));
     f.settle();
     f.shell->focus().focused = 0;

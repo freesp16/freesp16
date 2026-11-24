@@ -119,9 +119,26 @@ TEST_CASE("controls lamp rules: states, flash, blinks and brightness (UI-150, 15
     CHECK(io::resolve(fast, 100).level == 0);
     const io::LampState flash {LampMode::Flash, 0x0000FF, 0};
     CHECK(io::resolve(flash, 0).rgb == 0xFFFFFF);
-    const auto half = io::resolve(flash, 500).rgb;
-    CHECK(((half >> 16) > 0x40 && (half >> 16) < 0xC0 && (half & 0xFF) == 0xFF));
+    const auto early = io::resolve(flash, 125).rgb; // ease-out: still mostly white an eighth in
+    CHECK(((early >> 16) > 0x80 && (early >> 16) < 0xFF && (early & 0xFF) == 0xFF));
+    const auto half = io::resolve(flash, 500).rgb; // … mostly the colour at half time (sixteenths stay apart)
+    CHECK(((half >> 16) > 0 && (half >> 16) < 0x20 && (half & 0xFF) == 0xFF));
     CHECK(io::resolve(flash, 1000).rgb == 0x0000FF);
+    CHECK(io::resolve(flash, 1000).level == 255); // settles at On by default
+    // A flash settling at Dim fades its level too: full at the hit, dim when done.
+    const io::LampState toDim {LampMode::Flash, 0x0000FF, 0, 255, LampMode::Dim};
+    CHECK(io::resolve(toDim, 0).level == 255);
+    CHECK(io::resolve(toDim, 250).level > io::kDimLevel);
+    CHECK(io::resolve(toDim, 250).level < 255);
+    CHECK((io::resolve(toDim, 1000).level == io::kDimLevel && io::resolve(toDim, 1000).rgb == 0x0000FF));
+    // Level keeps its level exactly; Pulse breathes between its level and full, in phase for every lamp.
+    CHECK(io::resolve({LampMode::Level, 0xFF0000, 0, 123}, 0).level == 123);
+    const io::LampState breath {LampMode::Pulse, 0xFF0000, 777, io::kDimLevel};
+    CHECK(io::resolve(breath, 0).level == io::kDimLevel);
+    CHECK(io::resolve(breath, io::kPulseMs / 2).level == 255);
+    CHECK(io::resolve(breath, io::kPulseMs).level == io::kDimLevel);
+    CHECK(io::resolve(breath, io::kPulseMs / 4).level > io::kDimLevel);
+    CHECK(io::resolve(breath, io::kPulseMs / 4).level < 255);
     CHECK(io::resolve({LampMode::On, 0xFFFFFF, 0}, 0, io::LampBrightness::Dimmed1).level == 128);
     CHECK(io::resolve({LampMode::On, 0xFFFFFF, 0}, 0, io::LampBrightness::Dimmed3).level == 64);
 }
@@ -154,7 +171,7 @@ TEST_CASE("controls lamp rules: mode, strip, pad, step and bar rules (UI-152…1
     CHECK(f[io::Control::StripLed1].mode == io::LampMode::Off);
 
     io::PadLamp pad {true, 0xFF7E72};
-    CHECK(io::padLamp(io::PadMode::None, pad).mode == io::LampMode::On);
+    CHECK(io::padLamp(io::PadMode::None, pad).mode == io::LampMode::Dim);
     CHECK(io::padLamp(io::PadMode::None, {}).mode == io::LampMode::Off); // empty track dark
     pad.muted = true;
     CHECK(io::padLamp(io::PadMode::Mute, pad).mode == io::LampMode::Faint); // just a small light (hardware feedback)
@@ -164,7 +181,7 @@ TEST_CASE("controls lamp rules: mode, strip, pad, step and bar rules (UI-152…1
     pad.muted = false;
     pad.lastHitMs = 100;
     CHECK(io::padLamp(io::PadMode::None, pad).mode == io::LampMode::Flash);
-    CHECK(io::padLamp(io::PadMode::Track, pad).mode == io::LampMode::Dim);
+    CHECK(io::padLamp(io::PadMode::Track, pad).mode == io::LampMode::Flash); // a dim pad flashes too
 
     std::array<std::uint8_t, 16> trig {};
     trig[0] = 1;
@@ -207,12 +224,79 @@ TEST_CASE("controls lamp rules: apply() sends every lamp to the sink, then flush
 {
     struct Sink final : io::LampSink
     {
-        int lamps = 0, flushes = 0;
+        int lamps = 0, flushes = 0, filterCalls = 0, hp = -1;
+        bool inUse = false, filterBeforeFlush = false;
         void setLamp(io::Control, std::uint32_t, std::uint8_t) override { ++lamps; }
+        void setAnalogFilter(bool u, int h) override
+        {
+            ++filterCalls;
+            inUse = u;
+            hp = h;
+            filterBeforeFlush = flushes == 0;
+        }
         void flush() override { ++flushes; }
     } sink;
     io::LampFrame f;
+    f.analogFilter = {.inUse = true, .hpCutoff = 512};
     io::apply(f, 0, io::LampBrightness::Normal, sink);
     CHECK(sink.lamps == static_cast<int>(io::lampControls().size()));
     CHECK(sink.flushes == 1);
+    CHECK(sink.filterCalls == 1); // the filter board's state, once per frame, before the flush
+    CHECK(sink.filterBeforeFlush);
+    CHECK(sink.inUse);
+    CHECK(sink.hp == 512);
+}
+
+// The pad ladder (io::padLamp): the same states in PLAY, TRACK, MUTE and the solo view, so the pads read the same
+// whatever pad mode is on — off = empty, faint = silent, dim = audible, full = selected, pulse = soloed, a white flash
+// for any hit (the user's or the sequencer's) that eases back to the pad's own state; a silent pad never flashes.
+TEST_CASE("controls lamp rules: one pad ladder in every pad mode (UI-151, 152)")
+{
+    using io::LampMode;
+    using io::PadMode;
+    for (const auto mode : {PadMode::None, PadMode::Track, PadMode::Mute, PadMode::Solo})
+    {
+        CAPTURE(static_cast<int>(mode));
+        io::PadLamp p {true, 0x30A0FF};
+        CHECK(io::padLamp(mode, p).mode == LampMode::Dim); // unselected
+        p.selected = true;
+        CHECK(io::padLamp(mode, p).mode == LampMode::On); // selected
+        p.selected = false;
+        p.lastHitMs = 1000; // hit: full white at once, back to dim within kFlashMs
+        const auto hit = io::padLamp(mode, p);
+        CHECK((hit.mode == LampMode::Flash && hit.settle == LampMode::Dim));
+        CHECK((io::resolve(hit, 1000).level == 255 && io::resolve(hit, 1000).rgb == io::lampcolour::white));
+        CHECK((io::resolve(hit, 2000).level == io::kDimLevel && io::resolve(hit, 2000).rgb == 0x30A0FF));
+        p.muted = true; // mute: the minimum, and no flash (the track does not sound)
+        CHECK(io::padLamp(mode, p).mode == LampMode::Faint);
+        CHECK(io::resolve(io::padLamp(mode, p), 1000).level == io::kFaintLevel);
+        p.muted = false;
+        p.anySolo = true; // another track soloed: silent like a mute
+        CHECK(io::padLamp(mode, p).mode == LampMode::Faint);
+        p.soloed = true; // soloed: breathes from dim (a selected one from near full) to full; a hit flashes over it
+        p.lastHitMs = -1e12;
+        CHECK((io::padLamp(mode, p).mode == LampMode::Pulse && io::padLamp(mode, p).level == io::kDimLevel));
+        p.selected = true;
+        CHECK((io::padLamp(mode, p).mode == LampMode::Pulse && io::padLamp(mode, p).level == io::kPulseSelectedLevel));
+        p.lastHitMs = 0;
+        const auto soloHit = io::padLamp(mode, p);
+        CHECK((soloHit.mode == LampMode::Flash && soloHit.settle == LampMode::Pulse));
+        CHECK(io::resolve(soloHit, 0).level == 255);
+        CHECK(io::resolve(soloHit, 3 * io::kPulseMs).level == io::kPulseSelectedLevel); // back in the breath
+        p.muted = true; // muted wins over soloed (the engine: audible = unmuted and soloed)
+        CHECK(io::padLamp(mode, p).mode == LampMode::Faint);
+    }
+    io::PadLamp s {true, 0x30A0FF};
+    CHECK(io::padLamp(PadMode::Slice, s).mode == LampMode::Dim); // a slice
+    s.inSlices = false;
+    CHECK(io::padLamp(PadMode::Slice, s).mode == LampMode::Off); // no slice on the pad
+    s.inSlices = true;
+    s.lastHitMs = 0;
+    CHECK(io::padLamp(PadMode::Slice, s).mode == LampMode::Flash);
+    io::PadLamp n {true, 0x30A0FF};
+    CHECK(io::padLamp(PadMode::Scale, n).mode == LampMode::On); // a root note
+    n.root = false;
+    CHECK(io::padLamp(PadMode::Scale, n).mode == LampMode::Dim);
+    n.muted = true; // the selected track muted: every note faint
+    CHECK(io::padLamp(PadMode::Scale, n).mode == LampMode::Faint);
 }

@@ -85,6 +85,8 @@ void ProjectSession::startup(std::function<void(const StartupResult&)> done)
     systemDir().createDirectory();
     AtomicWriter::recoverLeftovers(projectsDir());
     AtomicWriter::recoverLeftovers(systemDir());
+    restoreWithoutAsking_ = powerOffMarker().existsAsFile(); // read once: a later crash asks again
+    powerOffMarker().deleteFile();
     const auto decision = resume_->atStartup(config_.resumeEnabled);
     StartupResult result;
     result.message = decision.message;
@@ -135,6 +137,17 @@ void ProjectSession::startupOpen(const StartupDecision& decision, std::function<
 void ProjectSession::offerAutosave(const std::optional<juce::File>& autosave, StartupResult result,
                                    std::function<void(const StartupResult&)> done)
 {
+    if (autosave && restoreWithoutAsking_) // switched off with the power key: back where it was, no question
+    {
+        restoreAutosave(*autosave,
+                        [result, done](Result<void> r) mutable
+                        {
+                            if (! r)
+                                result.message << "The unsaved changes could not be restored: " << r.error().message;
+                            done(result);
+                        });
+        return;
+    }
     if (! autosave || ! askRestore)
     {
         done(result);
@@ -221,9 +234,13 @@ void ProjectSession::frame(double nowMs)
     autosave_.tick(nowMs, playing);
 }
 
-void ProjectSession::shutdown()
+void ProjectSession::shutdown(bool powerOff)
 {
+    if (powerOff)
+        autosave_.onDeviceLost(); // the power goes next: unsaved work on disk, as for a lost device (NFR-012)
     workers_.drain(); // a save or autosave in flight completes; nothing is dropped
+    if (powerOff)
+        powerOffMarker().create(); // the next start-up restores the autosave without asking
     resume_->settle();
     if (config_.selection)
         resume_->updateSelection(config_.selection());

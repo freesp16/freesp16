@@ -84,15 +84,19 @@ TEST_CASE("snapshot.m5.sampling_edit: SAMPLING/EDIT (track 5 with a sample, stop
     CHECK(m.shell().railFocus() == 0);
     CHECK(m.state().sceneLocked); // UID-776
     CHECK(m.hasText("176400"));   // SELECTION END = the whole take
-    CHECK(m.shell().column(3).spec->id == "sampling.selStart");
+    CHECK(m.shell().column(3).spec->id == "sampling.quantize"); // REC QUANTIZE on knob 4 (ours)
+    CHECK(m.shell().column(4).spec->id == "sampling.selStart");
+    CHECK(m.shell().column(5).spec->id == "sampling.selEnd");
     CHECK(m.get("sampling.screenOpen") == 1.0f);
     const auto& mock = m5test::m5mockup("sampling-edit");
     CHECK(compare(ours, mock, {16, 152, 192, 456}, "m5-sampling-rail").match >= kGate);
-    CHECK(compare(ours, mock, {224, 152, 88, 456}, "m5-sampling-meter").match >= kGate);
+    // The INPUT column departs from the mockup by request (bars centred, as on every meter column): artifacts only.
+    compare(ours, mock, {224, 152, 88, 456}, "m5-sampling-meter");
     CHECK(compare(ours, mock, {328, 152, 856, 360}, "m5-sampling-editor").match >= kGate);
     CHECK(compare(ours, mock, {328, 528, 856, 64}, "m5-sampling-overview").match >= kGate);
     CHECK(compare(ours, mock, L::contextBar, "m5-sampling-context").match >= kGate);
-    CHECK(compare(ours, mock, L::knobStrip, "m5-sampling-strip").match >= kGate);
+    // The strip departs from the mockup by request (REC QUANTIZE on knob 4, MONITOR LEVEL gone): artifacts only.
+    compare(ours, mock, L::knobStrip, "m5-sampling-strip");
     CHECK(compare(ours, mock, L::canvas, "m5-sampling-edit").match >= kGate);
 }
 
@@ -127,15 +131,14 @@ TEST_CASE("snapshot.m5.sampling_recording: the take grows (2 bars, 56 %) as in s
     m.state().position.set("001:02:05");
     const auto ours = m.f.image();
     CHECK(ui::samplingFilledColumns(m.shell().body()) == 156);
-    for (int c = 0; c < 5; ++c) // UI-320 / UID-778: columns 1–5 locked, MONITOR LEVEL editable
+    for (int c = 0; c < 6; ++c) // UI-320 / UID-778: every column locked (MONITOR LEVEL left the strip)
         CHECK(m.shell().column(c).disabled);
-    CHECK_FALSE(m.shell().column(5).disabled);
     CHECK(m.state().samplerRec); // UID-777: the status row's REC mirrors the sampler
     CHECK(m.hasText("END \xC2\xB7 REC LENGTH 2 BARS"));
     const auto& mock = m5test::m5mockup("sampling-recording");
     CHECK(compare(ours, mock, {328, 152, 856, 360}, "m5-recording-editor").match >= kGate);
     CHECK(compare(ours, mock, {16, 152, 192, 456}, "m5-recording-rail").match >= kGate);
-    CHECK(compare(ours, mock, L::knobStrip, "m5-recording-strip").match >= kGate);
+    compare(ours, mock, L::knobStrip, "m5-recording-strip"); // REC QUANTIZE in the strip: artifacts only
     CHECK(compare(ours, mock, L::canvas, "m5-sampling-recording").match >= kGate);
     // REC (the rail item or the REC key) stops it.
     m.f.press(io::Control::Rec);
@@ -179,7 +182,8 @@ TEST_CASE("snapshot.m5.live_sampling: LIVE SAMPLING (armed at the next bar, the 
     CHECK(compare(ours, mock, {328, 152, 856, 360}, "m5-live-ring").match >= kGate);
     CHECK(compare(ours, mock, {328, 528, 856, 64}, "m5-live-take").match >= kGate);
     CHECK(compare(ours, mock, {16, 152, 192, 456}, "m5-live-rail").match >= kGate);
-    CHECK(compare(ours, mock, {224, 152, 88, 456}, "m5-live-meter").match >= kGate);
+    // The INPUT column departs from the mockup by request (bars centred, as on every meter column): artifacts only.
+    compare(ours, mock, {224, 152, 88, 456}, "m5-live-meter");
     CHECK(compare(ours, mock, L::knobStrip, "m5-live-strip").match >= kGate);
     CHECK(compare(ours, mock, L::canvas, "m5-live-sampling").match >= kGate);
 }
@@ -201,10 +205,10 @@ TEST_CASE("m5ui.sampling: REC states, EDIT list BAR ⇄ BPM, SAVE SELECTION, the
     m.f.settle();
     CHECK_FALSE(m.shell().column(0).disabled);
     // SELECTION START / END edit the take's region (one column per detent, a frame with SHIFT).
-    m.knob(4, 2);
+    m.knob(5, 2);
     CHECK(m.get("playback.start", 5) == 1260.0f); // 2 × 176400 / 280
     m.f.press(io::Control::Shift);
-    m.knob(5, -3);
+    m.knob(6, -3);
     m.f.release(io::Control::Shift);
     CHECK(m.get("playback.length", 5) == 176400.0f - 1260.0f - 3.0f);
     // EDIT list: BAR → BPM follows (2 bars in 4 s = 120 BPM; 4 bars = 240 BPM).
@@ -311,7 +315,7 @@ TEST_CASE("m5ui.keyboard_only.sampling: record, trim and save a take with the UI
     m.withSample = true;
     m.host.unsavedTrack = 4;
     m.f.settle();
-    m.knob(4, 1); // Ctrl+4 ↑: SELECTION START one column in
+    m.knob(5, 1); // Ctrl+5 ↑: SELECTION START one column in
     CHECK(m.get("playback.start", 5) == 630.0f);
     m.railTo(3); // '.' to SAVE CHANGES
     REQUIRE(m.shell().railFocus() == 3);
@@ -345,4 +349,75 @@ TEST_CASE("m5ui.keyboard_only.live_sampling: arm a live take, nudge and save it 
     REQUIRE(m.shell().railFocus() == 3);
     m.push();
     CHECK(m.host.called("saveLive 0"));
+}
+
+TEST_CASE("m5ui.sampling_pads: a pad hit records into its track (REC QUANTIZE on knob 4); the same pad again drops it",
+          "[m5][quantize]")
+{
+    SamplingFixture m;
+    REQUIRE(m.open("track.menu"));
+    REQUIRE(m.open("sampling.edit"));
+    m.f.settle();
+    CHECK(m.hasText("Press REC or hit a pad to record") == false); // track 5 has a sample: the editor shows it
+    // Knob 4: REC QUANTIZE OFF → 4 BEATS (= 1 BAR); THRESHOLD goes inactive while it is on.
+    m.knob(4, 3);
+    m.f.settle();
+    CHECK(m.get("sampling.quantize") == 3.0f);
+    CHECK(m.shell().column(3).subReadout == "= 1 BAR");
+    CHECK(m.shell().column(1).inactive);
+    CHECK(m.shell().column(1).subReadout == "QUANTIZE ON");
+
+    // Pad 2: its track becomes the target and the take waits for the boundary.
+    m.f.press(io::pad(2));
+    m.f.settle();
+    CHECK(m.host.called("record 0 1"));
+    CHECK(m.state().selectedTrack == 2);
+    auto& s = m.host.hubRef().status;
+    s.takeQuantize = 4;
+    s.startInBeats = 2.4f;
+    m.f.settle();
+    CHECK(m.hasText("STARTS IN 3 BEATS"));
+    CHECK(m.hasText("PAD 2 AGAIN DROPS THE TAKE \xC2\xB7 REC STOPS IT"));
+    s.startInBeats = -1.0f;
+    m.f.settle();
+    CHECK(m.hasText("WAITING FOR PLAY"));
+
+    // Another pad during the take keeps the take's track; no second take.
+    m.f.press(io::pad(7));
+    m.f.settle();
+    CHECK(m.state().selectedTrack == 2);
+    CHECK_FALSE(m.host.called("record 0 6"));
+
+    // Pad 2 again: dropped.
+    m.f.press(io::pad(2));
+    m.f.settle();
+    CHECK(m.host.called("drop 0 1"));
+    CHECK(m.hasText("Take dropped"));
+
+    // SHIFT + pad only selects (PAD-004).
+    m.host.calls.clear();
+    m.f.press(io::Control::Shift);
+    m.f.press(io::pad(9));
+    m.f.release(io::Control::Shift);
+    m.f.settle();
+    CHECK(m.host.calls.empty());
+}
+
+TEST_CASE("m5ui.sampling_pads: with REC QUANTIZE OFF a pad hit records like REC; REC stops the pad's take",
+          "[m5][quantize]")
+{
+    SamplingFixture m;
+    m.withSample = false;
+    REQUIRE(m.open("sampling.edit"));
+    m.f.settle();
+    CHECK(m.hasText("Press REC or hit a pad to record"));
+    CHECK(m.shell().column(3).subReadout == "AT ONCE");
+    CHECK_FALSE(m.shell().column(1).inactive);
+    m.f.press(io::pad(5));
+    m.f.settle();
+    CHECK(m.host.called("record 0 4"));
+    CHECK(m.hasText("WAITING FOR THRESHOLD")); // the fake leaves it in standby; THRESHOLD OFF starts at once
+    m.f.press(io::Control::Rec);
+    m.f.settle();
+    CHECK(m.host.called("stop 0 4"));
 }

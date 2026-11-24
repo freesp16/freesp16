@@ -13,6 +13,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <functional>
 
@@ -78,9 +79,11 @@ void stepRoundTrip(const interop_test::Generated& g, const m::Project& p,
             const int index = *q >= 16 ? *q % 16 : *q;
             auto records = decodeSteps(pn.prop("Steps")->bin);
             REQUIRE(records);
-            const auto& pat = p.scenes[static_cast<std::size_t>(*s)].patterns[static_cast<std::size_t>(index)];
+            const auto& sc = p.scenes[static_cast<std::size_t>(*s)];
+            const auto& pat = sc.patterns[static_cast<std::size_t>(index)];
             CHECK(pat.extras.find("sp16.PatternData.Steps") == nullptr);
-            CHECK(encodePattern(pat, map) == records.value());
+            const auto fx = insertTypesOf(sc);
+            CHECK(encodePattern(pat, map, &fx) == records.value());
             ++checked;
         }
     }
@@ -113,14 +116,17 @@ TEST_CASE("prj import: basic project — scene, samples, triggers and a lock", "
     for (int step : {0, 4, 8, 12})
     {
         const auto& c = pat.steps[static_cast<std::size_t>(step)][0];
-        CHECK(c.trigger == 100);
-        CHECK(c.value2 == 127); // value2 is not read as a velocity (stepValue2 "ignore"): full, the stored one kept
+        CHECK(c.trigger == 15); // the model's code for a Full trigger (the record holds its own coordinates)
+        CHECK(c.value2 == 127); // no velocity in the record: full
         CHECK(c.triggerType == m::TriggerType::Full);
 
     }
-    CHECK(pat.steps[2][1].trigger == 100);
+    CHECK(pat.steps[2][1].trigger == 15);
     CHECK(pat.steps[1][0].trigger == m::Step::kEmpty);
-    CHECK(pat.extras.find("sp16.PatternData.value2") != nullptr); // the stored value2 of the triggers, one blob
+    CHECK(pat.extras.find("sp16.PatternData.value2") == nullptr); // importer 1's blob is gone
+    CHECK(pat.extras.entries.empty());                           // every record names its own position
+    CHECK(im.project->origin.format == "sp16-prj");
+    CHECK(im.project->origin.importer == kImporterVersion);
     const auto* l = locksOf(pat, 8, 0);
     REQUIRE(locked(l, slotOf("track.volume")));
     CHECK(l->values[static_cast<std::size_t>(slotOf("track.volume"))] == 40.0f);
@@ -250,7 +256,8 @@ TEST_CASE("prj import: step types, every lock value class, FX locks, vct bits", 
     CHECK_FALSE(pat.trackMutes[0]);
     CHECK(pat.steps[0][0].triggerType == m::TriggerType::Full);
     CHECK(pat.steps[1][0].triggerType == m::TriggerType::Half);
-    CHECK(pat.steps[1][0].value2 == 127); // value2 not read as a velocity: full, the stored one kept
+    CHECK(pat.steps[1][0].value2 == 127); // no velocity in the record: full
+    CHECK(pat.steps[1][0].trigger == 11); // Half
     const auto& lockOnly = pat.steps[2][0];
     CHECK(lockOnly.triggerType == m::TriggerType::LockOnly);
     CHECK(lockOnly.trigger == m::Step::kEmpty);
@@ -299,7 +306,7 @@ TEST_CASE("prj import: patterns by node suffix with gaps; absent scenes and patt
         INTEROP_FIXTURE(g, "full");
         auto im = import(g);
         const auto& s1 = im.project->scenes[1];
-        CHECK(s1.patterns[2].steps[0][4].trigger == 100);
+        CHECK(s1.patterns[2].steps[0][4].trigger == 15);
         CHECK(s1.patterns[6].length == 8);
         CHECK(s1.patterns[15].length == 64);
         CHECK(s1.patterns[15].steps[63][15].value2 == 127);
@@ -312,7 +319,7 @@ TEST_CASE("prj import: patterns by node suffix with gaps; absent scenes and patt
         INTEROP_FIXTURE(g, "sparse");
         auto im = import(g);
         const auto& p = *im.project;
-        CHECK(p.scenes[0].patterns[1].steps[1][0].trigger == 100); // PatternData1 (scene × 16 + pattern)
+        CHECK(p.scenes[0].patterns[1].steps[1][0].trigger == 15); // PatternData1 (scene × 16 + pattern)
         CHECK(p.scenes[4].patterns[0].length == 16);               // PatternData64
         CHECK(p.scenes[4].patterns[11].length == 12);              // PatternData75
         CHECK(p.scenes[0].patterns[0] == m::defaultPattern());
@@ -331,19 +338,45 @@ TEST_CASE("prj import: edits after the import win over the kept raw words (expor
 {
     INTEROP_FIXTURE(g, "full");
     auto im = import(g);
+    const auto fx = insertTypesOf(im.project->scenes[0]);
     auto pat = im.project->scenes[0].patterns[0];
-    CHECK(encodePattern(pat, ParamIndexMap::builtin())[4 * 16].slots[29].idx == 40); // untouched: the kept byte
+    CHECK(encodePattern(pat, ParamIndexMap::builtin(), &fx)[recordIndex(4, 0)].slots[29].idx == 40); // the kept byte
     auto& l = pat.locks[pat.steps[4][0].lockIndex];
     l.values[29] = 0.75f; // the user changed the FX2 k0 lock
-    const auto recs = encodePattern(pat, ParamIndexMap::builtin());
-    const auto& w = recs[4 * 16 + 0].slots[29];
+    const auto recs = encodePattern(pat, ParamIndexMap::builtin(), &fx);
+    const auto& w = recs[recordIndex(4, 0)].slots[29];
     CHECK_FALSE(w.empty);
     CHECK(w.value22 == 1572863); // round(0.75 × 2097151), from the model, not the kept word
-    CHECK(w.idx == 29);
-    // A velocity edit wins over the kept value2 too.
+    CHECK(w.idx == fxLockIndex(fx[0][1], 0));
+    // A velocity edit changes nothing in the record: it has no velocity field; the coordinates stay.
     auto pat2 = im.project->scenes[0].patterns[0];
     pat2.steps[0][0].value2 = 64;
-    CHECK(encodePattern(pat2, ParamIndexMap::builtin())[0].value2 == 64);
+    const auto r2 = encodePattern(pat2, ParamIndexMap::builtin(), &fx);
+    CHECK(r2[0].trigger == 0);
+    CHECK(r2[0].value2 == 0);
+}
+
+TEST_CASE("prj import: a record naming another position is kept and reported; deleting it writes an empty record",
+          "[interop]")
+{
+    INTEROP_FIXTURE(g, "full");
+    auto im = import(g);
+    const auto fx = insertTypesOf(im.project->scenes[0]);
+    // full.json: step 8 track 4 holds trigger 9 / value2 40 (an anomalous record, not its own coordinates).
+    auto pat = im.project->scenes[0].patterns[0];
+    const auto& c = pat.steps[7][3];
+    CHECK(c.trigger == 15);
+    CHECK(c.value2 == 127);
+    const auto* raw = pat.extras.find("sp16.step[7].track[3]");
+    REQUIRE(raw != nullptr);
+    CHECK(raw->value.find("\"trigger\":9") != std::string::npos);
+    CHECK(im.has("names another track / step"));
+    auto recs = encodePattern(pat, ParamIndexMap::builtin(), &fx);
+    CHECK(recs[recordIndex(7, 3)].trigger == 9);
+    CHECK(recs[recordIndex(7, 3)].value2 == 40);
+    pat.steps[7][3].trigger = m::Step::kEmpty; // the user cleared the step: the kept fields no longer apply
+    recs = encodePattern(pat, ParamIndexMap::builtin(), &fx);
+    CHECK(recs[recordIndex(7, 3)] == StepRecord::emptyRecord());
 }
 
 TEST_CASE("prj map: built-in param-index map, its shipped JSON copy and a user override", "[interop]")
@@ -435,4 +468,82 @@ TEST_CASE("prj import: LFO destinations map to FX1 / FX2 parameter ids; others a
     CHECK(im.has("enum-unmapped LfoData.destination=154"));
     CHECK(im.has("enum-unmapped LfoData.destination=7"));
     CHECK_FALSE(im.has("LfoData.destination=0"));
+}
+
+TEST_CASE("prj map: envelope times — the reference's k/127, INFINITY at 1.0, float32-exact re-export", "[interop]")
+{
+    using core::ampenv::EnvStage;
+    for (const auto stage : {EnvStage::Attack, EnvStage::Hold, EnvStage::Release})
+    {
+        INFO(static_cast<int>(stage));
+        CHECK(envIndexFromReference(stage, 0.0) == 0);
+        CHECK(envIndexFromReference(stage, -0.5) == 0);
+        CHECK(envIndexFromReference(stage, std::nan("")) == 0);
+        for (int k = 0; k < 127; ++k)
+        {
+            // What the reference stores: float32 k/127, widened to double in the tree.
+            const double stored = static_cast<double>(static_cast<float>(k) / 127.0f);
+            CHECK(envIndexFromReference(stage, stored) == k);
+            CHECK(envReferenceFromIndex(stage, static_cast<std::uint8_t>(k)) == stored); // byte-identical re-export
+            // The model holds index k as k/128 (EnvTime.h): import → model → export is the identity.
+            CHECK(core::ampenv::indexFromStored(core::ampenv::storedFromIndex(static_cast<std::uint8_t>(k))) == k);
+        }
+        CHECK(envIndexFromReference(stage, 2.0) == envIndexFromReference(stage, 1.0));
+    }
+    CHECK(envIndexFromReference(EnvStage::Attack, 1.0) == 127);
+    CHECK(envIndexFromReference(EnvStage::Hold, 1.0) == core::ampenv::kInfinityIndex);
+    CHECK(envIndexFromReference(EnvStage::Release, 1.0) == core::ampenv::kInfinityIndex);
+    CHECK(envIndexFromReference(EnvStage::Release, 126.4 / 127) == 126);
+    CHECK(envIndexFromReference(EnvStage::Release, 126.6 / 127) == 127); // finite 127 (never in a reference file)
+
+    bool lossy = true;
+    CHECK(envReferenceFromIndex(EnvStage::Attack, 127, &lossy) == 1.0);
+    CHECK_FALSE(lossy);
+    CHECK(envReferenceFromIndex(EnvStage::Hold, core::ampenv::kInfinityIndex, &lossy) == 1.0);
+    CHECK_FALSE(lossy);
+    CHECK(envReferenceFromIndex(EnvStage::Release, 127, &lossy) == static_cast<double>(126.0f / 127.0f));
+    CHECK(lossy); // the reference cannot hold a finite 127 on HOLD / RELEASE
+    CHECK(envReferenceFromIndex(EnvStage::Attack, core::ampenv::kInfinityIndex, &lossy) == 1.0); // clamped to 127
+    CHECK_FALSE(lossy);
+    CHECK(envReferenceFromIndex(EnvStage::Hold, 5) == static_cast<double>(5.0f / 127.0f));
+}
+
+TEST_CASE("prj map: FX lock index bytes — per effect, generic for the others", "[interop]")
+{
+    using E = m::EffectType;
+    CHECK(fxLockIndex(E::Off, 0) == 11);
+    CHECK(fxLockIndex(E::Off, 1) == 12);
+    CHECK(fxLockIndex(E::Off, 2) == 13);
+    CHECK(fxLockIndex(E::Off, 3) == -1);
+    CHECK(fxLockIndex(E::Off, 4) == -1);
+    CHECK(fxLockIndex(E::Off, 5) == 16);
+    CHECK(fxLockIndex(E::Chorus, 5) == 4);       // observed in a real project
+    CHECK(fxLockIndex(E::InsertDelay, 5) == 16); // observed in a real project (not the research's 49)
+    CHECK(fxLockIndex(E::MultiModeFilter, 5) == 45);
+    CHECK(fxLockIndex(E::MultiModeFilter, 4) == -1);
+    CHECK(fxLockIndex(E::Ducker, 0) == 69);
+    CHECK(fxLockIndex(E::Ducker, 2) == 67);
+    CHECK(fxLockIndex(E::Flanger, -1) == -1);
+    CHECK(fxLockIndex(E::Flanger, 6) == -1);
+    // Every index the exporter writes is known to the importer (no Opaque report on our own files), and no two
+    // sub-slots of one effect share an index.
+    for (int t = 0; t < static_cast<int>(m::enumCount<E>()); ++t)
+        for (int sub = 0; sub < 6; ++sub)
+        {
+            const int idx = fxLockIndex(static_cast<E>(t), sub);
+            if (idx < 0)
+                continue;
+            INFO("type " << t << " sub " << sub);
+            CHECK(knownFxLockIndex(idx, sub));
+            CHECK(idx <= 71);
+            for (int other = 0; other < 6; ++other)
+                if (other != sub)
+                    CHECK(fxLockIndex(static_cast<E>(t), other) != idx);
+        }
+    CHECK(knownFxLockIndex(46, 0)); // the research's delay row
+    CHECK(knownFxLockIndex(49, 5));
+    CHECK_FALSE(knownFxLockIndex(46, 3));
+    CHECK_FALSE(knownFxLockIndex(9, 5));
+    CHECK_FALSE(knownFxLockIndex(-1, 0));
+    CHECK_FALSE(knownFxLockIndex(11, 6));
 }

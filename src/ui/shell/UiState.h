@@ -22,6 +22,10 @@ struct TrackSummary
     bool muted = false, soloed = false, missing = false;
     bool unsavedTake = false; // plays a recorded take not saved yet: the tile's UNSAVED TAKE badge (sampling.md W3)
     double lastHitMs = -1e9; // trigger flash start (pad hit or meter feed)
+    // SET SCALE's selected key (the manual's 1.6: the key last selected by pressing a pad, drawn white): the pitch that
+    // pad played, as semitones over the track's PITCH (SAMPLE) or the MIDI note (MIDI / AS-1); kNoKey = none yet.
+    static constexpr int kNoKey = -10000;
+    int scaleKey = kNoKey;
     float levelDb = -120.0f; // mini level
 };
 
@@ -73,6 +77,9 @@ struct UiState
     // The sampler records / waits (SAMPLING/EDIT, LIVE SAMPLING: UID-777) — the status-row REC shows it too;
     // set by the body each frame (blinking in standby), cleared on every screen entry.
     bool samplerRec = false;
+    // The pads' MUTE key, for the status row's MUTE / SOLO badge: Mute = MUTE pad mode (pads toggle mutes), Solo = the
+    // MUTE key held (pads toggle solos). Set by the composition root every frame from the pad controller.
+    enum class PadMuteView : std::uint8_t { None, Mute, Solo } padMuteView = PadMuteView::None;
 
     const TrackSummary& selected() const noexcept { return tracks[static_cast<std::size_t>((selectedTrack - 1) & 15)]; }
     // engine::ParamChange scope of a track parameter of the selected track in the current scene.

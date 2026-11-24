@@ -4,7 +4,9 @@ own files locally (never commit them). Independent decoder written from research
 
   tools/prj-dump/prj-dump.py FILE                tree as indented text (blobs summarised)
   tools/prj-dump/prj-dump.py FILE --json         tree as JSON (typed values, blobs base64)
-  tools/prj-dump/prj-dump.py FILE --steps        + every non-empty step cell of every PatternData (locks decoded)
+  tools/prj-dump/prj-dump.py FILE --steps        + every non-empty step cell of every PatternData (locks decoded;
+                                                 the matrix is track-major and a programmed record names its own
+                                                 track / step: "coords=ok", else MISMATCH)
   tools/prj-dump/prj-dump.py FILE --roundtrip    re-encode (outer zlib 1, minimal ints) and compare byte for byte
   tools/prj-dump/prj-dump.py FILE --names        every node type with its property names and types (no values):
                                                  the part worth sending back to fix the importer's field table
@@ -69,7 +71,9 @@ def steps(n, path=""):
                 ls = " ".join(f"{k}:{'none' if u['empty'] else u['value']}"
                               f"{'/vct' + str(u['vct']) if u['vct'] else ''}{'/idx' + str(u['idx']) if u['idx'] != (k if not u['empty'] else P.none_index(k)) else ''}"
                               for k, u in odd)
-                print(f"{here} step {s + 1:2} track {t + 1:2}: trigger={trig} value2={v2} type={typ} {ls}")
+                coords = ("" if trig == -127 else
+                          " coords=ok" if (trig, v2) == (t, s) else f" coords=MISMATCH(track {trig + 1} step {v2 + 1})")
+                print(f"{here} step {s + 1:2} track {t + 1:2}: first={trig} second={v2} type={typ}{coords} {ls}")
     for c in n.children:
         steps(c, here)
 

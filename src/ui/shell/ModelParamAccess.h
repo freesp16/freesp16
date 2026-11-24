@@ -18,6 +18,9 @@
 // the id itself for project ids — the same paths core/commands/track and core/commands/library write, so
 // forwardTrackChanges and forwardModelChanges see every edit whoever made it.
 //
+// `track.mute` is the exception: get() / set() are the user's per-pattern mute (cmd::track::isMuted / setMuted, the
+// current pattern's `trackMutes`); the engine and forwardModelChanges still see the raw track-level field.
+//
 // Message thread only. get() never allocates (a table lookup by registry index).
 #pragma once
 
@@ -66,6 +69,7 @@ private:
     const core::ParamRegistry& params_;
     LocalParamValues fallback_;
     std::vector<const ModelField*> byIndex_; // registry index → field (null = fallback)
+    const ModelField* muteField_;            // "track.mute": get / set are the per-pattern mute (TrackCommands.h)
 };
 
 // The bridge hook's half for the table's parameters: every changed path that names one becomes a ParamChange with

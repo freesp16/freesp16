@@ -40,10 +40,16 @@ void buildCcTable(const core::ParamRegistry& registry, core::midi::CcTable& out)
                 const int n = static_cast<int>(s.maxValue - s.minValue + 0.5f) + 1;
                 e.bands = static_cast<std::uint8_t>(n < 1 ? 1 : (n > 128 ? 128 : n));
             }
+            else if (s.id == "playback.start" || s.id == "playback.loopStart" || s.id == "playback.length")
+            {
+                e.kind = core::midi::CcKind::Frames; // over the track's sample, not 0…2^24 − 1 frames
+                e.integral = true;
+            }
             else
             {
                 e.kind = core::midi::CcKind::Linear; // MID-031: linear over the full range
-                e.integral = s.type != core::ParamType::Continuous;
+                e.bipolar = s.bipolar && s.minValue < 0.0f && s.maxValue > 0.0f; // centred: 64 = 0
+                e.integral = s.type != core::ParamType::Continuous || e.bipolar; // PITCH: whole semitones
             }
         }
     }
