@@ -12,7 +12,7 @@ void ClockFollower::prepare(double sampleRate) noexcept
 
 void ClockFollower::reset() noexcept
 {
-    head_ = count_ = 0;
+    head_ = count_ = run_ = 0;
     index_ = origin_ = 0;
     lastRaw_ = last_ = period_ = 0.0;
     residualAvg_ = 0.0;
@@ -31,6 +31,7 @@ void ClockFollower::restart(double t) noexcept
     // A new line from this tick on (first tick, or after a gap): the index and the position run on.
     head_ = 0;
     count_ = 1;
+    run_ = 1;
     origin_ = index_;
     t_[0] = t;
     x_[0] = 0.0;
@@ -136,6 +137,8 @@ void ClockFollower::onTick(double t) noexcept
         --count_;
     }
     lastRaw_ = t;
+    if (run_ < kLockTicks)
+        ++run_;
     fit();
 }
 

@@ -19,6 +19,12 @@
 // the residual averaged over ~8 ticks beyond max(2 ms, 3 σ of the measured jitter) — a single late tick, however late,
 // is jitter. The line is then refitted on the newest ticks only (the index and the position run on).
 //
+// Lock: the tempo (and with it the engine's phase steering) is used from the 6th tick of a run on (kLockTicks; a run
+// starts at the first tick and after a gap). The slope of a least-squares line through N evenly spaced ticks has
+// σ_t·√(12 / (N(N² − 1))) of error: 1.41 σ_t for 2 ticks, 0.24 σ_t for 6. A DAW over USB (ticks 0…16 ms late, σ ≈ 3 ms)
+// gives a 2-tick tempo up to 3× off at 174 BPM, a 6-tick one ≈ 5 %. Six ticks are a sixteenth: the lock comes before
+// the second step. Until then the transport keeps its rate (the project tempo, or the tempo it followed before a gap).
+//
 // Display (SYN-012): the estimate rounded to 0.1 BPM with hysteresis — it changes only after the estimate has left
 // ±0.07 BPM of the shown value for 500 ms, so a steady 160.0 shows 160.0. Nothing is shown before one quarter
 // (24 ticks) of clock.
@@ -43,6 +49,7 @@ public:
     static constexpr double kWindowSeconds = 2.0;
     static constexpr int kMaxTicks = 256;           // power of two
     static constexpr int kRefitTicks = 4;           // the newest ticks kept when the tempo changed
+    static constexpr int kLockTicks = 6;            // ticks of a run before its tempo is used (above)
     static constexpr double kMinBpm = 10.0, kMaxBpm = 999.0; // a fitted period outside is noise (two ticks in a burst)
 
     void prepare(double sampleRate) noexcept;
@@ -74,13 +81,16 @@ public:
     double tempo() const noexcept;        // BPM of the estimate, 0 = none yet
     double displayTempo() const noexcept { return display_; } // 0.1 BPM grid, 0 = nothing to show yet
     bool lost(std::int64_t now) const noexcept;               // > 500 ms without a tick (or never a tick)
-    bool locked() const noexcept { return count_ >= 2 && period_ > 0.0; }
+    bool locked() const noexcept { return run_ >= kLockTicks && period_ > 0.0; }
     double framesPerTick() const noexcept { return period_; }
     double lastTickTime() const noexcept { return last_; }    // fitted
     std::int64_t ticks() const noexcept { return ticks_; }
     std::uint64_t reacquisitions() const noexcept { return reacquire_; }
     double jitterFrames() const noexcept;                     // RMS deviation of the ticks from the line
-    bool hasPosition() const noexcept { return hasPosition_ && locked(); }
+    bool hasPosition() const noexcept { return hasPosition_ && locked(); } // and ppqAt() can extrapolate
+    // The clock's position is known (counted since a Start / Continue / SPP, or adopted), locked or not: lastTickPpq()
+    // is valid. A gap in the ticks, clearPosition() or reset() ends it.
+    bool positionKnown() const noexcept { return hasPosition_ && count_ > 0; }
     bool positionPending() const noexcept { return pending_; }
     // The clock's position (quarters) of the newest tick, and at engine frame `frame` (extrapolated from the fitted
     // newest tick).
@@ -96,6 +106,7 @@ private:
     std::array<double, kMaxTicks> t_ {}; // tick times (frames), ring, oldest at head_
     std::array<double, kMaxTicks> x_ {}; // tick index relative to origin_
     int head_ = 0, count_ = 0;
+    int run_ = 0;                         // ticks since the run started (restart()), saturating at kLockTicks
     std::int64_t index_ = 0, origin_ = 0; // newest tick's index (= ticks counted); index of the fit's x = 0
     double lastRaw_ = 0.0, last_ = 0.0, period_ = 0.0;
     double residualAvg_ = 0.0, residualVar_ = 0.0;

@@ -15,6 +15,7 @@
 
 #include "engine/midi/MidiInQueue.h"
 #include "io/midi/MidiSender.h"
+#include "io/midi/MidiSettings.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -578,6 +579,67 @@ TEST_CASE("midi.sync: with IN START/STOP/CONTINUE off the unit starts itself and
     CHECK(n > 50);
     CHECK(worst < 1.0);
 }
+
+TEST_CASE("midi.sync: a Continue after the unit's own STOP resumes where the master is, not where it was", "[midi]")
+{
+    Slave s(120.0);
+    std::vector<Slave::Msg> q;
+    // Master: Start, 2 bars, Stop (song position 8 quarters), its clock runs on, Continue at tick 240 (= 8 quarters).
+    q.push_back({s.t0 - s.P / 2, 0xFA, 0, 0});
+    s.ticks(q, 0, 192);
+    q.push_back({s.t0 + 191.5 * s.P, 0xFC, 0, 0});
+    s.ticks(q, 192, 240);
+    q.push_back({s.t0 + 239.5 * s.P, 0xFB, 0, 0});
+    s.ticks(q, 240, 300);
+    s.run(s.t0 + 280 * s.P, q);
+    REQUIRE(s.e->bridge().playhead().playing);
+    // The unit's own STOP while the master plays on (tick 240 + k is song position 8 + k / 24).
+    s.e->bridge().post(engine::TransportCmd {engine::TransportCmd::Stop, 1.0});
+    s.ticks(q, 300, 528);
+    s.run(s.t0 + 400 * s.P, q);
+    CHECK_FALSE(s.e->bridge().playhead().playing);
+    // The master stops after tick 527 (song position 8 + 288 / 24 = 20 quarters), then continues at tick 576.
+    q.push_back({s.t0 + 527.5 * s.P, 0xFC, 0, 0});
+    s.ticks(q, 528, 576);
+    q.push_back({s.t0 + 575.5 * s.P, 0xFB, 0, 0});
+    s.ticks(q, 576, 700);
+    s.ppq.clear();
+    s.run(s.t0 + 690 * s.P, q);
+    CHECK(s.e->bridge().playhead().playing);
+    double worst = 0.0;
+    int n = 0;
+    for (const auto& [frame, p] : s.ppq)
+    {
+        const double k = (frame - (s.t0 + s.L)) / s.P - 576.0;
+        if (k < 0.0)
+            continue;
+        worst = std::max(worst, std::fabs(p - (20.0 + k / 24.0)) * 24.0 * s.P);
+        ++n;
+    }
+    INFO("after the master's Continue: max error " << worst << " samples over " << n << " blocks (bar 6, not bar 3)");
+    CHECK(n > 50);
+    CHECK(worst < 0.5);
+    // A second Stop / Continue with no unit STOP in between: the master's position again (nothing stale).
+    q.push_back({s.t0 + 699.5 * s.P, 0xFC, 0, 0});
+    s.ticks(q, 700, 720);
+    q.push_back({s.t0 + 719.5 * s.P, 0xFB, 0, 0});
+    s.ticks(q, 720, 800);
+    s.ppq.clear();
+    s.run(s.t0 + 790 * s.P, q);
+    worst = 0.0;
+    n = 0;
+    for (const auto& [frame, p] : s.ppq)
+    {
+        const double k = (frame - (s.t0 + s.L)) / s.P - 720.0;
+        if (k < 0.0)
+            continue;
+        worst = std::max(worst, std::fabs(p - (20.0 + 124.0 / 24.0 + k / 24.0)) * 24.0 * s.P);
+        ++n;
+    }
+    CHECK(n > 50);
+    CHECK(worst < 0.5);
+}
+
 TEST_CASE("midi.sync: a MIDI Start while playing restarts like a stop and a start (Stop then Start out)", "[midi]")
 {
     Slave s(120.0);
@@ -612,6 +674,51 @@ TEST_CASE("midi.sync: a MIDI Start while playing restarts like a stop and a star
     }
     CHECK(worst < 0.5);
 }
+
+TEST_CASE("midi.sync: a fresh clock's first ticks do not steer the transport by their 2-tick tempo", "[midi]")
+{
+    // A master that sends its clock only while playing (no ticks before its Start), over USB from a DAW (burst
+    // jitter). The project tempo is the master's: the first sixteenth runs at it; after that the fitted tempo takes
+    // over. Locked from the 2nd tick (the 2-tick tempo) the first beat ran down to 0.78x (95 BPM at 120, 136 at 174);
+    // locked from the 6th, within -8 % ... +6 %.
+    for (const double bpm : {120.0, 174.0})
+    {
+        auto e = miditest::make(kRate);
+        miditest::Driver d {*e, 64};
+        d.param("transport.tempo", 0, static_cast<float>(bpm));
+        d.param("midi.syncSource", 0, 1.0f);
+        const double P = 60.0 * kRate / (24.0 * bpm);
+        const double t0 = static_cast<double>(d.frame()) + 3000.0;
+        std::mt19937 rng(5);
+        std::vector<double> at;
+        for (int n = 0; n < 96 * 2; ++n)
+            at.push_back(arrival(Jitter::Burst, t0 + n * P, n, rng));
+        push(*e, 0xFA, at[0] - 10.0);
+        std::size_t next = 0;
+        double prevPpq = -1.0, maxRate = 0.0, minRate = 1e9;
+        while (next < at.size())
+        {
+            const double now = static_cast<double>(d.frame());
+            while (next < at.size() && at[next] < now)
+                push(*e, 0xF8, at[next++]);
+            d.blocks(1);
+            const auto& ph = e->bridge().playhead();
+            if (ph.playing && prevPpq > 0.0 && ph.ppq < 1.0) // the first beat
+            {
+                const double rate = (ph.ppq - prevPpq) / 64.0 * 60.0 * kRate; // BPM over this block
+                maxRate = std::max(maxRate, rate);
+                minRate = std::min(minRate, rate);
+            }
+            prevPpq = ph.playing ? ph.ppq : -1.0;
+        }
+        std::printf("midi.sync: fresh burst clock at %.0f BPM: first beat ran at %.1f ... %.1f BPM\n", bpm, minRate,
+                    maxRate);
+        INFO(bpm << " BPM: the first beat ran at " << minRate << " ... " << maxRate << " BPM");
+        CHECK(maxRate < bpm * 1.12);
+        CHECK(minRate > bpm * 0.88);
+    }
+}
+
 TEST_CASE("midi.out: with the default preferences a message is due exactly when its frame is heard", "[midi]")
 {
     // OUTPUT LATENCY is an extra trim (default 0): the anchor's lead (the output buffer) is the whole compensation.
@@ -646,4 +753,32 @@ TEST_CASE("midi.out: with the default preferences a message is due exactly when 
         }
     }
     CHECK(n > 80);
+}
+
+TEST_CASE("midi.sync: the followed clock's health (MIDI stats line) resets when the sync is switched off", "[midi]")
+{
+    auto e = miditest::make(kRate);
+    miditest::Driver d {*e, 64};
+    d.param("midi.syncSource", 0, 1.0f);
+    const double P = 60.0 * kRate / (24.0 * 120.0);
+    const double t0 = static_cast<double>(d.frame()) + 1000.0;
+    std::mt19937 rng(3);
+    int next = 0;
+    while (static_cast<double>(d.frame()) < t0 + 2.5 * kRate)
+    {
+        const double now = static_cast<double>(d.frame());
+        while (t0 + next * P < now)
+        {
+            push(*e, 0xF8, arrival(Jitter::Random1ms, t0 + next * P, next, rng));
+            ++next;
+        }
+        d.blocks(1);
+        io::midi::drainUiEvents(e->midi().hub());
+    }
+    CHECK(io::midi::lastClockIn().jitterUs > 0.0);
+    d.param("midi.syncSource", 0, 0.0f);
+    d.blocks(2);
+    io::midi::drainUiEvents(e->midi().hub());
+    CHECK(io::midi::lastClockIn().jitterUs == 0.0);
+    CHECK(io::midi::lastClockIn().relocks == 0u);
 }

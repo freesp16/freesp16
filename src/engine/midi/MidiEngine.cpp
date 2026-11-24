@@ -247,6 +247,12 @@ void MidiEngine::updateFollowing() noexcept
         return;
     following_ = want;
     follower_.reset();
+    if (! want)
+    {
+        core::midi::UiEvent u; // the followed clock's health (the MIDI stats log line): nothing followed now
+        u.kind = core::midi::UiEvent::Kind::ClockIn;
+        hub_.pushUi(u);
+    }
     pendingStart_ = Pending::None;
     resumePpq_ = -1.0;
     lostHandled_ = false;
@@ -470,9 +476,22 @@ void MidiEngine::handle(const DueEvent& d, BlockContext&) noexcept
             lostHandled_ = false;
             if (pendingStart_ != Pending::None && tr != nullptr)
             {
-                // Start / Continue: the transport is at the start position on this tick's own sample.
-                tr->transport().startAt(startPpq_, d.exactFrame - static_cast<double>(blockStart_), follower_.tempo());
+                // Start / Continue: the transport is at the start position on this tick — on the fitted line's time of
+                // it once locked (where correct() measures the phase from, so no steering transient follows), else on
+                // its own sample.
+                double at = d.exactFrame - static_cast<double>(blockStart_), q = startPpq_;
+                if (follower_.locked())
+                {
+                    at = follower_.lastTickTime() - static_cast<double>(blockStart_);
+                    if (at < 0.0) // the line puts it in the previous block: where the clock is at this block's start
+                    {
+                        q = follower_.ppqAt(static_cast<double>(blockStart_));
+                        at = 0.0;
+                    }
+                }
+                tr->transport().startAt(q, at, follower_.tempo());
                 pendingStart_ = Pending::None;
+                resumePpq_ = -1.0; // consumed: a later Continue resumes where the clock is then
             }
             return;
         case 0xFA: // Start
@@ -495,8 +514,12 @@ void MidiEngine::handle(const DueEvent& d, BlockContext&) noexcept
                 return;
             if (following_)
             {
-                // The next tick is where the clock stopped (or the SPP received since), else where the transport is.
-                startPpq_ = resumePpq_ >= 0.0 ? resumePpq_ : tr->ppq();
+                // The next tick is where the clock stopped (or the SPP received since), else where the running clock is
+                // (the unit stopped on its own meanwhile), else where the transport is.
+                startPpq_ = resumePpq_ >= 0.0           ? resumePpq_
+                            : follower_.positionKnown() ? follower_.lastTickPpq() + 1.0 / 24.0
+                                                        : tr->ppq();
+                resumePpq_ = -1.0;
                 follower_.setNextTickPosition(startPpq_);
                 pendingStart_ = Pending::Continue;
             }
@@ -506,9 +529,13 @@ void MidiEngine::handle(const DueEvent& d, BlockContext&) noexcept
         case 0xFC: // Stop: pause (a later Continue resumes here, Start restarts from 0)
             if (! inEnable_[1] || ! fromSync || tr == nullptr)
                 return;
+            // The clock's song position: a Start / Continue not begun yet, else the ticks it sent (counted on while the
+            // unit was stopped by its own STOP: the master's clock ran on).
+            if (following_ && pendingStart_ != Pending::None)
+                resumePpq_ = startPpq_;
+            else if (following_ && follower_.positionKnown())
+                resumePpq_ = follower_.lastTickPpq() + 1.0 / 24.0;
             pendingStart_ = Pending::None;
-            if (following_ && follower_.hasPosition())
-                resumePpq_ = follower_.lastTickPpq() + 1.0 / 24.0; // the clock's song position: the ticks it sent
             follower_.clearPosition();
             tr->command(TransportCmd {TransportCmd::Stop, 0.0});
             return;
@@ -547,9 +574,12 @@ void MidiEngine::processIn(BlockContext& ctx) noexcept
     if (const auto* t = hub_.ccTable(); t != cc_.table())
         cc_.setTable(t);
     updateFollowing();
-    if (following_ && pendingStart_ == Pending::None && w_.transport != nullptr && ! w_.transport->playing() &&
-        ! w_.transport->preCount())
-        follower_.clearPosition(false); // stopped by the unit (or paused): the next PLAY places the clock afresh
+    // IN START/STOP/CONTINUE disabled: the unit starts itself (PLAY, a pad); stopped or paused, the next start places
+    // the clock afresh (adopted onto the tick grid where the transport starts). Enabled: the master starts it, and the
+    // clock's position counts on through the unit's own STOP (a later Stop / Continue resumes where the master is).
+    if (following_ && ! inEnable_[1] && pendingStart_ == Pending::None && w_.transport != nullptr &&
+        ! w_.transport->playing() && ! w_.transport->preCount())
+        follower_.clearPosition(false);
     in_.collect(hub_, 0xFFu, clock_, blockStart_, inputLatency());
     activity_ = 0;
     for (const DueEvent* d = in_.begin(); d != in_.end(); ++d)
