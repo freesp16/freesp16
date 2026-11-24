@@ -20,6 +20,7 @@ constexpr int kSteerFrames = 2048;   // the phase error is steered out over ~46 
 constexpr double kMaxSteer = 0.05;   // ±5 % rate while steering
 constexpr std::uint8_t kNotOurs = static_cast<std::uint8_t>(MidiField::Count);
 constexpr int kPitchLockSlot = 4; // PITCH (core::ParamIndex 4, engine::voice::lockslot::Pitch), semitones
+constexpr double kRemoteSelectWait = 1.0; // s: how long a CC 0 waits for its CC 32 (our choice; manual p.88 is silent)
 
 inline int toInt(float v) noexcept { return static_cast<int>(v < 0.0f ? v - 0.5f : v + 0.5f); }
 inline int clampi(int v, int lo, int hi) noexcept { return v < lo ? lo : (v > hi ? hi : v); }
@@ -82,6 +83,7 @@ void MidiEngine::prepare(double sampleRate) noexcept
     blockStart_ = 0;
     midiMask_ = 0;
     heldNote_.fill(-1);
+    remoteScene_ = -1;
     for (int p = 0; p < core::midi::kMaxPorts; ++p)
         generation_[static_cast<std::size_t>(p)] = hub_.generation(p);
     if (correctionInstalled_ && w_.transport != nullptr)
@@ -129,7 +131,11 @@ bool MidiEngine::onParam(const ParamChange& c) noexcept
             hub_.bumpGeneration(c.scope & 7); // MID-047: a mode change ends the port's sounding notes
             return true;
         case F::PortOffset: hub_.setPortOffsetMs(c.scope & 7, clampi(iv, -50, 50)); return true;
-        case F::RemoteSelectBlocked: remoteBlocked_ = on; return true;
+        case F::RemoteSelectBlocked:
+            remoteBlocked_ = on;
+            if (on)
+                remoteScene_ = -1; // SCN-051: a CC 0 waiting for its CC 32 is dropped
+            return true;
         default: break;
     }
     if (c.scope > 0xFF)
@@ -289,19 +295,34 @@ void MidiEngine::select(int scene, int pattern) noexcept
     hub_.pushUi(u);
 }
 
+core::midi::CcKind MidiEngine::ccKind(int cc) const noexcept
+{
+    const core::midi::CcTable* table = cc_.table();
+    return table != nullptr ? table->cc[static_cast<std::size_t>(cc & 127)].kind : core::midi::CcKind::None;
+}
+
 void MidiEngine::controlChange(int ch, int cc, int value, int frame) noexcept
 {
     ++ccsIn_;
-    const core::midi::CcTable* table = cc_.table();
-    if (table == nullptr)
+    if (cc_.table() == nullptr)
         return;
-    const auto kind = table->cc[static_cast<std::size_t>(cc & 127)].kind;
+    const auto kind = ccKind(cc);
     if (kind == core::midi::CcKind::SceneSelect || kind == core::midi::CcKind::PatternSelect)
     {
-        // SCN-050 (our choice): on any channel, once per message; CC 0 keeps the pattern number, CC 32 the scene.
+        // SCN-050, manual p.88: the switch is fixed by the PATTERN (CC 32); CC 0 only holds the scene for it. On any
+        // channel (our choice); value 0 is ignored.
         const int sel = core::midi::ccSelect(value);
-        if (sel >= 0)
-            select(kind == core::midi::CcKind::SceneSelect ? sel : -1, kind == core::midi::CcKind::PatternSelect ? sel : -1);
+        if (sel < 0 || remoteBlocked_) // SCN-051
+            return;
+        if (kind == core::midi::CcKind::SceneSelect)
+        {
+            remoteScene_ = sel;
+            remoteSceneAt_ = blockStart_ + frame;
+            return;
+        }
+        const int scene = remoteScene_; // −1: the current scene
+        remoteScene_ = -1;
+        select(scene, sel);
         return;
     }
     const int scene = currentScene();
@@ -339,6 +360,17 @@ void MidiEngine::channelMessage(const MidiEvent& e, int frame) noexcept
         return;
     const int type = e.bytes[0] & 0xF0, ch = e.bytes[0] & 15;
     const int d1 = e.bytes[1] & 127, d2 = e.bytes[2] & 127;
+    if (remoteScene_ >= 0 &&
+        blockStart_ + frame - remoteSceneAt_ > static_cast<std::int64_t>(kRemoteSelectWait * sampleRate_))
+        remoteScene_ = -1; // the CC 32 never came
+    if (remoteScene_ >= 0) // manual p.88: other messages are ignored while a CC 0 waits for its CC 32
+    {
+        const auto kind = type == 0xB0 ? ccKind(d1) : core::midi::CcKind::None;
+        const bool select = kind == core::midi::CcKind::SceneSelect || kind == core::midi::CcKind::PatternSelect;
+        const bool ends = type == 0x80 || (type == 0x90 && d2 == 0) || kind == core::midi::CcKind::AllNotesOff;
+        if (! select && ! ends)
+            return;
+    }
     switch (type)
     {
         case 0x90:

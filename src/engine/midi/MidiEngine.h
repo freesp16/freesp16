@@ -18,6 +18,10 @@
 //                                       035), CC 0/32 → queued scene/pattern (SCN-050, ignored while SAMPLING/EDIT is
 //                                       open: midi.remoteSelectBlocked, SCN-051), CC 123 → stop those tracks (MID-023)
 //                   pitch bend        → RibbonEngine::onPitchBend (PITCH mode only, MID-032)
+//                 CC 0 / CC 32 (manual p.88): CC 0 only holds the scene; CC 32 queues (that scene, else the current
+//                 one, pattern). Between a CC 0 and its CC 32 the other channel messages are ignored, except those that
+//                 only end sound (Note Off, CC 123: nothing hangs); our choice: a CC 0 waits at most kRemoteSelectWait
+//                 (1 s), so a lone CC 0 cannot mute MIDI IN, and SAMPLING/EDIT opening drops it.
 //                 applied CCs and the followed tempo go to the UI (UiEvent) for the model / display
 //   step 3        the transport calls the follower's correction (Transport::setCorrection): tempo = the PLL's, phase
 //                 steered onto the clock's ticks by a bounded rate correction (no drift; a jump only when > ½ tick off)
@@ -198,6 +202,7 @@ private:
     void channelMessage(const MidiEvent& e, int frame) noexcept;
     void controlChange(int ch, int cc, int value, int frame) noexcept;
     void select(int scene, int pattern) noexcept;
+    core::midi::CcKind ccKind(int cc) const noexcept;
     void trackOut(const BlockContext& ctx, const stages::BlockBuffers& b, std::uint32_t ports) noexcept;
     int currentScene() const noexcept;
     bool trackIsSample(int track) const noexcept;
@@ -237,6 +242,8 @@ private:
     std::uint16_t midiMask_ = 0;
     std::array<std::uint32_t, core::midi::kMaxPorts> generation_ {};
     std::array<std::int16_t, 16> heldNote_{}; // per track: port << 11 | channel << 7 | note that started it, −1 none
+    int remoteScene_ = -1;                    // a CC 0's scene 0–15 waiting for its CC 32, −1 = none
+    std::int64_t remoteSceneAt_ = 0;          // the CC 0's engine frame
     double shownTempo_ = 0.0;
     std::uint32_t activity_ = 0;
     std::uint64_t notesIn_ = 0, ccsIn_ = 0, ticksIn_ = 0;

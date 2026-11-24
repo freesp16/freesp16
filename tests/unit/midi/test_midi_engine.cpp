@@ -240,15 +240,23 @@ TEST_CASE("midi.engine: fixed CC map, scene/pattern select, all notes off (MID-0
     CHECK(ui[0].param == miditest::id("track.volume").value);
     CHECK(ui[0].scope == 2);
     CHECK(ui[0].value == 127.0f);
-    // CC 0 = 3 → scene 3 queued (keeps pattern 1); the switcher shows it pending.
+    // CC 0 = 3 alone switches nothing (manual p.88: the switch is fixed by the PATTERN, CC 32).
     push(*e, 0xB0, 0, 3, static_cast<double>(d.frame()) - 1);
     d.blocks(2);
-    const auto ph = e->bridge().playhead(); // stopped: the switch may land at once
+    auto ph = e->bridge().playhead();
+    CHECK((ph.scene == 0 && ph.pendingScene == -1));
+    for (const auto& u : drainUi(*e))
+        CHECK(u.kind != core::midi::UiEvent::Kind::SceneSelect);
+    // CC 32 = 1 (the current pattern number) then queues scene 3, pattern 1 (not the SCN-021 same-pattern cancel).
+    push(*e, 0xB0, 32, 1, static_cast<double>(d.frame()) - 1);
+    d.blocks(2);
+    ph = e->bridge().playhead(); // stopped: the switch may land at once
     CHECK((static_cast<int>(ph.pendingScene) == 2 || static_cast<int>(ph.scene) == 2));
     ui = drainUi(*e);
     CHECK(std::any_of(ui.begin(), ui.end(), [](const auto& u) { return u.kind == core::midi::UiEvent::Kind::SceneSelect && u.scope == 2 * 16; }));
     // SCN-051: blocked while SAMPLING/EDIT is open; 0 is ignored.
     d.param("midi.remoteSelectBlocked", 0, 1.0f);
+    push(*e, 0xB0, 0, 5, static_cast<double>(d.frame()) - 1);
     push(*e, 0xB0, 32, 5, static_cast<double>(d.frame()) - 1);
     d.blocks(2);
     d.param("midi.remoteSelectBlocked", 0, 0.0f);
@@ -359,6 +367,73 @@ TEST_CASE("midi.engine: PLAYBACK START / LOOP START / LENGTH (CC 21-23) span the
     const auto& t = miditest::table();
     for (int cc : {21, 22, 23})
         CHECK(t.cc[static_cast<std::size_t>(cc)].kind == core::midi::CcKind::Frames);
+}
+
+TEST_CASE("midi.engine: CC 0 holds the scene, CC 32 switches; other messages wait (manual p.88, SCN-050)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    drainUi(*e);
+    auto cc = [&](int c, int v)
+    {
+        push(*e, 0xB0, static_cast<std::uint8_t>(c), static_cast<std::uint8_t>(v), static_cast<double>(d.frame()) - 1);
+        d.blocks(2);
+    };
+    auto selected = [&] { // the scene * 16 + pattern queued since the last call, −1 = none
+        int s = -1;
+        for (const auto& u : drainUi(*e))
+            if (u.kind == core::midi::UiEvent::Kind::SceneSelect)
+                s = u.scope;
+        return s;
+    };
+    // CC 0 = 3 then CC 32 = 5: scene 3, pattern 5 (was: scene 3 at once, then the playing scene with pattern 5).
+    cc(0, 3);
+    CHECK(selected() == -1);
+    cc(32, 5);
+    CHECK(selected() == 2 * 16 + 4);
+    d.blocks(2);
+    REQUIRE(e->bridge().playhead().scene == 2); // stopped: at once
+    // CC 32 alone: the pattern of the current scene.
+    cc(32, 7);
+    CHECK(selected() == 2 * 16 + 6);
+    // While a CC 0 waits for its CC 32 the other messages are ignored; a Note Off still ends its note.
+    push(*e, 0x90, 1, 100, static_cast<double>(d.frame()) - 1); // track 2 sounding
+    d.blocks(2);
+    cc(0, 9);
+    d.hits.clear();
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 1); // ignored
+    push(*e, 0x80, 1, 0, static_cast<double>(d.frame()) - 1);   // passes
+    d.blocks(2);
+    REQUIRE(d.hits.size() == 1);
+    CHECK((d.hits[0].track == 1 && d.hits[0].kind == TriggerKind::Release));
+    cc(7, 20); // ignored: no volume change
+    for (const auto& u : drainUi(*e))
+        CHECK((u.kind != core::midi::UiEvent::Kind::Param && u.kind != core::midi::UiEvent::Kind::SceneSelect));
+    cc(32, 1);
+    CHECK(selected() == 8 * 16);
+    d.hits.clear();
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 1); // after the CC 32: heard again
+    d.blocks(2);
+    CHECK(d.hits.size() == 1);
+    // A lone CC 0 waits 1 s at most (our choice): then notes play again and a CC 32 keeps the current scene.
+    d.blocks(4);
+    const int current = e->bridge().playhead().scene;
+    cc(0, 12);
+    d.blocks(44100 / 64);
+    d.hits.clear();
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 1);
+    d.blocks(2);
+    CHECK(d.hits.size() == 1);
+    cc(32, 2);
+    CHECK(selected() == current * 16 + 1);
+    // SAMPLING/EDIT opening drops a waiting CC 0.
+    cc(0, 4);
+    d.param("midi.remoteSelectBlocked", 0, 1.0f);
+    d.param("midi.remoteSelectBlocked", 0, 0.0f);
+    d.hits.clear();
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 1);
+    d.blocks(2);
+    CHECK(d.hits.size() == 1);
 }
 
 TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends them (MID-040/047/050)", "[midi]")
