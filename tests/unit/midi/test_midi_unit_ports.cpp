@@ -1,8 +1,10 @@
 // The reference unit's MIDI ports (platform/common/midi/UnitMidi.h, io/midi/MidiService): its cards by id or name,
 // the /dev/din_midi real-time codes, the /proc/midi_through switch; DIN = slot 0 and USB = slot 1 whatever the ALSA
 // card order, slot 1 kept for the USB gadget while the unit is in storage mode; THRU A on the DIN port switches the
-// socket in hardware and the sender stops forwarding to it, while a THRU port fed by another input forwards in
-// software. USB-B: storage mode → the unit's usb_gadget.sh, no gadget → modprobe, once, after a grace period.
+// socket in hardware — once the port's scheduled messages are out, software THRU until then — and the sender stops
+// forwarding to it, while a THRU port fed by another input forwards in software; a fixed slot keeps its port's name
+// while the port is absent. USB-B: storage mode → the unit's usb_gadget.sh, no gadget → modprobe, once, after a grace
+// period.
 #if defined(__linux__)
 #include "platform/common/midi/UnitMidi.h"
 #include "platform/common/midi/UsbMidiMode.h"
@@ -217,10 +219,30 @@ TEST_CASE("midi.unit: DIN = slot 0, USB = slot 1 in card order, kept in storage 
     CHECK(service.outputs()[1].connected);
     CHECK(service.outputs()[1].name == "MIDI USB");
 
-    // THRU A on the DIN output (its own input is A): the hardware switch, no forwarding to it.
+    // THRU A on the DIN output (its own input is A): the hardware switch, no forwarding to it — not before the port's
+    // scheduled messages (the mode change's Note Offs) are out: output latency + offset + settle; software THRU until.
+    hub->setOutputLatencyMs(12);
+    hub->setPortOffsetMs(0, 20);
+    double t = 10000.0;
     hub->setPortMode(0, 3);
-    service.poll(0.0);
+    service.poll(t);
+    CHECK_FALSE(service.hardwareThru(0));
+    {
+        std::lock_guard<std::mutex> lock(din.m);
+        CHECK(din.thruCalls.empty());
+        din.pending = {0x80, 0x30, 0x00};
+    }
+    for (int i = 0; i < 200 && writtenOf(din).size() < 3; ++i)
+        sleepMs(5);
+    CHECK(writtenOf(din) == std::vector<std::uint8_t>{0x80, 0x30, 0x00}); // passed on by the sender meanwhile
+    service.poll(t + 12 + 20 + io::midi::MidiService::kThruSettleMs - 1);
+    CHECK_FALSE(service.hardwareThru(0));
+    service.poll(t += 12 + 20 + io::midi::MidiService::kThruSettleMs);
     CHECK(service.hardwareThru(0));
+    {
+        std::lock_guard<std::mutex> lock(din.m);
+        din.written.clear();
+    }
     {
         std::lock_guard<std::mutex> lock(din.m);
         REQUIRE_FALSE(din.thruCalls.empty());
@@ -229,7 +251,7 @@ TEST_CASE("midi.unit: DIN = slot 0, USB = slot 1 in card order, kept in storage 
     }
     // THRU A on PAD's output too: another port, forwarded in software.
     hub->setPortMode(2, 3);
-    service.poll(0.0);
+    service.poll(t += 1000);
     CHECK_FALSE(service.hardwareThru(2));
     {
         std::lock_guard<std::mutex> lock(din.m);
@@ -243,13 +265,26 @@ TEST_CASE("midi.unit: DIN = slot 0, USB = slot 1 in card order, kept in storage 
 
     // MIDI PORTS › IN off for A: the socket goes back to the output; OUT mode: likewise.
     io::midi::setInputEnabled(0, false);
-    service.poll(0.0);
-    CHECK_FALSE(service.hardwareThru(0));
+    service.poll(t += 1000);
+    CHECK_FALSE(service.hardwareThru(0)); // back at once
     io::midi::setInputEnabled(0, true);
-    service.poll(0.0);
+    service.poll(t += 1);
+    CHECK_FALSE(service.hardwareThru(0)); // THRU again: waits again
+    service.poll(t += 1000);
     CHECK(service.hardwareThru(0));
+    // THRU → OUT → THRU within the wait: the wait starts over.
     hub->setPortMode(0, 0);
-    service.poll(0.0);
+    service.poll(t += 1);
+    CHECK_FALSE(service.hardwareThru(0));
+    hub->setPortMode(0, 3);
+    service.poll(t += 1);
+    hub->setPortMode(0, 0);
+    service.poll(t += 1);
+    hub->setPortMode(0, 3);
+    service.poll(t += 50);
+    CHECK_FALSE(service.hardwareThru(0));
+    hub->setPortMode(0, 0);
+    service.poll(t += 1000);
     CHECK_FALSE(service.hardwareThru(0));
     {
         std::lock_guard<std::mutex> lock(din.m);
@@ -257,7 +292,7 @@ TEST_CASE("midi.unit: DIN = slot 0, USB = slot 1 in card order, kept in storage 
     }
     // A port without a switch (USB): THRU B from its own input is asked of it, refused, and stays in software.
     hub->setPortMode(1, 4);
-    service.poll(0.0);
+    service.poll(t += 1000);
     CHECK_FALSE(service.hardwareThru(1));
     {
         std::lock_guard<std::mutex> lock(usb.m);

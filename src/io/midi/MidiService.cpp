@@ -157,6 +157,7 @@ void MidiService::closeOutput(int slot)
     sender_.setOutput(slot, nullptr);
     sender_.setHardwareThru(slot, false);
     thruAsked_[static_cast<std::size_t>(slot)] = false; // the port's own close gives its socket back
+    thruWaiting_[static_cast<std::size_t>(slot)] = false;
     hardwareThru_[static_cast<std::size_t>(slot)] = false;
     outputs_[static_cast<std::size_t>(slot)].reset();
     if (outSlots_[static_cast<std::size_t>(slot)].connected)
@@ -274,7 +275,7 @@ void MidiService::refresh()
     }
 }
 
-void MidiService::applyHardwareThru()
+void MidiService::applyHardwareThru(double nowMs)
 {
     for (int p = 0; p < kPorts; ++p)
     {
@@ -289,8 +290,22 @@ void MidiService::applyHardwareThru()
         const auto s = static_cast<std::size_t>(src);
         const bool want = src >= 0 && inSlots_[s].connected && inSlots_[s].name == outSlots_[i].name &&
                           inSlots_[s].provider == outSlots_[i].provider && inputEnabled(src);
+        if (! want)
+            thruWaiting_[i] = false;
         if (want == thruAsked_[i])
             continue;
+        if (want)
+        {
+            // Not before the messages already scheduled for this port (the mode change's Note Offs) are written.
+            if (! thruWaiting_[i])
+            {
+                thruWaiting_[i] = true;
+                thruAtMs_[i] = nowMs + hub_.outputLatencyMs() + std::max(0, hub_.portOffsetMs(p)) + kThruSettleMs;
+            }
+            if (nowMs < thruAtMs_[i])
+                continue; // the sender forwards in software meanwhile
+            thruWaiting_[i] = false;
+        }
         thruAsked_[i] = want;
         hardwareThru_[i] = out->setHardwareThru(want) && want;
         sender_.setHardwareThru(p, hardwareThru_[i]); // on: forwarding would only reach a UART that is off the socket
@@ -306,7 +321,7 @@ void MidiService::poll(double nowMs)
         lastRefreshMs_ = nowMs;
         refresh();
     }
-    applyHardwareThru();
+    applyHardwareThru(nowMs);
 }
 
 std::string_view MidiService::slotName(int slot) const

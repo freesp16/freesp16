@@ -11,7 +11,11 @@
 //                 told (the engine's hanging-note guard). The audio thread is never touched (NFR-013).
 //   hardware THRU poll(), every frame: an output port in THRU A / THRU B whose source input is the same physical port
 //                 (the unit's DIN IN → DIN OUT) is switched to THRU in hardware (MidiOutput::setHardwareThru) and the
-//                 sender stops forwarding to it; any other mode gives the socket back to the port's own output.
+//                 sender stops forwarding to it; any other mode gives the socket back to the port's own output. The
+//                 switch to THRU waits until the port's last scheduled messages are on the wire (the output latency +
+//                 the port's offset + kThruSettleMs after the mode changed): the Note Offs the engine sends on the mode
+//                 change (MID-047) would otherwise reach a UART that is off the socket and the notes would hang.
+//                 Meanwhile the sender passes the input on in software.
 // Slots: a port with a fixed slot (PortInfo::slot: the unit's DIN = slot 0 = port A, its USB gadget = slot 1 = port
 // B) always takes it, and the providers' reserved slots stay free for them while they are absent (USB storage mode);
 // every other port takes the first free slot in the order ports are first seen.
@@ -38,6 +42,7 @@ class MidiService
 public:
     static constexpr int kPorts = core::midi::kMaxPorts;
     static constexpr double kRefreshMs = 1000.0;
+    static constexpr double kThruSettleMs = 50.0; // the engine's next blocks + the sender's poll, with room to spare
 
     MidiService(core::midi::MidiHub& hub, std::vector<std::unique_ptr<PortProvider>> providers);
     ~MidiService();
@@ -80,7 +85,7 @@ private:
     void closeOutput(int slot);
     int slotFor(std::array<Slot, kPorts>& slots, const std::string& provider, const std::string& name, int fixed);
     void inputLoop(int slot, MidiInput* port, Input* state);
-    void applyHardwareThru(); // message thread: the THRU modes onto the ports' hardware switches
+    void applyHardwareThru(double nowMs); // message thread: the THRU modes onto the ports' hardware switches
 
     core::midi::MidiHub& hub_;
     std::vector<std::unique_ptr<PortProvider>> providers_;
@@ -89,6 +94,8 @@ private:
     std::array<std::unique_ptr<MidiOutput>, kPorts> outputs_ {};
     std::array<bool, kPorts> thruAsked_ {};    // the switch state asked of each open output
     std::array<bool, kPorts> hardwareThru_ {}; // … and whether the port did it
+    std::array<double, kPorts> thruAtMs_{};    // a THRU waiting for the port's queue: when it may switch (poll's clock)
+    std::array<bool, kPorts> thruWaiting_{};
     std::uint32_t reserved_ = 0;               // slots kept for fixed-slot ports (sticky)
     MidiSender sender_;
     double lastRefreshMs_ = -1.0e18;
