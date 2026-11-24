@@ -1,5 +1,8 @@
 #include "services/settings/MidiPortLayout.h"
 
+#include "core/util/midi/MidiWire.h"
+
+#include <cmath>
 #include <string>
 
 namespace services::settings
@@ -30,9 +33,38 @@ bool migrateMidiPortLayout(Preferences& p, const core::ParamRegistry& reg)
     if (p.has(kMidiPortLayoutKey))
         return false;
     bool swapped = false;
-    for (const char* id : {"midi.portMode", "midi.portOffset"})
-        if (const auto* spec = reg.find(id))
-            swapped = swapKeys(p, keyOf(*spec, 0), keyOf(*spec, 1)) || swapped;
+    if (const auto* spec = reg.find("midi.portMode"))
+    {
+        // A mode names an input (1 / 3 = A, 2 / 4 = B), and A and B swapped sockets too: every port's merge / THRU
+        // source follows its socket (old OUT + MERGE B = merge DIN = new OUT + MERGE A).
+        for (int port = 0; port < core::midi::kMaxPorts; ++port)
+        {
+            const auto key = keyOf(*spec, static_cast<std::uint16_t>(port));
+            if (! p.has(key))
+                continue;
+            const int mode = static_cast<int>(std::lround(p.get(key)));
+            const int moved = mode == 1 ? 2 : mode == 2 ? 1 : mode == 3 ? 4 : mode == 4 ? 3 : mode;
+            if (moved != mode)
+            {
+                p.set(key, static_cast<float>(moved));
+                swapped = true;
+            }
+        }
+        swapped = swapKeys(p, keyOf(*spec, 0), keyOf(*spec, 1)) || swapped;
+        // The USB port now: OUT or OUT + MIDI IN only (manual 1.60 p.12).
+        const auto usb = keyOf(*spec, core::midi::kUsbPort);
+        if (p.has(usb))
+        {
+            const int mode = static_cast<int>(std::lround(p.get(usb)));
+            if (const int legal = core::midi::legalPortMode(core::midi::kUsbPort, mode); legal != mode)
+            {
+                p.set(usb, static_cast<float>(legal));
+                swapped = true;
+            }
+        }
+    }
+    if (const auto* spec = reg.find("midi.portOffset"))
+        swapped = swapKeys(p, keyOf(*spec, 0), keyOf(*spec, 1)) || swapped;
     swapped = swapKeys(p, "midi.portIn#0", "midi.portIn#1") || swapped;
     if (const auto* spec = reg.find("midi.syncPort"))
     {

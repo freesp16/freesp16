@@ -123,7 +123,7 @@ bool MidiEngine::onParam(const ParamChange& c) noexcept
         case F::ClockWhileStopped: clockWhileStopped_ = on; return true;
         case F::OutLatency: hub_.setOutputLatencyMs(clampi(iv, 0, 100)); return true;
         case F::PortMode:
-            portMode_[c.scope & 7] = static_cast<std::int8_t>(clampi(iv, 0, 4));
+            portMode_[c.scope & 7] = static_cast<std::int8_t>(core::midi::legalPortMode(c.scope & 7, iv));
             hub_.setPortMode(c.scope & 7, portMode_[c.scope & 7]);
             hub_.bumpGeneration(c.scope & 7); // MID-047: a mode change ends the port's sounding notes
             return true;

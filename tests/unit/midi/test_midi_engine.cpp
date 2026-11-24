@@ -458,3 +458,20 @@ TEST_CASE("midi.engine: the transport takes the external clock's tempo, not the 
                 CHECK(std::fabs(r.rateAfterLoss - clock) < 0.5);
             }
 }
+
+TEST_CASE("midi.engine: the USB port takes OUT or OUT + MIDI IN only (manual 1.60 p.12)", "[midi]")
+{
+    STATIC_REQUIRE(core::midi::legalPortMode(0, 3) == 3);
+    STATIC_REQUIRE(core::midi::legalPortMode(2, 4) == 4);
+    STATIC_REQUIRE(core::midi::legalPortMode(0, 9) == 4);
+    auto e = miditest::make(kRate);
+    miditest::Driver d{*e, 64};
+    const int want[5] = {0, 1, 0, 1, 0}; // OUT, OUT+MIDI IN, (USB IN) → OUT, THRU (MIDI IN) → OUT+MIDI IN, (USB) → OUT
+    for (int mode = 0; mode < 5; ++mode)
+    {
+        d.param("midi.portMode", 1, static_cast<float>(mode));
+        CHECK(e->midi().hub().portMode(1) == want[mode]);
+        d.param("midi.portMode", 0, static_cast<float>(mode)); // DIN: all five
+        CHECK(e->midi().hub().portMode(0) == mode);
+    }
+}
