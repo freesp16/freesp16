@@ -4,17 +4,18 @@
     `cmd` only for checkpoints, renders and song mode
   - tools/soak/soak-run.py analyze: a synthetic healthy run passes; growing RSS, an xrun, a failed save, a REALTIME
     VIOLATION each fail it
-  - tools/soak/soak-unit.sh (POSIX sh, as on the unit's BusyBox): monitors a stand-in process into the CSV analyze reads
-  - tools/soak/check-glibc.py: the host binary (x86-64, glibc > 2.13, dynamic libstdc++) is refused
-Exit 77 = skipped (nothing to skip here except check-glibc without readelf / the app)."""
+  - tools/soak/soak-unit.sh (POSIX sh, as on the unit's BusyBox): writes the CSV analyze reads from live or synthetic procfs
+  - tools/soak/check-glibc.py: a Linux host executable fails the ARM/glibc compatibility check"""
 import hashlib
 import json
 import os
+from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 SRC = os.environ.get("APP_SOURCE_DIR") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
@@ -117,27 +118,65 @@ try:
     sh = shutil.which("busybox")
     shell = [sh, "sh"] if sh else ["sh"]
     u = os.path.join(tmp, "unit")
-    stand_in = ("i=0; while [ $i -lt 4 ]; do echo '[sp16-mod] APP LOAD cycles/block avg=1 p95=2 max=3 load=0.1% "
-                "overruns=0 periods=10 xruns=0 VmRSS=1000 kB'; i=$((i+1)); sleep 1; done")
-    r = run(shell + [UNIT, "--out", u, "--interval", "1", "--summary", "2", "--", "sh", "-c", stand_in], timeout=60)
+    unit_cmd = shell + [UNIT, "--out", u, "--interval", "1", "--summary", "2"]
+    load_line = ("[sp16-mod] APP LOAD cycles/block avg=1 p95=2 max=3 load=0.1% "
+                 "overruns=0 periods=10 xruns=0 VmRSS=1000 kB")
+    live_procfs = Path("/proc/self/status").is_file()
+    monitor_csv = Path(u) / "monitor.csv"
+    if live_procfs:
+        stand_in = 'i=0; while [ "$i" -lt 5 ]; do echo "$1"; i=$((i+1)); sleep 1; done'
+        r = run(unit_cmd + ["--", "sh", "-c", stand_in, "soak-fixture", load_line], timeout=60,
+                env=dict(os.environ, SOAK_PROC_ROOT="/proc"))
+    else:
+        # The unit monitor still parses Linux procfs. Give it a stable sample and the log of a stand-in app.
+        proc = Path(tmp) / "proc"
+        pid = os.getpid()
+        process = proc / str(pid)
+        (process / "fd").mkdir(parents=True)
+        for fd in ("0", "1"):
+            (process / "fd" / fd).touch()
+        status = process / "status"
+        status.write_text("VmRSS: 1000 kB\nVmHWM: 1100 kB\nThreads: 2\n")
+        (process / "stat").write_text(f"{pid} (fixture) S" + " 0" * 10 + " 12 8\n")
+        log = Path(tmp) / "unit-app.log"
+        log.write_text(load_line + "\n")
+        command = unit_cmd + ["--pid", str(pid), "--log", str(log)]
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                              env=dict(os.environ, SOAK_PROC_ROOT=str(proc))) as monitor:
+            deadline = time.monotonic() + 15
+            try:
+                while monitor.poll() is None and time.monotonic() < deadline:
+                    if monitor_csv.exists() and len(monitor_csv.read_text().splitlines()) >= 5:
+                        break
+                    time.sleep(0.05)
+            finally:
+                status.unlink()
+            stdout, stderr = monitor.communicate(timeout=10)
+            r = subprocess.CompletedProcess(command, monitor.returncode, stdout, stderr)
     check(r.returncode == 0, f"soak-unit.sh ({' '.join(shell)}): exit {r.returncode} {r.stderr.strip()[-300:]}")
-    check("SOAK t=00:00:02" in r.stdout and "p95=2" in r.stdout, "a SOAK line with the app's last LOAD line")
-    rows = open(os.path.join(u, "monitor.csv")).read().splitlines()
-    check(rows[0] == "t_s,rss_kb,hwm_kb,threads,fds,ticks,autosave_mtime" and len(rows) >= 4,
-          f"monitor.csv: header + {len(rows) - 1} samples")
+    check(re.search(r"^SOAK t=\d{2}:\d{2}:\d{2} .*\bp95=2\b", r.stdout, re.MULTILINE),
+          "a SOAK line with the app's last LOAD line")
+    rows = monitor_csv.read_text().splitlines() if monitor_csv.exists() else []
+    check(len(rows) >= 5 and rows[0] == "t_s,rss_kb,hwm_kb,threads,fds,ticks,autosave_mtime",
+          f"monitor.csv: header + {max(0, len(rows) - 1)} samples")
     check(all(re.fullmatch(r"\d+,\d+,\d+,\d+,\d+,\d+,\d*", x) for x in rows[1:]), "monitor rows are numeric")
-    r = run([sys.executable, RUN, "analyze", "--log", os.path.join(u, "log.txt"), "--monitor",
-             os.path.join(u, "monitor.csv")])
-    check("RSS growth after warm-up" in r.stdout and "open fds flat" in r.stdout, "analyze reads the unit's files")
+    if not live_procfs:
+        check(all(x.split(",")[1:6] == ["1000", "1100", "2", "2", "20"] for x in rows[1:]),
+              "monitor rows contain the fixture's RSS, HWM, threads, descriptors and CPU ticks")
+    r = run([sys.executable, RUN, "analyze", "--log", os.path.join(u, "log.txt") if live_procfs else str(log),
+             "--monitor", str(monitor_csv)])
+    report_ok = all(re.search(rf"{name}\s+PASS\s", r.stdout)
+                    for name in ("RSS growth after warm-up", "open fds flat"))
+    check(report_ok, "analyze reads the unit's files" + ("" if report_ok else f": {r.stdout}{r.stderr}"))
 
     # --- check-glibc --------------------------------------------------------------------------------------------------
     exe = os.environ.get("APP_EXECUTABLE", "")
-    if shutil.which("readelf") and exe and os.path.exists(exe):
+    if sys.platform.startswith("linux") and shutil.which("readelf") and exe and os.path.exists(exe):
         r = run([sys.executable, GLIBC, exe])
         check(r.returncode == 1 and "ARM expected" in r.stdout and "newer than 2.13" in r.stdout,
               "check-glibc refuses the host binary (x86-64, glibc > 2.13)")
     else:
-        print("SKIP check-glibc (no readelf or no host app)")
+        print("SKIP check-glibc (needs a Linux host app and readelf)")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 

@@ -43,7 +43,12 @@ TEST_CASE("stretch kernels: scalar references", "[stretch][kernels]")
             CHECK(d[i] == a[i] * w[i]);
         k::scalar::addWindowed(d.data(), b.data(), w.data(), n);
         for (int i = 0; i < n; ++i)
-            CHECK(d[i] == a[i] * w[i] + b[i] * w[i]);
+        {
+            // Round each product before adding, as the scalar kernel does with contraction disabled.
+            const volatile float first = a[i] * w[i];
+            const volatile float second = b[i] * w[i];
+            CHECK(d[i] == first + second);
+        }
     }
     // atan2 against the library, every quadrant, the axes and (0, 0).
     std::vector<float> ys, xs;

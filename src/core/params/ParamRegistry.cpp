@@ -17,19 +17,22 @@ float ParamSpec::step(float v, int detents, bool fine) const noexcept
     // The range's ends stay exact; a value off the grid (an import, an LFO-written base) stays where the turn puts it.
     if (next == minValue || next == maxValue)
         return next;
-    // A step written as a short decimal is taken as that decimal (0.1f is 0.100000001…, and k × that would drift
-    // again); any other step (1/127 …) as the float itself.
-    const auto exact = [](float f) {
-        const double d = std::round(static_cast<double>(f) * 1e6) / 1e6;
-        return static_cast<float>(d) == f ? d : static_cast<double>(f);
+    // Compute in millionths. Short decimals give integral grid coordinates, so crossing zero lands at exactly
+    // zero even when the compiler fuses multiply-add. Other values keep their fractional millionths.
+    constexpr double scale = 1e6;
+    const auto ticks = [](float f)
+    {
+        const double scaled = static_cast<double>(f) * scale;
+        const double rounded = std::round(scaled);
+        return static_cast<float>(rounded / scale) == f ? rounded : scaled;
     };
     const float grid = std::min(fineStep, coarseStep) > 0 ? std::min(fineStep, coarseStep) : s;
     if (grid > 0)
     {
-        const double g = exact(grid), lo = exact(minValue);
-        const double q = (static_cast<double>(next) - lo) / g, k = std::round(q);
+        const double g = ticks(grid), lo = ticks(minValue);
+        const double q = (static_cast<double>(next) * scale - lo) / g, k = std::round(q);
         if (std::fabs(q - k) < 0.01)
-            next = clamp(static_cast<float>(lo + k * g));
+            next = clamp(static_cast<float>((lo + k * g) / scale));
     }
     return next;
 }

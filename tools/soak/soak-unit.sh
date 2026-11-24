@@ -44,7 +44,9 @@ if [ -z "$pid" ]; then
   pid=$!
   started=1
 fi
-[ -d "/proc/$pid" ] || { echo "soak-unit: no process $pid" >&2; exit 2; }
+# A fixture can supply procfs files on hosts without Linux procfs.
+proc_dir=${SOAK_PROC_ROOT:-/proc}/$pid
+[ -d "$proc_dir" ] || { echo "soak-unit: no process $pid" >&2; exit 2; }
 autosave_dir=""
 [ -n "$data" ] && autosave_dir="$data/System/autosave"
 
@@ -58,7 +60,7 @@ base_rss=""
 echo "SOAK monitor pid=$pid interval=${interval}s summary=${summary}s out=$out" | tee -a "$out/soak.txt"
 
 sample() { # one CSV row; returns 1 when the process is gone
-  status="/proc/$pid/status"
+  status="$proc_dir/status"
   [ -r "$status" ] || return 1
   rss=0 hwm=0 thr=0
   while read -r key value rest; do
@@ -68,9 +70,9 @@ sample() { # one CSV row; returns 1 when the process is gone
       Threads:) thr=$value ;;
     esac
   done < "$status"
-  fds=$(ls "/proc/$pid/fd" 2>/dev/null | wc -l)
+  fds=$(ls "$proc_dir/fd" 2>/dev/null | awk 'END {print NR}')
   ticks=0
-  if read -r statline < "/proc/$pid/stat" 2>/dev/null; then
+  if read -r statline < "$proc_dir/stat" 2>/dev/null; then
     # fields after the ")" of the command name: state is field 3, utime 14, stime 15
     rest=${statline##*) }
     set -- $rest
