@@ -14,23 +14,32 @@
 
 namespace core::model
 {
-// PadScale::scaleType, MidiScale::scaleTypeMidi (enumerations.md "Scales", PAD-010; our fill-in, CHROMATIC default).
+// PadScale::scaleType, MidiScale::scaleTypeMidi: SET SCALE's 22 scales in the manual's order and names (addendum
+// "Selection of scale", No. 1–22; CHROMATIC default). Schema 5 renumbered the list (MigrationV5.cpp).
 enum class ScaleType : std::uint8_t
 {
     Chromatic,
-    Major,
-    Minor,
-    HarmonicMinor,
-    MelodicMinor,
+    Ionian,
     Dorian,
     Phrygian,
     Lydian,
     Mixolydian,
+    Aeolian,
     Locrian,
-    MajorPenta,
-    MinorPenta,
-    Blues,
-    WholeTone
+    MajorPentatonic,
+    MinorPentatonic,
+    WholeTone,
+    Diminish,
+    CombinationDiminish,
+    Altered,
+    MajorBlues,
+    MinorBlues,
+    RagaBhairav,
+    RagaGamanasrama,
+    RagaTodi,
+    Hawaiian,
+    Ryukyu,
+    JapaneseMiyakobushi
 };
 
 // TrackSequencerSettings::stepShiftArea (enumerations.md "Timing and record values": SHIFT AREA BAR, ALL*).

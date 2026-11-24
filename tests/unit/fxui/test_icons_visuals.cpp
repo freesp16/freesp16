@@ -1,4 +1,4 @@
-// Effect icons (components/visuals.md "Icons", UID-400) and the seven visual kinds (UID-834/835), plus the frame's
+// Effect icons (components/visuals.md "Icons", UID-400) and the eight visual kinds (UID-834/835), plus the frame's
 // allocation rule (no allocation after warm-up with the panel open, meters animating and knobs turning).
 #include "core/util/Realtime.h"
 #include "tests/unit/fxui/FxuiTest.h"
@@ -31,7 +31,7 @@ TEST_CASE("fxui.icons_svg: resources/icons/fx/<id>.svg are exactly the drawn ico
 TEST_CASE("fxui.icons_family: NONE, the twelve reference effects and EXT, cached at 24 / 40 / 48 lpx", "[fxui]")
 {
     for (const auto id : {"none", "chorus", "flanger", "phaser", "eq2", "filter", "delay", "delayBus", "reverb", "lofi",
-                          "distortion", "compressor", "ducker", "ext"})
+                          "distortion", "compressor", "ducker", "vpitch", "ext"})
     {
         INFO(id);
         REQUIRE(ui::findEffectIcon(id) != nullptr);
@@ -66,7 +66,8 @@ TEST_CASE("fxui.visual_kinds: every visual kind of the spec has a renderer the p
           "[fxui]")
 {
     Env e;
-    for (const auto kind : {"lfoCurve", "eqCurve", "filterCurve", "delayTaps", "decayCurve", "meters", "duckEnvelope"})
+    for (const auto kind :
+         {"lfoCurve", "eqCurve", "filterCurve", "delayTaps", "decayCurve", "meters", "duckEnvelope", "pitchSplice"})
     {
         INFO(kind);
         const auto make = ui::WidgetRegistry::builtin().find(std::string("fxvisual.") + kind);
@@ -193,4 +194,87 @@ TEST_CASE("fxui.alloc: the effect panel frame and hot input allocate nothing aft
         f.press(io::Control::Back);
         f.settle();
     }
+}
+
+TEST_CASE("fxui.visual_pitch: the VINTAGE PITCH splice visual stays in its zone, animates only while live and "
+          "allocates nothing per frame",
+          "[fxui]")
+{
+    Env e;
+    const auto make = ui::WidgetRegistry::builtin().find("fxvisual.pitchSplice");
+    REQUIRE(make != nullptr);
+    auto w = make(ui::ScreenSpec{}, ui::WidgetArgs{ui::fxzone::zone});
+    auto* v = dynamic_cast<ui::FxVisual*>(w.get());
+    REQUIRE(v != nullptr);
+    const ui::TextMeasure measure = fixedMeasure();
+    ui::FocusState focus;
+    ui::UiContext ctx{ui::theme::palette(), measure, 0, focus};
+    const auto inZone = [](const ui::DrawList& dl)
+    {
+        for (const auto& c : dl.commands())
+            if (c.rect.x < ui::fxzone::x0 - 1 || c.rect.x + c.rect.w > ui::fxzone::x1 + 1 ||
+                c.rect.y < ui::fxzone::y0 - 1 || c.rect.y + c.rect.h > ui::fxzone::y1 + 1)
+                return false;
+        return true;
+    };
+    ui::VisualModel m;
+    // idle: a still frame
+    v->setModel(m);
+    CHECK_FALSE(v->dirty(0));
+    // every knob extreme: −12 / 0 / +12 st, DELAY 0 / 120, FEEDBACK ±100 %, AGE 0 / 100 %
+    for (const int st : {-12, -5, 0, 7, 12})
+        for (const float fb : {-1.0f, 0.0f, 1.0f})
+            for (const float age : {0.0f, 1.0f})
+            {
+                m.pitchSemis = st;
+                m.pitchRatio = std::exp2(static_cast<float>(st) / 12.0f);
+                m.pitchFeedback = fb;
+                m.pitchAge = age;
+                m.pitchDelayMs = age > 0.5f ? 120.0f : 0.0f;
+                m.playing = true;
+                m.limit = 0.5f;
+                v->setModel(m);
+                CHECK(v->dirty(0));
+                ui::DrawList dl;
+                for (int frame = 0; frame < 3; ++frame)
+                {
+                    ctx.nowMs = 1000.0 + 16.7 * frame;
+                    dl.clear();
+                    v->build(dl, ctx);
+                    INFO("st " << st << " fb " << fb << " age " << age);
+                    CHECK(inZone(dl));
+                    CHECK(dl.commands().size() < 1500);
+                }
+            }
+    // the read pointer moves between frames while playing (the A dot of the READ panel)
+    m.pitchSemis = 7;
+    m.pitchRatio = 1.4983071f;
+    v->setModel(m);
+    ui::DrawList a, b;
+    ctx.nowMs = 2000;
+    v->build(a, ctx);
+    ctx.nowMs = 2100;
+    v->build(b, ctx);
+    CHECK(a.commands().size() > 0);
+    bool moved = a.commands().size() != b.commands().size();
+    for (std::size_t i = 0; ! moved && i < a.commands().size(); ++i)
+        moved = a.commands()[i].rect.y != b.commands()[i].rect.y || a.commands()[i].rect.x != b.commands()[i].rect.x;
+    CHECK(moved);
+    // no allocation per frame after warm-up
+    ui::DrawList dl;
+    dl.reserve(4096, 4096);
+    v->build(dl, ctx);
+    const std::size_t before = core::rt::violationCount();
+    core::rt::setAbortOnViolation(false);
+    {
+        core::rt::ScopedRealtimeThread rt;
+        for (int i = 0; i < 30; ++i)
+        {
+            dl.clear();
+            ctx.nowMs += 16.7;
+            v->build(dl, ctx);
+        }
+    }
+    core::rt::setAbortOnViolation(true);
+    CHECK(core::rt::violationCount() - before == 0);
 }

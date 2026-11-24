@@ -6,6 +6,7 @@
 #include "engine/Engine.h"
 #include "engine/fx/FxSlotBank.h"
 
+#include "core/audio/SampleBufferStorage.h"
 #include "core/params/ParamRegistry.h"
 #include "core/params/catalogue/fx.h"
 #include "core/util/midi/CcTable.h"
@@ -114,6 +115,17 @@ struct Driver
         runPeriod();
     }
 };
+
+// A silent mono sample of `frames` frames, installed on `track` of scene 0 by the next block. The buffer must outlive
+// the engine (declare it before the engine).
+using Sample = std::unique_ptr<core::audio::SampleBuffer, core::audio::SampleBufferDeleter>;
+inline Sample installSample(engine::Engine& e, int track, std::int64_t frames, double rate = 44100.0)
+{
+    Sample b(core::audio::allocateSampleBuffer(frames, 1, rate));
+    core::audio::retain(b.get()); // the engine's reference (released when it is replaced or the engine goes)
+    e.bridge().post(engine::ObjectSwap{{engine::SwapSlot::TrackSample, 0, static_cast<std::uint8_t>(track)}, b.get()});
+    return b;
+}
 
 // Everything the engine sent to the hub's out queue so far (the test plays the sender).
 inline std::vector<core::midi::MidiOutEvent> drainOut(engine::Engine& e)

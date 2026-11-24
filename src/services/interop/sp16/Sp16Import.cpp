@@ -16,6 +16,7 @@
 #include <limits>
 #include <map>
 #include <optional>
+#include <type_traits>
 
 namespace services::interop::sp16
 {
@@ -74,6 +75,34 @@ std::string where(int scene, int track = -1)
 }
 
 // One node's properties: each is taken at most once; whatever is left at finish() is kept and reported.
+// SET SCALE's scales (ScaleType): the reference's strings are not known, so a string names a scale when it equals one
+// of the manual's names (core::model::ScaleType's stored or display name) with case, spaces, '_' and '-' ignored
+// (`MAJOR_PENTATONIC`, `Raga Todi`).
+bool looseEqual(std::string_view a, std::string_view b) noexcept
+{
+    auto skip = [](char c) { return c == ' ' || c == '_' || c == '-'; };
+    auto lower = [](char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c; };
+    std::size_t i = 0, j = 0;
+    for (;;)
+    {
+        while (i < a.size() && skip(a[i]))
+            ++i;
+        while (j < b.size() && skip(b[j]))
+            ++j;
+        if (i == a.size() || j == b.size())
+            return i == a.size() && j == b.size();
+        if (lower(a[i++]) != lower(b[j++]))
+            return false;
+    }
+}
+std::optional<m::ScaleType> scaleByName(std::string_view s) noexcept
+{
+    for (const auto& e : m::enumTable<m::ScaleType>().entries)
+        if (looseEqual(s, e.stored) || looseEqual(s, e.display))
+            return static_cast<m::ScaleType>(e.value);
+    return std::nullopt;
+}
+
 class Props
 {
 public:
@@ -275,6 +304,18 @@ public:
                         field = *e;
                         return true;
                     }
+            if constexpr (std::is_same_v<E, m::ScaleType>)
+            {
+                auto e = scaleByName(s);
+                for (const auto p : prefixes)
+                    if (! e && s.substr(0, p.size()) == p)
+                        e = scaleByName(s.substr(p.size()));
+                if (e)
+                {
+                    field = *e;
+                    return true;
+                }
+            }
             keepText(h, h.v->s, Kind::EnumUnmapped);
             return false;
         }
@@ -1078,7 +1119,7 @@ void mapTrack(const Node& n, m::Track& tr, Ctx& c, int scene, int track)
             Props p(cn, "ScaleSettingMidi", s.extras, c.log, at);
             p.enumInt<m::ScaleType>({"scaleTypeMidi"}, s.scaleTypeMidi, {"ScaleType_", "Scale_"}); // [S]
             p.intIn({"scalePosition"}, s.scalePosition, -100000, 100000);
-            p.intIn({"rootNote"}, s.rootNote, 0, 127);
+            p.intIn({"rootNote"}, s.rootNote, 0, 119); // C0…B9
         }
         else if (ch.base == "InsertFx")
         {
@@ -1140,20 +1181,13 @@ void mapTrack(const Node& n, m::Track& tr, Ctx& c, int scene, int track)
                 if (g.base == "MidiNoteData")
                 {
                     Props p(gn, "MidiNoteData", mt.extras, c.log, at);
-                    // [D] note1-4, velocity, length (research tree); [S] MidiBypassFlg.
+                    // [D] note1-4, velocity, length (research tree); [S] MidiBypassFlg. note1 is the base note,
+                    // note2–4 the chord's other notes as semitones from it, −127 ~ OFF (0) ~ +127 (the manual's MIDI
+                    // NOTE settings; the observed 0 = off), stored as they are.
                     for (int k = 0; k < 4; ++k)
                     {
                         const std::string_view name = k == 0 ? "note1" : k == 1 ? "note2" : k == 2 ? "note3" : "note4";
-                        // Harmony notes 2–4: an observed 0 everywhere reads as "off" (−1 in the model).
-                        if (auto h = p.peekHit({name}); k > 0 && h && h.v->t == Var::T::Int && h.v->i == 0)
-                        {
-                            p.take({name});
-                            p.keepSilently(h);
-                            mt.notes[static_cast<std::size_t>(k)] = -1;
-                            c.log.issue(Kind::Guessed, "MidiNoteData.note2-4 = 0 read as off", at);
-                            continue;
-                        }
-                        p.intIn({name}, mt.notes[static_cast<std::size_t>(k)], -1, 127);
+                        p.intIn({name}, mt.notes[static_cast<std::size_t>(k)], k == 0 ? 0 : -127, k == 0 ? 119 : 127);
                     }
                     p.intIn({"velocity"}, mt.velocity, 0, 127);
                     if (auto h = p.peekHit({"length"}); h && h.v->t == Var::T::Int)

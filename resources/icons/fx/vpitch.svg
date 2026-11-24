@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+  <title>vpitch</title>
+  <path d="M 2 19 L 9.5 6 V 19 L 17 6 V 19 L 22 10.5"/>
+  <path d="M 2 12.5 L 5.75 6 V 19 L 13.25 6 V 19 L 20.75 6 V 19" opacity="0.35"/>
+</svg>

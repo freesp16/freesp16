@@ -16,10 +16,10 @@ constexpr int kBlackAfter[5] = {0, 1, 3, 4, 5}; // white keys followed by a blac
 constexpr float kBandY = 152, kKeyY = 192, kWhiteW = 84, kWhiteH = 296, kBlackW = 52, kBlackH = 184;
 constexpr float kOvX = 80, kOvY = 524, kOvKey = 16;
 
-// The MIDI note → (octave, semitone) with C-1 = 0 (the catalogue's naming: 60 = C4).
+// The MIDI note → octave with C0 = 0 (the manual's C0…B9, the catalogue's naming: 60 = C5).
 int octaveOf(int note) noexcept
 {
-    return note / 12 - 1;
+    return note / 12;
 }
 } // namespace
 
@@ -34,7 +34,7 @@ void PianoKeyboard::draw(DrawList& dl, const UiContext& ctx, const PianoKeyboard
         dl.fill({ox, kBandY, 616, 32}, p.surface2, tk::radiusS);
         std::snprintf(text, sizeof text, "C%d", octave);
         dl.text(ox + 12, 168, Align::Left, TextStyleId::Label, p.text2, text);
-        const int base = (octave + 1) * 12;
+        const int base = octave * 12;
         for (int i = 0; i < 7; ++i)
         {
             const int note = base + kSemitoneOfWhite[i];
@@ -83,14 +83,14 @@ void PianoKeyboard::draw(DrawList& dl, const UiContext& ctx, const PianoKeyboard
         dl.text(kOvX + static_cast<float>(o) * 7 * kOvKey + 2, 512, Align::Left, TextStyleId::Caption, p.text3, text);
     }
     const int note = m.notes[0];
-    const int noteWhite = note >= 12 && kWhiteOf[note % 12] >= 0 ? octaveOf(note) * 7 + kWhiteOf[note % 12] : -1;
+    const int noteWhite = note >= 0 && kWhiteOf[note % 12] >= 0 ? octaveOf(note) * 7 + kWhiteOf[note % 12] : -1;
     const auto whiteInk = theme::withOpacity(p.text1, 0.85f);
     for (int i = 0; i < 70; ++i)
         dl.fill({kOvX + static_cast<float>(i) * kOvKey, kOvY, kOvKey - 2, 44}, i == noteWhite ? m.colour : whiteInk, 2);
     for (int i = 0; i < 70; ++i)
         if (const int w = i % 7; w == 0 || w == 1 || w == 3 || w == 4 || w == 5)
         {
-            const bool current = note >= 12 && kWhiteOf[note % 12] < 0 && octaveOf(note) * 7 + kWhiteOf[(note - 1) % 12] == i;
+            const bool current = note >= 0 && kWhiteOf[note % 12] < 0 && octaveOf(note) * 7 + kWhiteOf[(note - 1) % 12] == i;
             dl.fill({kOvX + static_cast<float>(i + 1) * kOvKey - 6, kOvY, 10, 26}, current ? m.colour : p.surface3, 1);
         }
     const float fx = kOvX + static_cast<float>(m.firstOctave * 7) * kOvKey;
@@ -106,7 +106,7 @@ int PianoKeyboard::noteAt(const PianoKeyboardModel& m, float x, float y) noexcep
     for (int band = 0; band < 2; ++band)
     {
         const float ox = 16 + 632 * static_cast<float>(band);
-        const int base = (m.firstOctave + band + 1) * 12;
+        const int base = (m.firstOctave + band) * 12;
         if (y < kKeyY + kBlackH)
             for (const int i : kBlackAfter)
             {

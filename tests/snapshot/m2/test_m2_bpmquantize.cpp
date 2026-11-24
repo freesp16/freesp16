@@ -110,8 +110,13 @@ TEST_CASE("ui.m2.bpmQuantize: NUDGE acts while held; an external clock disables 
     f.touch(948, 420, ui::touch::kUp);
     CHECK(project(f, "transport.nudge") == 0.0f);
     f.shell->state().syncBadge = "MIDI";
+    f.shell->state().bpm.set("131.4"); // the followed clock's tempo (TransportController::publish)
     f.settle();
     CHECK(m2test::hasText(f.dl, "MIDI"));
+    // The panel shows the followed tempo and leaves it on the context bar: not the project's 120.0.
+    CHECK(f.shell->state().bpm.view() == "131.4");
+    CHECK(m2test::hasText(f.dl, "131"));
+    CHECK(m2test::hasText(f.dl, ".4"));
     f.turn(io::Control::Selector, 5);
     CHECK(project(f, "transport.tempo") == 120.0f);
     f.touch(948, 420, ui::touch::kDown);

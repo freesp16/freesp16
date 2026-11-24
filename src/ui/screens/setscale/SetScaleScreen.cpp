@@ -4,10 +4,10 @@
 // with a 24 lpx mini degree strip: 12 ticks, in-scale ones filled text-2); body ScaleMap (the 4 × 16 degree map
 // with the pads' window framed) + PadMap (4 × 4 pads in pad order).
 //   Sample tracks  `track.playback.setScale` (HOME › TRACK MENU › PLAYBACK › SET SCALE): scale.type, pads labelled with
-//                  their semitone offsets; strip AREA, TIME STRETCH, KEY SHIFT.
+//                  their semitone offsets; strip AREA (knob 1), TIME STRETCH (2), KEY SHIFT (3) (manual p.25–28).
 //   MIDI / AS-1    `track.setScaleMidi` (HOME › TRACK MENU › SET SCALE, the TRACK MENU header action): scaleMidi.type,
-//                  pads labelled with their note names from ROOT (core::scales::midiPadNote); strip AREA, ROOT
-//                  (UID-713; our choice: no TIME STRETCH).
+//                  pads labelled with their note names from ROOT (core::scales::midiPadNote); strip AREA (knob 1),
+//                  ROOT NOTE (knob 3, the manual's 1.4), no TIME STRETCH (SAMPLE tracks only, the manual's 7).
 // The scale tables are the engine's (core/util/scales): scale.type = core::scales::kScaleMasks order.
 // Keyboard / panel: the rotary reaches SCALE, push opens the list; encoders 1–3 the columns.
 #include "core/util/scales/Scales.h"
@@ -64,11 +64,6 @@ public:
         const std::uint16_t mask = core::scales::scaleMask(type);
         const int area = std::clamp(static_cast<int>(std::lround(m1::trackParam(sh, areaId(), t))),
                                     core::scales::kMinWindow, core::scales::kMaxWindow);
-        ScaleMapModel sm;
-        sm.mask = mask;
-        sm.area = area;
-        sm.colour = col;
-        ScaleMap::draw(dl, ctx, sm);
         PadMapModel pm;
         pm.mask = mask;
         pm.area = area;
@@ -78,7 +73,26 @@ public:
             pm.rootNote = static_cast<int>(std::lround(m1::trackParam(sh, "scaleMidi.root", t, 60)));
         else
             pm.keyShift = static_cast<int>(std::lround(m1::trackParam(sh, "scale.keyShift", t)));
+        // The selected key (the manual's 1.6): the pitch the last SCALE pad played, wherever AREA / SCALE / ROOT
+        // put it now (not shown when the scale lacks it); the root until a pad is pressed.
+        drawnKey_ = state_->tracks[static_cast<std::size_t>((t - 1) & 15)].scaleKey;
+        if (drawnKey_ != TrackSummary::kNoKey)
+            pm.selectedDegree = core::scales::degreeOf(
+                drawnKey_ - (midi_ ? std::clamp(pm.rootNote, 0, 127)
+                                   : std::clamp(pm.keyShift, core::scales::kMinKeyShift, core::scales::kMaxKeyShift)),
+                mask);
+        ScaleMapModel sm;
+        sm.mask = mask;
+        sm.area = area;
+        sm.colour = col;
+        sm.selectedDegree = pm.selectedDegree;
+        ScaleMap::draw(dl, ctx, sm);
         PadMap::draw(dl, ctx, pm);
+    }
+    bool dirty(double) const override // a SCALE pad press selects another key (the pads bypass the shell)
+    {
+        return state_ != nullptr && state_->tracks[static_cast<std::size_t>((state_->selectedTrack - 1) & 15)].scaleKey
+                                        != drawnKey_;
     }
 
     bool railActivate(int index, const RailItemSpec&, float, float) override
@@ -111,6 +125,7 @@ private:
     UiState* state_;
     bool midi_;
     mutable bool focusSet_ = false;
+    mutable int drawnKey_ = TrackSummary::kNoKey;
 };
 
 std::unique_ptr<Widget> makeScaleMap(const ScreenSpec& s, const WidgetArgs& a)
@@ -140,4 +155,4 @@ APP_REGISTER_SCREEN((ui::ScreenSpec{.id = "track.setScaleMidi",
                                     .contextBar = ui::ContextBarKind::TrackContext,
                                     .rail = ui::kScaleMidiRail,
                                     .bodyComponent = "ScaleMap",
-                                    .strip = {"SET SCALE", {"scaleMidi.area", "scaleMidi.root", "", "", "", ""}}}))
+                                    .strip = {"SET SCALE", {"scaleMidi.area", "", "scaleMidi.root", "", "", ""}}}))

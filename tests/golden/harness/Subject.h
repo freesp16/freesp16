@@ -12,8 +12,9 @@
 //   fx.oscillator      OscillatorSubject: engine::fx::ModOscillator (models/oscillator.py).
 //   fx.mod             ModSubject: fx.effect plus the tempo and retrigger (models/chorus.py, flanger.py, phaser.py via
 //                      goldenlib/modrun.py).
-//   fx.delay           DelaySubject: delay / delayBus / reverb through FxShell in a slot kind, with a tempo feed
-//                      (models/fx_delay.py, fx_delaybus.py, fx_reverb.py via goldenlib/delayrun.py).
+//   fx.delay           DelaySubject: delay / delayBus through FxShell in a slot kind, with a tempo feed
+//                      (models/fx_delay.py, fx_delaybus.py via goldenlib/delayrun.py). The Reverb is the app's own
+//                      design (no research model): tests/unit/fx/test_fx_reverb.cpp checks its behaviour.
 //   routing.router     RoutingSubject.cpp: engine::mixer::OutputRouter (models/routing_router.py).
 //   routing.headphones RoutingSubject.cpp: engine::mixer::HeadphoneRouter (models/routing_headphones.py).
 //   routing.device     RoutingSubject.cpp: OutputRouterStage steps 12-13, trim + mute-all (models/routing_device.py).

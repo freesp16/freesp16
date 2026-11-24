@@ -98,6 +98,7 @@ public:
     bool preCount() const noexcept { return transport_.state() == State::PreCount; }
     double ppq() const noexcept { return transport_.ppq(); }
     double bpm() const noexcept { return transport_.bpm(); } // stored tempo (display); ctx.bpm is the effective one
+    double effectiveBpm() const noexcept { return transport_.effectiveBpm(); } // the followed clock / nudge applied
     State state() const noexcept { return transport_.state(); }
     bool hardStopThisBlock() const noexcept { return transport_.hardStopThisBlock(); }
     // Another name for the hard stop (FX-036: the second STOP cuts every tail).

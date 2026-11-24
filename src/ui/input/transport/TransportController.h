@@ -13,7 +13,9 @@
 // engine (ParamChange / TransportCmd SetTempo). The controller keeps its own view of the transport state and follows
 // the engine's PlayheadFeed once per frame (sync), so a start/stop sent by someone else (project load, MIDI) is seen.
 // publish() writes the shell's UiState: PLAY lamp / status (playing), REC (recArmed), the context bar's BPM text and
-// BAR:BEAT:STEP (SYN-006).
+// BAR:BEAT:STEP (SYN-006), and the sync badge. Under MIDI clock (the feed's externalClock, SYN-010/012) the BPM is the
+// followed clock's, the badge reads MIDI (in the warning colour while no tick arrives, SYN-013), and TAP / NUDGE do
+// nothing (the BPM/QUANTIZE panel greys them out).
 #pragma once
 
 #include "core/params/ParamRegistry.h"
@@ -67,7 +69,8 @@ public:
     void setRecArmed(bool armed) noexcept { recArmed_ = armed; }
     int nudge() const noexcept { return nudge_; }
     int preCountBars() const; // transport.preCount (0–2), 0 without a ParamAccess
-    double tempo() const;     // transport.tempo, else the feed's BPM
+    double tempo() const;     // the followed clock's BPM under MIDI clock, else transport.tempo, else the feed's BPM
+    bool externalClock() const noexcept { return external_; }
     const core::musictime::TapTempo& tapTempo() const noexcept { return tap_; }
 
 private:
@@ -85,5 +88,6 @@ private:
     std::uint64_t feedBlock_ = 0, postedAt_ = 0;
     bool posted_ = false;
     double feedPpq_ = 0.0, feedBpm_ = 120.0;
+    bool external_ = false, clockLost_ = false; // the feed: following MIDI clock, no tick lately
 };
 } // namespace ui::input::transport

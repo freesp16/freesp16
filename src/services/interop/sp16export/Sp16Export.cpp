@@ -495,8 +495,15 @@ bool hasOptions(m::EffectType t, int which)
     return t == E::MultiModeFilter || t == E::LoFi || t == E::ParametricEq2 || (t == E::Ducker && which == 1);
 }
 
-void writeEffect(Node& n, std::string_view base, const m::EffectSlot& fx, Ctx& c, const std::string& at)
+void writeEffect(Node& n, std::string_view base, const m::EffectSlot& in, Ctx& c, const std::string& at)
 {
+    // Our own effects have no SP-16 type: the slot is written as Off (its parameters stay as stored).
+    m::EffectSlot fx = in;
+    if (fx.type == m::EffectType::VintagePitch)
+    {
+        c.report.drop("VINTAGE PITCH (not an SP-16 effect: written as Off)", at);
+        fx.type = m::EffectType::Off;
+    }
     Props p(n, std::string(base), &fx.extras, c.report, at);
     p.put("effectType", S("FxType_" + std::string(m::storedName(fx.type))),
           [&](const Var& k) { return sameEnum<m::EffectType>(k, fx.type, m::EffectType::Off, "FxType_"); });
@@ -793,14 +800,10 @@ Node trackNode(const m::Track& tr, const m::Track& def, Ctx& c, int scene, int t
             for (int k = 0; k < 4; ++k)
             {
                 const std::string name = "note" + std::to_string(k + 1);
+                // note1 the base note; note2–4 semitones from it, 0 = off (the model's own encoding).
                 const int note = mt.notes[static_cast<std::size_t>(k)];
-                if (k > 0 && note == 0)
-                    c.report.drop("harmony note 0 (a stored 0 reads as off)", at);
-                const int stored = k > 0 && note < 0 ? 0 : note; // observed: 0 = off for notes 2–4
-                p.put(name, I(stored), [&](const Var& kv) {
-                    if (k > 0 && isInt(kv) && kv.i == 0)
-                        return note == -1;
-                    return sameInt(kv, note, -1, 127, d.notes[static_cast<std::size_t>(k)]);
+                p.put(name, I(note), [&](const Var& kv) {
+                    return sameInt(kv, note, k == 0 ? 0 : -127, 127, d.notes[static_cast<std::size_t>(k)]);
                 });
             }
             p.put("velocity", I(mt.velocity), [&](const Var& k) { return sameInt(k, mt.velocity, 0, 127, d.velocity); });

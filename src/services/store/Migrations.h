@@ -33,7 +33,9 @@ namespace services::store
 // a newer file opens read-only (ImportReport::readOnly, PRJ-052).
 // 2: MIDI enables default to ENABLE (MigrationV2.cpp)
 // 3: project "origin" (import provenance); legacy SP-16 imports unscrambled, envelope k/127 → k/128 (MigrationV3.cpp)
-inline constexpr int kSchemaVersion = 3;
+// 4: MIDI NOTE2–4 as semitones from NOTE, 0 = OFF (MigrationV4.cpp)
+// 5: SET SCALE's 22 scales of the manual (MigrationV5.cpp)
+inline constexpr int kSchemaVersion = 5;
 
 inline constexpr const char* kMigrationNotes = "migrationNotes";
 void appendMigrationNote(juce::var& root, const std::string& note);

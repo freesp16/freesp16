@@ -34,8 +34,8 @@ enum class ParamTarget : std::uint8_t
     // contiguous in its field enum's order, so field = target − first (static_asserts in Engine.cpp).
     PlaybackFirst,                // engine::voice::PlaybackField (playback.pitch … playback.bypass), 8
     EnvFirst = PlaybackFirst + 8, // engine::modulation::AmpEnvField (env.velocity … track.padVelocity), 10
-    TrackFirst = EnvFirst + 10,   // engine::trigger::TrackField (track.mode … scale.area), 7
-    PadFirst = TrackFirst + 7,    // engine::trigger::PadField (pads.mode, pads.selected, pads.shift), 3
+    TrackFirst = EnvFirst + 10,   // engine::trigger::TrackField (track.mode … scaleMidi.area), 10
+    PadFirst = TrackFirst + 10,   // engine::trigger::PadField (pads.mode, pads.selected, pads.shift), 3
     PreviewVolume = PadFirst + 3, // "browse.previewVolume" 0–127 (GainLaw) → PreviewVoice gain
     // Every id the FX slot bank routes (engine::fx::FxSlotRoutes: <slot>.type,
     // <slot>.bypass, <slot>.<effect>.<key>[.div], fx.mode, fx.quirkProfile, fx.meteredSlot) → FxSlotBank::onParamChange.

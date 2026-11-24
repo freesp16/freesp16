@@ -67,6 +67,8 @@ struct PlayheadFeed
     std::uint64_t blockIndex = 0;     // engine blocks rendered so far (0 = engine not running)
     double ppq = 0, bpm = 120;        // transport position in quarter notes, tempo
     bool playing = false, preCount = false;
+    bool externalClock = false;       // SYN-010: the transport follows MIDI clock (bpm = the followed tempo)
+    bool clockLost = false;           // SYN-013: following, but no tick for 500 ms (or none yet)
     std::uint8_t scene = 0, pattern = 0, step = 0;
     std::int8_t pendingScene = -1, pendingPattern = -1; // queued switch (SCN-022 blink), -1 = none
     std::array<float, kTracks> trackPosition {};        // PLY-045: play position 0–1 per track, negative = idle
@@ -97,6 +99,10 @@ struct EngineEvent
     std::int8_t offset24 = 0; // micro-timing of a recorded hit, −24…+24 = ±1 step (SEQ-005)
     std::uint8_t origin = 0;  // RecordedHit: kOriginLive (a pad / MIDI hit) or kOriginRepeat (touch strip REPEAT)
     static constexpr std::uint8_t kOriginLive = 0, kOriginRepeat = 1;
+    // RecordedHit: a pitched hit (a MIDI note, a SCALE pad) and the semitones it played at (TriggerEvent::semitones);
+    // the recorder stores them as the step's PITCH lock (SEQ-041: the step replays what was heard).
+    std::int8_t semitones = 0;
+    bool pitched = false;
 };
 
 namespace fx

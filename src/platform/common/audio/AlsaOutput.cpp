@@ -1,6 +1,7 @@
 #include "platform/common/audio/AlsaOutput.h"
 
 #include "core/util/Realtime.h"
+#include "core/util/ThreadRole.h"
 
 #include "ProjectIdentity.h"
 
@@ -624,10 +625,8 @@ bool AlsaOutput::reopen() noexcept
 
 void AlsaOutput::run()
 {
-    sched_param p {};
-    p.sched_priority = config_.rtPriority;
-    // best effort: may be refused without CAP_SYS_NICE
-    realtime_ = pthread_setschedparam(pthread_self(), SCHED_FIFO, &p) == 0;
+    // The audio role (core/util/ThreadRole.h): its core and SCHED_FIFO, best effort (refused without CAP_SYS_NICE).
+    realtime_ = core::threads::apply(core::threads::Role::Audio, "audio").realtime;
     core::rt::enableFlushToZero();
     core::rt::ScopedRealtimeThread realtime;
     const unsigned ch = device_.channels;

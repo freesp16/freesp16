@@ -1,13 +1,14 @@
 // Parameter catalogue of the Reverb (spec 02-features/effects/reverb.md "Parameters", parameters.md
-// FX-060/067/092/093/094). ParamSpecs send|master.reverb.<key> through core::fx::registerEffect (not lockable, FX-094);
-// the engine side is engine/fx/effects/Reverb.cpp (descriptor "reverb", knobs in page order Pre-delay, Room, Time,
-// Damping, Spread, Mix = internal index k). Grids are the spec's own choice: [0, 101) for every knob except Room,
-// [0, 100) with i = room − 1. Time keeps the spec's default 49/99 (8.70 s), which lies between two [0, 101) steps (the
-// first edit snaps it to the grid, FX-063). Defaults: the reference's slot-52 values (H085, FX-092), Mix Send
-// 1.0 / Master 0.5 (FX-093). No options, no SYNC.
+// FX-060/067/092/093/094). ParamSpecs fx1|fx2|send|master.reverb.<key> through core::fx::registerEffect (not lockable,
+// FX-094); the engine side is engine/fx/effects/Reverb.cpp (descriptor "reverb", knobs in page order Pre-delay, Room,
+// Time, Damping, Spread, Mix = internal index k). Grids are the spec's own choice: [0, 101) for every knob except
+// Room, [0, 100) with i = room − 1. Time keeps the spec's default 49/99 (8.70 s), which lies between two [0, 101) steps
+// (the first edit snaps it to the grid, FX-063). Defaults: the reference's slot-52 values (H085, FX-092), Mix Send
+// 1.0 / Master 0.5 (FX-093). On a track insert (ours) the defaults are a room rather than a hall: room 35, T60 ≈ 1.9 s,
+// damping 9.2 kHz, Mix 0.3 (dry 1, wet 0.28 by the reverb law). No options, no SYNC.
 //
-// The value texts follow the engine's laws; the decay anchors below are engine::fx::ReverbConstants' (core may not
-// include the engine; tests/unit/fx/test_fx_reverb.cpp checks the formatter against Reverb::t60).
+// The value texts follow the engine's laws; the decay anchors below are engine::fx::Reverb's (core may not include the
+// engine; tests/unit/fx/test_fx_reverb.cpp checks the formatter against Reverb::t60).
 #include "core/params/catalogue/fx.h"
 
 #include <cmath>
@@ -71,7 +72,7 @@ constexpr EffectParamDef kParams[] = {
      .shortLabel = "ROOM",
      .k = 1,
      .free = {0, 100},
-     .defInsert = kHalf,
+     .defInsert = 34.0f / 99.0f,
      .defSend = kHalf,
      .defMaster = kHalf,
      .format = &fmtRoom},
@@ -80,18 +81,24 @@ constexpr EffectParamDef kParams[] = {
      .shortLabel = "TIME",
      .k = 2,
      .free = {0, 101},
-     .defInsert = kHalf,
+     .defInsert = 0.21f,
      .defSend = kHalf,
      .defMaster = kHalf,
      .format = &fmtTime},
-    {.key = "damping", .label = "DAMPING", .shortLabel = "DAMPING", .k = 3, .free = {0, 101}, .format = &fmtDamping},
+    {.key = "damping",
+     .label = "DAMPING",
+     .shortLabel = "DAMPING",
+     .k = 3,
+     .free = {0, 101},
+     .defInsert = 0.3f,
+     .format = &fmtDamping},
     {.key = "spread", .label = "SPREAD", .shortLabel = "SPREAD", .k = 4, .free = {0, 101}, .format = &fmtPercent},
     {.key = "mix",
      .label = "MIX RATIO",
      .shortLabel = "MIX",
      .k = 5,
      .free = {0, 101},
-     .defInsert = 1.0f,
+     .defInsert = 0.3f,
      .defSend = 1.0f,
      .defMaster = 0.5f,
      .format = &fmtPercent},
@@ -99,7 +106,7 @@ constexpr EffectParamDef kParams[] = {
 
 void addReverbParams(ParamRegistry& r)
 {
-    registerEffect(r, "reverb", kParams, kSlotSend | kSlotMaster);
+    registerEffect(r, "reverb", kParams, kSlotInsert | kSlotSend | kSlotMaster);
 }
 } // namespace
 } // namespace core::fx

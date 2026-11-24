@@ -1,138 +1,116 @@
-// Reverb ("reverb"; spec 02-features/effects/reverb.md FX-820…828, FX-860…864, quirks FX-880…886; research
-// docs/effects/send-reverb.md F121–F127, CC BY 4.0). The reference structure and laws, operation for operation as the MIT
-// model tools/fx/send_reverb.py (class SendReverb, pinned commit 8901c97), with the app's own constants (FX-821 comb
-// delays, FX-822 decay curve, FX-827 all-pass delays: ReverbConstants) — never the reference's firmware values.
+// Reverb ("reverb"): a stereo feedback-delay-network reverb for the track inserts (FX1/FX2), the Send FX and the
+// Master FX. The app's own design (no reference parity): an 8-line FDN in the late field, input diffusion before it.
 //
-//   per 64-frame block:  room target = trunc(1 + 99·k1); a new target starts the room glide (one room unit per chunk of
-//                        t ms, t = max(20, 40 − ⅔·|Δ|), t itself moving ⅔ ms per step, FX-825); the comb coefficients
-//                        for the current room and time (delay = base × s(room), gain = 10^(−3·d/(1000·T60)), FX-821/823)
-//                        → per chunk (chunks end at room steps):
-//                          pre-delay (0.1–100 ms, linear-interpolated read, 1 s glide) → × g_in(k2) → LPF 14 kHz →
-//                          HPF 80 Hz → 5 parallel stereo combs (integer reads, damping LP in the loop, LR-swap spread,
-//                          FX-826) → Σ → 2 series stereo all-passes (g 0.7) → wet
-//   the shell (descriptor): gate mode 1, no wet high-pass, the delays' piecewise mix law with wet × 0.70795 (FX-828).
+//   in × g_in(time) → pre-delay (0.1–100 ms, rate-limited glide, linear read while gliding)
+//     → one-pole HPF 80 Hz → one-pole LPF 12 kHz (the bandwidth of the reverb input)
+//     → 4 series all-passes per channel (different L/R lengths, g 0.75, 0.75, 0.625, 0.625: input diffusion)
+//     → Fdn8 (dsp/reverb_kernels.h): 8 lines, a one-pole absorbent filter per line (exact T60 at DC, T60/3 at the
+//       damping frequency, at most −3 dB per pass there), the 8-point Walsh–Hadamard feedback matrix, left input into
+//       lines 1–3, right into 5–7; lines 1, 3, 5, 7 slowly modulated (±0.25 ms, 0.5–1.1 Hz) against metallic ringing
+//     → wet = g_out·late + g_early·diffused input → width (mid/side, Spread)
+//   the shell (descriptor): gate mode 1, no wet high-pass, the reverb mix law (wet × 0.70795).
 //
-// Knobs k: 0 pre-delay ms = 100v (≥ 0.1), 1 room, 2 time (T60 by the FX-822 curve: log T60 linear in v between the
-// anchors; g_in 0.2 → 0.1 above v = 0.5137255), 3 damping step = trunc(1 + 99(1 − v)) → 2000·9^((step − 1)/99) Hz, max
-// 18 kHz (min(18 kHz, 0.4·fs) at other rates, FX-824), 4 spread, 5 mix (the shell's). No SYNC, no tempo.
+// Knobs k (the parameter ids and texts of the earlier reverb, so projects keep their settings):
+//   0 pre-delay   ms = 100v, at least 0.1
+//   1 room        room = trunc(1 + 99v) ∈ 1…100 → the line lengths: base × 0.2·5^((room − 1)/99) (5.9–66 ms lines);
+//                 a change glides every line linearly to its new length (at most 3 % pitch while gliding)
+//   2 time        T60 by the decay curve (log T60 linear in v between the anchors, 0.10 s … 100.6 s); g_in 0.2 → 0.1
+//                 above v = 0.5137255 so very long decays do not build up
+//   3 damping     step = trunc(1 + 99(1 − v)) → fd = 2000·9^((step − 1)/99) Hz, at most min(18 kHz, 0.4·fs)
+//   4 spread      stereo width 1 + v (mid/side: 1 = the network's own image, 2 = the side doubled)
+//   5 mix         the shell's
 //
-// Quirk profile (FX-052; honoured at the next reset, the Reference profile sets every bit):
-//   kReverbQuirkWarmUp       FX-880: comb and all-pass outputs muted until their rings have filled once (≈ 101 ms),
-//                            then a 3 ms fade; the pre-delay's own 3 ms start fade. Sixteen: ungated, rings zeroed.
-//   kReverbQuirkStaleRing    FX-881: rings kept over a reset. Sixteen: zeroed (O(1) high-water clear).
-//   kReverbQuirkSharedRamp   FX-884: one ramp counter per comb parameter pair. Sixteen: independent ramps.
-//   kReverbQuirkGlide100     FX-886: the comb glide time stays 100 ms until the first room change. Sixteen: the
-//                            current t (40 ms after a reset).
-//   kReverbQuirkGlideIn      the reset keeps the current room at the previous target and the pre-delay at its last
-//                            value, so a room or pre-delay set before an activation glides in (the pre-delay over 1 s
-//                            from 0.1 ms on a fresh instance). Sixteen (FX-056/FX-862): the reset snaps the
-//                            combs to the stored room and the pre-delay to the stored time.
-// FX-882 (pre-delay one-past-end read) is fixed in both profiles; FX-883 (blend-edge dip) cannot happen with the FX-822
-// curve; FX-885 (integer comb read, zipper on room glides) is kept.
-//
-// Real time: prepare() allocates 5 comb rings + 2 all-pass rings + the pre-delay ring, stereo, each max(room 100 + 15 %,
-// 101 ms) ≈ 4,454 frames at 44.1 kHz: 16 × 4,454 floats ≈ 285 KB (310 KB at 48 kHz); process() is noexcept, exactly 64
-// frames; libm only when the time or the room changes (10 pow) and at damping steps (tan). NEON: comb and all-pass taps
-// four at a time (vcvt indices, lane loads, 4-wide products/sums), filters L/R in two lanes. Budget 60k A9 cycles per
-// block (tests/bench/fx/reverb.cpp). FX-864: the reverb counts kStretchQualityWeight in the stretch governor.
+// CPU (the point of the design: up to 16 track reverbs plus the Send and the Master):
+//   - all eight lines are longer than a block, so every ring is read and written as whole blocks (memcpy) and the
+//     diffusers run as vector operations; only the matrix runs per sample (NEON: 4 samples × 8 lines transposed into
+//     two float32x4 per sample). Steady state ≈ 1.3 × the Distortion insert (instructions executed, NEON build);
+//     libm (exp, cos, sqrt) only when Room, Time or Damping change.
+//   - sleep: once the input has been silent long enough for everything to have entered the network and the wet
+//     output has decayed below −120 dBFS, the reverb clears its rings (O(1)) and returns silence without running;
+//     the first non-silent input block wakes it. A reverb on a silent track costs a peak scan per block.
+// Memory: pre-delay 2 × 100 ms, the diffusers ≈ 58 ms, the lines at room 100 ≈ 376 ms (+ modulation) — ≈ 117 KB per
+// instance at 44.1 kHz, ≈ 128 KB at 48 kHz (34 slots ≈ 4.2 MiB). prepare() allocates; process() is noexcept,
+// allocation-free, exactly 64 frames.
 #pragma once
 
 #include "engine/EngineApi.h"
 #include "engine/fx/EffectBase.h"
 #include "engine/fx/dsp/reverb_kernels.h"
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 
-#if ! defined(APP_TEST_HOOKS)
-#define APP_TEST_HOOKS 1 // the device build may define 0 to drop overrideConstants()
-#endif
-
 namespace engine::fx
 {
-constexpr std::uint32_t kReverbQuirkWarmUp = 1u << 0;      // FX-880
-constexpr std::uint32_t kReverbQuirkStaleRing = 1u << 1;   // FX-881
-constexpr std::uint32_t kReverbQuirkSharedRamp = 1u << 2;  // FX-884
-constexpr std::uint32_t kReverbQuirkGlide100 = 1u << 3;    // FX-886
-constexpr std::uint32_t kReverbQuirkGlideIn = 1u << 4;    // reset keeps the previous room and pre-delay (our bit)
-
-struct ReverbConstants // the app's own design (FX-821/822/827); overridable in tests only
-{
-    std::array<float, 5> combL{22.63f, 39.47f, 24.37f, 41.13f, 21.89f};
-    std::array<float, 5> combR{38.29f, 23.71f, 40.53f, 25.19f, 24.43f};
-    std::array<float, 2> apL{7.03f, 22.81f}, apR{8.19f, 21.37f}; // ms
-    std::array<float, 5> t60v{0.f, 0.09f, 0.3f, 49.f / 99.f, 1.f}, t60s{0.10f, 0.87f, 3.55f, 8.70f, 100.6f};
-};
-
 class Reverb final : public EffectBase
 {
 public:
-    static constexpr int kCombs = 5;
-    static constexpr int kStretchQualityWeight = 8; // FX-864 (score = 8·reverb + active inserts + 2·players)
+    static constexpr int kLines = dsp::reverb::Fdn8::kLines;
+    static constexpr int kDiffusers = 4;
+    static constexpr float kDampRatio = 3.0f;     // T60 at the damping frequency = T60 / 3
+    static constexpr float kSleepLevel = 1.0e-6f; // −120 dBFS: the tail is gone
+    static constexpr float kWakeLevel = 1.0e-7f;  // −140 dBFS: the input is silent below this
 
-    void prepare(double sampleRate, int maxBlock) override; // rings for room 100 + 15 %, pre-delay ≈ 101 ms
-    void reset() noexcept override;                         // FX-862 + rings zeroed (FX-881 fix)
+    void prepare(double sampleRate, int maxBlock) override;
+    void reset() noexcept override;                            // FX-862: the stored values at once, rings cleared
     void setParam(int index, float value01) noexcept override; // k0 pre-delay, k1 room, k2 time, k3 damping, k4 spread
     void setOption(int which, int value) noexcept override;    // kClearState
-    void setQuirkProfile(std::uint32_t mask) noexcept override { quirks_ = mask; }
     void process(float* l, float* r, const ProcessContext&) noexcept override;
 
     void processScalar(float* l, float* r) noexcept;
 #if APP_FX_HAVE_NEON
     void processNeon(float* l, float* r) noexcept;
 #endif
-#if APP_TEST_HOOKS
-    // Structural parity test only: the comb/all-pass delays and the decay anchors used from the next reset on.
-    void overrideConstants(const ReverbConstants&) noexcept;
-#endif
 
     // The laws (also used by the tests and the panel formatter checks).
-    static float t60(const ReverbConstants&, float v) noexcept; // FX-822, seconds
-    static float roomScale(int room) noexcept;                  // FX-821
-    static float inputGain(float v) noexcept;                   // FX-820
-    static void spreadGains(float s, float (&a)[kCombs], float (&b)[kCombs]) noexcept; // FX-826
-    static float dampingMaxHz(double fs) noexcept;              // FX-824
+    static float t60(float v) noexcept;        // seconds
+    static float roomScale(int room) noexcept; // line-length factor, 0.2 … 1
+    static float inputGain(float v) noexcept;  // g_in(time)
+    static float dampingHz(float v, double fs) noexcept;
+    static float dampingMaxHz(double fs) noexcept; // 18 kHz at 44.1 kHz, min(18 kHz, 0.4·fs) elsewhere
+    static float baseDelayMs(int line) noexcept;   // the line lengths at room 100
 
     // Introspection (tests).
-    int roomCurrent() const noexcept { return roomCur_; }
-    int roomTarget() const noexcept { return roomTgt_; }
-    float glideMs() const noexcept { return glideT_; }
-    const dsp::reverb::Comb& comb(int i) const noexcept { return combs_[i]; }
-    int combRingFrames() const noexcept { return combLen_; }
+    bool sleeping() const noexcept { return sleeping_; }
+    int room() const noexcept { return room_; }
+    float lineDelay(int i) const noexcept { return dCur_[i]; }  // samples, without the modulation
+    float lineTarget(int i) const noexcept { return dTgt_[i]; } // samples
+    float preDelaySamples() const noexcept { return pdCur_; }
+    const dsp::reverb::Fdn8& network() const noexcept { return fdn_; }
     std::size_t bytes() const noexcept { return bytes_; }
-    const ReverbConstants& constants() const noexcept { return k_; }
 
 private:
-    void init() noexcept;
-    void slot32() noexcept;
-    void slot17(bool force) noexcept;
-    void slot7() noexcept;
-    void slot6() noexcept;
-    void initFixed() noexcept; // slot 16: fixed filters, all-pass delays and gains
-    template <bool Neon> void chunk(float* l, float* r, int n) noexcept;
+    void targets(bool snap) noexcept; // knob values → delay and coefficient targets
+    void coefficients(bool snap) noexcept;
+    void clearState() noexcept;
     template <bool Neon> void run(float* l, float* r) noexcept;
 
-    ReverbConstants k_{};
     double fs_ = 44100.0;
-    float p_[6]{};
-    int roomCur_ = 50, roomSet_ = 50, roomTgt_ = 50;
-    float glideT_ = 40.0f;
-    int chunkN_ = 0, chunkRem_ = 0;
-    bool idle_ = true;
-    float inGain_ = 0.0f;
-    std::uint32_t lpfStep_ = 0;
-    dsp::reverb::PreDelay pd_;
-    dsp::delay::SteppedIir1 lpf_, hpf_; // fixed 14 kHz / 80 Hz (one step each)
-    dsp::reverb::Comb combs_[kCombs];
-    dsp::reverb::AllPass aps_[2];
-    int combLen_ = 0;
-    std::uint32_t quirks_ = 0, active_ = 0;
-    // slot-17 caches (the setters are no-ops on equal values, so skipping them is exact)
-    float lastT_ = -1.0f, lastSpread_ = -1.0f;
-    int lastRoom_ = -1;
-    std::uint32_t lastStep_ = 0xffffffffu;
+    float spm_ = 44.1f; // samples per ms
+    float p_[6]{0.0f, 49.0f / 99.0f, 49.0f / 99.0f, 0.0f, 0.0f, 1.0f};
+    float lastP_[5]{-1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+    int room_ = 50;
+
+    // pre-delay
+    dsp::reverb::Ring pdL_, pdR_;
+    float pdCur_ = 4.0f, pdTgt_ = 4.0f, pdStart_ = 4.0f, pdProg_ = 1.0f, pdStep_ = 1.0f;
+    // input filters (one-pole HPF / LPF, per channel)
+    float hpA_ = 0.0f, lpC_ = 1.0f, hpX_[2]{}, hpY_[2]{}, lpY_[2]{};
+    // diffusion
+    dsp::reverb::AllPass apL_[kDiffusers], apR_[kDiffusers];
+    // late field
+    dsp::reverb::Fdn8 fdn_;
+    float dCur_[kLines]{}, dTgt_[kLines]{}, dStart_[kLines]{}, dMax_[kLines]{};
+    float glide_ = 1.0f, glideStep_ = 1.0f;
+    float aTgt_[kLines]{}, bTgt_[kLines]{}, aCur_[kLines]{}, bCur_[kLines]{};
+    bool coefMoving_ = false;
+    dsp::reverb::BlockSine lfo_[kLines / 2];
+    float mod_[kLines]{}, depth_ = 0.0f;
+    // output
+    float inGain_ = 0.2f, outGain_ = 1.0f, earlyGain_ = 0.0f, width_ = 1.0f;
+    // sleep
+    int quiet_ = 0, quietNeeded_ = 0;
+    bool sleeping_ = false;
     std::size_t bytes_ = 0;
-    alignas(16) float accL_[kBlockFrames]{}, accR_[kBlockFrames]{}, oL_[kBlockFrames]{}, oR_[kBlockFrames]{};
 };
 } // namespace engine::fx

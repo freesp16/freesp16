@@ -4,6 +4,7 @@
 // writes onto an instrument disk layout and is off unless ext.enabled + ext.interop.export are on.
 #include "core/commands/sequencer/SequencerCommands.h"
 #include "core/model/ModelOps.h"
+#include "core/model/enums/EnumStrings.h"
 #include "core/params/ParamRegistry.h"
 #include "services/ext/ExtFlags.h"
 #include "services/interop/sp16/Sp16Import.h"
@@ -18,6 +19,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <functional>
 #include <sstream>
 
 using namespace services::interop::sp16;
@@ -403,6 +405,72 @@ TEST_CASE("ext export: a native project exports, samples become 44.1 kHz WAV <= 
     CHECK(found == 2);
     juce::String out;
     CHECK(prjDumpRoundTrip(report.projectFile, out));
+}
+
+TEST_CASE("ext export: SET SCALE's 22 scales round-trip by name; the importer reads the manual's names loosely",
+          "[ext][interop][export]")
+{
+    auto p = m::newDefaultProject();
+    const int n = static_cast<int>(m::enumCount<m::ScaleType>());
+    REQUIRE(n == 22);
+    for (int k = 0; k < n; ++k) // every scale on a pad scale and a MIDI scale
+    {
+        auto& tr = p->scenes[static_cast<std::size_t>(k / 16)].tracks[static_cast<std::size_t>(k % 16)];
+        tr.padScale.scaleType = k;
+        tr.midiScale.scaleTypeMidi = n - 1 - k;
+    }
+    const auto dir = tempDir("scales");
+    const auto report = exportTo(*p, dir, "Scales");
+    const auto b = importFile(report.projectFile);
+    for (int k = 0; k < n; ++k)
+    {
+        INFO("scale " << k);
+        const auto& tr = b->scenes[static_cast<std::size_t>(k / 16)].tracks[static_cast<std::size_t>(k % 16)];
+        CHECK(tr.padScale.scaleType == k);
+        CHECK(tr.midiScale.scaleTypeMidi == n - 1 - k);
+    }
+
+    // The exported ScaleSetting names; a file naming the scales in other spellings of the manual's names (or by the
+    // list index, No. − 1) reads the same scales.
+    auto tree = readContainer(interop_test::bytesOf(report.projectFile));
+    REQUIRE(tree);
+    std::vector<Node*> pads, midis;
+    std::function<void(Node&)> walk = [&](Node& node)
+    {
+        if (node.type == "ScaleSetting")
+            pads.push_back(&node);
+        else if (node.type == "ScaleSettingMidi")
+            midis.push_back(&node);
+        for (auto& c : node.children)
+            walk(c);
+    };
+    walk(tree.value());
+    REQUIRE(pads.size() >= 3);
+    REQUIRE(midis.size() >= 2);
+    auto set = [](Node& node, std::string_view name, Var v)
+    {
+        for (auto& [k, value] : node.props)
+            if (k == name)
+                value = std::move(v);
+    };
+    REQUIRE(pads[1]->prop("scaleType") != nullptr);
+    CHECK(pads[1]->prop("scaleType")->s == "Ionian");
+    set(*pads[0], "scaleType", Var::ofString("MAJOR_PENTATONIC"));
+    set(*pads[1], "scaleType", Var::ofString("Scale_Raga Todi"));
+    set(*pads[2], "scaleType", Var::ofInt(19)); // No. 20 Hawaiian
+    set(*midis[0], "scaleTypeMidi", Var::ofString("combination diminish"));
+    set(*midis[1], "scaleTypeMidi", Var::ofString("HarmonicMinor")); // not a scale of the manual: kept, reported
+    const auto edited = dir.getChildFile("edited.prj");
+    const auto bytes = writeContainer(tree.value());
+    REQUIRE(edited.replaceWithData(bytes.data(), bytes.size()));
+    const auto c = importFile(edited);
+    const auto& t = c->scenes[0].tracks;
+    CHECK(t[0].padScale.scaleType == static_cast<int>(m::ScaleType::MajorPentatonic));
+    CHECK(t[1].padScale.scaleType == static_cast<int>(m::ScaleType::RagaTodi));
+    CHECK(t[2].padScale.scaleType == static_cast<int>(m::ScaleType::Hawaiian));
+    CHECK(t[0].midiScale.scaleTypeMidi == static_cast<int>(m::ScaleType::CombinationDiminish));
+    CHECK(t[1].midiScale.scaleTypeMidi == 0); // unmapped: the default stays, the text is kept
+    CHECK(t[1].midiScale.extras.find("sp16.ScaleSettingMidi.scaleTypeMidi") != nullptr);
 }
 
 TEST_CASE("ext export: always a new folder, never an instrument disk, never an overwrite", "[ext][interop][export]")

@@ -620,12 +620,67 @@ TEST_CASE("shell.gaps: TRACK MENU in BYPASS mode toggles a module's bypass inste
     tap(lfoCard.x + 40, lfoCard.y + 40);
     CHECK(shell.values().get(*lfo, shell.state().trackScope()) == 1.0f);
     CHECK(shell.router().current().id == "track.menu");
-    // Mode off: the first tap focuses, the second opens; the module stays bypassed.
+    // Mode off: a bypassed module's setting screen does not open (the manual's BYPASS button, p.36); once it is not
+    // bypassed, the first tap focuses and the second opens.
     tap(b.x + b.w / 2, b.y + b.h / 2);
     CHECK_FALSE(shell.state().bypassMode);
     tap(card.x + 40, card.y + 40);
     tap(card.x + 40, card.y + 40);
     frame();
-    CHECK(shell.router().current().id == "track.playback");
+    CHECK(shell.router().current().id == "track.menu");
     CHECK(shell.values().get(*bypass, shell.state().trackScope()) == 1.0f);
+    {
+        io::ControlEvent push{Kind::Press, io::Control::SelectorPush, 1, io::kSourceVirtual, now};
+        shell.dispatch(push); // the push on the focused bypassed card does not open it either
+        frame();
+        CHECK(shell.router().current().id == "track.menu");
+    }
+    shell.values().set(*bypass, shell.state().trackScope(), 0.0f);
+    tap(card.x + 40, card.y + 40);
+    frame();
+    CHECK(shell.router().current().id == "track.playback");
+}
+
+TEST_CASE("shell.gaps: a MIDI track's BYPASS covers CC1, CC2 and LFO, not NOTE (the manual, p.36)", "[ui][shell]")
+{
+    ui::ShellConfig cfg{core::builtinParams(), uitest::fixedMeasure()};
+    ui::Shell shell(std::move(cfg));
+    ui::DrawList dl;
+    double now = 1000;
+    auto frame = [&]
+    {
+        now += 500;
+        dl.clear();
+        shell.frame(dl, now);
+    };
+    auto tap = [&](float x, float y)
+    {
+        io::ControlEvent e{Kind::Touch, io::Control::Screen, ui::touch::kDown, io::kSourceVirtual, now};
+        e.x = static_cast<std::int16_t>(x / ui::touch::kToCanvas + 0.5f);
+        e.y = static_cast<std::int16_t>(y / ui::touch::kToCanvas + 0.5f);
+        shell.dispatch(e);
+        e.value = ui::touch::kUp;
+        shell.dispatch(e);
+    };
+    const auto& p = core::builtinParams();
+    const auto scope = shell.state().trackScope();
+    shell.values().set(*p.find("track.mode"), scope, 1.0f); // MIDI
+    REQUIRE(shell.open("track.menu"));
+    frame();
+    const auto b = L::bypassBox;
+    tap(b.x + b.w / 2, b.y + b.h / 2);
+    REQUIRE(shell.state().bypassMode);
+    frame();
+    const auto* noteBypass = p.find("midi.noteBypass");
+    const auto* cc1Bypass = p.find("midi.cc1Bypass");
+    if (noteBypass == nullptr || cc1Bypass == nullptr)
+        SKIP("midi.* not registered (no MIDI catalogue built in)");
+    const auto note = ui::ModuleCard::rect(0), cc1 = ui::ModuleCard::rect(1);
+    tap(cc1.x + 40, cc1.y + 40);
+    CHECK(shell.values().get(*cc1Bypass, scope) == 1.0f); // CC1 toggles
+    tap(note.x + 40, note.y + 40);
+    tap(note.x + 40, note.y + 40);
+    frame();
+    CHECK(shell.values().get(*noteBypass, scope) == 0.0f); // NOTE is not bypassable: it focuses and opens
+    CHECK(shell.router().current().id == "track.note");
 }

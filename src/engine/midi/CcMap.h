@@ -25,13 +25,15 @@ class FxSlotBank;
 
 namespace engine::midi
 {
-// What CcMap needs of the engine's FX state (implemented by engine::Engine; one virtual call per FX CC).
+// What CcMap needs of the engine's FX state (implemented by engine::Engine; one virtual call per FX CC), and the
+// length of the track's current sample for CC 21–23.
 class FxCcContext
 {
 public:
     virtual ~FxCcContext() = default;
     virtual int insertType(int track, int unit) const noexcept = 0;           // −1 = Off
     virtual bool insertSync(int track, int unit, int type) const noexcept = 0; // the slot's SYNC option
+    virtual std::int64_t sampleFrames(int /*track*/) const noexcept { return 0; } // 0 = no sample
 };
 
 // Where an applied CC goes (the engine's message path).

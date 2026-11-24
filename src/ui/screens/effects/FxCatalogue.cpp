@@ -11,11 +11,13 @@ namespace ui::fx
 namespace
 {
 // UID-831 [OBS] 1.60 (screens/effects.md "SELECT FX"); "delay" is the insert delay, "delayBus" the Send/Master delay
-// (both labelled DELAY).
-constexpr std::string_view kInsertOrder[] = {"none", "chorus",     "flanger",    "eq2",    "filter", "delay",
-                                             "lofi", "compressor", "distortion", "phaser", "ducker"};
-constexpr std::string_view kBusOrder[] = {"none", "delayBus", "delay", "reverb",     "chorus",     "flanger",
-                                          "eq2",  "filter",   "lofi",  "compressor", "distortion", "phaser"};
+// (both labelled DELAY). Ours, after the 1.60 grid: REVERB on the track inserts, then "vpitch" (VINTAGE PITCH) last
+// in both grids.
+constexpr std::string_view kInsertOrder[] = {"none",       "chorus",     "flanger", "eq2",    "filter",
+                                             "delay",      "lofi",       "compressor", "distortion", "phaser",
+                                             "ducker",     "reverb",     "vpitch"};
+constexpr std::string_view kBusOrder[] = {"none",   "delayBus", "delay",      "reverb",     "chorus", "flanger", "eq2",
+                                          "filter", "lofi",     "compressor", "distortion", "phaser", "vpitch"};
 constexpr std::string_view kExtensions[] = {"limiter", "ringmod",    "tremolo", "autopan",
                                             "autowah", "vinylbrake", "trans",   "roll"};
 

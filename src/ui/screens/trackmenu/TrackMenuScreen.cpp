@@ -17,12 +17,14 @@
 //     bound-list path writes the parameter directly).
 //   - BYPASS mode (UI-221, the shell's UiState::bypassMode): while lit, bypassable cards (PLAYBACK playback.bypass,
 //     AMP ENVELOPE env.bypass, FX1 / FX2 the slot's bypass) show the dashed warn outline and a tap or push toggles
-//     their bypass instead of focusing or opening them; bypassed cards stay marked either way.
+//     their bypass instead of focusing or opening them; bypassed cards stay marked either way, and with BYPASS off a
+//     bypassed card focuses but does not open its setting screen (the manual, p.36).
 #include "ui/descriptors/ModuleSpec.h"
 #include "ui/descriptors/PopupSpec.h"
 #include "ui/screens/effects/FxCatalogue.h"
 #include "ui/screens/effects/FxSlots.h"
 #include "ui/screens/home/TrackInfo.h"
+#include "ui/screens/miditrack/As1Popups.h"
 #include "ui/screens/motion/MotionLanes.h"
 #include "ui/screens/playback/SampleViews.h"
 #include "ui/shell/Layout.h"
@@ -35,6 +37,7 @@
 #include "ui/widgets/TrackTile.h"
 
 #include "core/util/ampenv/EnvTime.h"
+#include "core/util/midi/As1Program.h"
 
 #include <algorithm>
 #include <array>
@@ -75,7 +78,7 @@ constexpr StripSpec kBrowseStrip{"BROWSE", {}}, kLiveStrip{"LIVE SAMPLING", {}},
     // The MIDI track's BANK SELECT / PROG CHANGE values (midi.*; empty columns while those are not registered)
     kBankStrip{"BANK SELECT", {"midi.bankMsb", "midi.bankLsb", "", "", "", ""}},
     kProgStrip{"PROG CHANGE", {"midi.program", "", "", "", "", ""}},
-    kScaleStrip{"SET SCALE", {"scaleMidi.area", "scaleMidi.root", "", "", "", ""}},
+    kScaleStrip{"SET SCALE", {"scaleMidi.area", "", "scaleMidi.root", "", "", ""}},
     kLimiterStrip{"SOFT LIMITER", {"mixer.softLimiter", "", "", "", "", ""}},
     kMotionRecStrip{"MOTION RECORD", {"track.motionRec", "", "", "", "", ""}}, kMotionStrip{"MOTION", {}},
     kMuteModeStrip{"MUTE MODE", {"track.muteMode", "", "", "", "", ""}};
@@ -154,8 +157,8 @@ const Chain kChains[4] = {
      0b0011,
      true,
      {Action{AK::Button, "SELECT CH", "track.midiChannel", {}, &kSelectChStrip},
-      Action{AK::Value, "BANK SELECT", {}, "U1", &kAs1BankStrip},
-      Action{AK::Value, "PROG CHANGE", {}, "P01", &kAs1ProgStrip},
+      Action{AK::Value, "BANK SELECT", "as1.bankSelect", "U1", &kAs1BankStrip},
+      Action{AK::Value, "PROG CHANGE", "as1.progChange", "P01", &kAs1ProgStrip},
       Action{AK::Button, "SET SCALE", "track.setScaleMidi", {}, &kScaleStrip}},
      0},
 };
@@ -371,7 +374,8 @@ private:
         boundFx_ = key;
         shell_->bindStrip(stripOf(focus_));
     }
-    // UI-221: the bypass of a card (a parameter or an FX slot); null id = not bypassable.
+    // UI-221: the bypass of a card (a parameter or an FX slot); null id = not bypassable. A MIDI / AS-1 track bypasses
+    // CC1, CC2 and LFO alone (the manual's BYPASS button, p.36): NOTE is not a bypassable module.
     std::string_view bypassId(int i) const noexcept
     {
         if (i < kCard0 || i >= kSeqItem)
@@ -385,8 +389,6 @@ private:
             return id;
         if (id == "lfo")
             return "lfo.bypass";
-        if (id == "note")
-            return "midi.noteBypass";
         if (id == "cc1")
             return "midi.cc1Bypass";
         if (id == "cc2")
@@ -444,6 +446,8 @@ private:
                 shell_->open(a.opens);
             return;
         }
+        if (bypassedCard(i))
+            return; // BYPASS OFF: a bypassed module's setting screen does not open (the manual's BYPASS button, p.36)
         const auto opens = i == kSeqItem      ? std::string_view("track.sequence")
                            : i == kMotionItem ? std::string_view("track.motion")
                                               : c.cards[static_cast<std::size_t>(i - kCard0)].opens;
@@ -651,13 +655,21 @@ private:
     }
 
     // BANK SELECT (`M000 L000`) and PROG CHANGE (`000`) of a MIDI track from the midi.* values
-    // (UI-293/294; `---` = OFF, not sent); the action's own text while those are not registered.
+    // (UI-293/294; `---` = OFF, not sent); an AS-1 track's as its pickers name them (`U1`, `P01`); the action's own
+    // text while those are not registered.
     std::string_view valueOf(int slot, const Action& a) const
     {
         const auto* msb = shell_->params().find("midi.bankMsb");
-        if (msb == nullptr || (a.opens != "midi.bankSelect" && a.opens != "midi.progChange"))
+        const bool as1 = a.opens == "as1.bankSelect" || a.opens == "as1.progChange";
+        if (msb == nullptr || (! as1 && a.opens != "midi.bankSelect" && a.opens != "midi.progChange"))
             return a.value;
         const int t = state_->selectedTrack;
+        auto stored = [&](std::string_view id)
+        { return static_cast<int>(std::lround(m1::trackParam(*shell_, id, t, -1))); };
+        if (a.opens == "as1.bankSelect")
+            return as1BankText(stored("midi.bankMsb"), stored("midi.bankLsb"));
+        if (a.opens == "as1.progChange")
+            return as1ProgramText(core::midi::as1::programShown(stored("midi.program")));
         auto three = [](char* out, int v) { v < 0 ? std::snprintf(out, 4, "---") : std::snprintf(out, 4, "%03d", v & 127); };
         char m[4], l[4], pg[4];
         three(m, static_cast<int>(std::lround(m1::trackParam(*shell_, "midi.bankMsb", t, -1))));
@@ -770,13 +782,14 @@ std::unique_ptr<Widget> makeTrackPanel(const ScreenSpec&, const WidgetArgs& a)
     return std::make_unique<TrackPanel>(a);
 }
 
-// TRACK TYPE ListPopup items in the mockup's order, valued by core::model::TrackMode.
+// TRACK TYPE ListPopup items in the mockup's order, valued by core::model::TrackMode; the AS-1 item is named as in the
+// manual ("Turn the rotary selector to select [TORAIZ AS-1]", p.40).
 void trackTypes(std::string_view, std::vector<ListItem>& out)
 {
     out.push_back({"SAMPLE", {}, {}, 0});
     out.push_back({"THRU", {}, {}, 2});
     out.push_back({"MIDI", {}, {}, 1});
-    out.push_back({"AS-1", {}, {}, 3});
+    out.push_back({"TORAIZ AS-1", {}, {}, 3});
 }
 constexpr ListSpec kTrackTypeList{
     .id = "track.type", .title = "TRACK TYPE", .source = "trackTypes", .binds = "track.mode"};

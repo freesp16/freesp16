@@ -46,23 +46,25 @@ bool postMidiSettings(const core::model::Project& p, engine::EngineBridge& b, co
     Poster s {b, reg};
     const auto& in = p.midi.input;
     const auto& out = p.midi.output;
-    s.post("midi.in.clock", 0, in.clock ? 1.0f : 0.0f);
-    s.post("midi.in.startStop", 0, in.startStop ? 1.0f : 0.0f);
-    s.post("midi.in.noteCc", 0, in.noteCc ? 1.0f : 0.0f);
-    s.post("midi.in.songPosition", 0, in.songPosition ? 1.0f : 0.0f);
-    s.post("midi.out.clock", 0, out.clock ? 1.0f : 0.0f);
-    s.post("midi.out.startStop", 0, out.startStop ? 1.0f : 0.0f);
-    s.post("midi.out.noteCc", 0, out.noteCc ? 1.0f : 0.0f);
-    s.post("midi.out.songPosition", 0, out.songPosition ? 1.0f : 0.0f);
+    // Every enable and channel, defaults too: the engine still holds the previous project's (manual p.45/46: the MIDI
+    // IN / OUT settings are per project).
+    s.post("midi.in.clock", 0, in.clock ? 1.0f : 0.0f, true);
+    s.post("midi.in.startStop", 0, in.startStop ? 1.0f : 0.0f, true);
+    s.post("midi.in.noteCc", 0, in.noteCc ? 1.0f : 0.0f, true);
+    s.post("midi.in.songPosition", 0, in.songPosition ? 1.0f : 0.0f, true);
+    s.post("midi.out.clock", 0, out.clock ? 1.0f : 0.0f, true);
+    s.post("midi.out.startStop", 0, out.startStop ? 1.0f : 0.0f, true);
+    s.post("midi.out.noteCc", 0, out.noteCc ? 1.0f : 0.0f, true);
+    s.post("midi.out.songPosition", 0, out.songPosition ? 1.0f : 0.0f, true);
     for (int t = 0; t < 16; ++t)
     {
-        // The engine starts from track n → channel n (the model's default), not the ParamSpec's single default.
-        const int rx = in.channels[static_cast<std::size_t>(t)], tx = out.channels[static_cast<std::size_t>(t)];
-        if (rx != t + 1)
-            s.post("midi.in.channel", static_cast<std::uint16_t>(t), static_cast<float>(rx), true);
-        if (tx != t + 1)
-            s.post("midi.out.channel", static_cast<std::uint16_t>(t), static_cast<float>(tx), true);
+        const auto scope = static_cast<std::uint16_t>(t);
+        s.post("midi.in.channel", scope, static_cast<float>(in.channels[static_cast<std::size_t>(t)]), true);
+        s.post("midi.out.channel", scope, static_cast<float>(out.channels[static_cast<std::size_t>(t)]), true);
     }
+    // The MIDI track values (16 × 16 × 47): the engine resets them all to the defaults first, then takes only this
+    // project's differences.
+    s.post("midi.mode", core::midi::kProjectOpenScope, 0.0f, true);
     static constexpr std::string_view notes[] = {"midi.note1", "midi.note2", "midi.note3", "midi.note4"};
     static constexpr std::string_view cc1[3][4] = {
         {"midi.cc1.cc3", "midi.cc1.cc4", "midi.cc1.cc5", "midi.cc1.cc6"},

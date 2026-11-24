@@ -4,6 +4,7 @@
 #include "core/commands/track/TrackCommands.h"
 #include "core/model/Project.h"
 #include "core/util/ampenv/EnvTime.h"
+#include "services/settings/ProjectSettings.h"
 
 #include <algorithm>
 #include <charconv>
@@ -312,8 +313,56 @@ const ModelField kFields[] = {
                     x.lfo.triggerOn = v >= 0.5f ? LfoTriggerOn::Both : LfoTriggerOn::Pad),
     APP_TRACK_FIELD("lfo.randomStart", false, x.lfo.randomSeedCount, x.lfo.randomSeedCount = std::clamp(toInt(v), 0, 127)),
     APP_TRACK_FIELD("lfo.bypass", false, x.lfo.bypass ? 1 : 0, x.lfo.bypass = v >= 0.5f),
-    // MIDI / AS-1 NOTE, CC1, CC2 bypass (the TRACK MENU's BYPASS mode on those cards): saved, undoable, re-posted
-    // after an open.
+    // MIDI / AS-1 tracks (MIDI NOTE, CC1, CC2, BANK SELECT, PROG CHANGE; per scene and track): saved with the project,
+    // undoable, re-posted after an open. NOTE2–4 are semitones from NOTE (0 = OFF).
+    APP_TRACK_FIELD("midi.note1", false, x.midi.notes[0], x.midi.notes[0] = std::clamp(toInt(v), 0, 119)),
+    APP_TRACK_FIELD("midi.note2", false, x.midi.notes[1], x.midi.notes[1] = std::clamp(toInt(v), -127, 127)),
+    APP_TRACK_FIELD("midi.note3", false, x.midi.notes[2], x.midi.notes[2] = std::clamp(toInt(v), -127, 127)),
+    APP_TRACK_FIELD("midi.note4", false, x.midi.notes[3], x.midi.notes[3] = std::clamp(toInt(v), -127, 127)),
+    APP_TRACK_FIELD("midi.velocity", false, x.midi.velocity, x.midi.velocity = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.length", false, x.midi.length,
+                    x.midi.length = std::clamp(static_cast<double>(v), 0.25, 64.0)),
+    APP_TRACK_FIELD("midi.pitchBend", false, x.midi.pitchBendValue,
+                    x.midi.pitchBendValue = std::clamp(toInt(v), -8192, 8191)),
+    APP_TRACK_FIELD("midi.pitchBendActive", false, x.midi.pitchBendActive ? 1 : 0, x.midi.pitchBendActive = v >= 0.5f),
+    APP_TRACK_FIELD("midi.aftertouch", false, x.midi.aftertouchValue,
+                    x.midi.aftertouchValue = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.aftertouchActive", false, x.midi.aftertouchActive ? 1 : 0,
+                    x.midi.aftertouchActive = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc1.cc3", false, x.midi.cc1[0].cc, x.midi.cc1[0].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc1.value3", false, x.midi.cc1[0].value, x.midi.cc1[0].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc1.active3", false, x.midi.cc1[0].active ? 1 : 0, x.midi.cc1[0].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc1.cc4", false, x.midi.cc1[1].cc, x.midi.cc1[1].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc1.value4", false, x.midi.cc1[1].value, x.midi.cc1[1].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc1.active4", false, x.midi.cc1[1].active ? 1 : 0, x.midi.cc1[1].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc1.cc5", false, x.midi.cc1[2].cc, x.midi.cc1[2].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc1.value5", false, x.midi.cc1[2].value, x.midi.cc1[2].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc1.active5", false, x.midi.cc1[2].active ? 1 : 0, x.midi.cc1[2].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc1.cc6", false, x.midi.cc1[3].cc, x.midi.cc1[3].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc1.value6", false, x.midi.cc1[3].value, x.midi.cc1[3].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc1.active6", false, x.midi.cc1[3].active ? 1 : 0, x.midi.cc1[3].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc2.cc1", false, x.midi.cc2[0].cc, x.midi.cc2[0].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.value1", false, x.midi.cc2[0].value, x.midi.cc2[0].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.active1", false, x.midi.cc2[0].active ? 1 : 0, x.midi.cc2[0].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc2.cc2", false, x.midi.cc2[1].cc, x.midi.cc2[1].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.value2", false, x.midi.cc2[1].value, x.midi.cc2[1].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.active2", false, x.midi.cc2[1].active ? 1 : 0, x.midi.cc2[1].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc2.cc3", false, x.midi.cc2[2].cc, x.midi.cc2[2].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.value3", false, x.midi.cc2[2].value, x.midi.cc2[2].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.active3", false, x.midi.cc2[2].active ? 1 : 0, x.midi.cc2[2].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc2.cc4", false, x.midi.cc2[3].cc, x.midi.cc2[3].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.value4", false, x.midi.cc2[3].value, x.midi.cc2[3].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.active4", false, x.midi.cc2[3].active ? 1 : 0, x.midi.cc2[3].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc2.cc5", false, x.midi.cc2[4].cc, x.midi.cc2[4].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.value5", false, x.midi.cc2[4].value, x.midi.cc2[4].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.active5", false, x.midi.cc2[4].active ? 1 : 0, x.midi.cc2[4].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.cc2.cc6", false, x.midi.cc2[5].cc, x.midi.cc2[5].cc = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.value6", false, x.midi.cc2[5].value, x.midi.cc2[5].value = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("midi.cc2.active6", false, x.midi.cc2[5].active ? 1 : 0, x.midi.cc2[5].active = v >= 0.5f),
+    APP_TRACK_FIELD("midi.bankMsb", false, x.midi.bankMsb, x.midi.bankMsb = std::clamp(toInt(v), -1, 127)),
+    APP_TRACK_FIELD("midi.bankLsb", false, x.midi.bankLsb, x.midi.bankLsb = std::clamp(toInt(v), -1, 127)),
+    APP_TRACK_FIELD("midi.program", false, x.midi.program, x.midi.program = std::clamp(toInt(v), -1, 127)),
+    APP_TRACK_FIELD("midi.mode", false, x.midi.mode, x.midi.mode = std::clamp(toInt(v), 0, 1)),
     APP_TRACK_FIELD("midi.noteBypass", false, x.midi.noteBypass ? 1 : 0, x.midi.noteBypass = v >= 0.5f),
     APP_TRACK_FIELD("midi.cc1Bypass", false, x.midi.cc1Bypass ? 1 : 0, x.midi.cc1Bypass = v >= 0.5f),
     APP_TRACK_FIELD("midi.cc2Bypass", false, x.midi.cc2Bypass ? 1 : 0, x.midi.cc2Bypass = v >= 0.5f),
@@ -504,6 +553,9 @@ bool ModelParamAccess::modelBacked(const core::ParamSpec& s) const noexcept
 float ModelParamAccess::get(const core::ParamSpec& s, std::uint16_t scope) const
 {
     const auto* f = fieldOf(s);
+    if (f == nullptr && core::commands::hasProject(bus_))
+        if (const auto* pf = services::settings::findProjectField(s.id)) // UTILITY's project values (MIDI enables,
+            return services::settings::projectValue(core::commands::project(bus_), *pf, scope & 15); // channels …)
     if (f == nullptr || ! core::commands::hasProject(bus_))
         return fallback_.get(s, scope);
     if (f->scene)
@@ -517,6 +569,15 @@ float ModelParamAccess::get(const core::ParamSpec& s, std::uint16_t scope) const
 void ModelParamAccess::set(const core::ParamSpec& s, std::uint16_t scope, float value)
 {
     const auto* f = fieldOf(s);
+    if (f == nullptr && core::commands::hasProject(bus_))
+        if (const auto* pf = services::settings::findProjectField(s.id))
+        {
+            // The project value UTILITY edits (TRACK MENU's SELECT CH is midi.out.channel): one undoable project edit,
+            // saved with the project, forwarded by services::settings::forwardSettingsChanges.
+            if (auto c = services::settings::setProjectValue(core::commands::project(bus_), *pf, scope & 15, value))
+                bus_.execute(std::move(c));
+            return;
+        }
     if (f == nullptr || ! core::commands::hasProject(bus_))
     {
         fallback_.set(s, scope, value);

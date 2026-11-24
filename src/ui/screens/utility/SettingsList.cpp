@@ -2,6 +2,7 @@
 
 #include "ProjectIdentity.h"
 #include "core/params/ParamRegistry.h"
+#include "core/util/midi/MidiWire.h"
 #include "services/settings/Preferences.h"
 #include "ui/descriptors/ScreenSpec.h"
 #include "ui/descriptors/SettingsSpec.h"
@@ -41,6 +42,11 @@ constexpr int kInlineMax = 8; // UID-878: more values than this open a ListPopup
 
 bool startsWith(std::string_view s, std::string_view p) noexcept { return s.substr(0, p.size()) == p; }
 
+// MIDI OUT MODE (DIN) / (USB), manual 1.60 p.12 (core::midi::legalPortMode: A = the DIN input "MIDI IN", B = USB IN).
+constexpr ValueChoice kDinOutModes[] = {
+    {0, "OUT"}, {1, "OUT+MIDI IN"}, {2, "OUT+USB IN"}, {3, "THRU (MIDI IN)"}, {4, "THRU (USB IN)"}};
+constexpr ValueChoice kUsbOutModes[] = {{0, "OUT"}, {1, "OUT+MIDI IN"}};
+
 // ---- bindings -------------------------------------------------------------------------------------------------------
 Binding resolve(std::string_view binds, const core::ParamRegistry& params)
 {
@@ -52,6 +58,17 @@ Binding resolve(std::string_view binds, const core::ParamRegistry& params)
         b.store = Store::Project;
         b.field = f;
         b.spec = &f->spec;
+        return b;
+    }
+    if (binds == "settings.midiOutModeDin" || binds == "settings.midiOutModeUsb")
+    {
+        const bool usb = binds == "settings.midiOutModeUsb";
+        b.spec = params.find("midi.portMode");
+        if (b.spec == nullptr)
+            return b;
+        b.store = Store::Choice;
+        b.scope = static_cast<std::uint16_t>(usb ? core::midi::kUsbPort : 0); // DIN = port 1, USB = port 2
+        b.choices = usb ? std::span<const ValueChoice>(kUsbOutModes) : std::span<const ValueChoice>(kDinOutModes);
         return b;
     }
     if (binds == "settings.syncSource")
@@ -192,7 +209,7 @@ public:
         params_ = &params;
         rows_ = buildRows(page_, params);
         numberRows();
-        syncOptions_ = makeSyncOptions();
+        makeSyncOptions();
         if (page_ == "utility")
             for (const auto& r : rows_)
                 sections_ += r.kind == SettingsRow::Kind::Header ? 1 : 0;
@@ -378,17 +395,29 @@ private:
     const core::model::Project& project() const { return m2::Session::instance().project(); }
 
     const std::vector<std::string>& syncOptions() const noexcept { return syncOptions_; }
-    std::vector<std::string> makeSyncOptions() const
+    // SYNC SOURCE SELECT (manual 1.60 p.13): INTERNAL / DIN MIDI / USB MIDI whatever is connected (SYNC PORT 1 = DIN,
+    // 2 = USB), then any further port by name (ours), and a SYNC PORT saved for a port that is not there now. The
+    // manual's PRO DJ LINK is not offered: there is no PRO DJ LINK here (LINK, SYN-014, is P2 too).
+    void makeSyncOptions()
     {
-        std::vector<std::string> out {"INTERNAL"};
-        std::vector<std::string> ports;
+        syncOptions_ = {"INTERNAL", "DIN MIDI", "USB MIDI"};
+        syncPorts_ = {0, 1, 2};
+        std::vector<std::string> names;
         if (const auto& f = utilityEnv().midiPorts)
-            ports = f();
-        if (ports.empty())
-            out.emplace_back("MIDI CLOCK");
-        for (const auto& name : ports)
-            out.push_back("MIDI CLOCK (" + name + ")");
-        return out; // LINK (SYN-014) is P2: not offered until Ableton Link exists (our choice)
+            names = f();
+        int saved = 0;
+        if (shell_ != nullptr && params_ != nullptr)
+            if (const auto* port = params_->find("midi.syncPort"))
+                saved = static_cast<int>(std::lround(shell_->values().get(*port, 0)));
+        for (int p = 3; p <= core::midi::kMaxPorts; ++p)
+        {
+            const auto i = static_cast<std::size_t>(p - 1);
+            const bool named = i < names.size() && ! names[i].empty();
+            if (! named && p != saved)
+                continue;
+            syncOptions_.push_back("MIDI CLOCK (" + (named ? names[i] : "PORT " + std::to_string(p)) + ")");
+            syncPorts_.push_back(p);
+        }
     }
 
     bool available(const SettingsRow& row) const
@@ -429,6 +458,22 @@ private:
                 if (b.scope != 0 && prefs() != nullptr && st::persists(*b.spec))
                     return prefs()->get(st::keyOf(*b.spec, b.scope));
                 return shell_ != nullptr ? shell_->values().get(*b.spec, b.scope) : b.spec->defaultValue;
+            case Store::Choice:
+            {
+                // The preferences hold one value per port (the shell one per ParamSpec).
+                float raw = b.spec->defaultValue;
+                if (prefs() != nullptr && st::persists(*b.spec))
+                    raw = prefs()->get(st::keyOf(*b.spec, b.scope));
+                else if (shell_ != nullptr)
+                    raw = shell_->values().get(*b.spec, b.scope);
+                int v = static_cast<int>(std::lround(raw));
+                if (b.spec->id == "midi.portMode") // a value the port cannot take shows as what it means
+                    v = core::midi::legalPortMode(b.scope, v);
+                for (std::size_t o = 0; o < b.choices.size(); ++o)
+                    if (b.choices[o].value == v)
+                        return static_cast<float>(o);
+                return 0;
+            }
             case Store::Pref: return prefs() != nullptr ? prefs()->get(b.key) : b.spec->defaultValue;
             case Store::Project: return st::projectValue(project(), *b.field, b.scope);
             case Store::Sync:
@@ -438,9 +483,9 @@ private:
                 if (shell_->values().get(*b.spec, 0) < 0.5f)
                     return 0;
                 const auto* port = params_->find("midi.syncPort");
-                const int n = static_cast<int>(syncOptions().size()) - 1;
                 const int pi = port != nullptr ? static_cast<int>(std::lround(shell_->values().get(*port, 0))) : 1;
-                return static_cast<float>(std::clamp(pi, 1, std::max(1, n)));
+                const auto it = std::find(syncPorts_.begin(), syncPorts_.end(), pi);
+                return it != syncPorts_.end() ? static_cast<float>(it - syncPorts_.begin()) : 1.0f;
             }
         }
         return 0;
@@ -451,6 +496,8 @@ private:
         const auto& b = row.bind;
         if (b.store == Store::Sync)
             return static_cast<int>(syncOptions().size());
+        if (b.store == Store::Choice)
+            return static_cast<int>(b.choices.size());
         if (b.spec == nullptr)
             return 0;
         const bool list = b.spec->type == core::ParamType::Enum || b.spec->type == core::ParamType::Bool ||
@@ -459,13 +506,15 @@ private:
     }
     float optionValue(const SettingsRow& row, int option) const
     {
-        return row.bind.store == Store::Sync ? static_cast<float>(option) : row.bind.spec->minValue + static_cast<float>(option);
+        return row.bind.store == Store::Sync || row.bind.store == Store::Choice
+                   ? static_cast<float>(option)
+                   : row.bind.spec->minValue + static_cast<float>(option);
     }
 
     float stepValue(const SettingsRow& row, float v, int detents, bool fine) const
     {
         const auto& b = row.bind;
-        if (b.store == Store::Sync)
+        if (b.store == Store::Sync || b.store == Store::Choice)
             return static_cast<float>(std::clamp(static_cast<int>(std::lround(v)) + detents, 0, optionCount(row) - 1));
         if (b.store == Store::Project && b.field->id == "settings.pitchRange" && v < 0)
             v = 1; // an imported asymmetric range: the first turn lands on ±2
@@ -495,6 +544,13 @@ private:
             const auto i = static_cast<std::size_t>(std::clamp(static_cast<int>(std::lround(v)), 0,
                                                                static_cast<int>(options.size()) - 1));
             return std::snprintf(buf, static_cast<std::size_t>(n), "%s", options[i].c_str());
+        }
+        if (b.store == Store::Choice)
+        {
+            const auto& c = b.choices[static_cast<std::size_t>(
+                std::clamp(static_cast<int>(std::lround(v)), 0, static_cast<int>(b.choices.size()) - 1))];
+            return std::snprintf(buf, static_cast<std::size_t>(n), "%.*s", static_cast<int>(c.label.size()),
+                                 c.label.data());
         }
         int len = b.spec->formatValue(v, buf, n);
         if (len < 0)
@@ -556,6 +612,16 @@ private:
                 if (b.spec->id == "ui.theme" && state_ != nullptr)
                     state_->dark = v < 0.5f; // UID-051: the palette follows at once
                 return;
+            case Store::Choice:
+            {
+                const auto o = static_cast<std::size_t>(
+                    std::clamp(static_cast<int>(std::lround(v)), 0, static_cast<int>(b.choices.size()) - 1));
+                const auto value = static_cast<float>(b.choices[o].value);
+                shell_->values().set(*b.spec, b.scope, value);
+                if (prefs() != nullptr && st::persists(*b.spec))
+                    prefs()->set(st::keyOf(*b.spec, b.scope), value);
+                return;
+            }
             case Store::Pref:
                 if (prefs() != nullptr)
                     prefs()->set(b.key, v);
@@ -566,11 +632,13 @@ private:
                 shell_->values().set(*b.spec, 0, option > 0 ? 1.0f : 0.0f);
                 if (prefs() != nullptr)
                     prefs()->set(st::keyOf(*b.spec, 0), option > 0 ? 1.0f : 0.0f);
-                if (const auto* port = params_->find("midi.syncPort"); port != nullptr && option > 0)
+                if (const auto* port = params_->find("midi.syncPort");
+                    port != nullptr && option > 0 && option < static_cast<int>(syncPorts_.size()))
                 {
-                    shell_->values().set(*port, 0, static_cast<float>(option));
+                    const auto p = static_cast<float>(syncPorts_[static_cast<std::size_t>(option)]);
+                    shell_->values().set(*port, 0, p);
                     if (prefs() != nullptr)
-                        prefs()->set(st::keyOf(*port, 0), static_cast<float>(option));
+                        prefs()->set(st::keyOf(*port, 0), p);
                 }
                 return;
             }
@@ -722,6 +790,7 @@ private:
     std::vector<SettingsRow> rows_;
     std::vector<int> zebra_; // the zebra index of each row within its section
     std::vector<std::string> info_, syncOptions_; // provider texts (per row) and SYNC SOURCE values, read on entry
+    std::vector<int> syncPorts_;                  // the SYNC PORT of each SYNC SOURCE value (0 = INTERNAL)
     int sections_ = 0, focus_ = -1, first_ = 0;
     bool editing_ = false;
     float editValue_ = 0, savedValue_ = 0;
@@ -974,9 +1043,14 @@ std::vector<SettingsRow> buildRows(std::string_view page, const core::ParamRegis
         for (std::size_t p = 0; p < ports.size() && p < 8; ++p)
         {
             const auto n = std::to_string(p);
-            out.push_back(header(ports[p]));
+            out.push_back(header(ports[p].empty() ? "PORT " + std::to_string(p + 1) : ports[p]));
             out.push_back(valueRow("IN", "midi.portIn#" + n, params));
-            out.push_back(valueRow("OUT MODE", "midi.portMode#" + n, params));
+            // DIN and USB: MACHINE SETTING's MIDI OUT MODE rows (the manual's values); further ports: every mode.
+            out.push_back(valueRow("OUT MODE",
+                                   p == 0   ? std::string("settings.midiOutModeDin")
+                                   : p == 1 ? std::string("settings.midiOutModeUsb")
+                                            : "midi.portMode#" + n,
+                                   params));
             out.push_back(valueRow("CLOCK OFFSET", "midi.portOffset#" + n, params));
         }
         return out;

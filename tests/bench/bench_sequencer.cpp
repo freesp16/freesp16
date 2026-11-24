@@ -94,7 +94,7 @@ struct Rig
                 e.kind = engine::trigger::TriggerKind::Full;
                 e.source = engine::trigger::TriggerSource::Pad;
                 e.frame = static_cast<std::uint8_t>(h * 16);
-                seq->onLiveHit(e);
+                seq->onLiveHit(e, false);
             }
         router->process(ctx);
         ++i;

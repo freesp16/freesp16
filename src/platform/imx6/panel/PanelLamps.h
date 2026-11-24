@@ -16,6 +16,7 @@
 //               PITCH), the PITCH mode indicator is on (default mode). The first flush() ends the echo.
 #pragma once
 
+#include "core/util/PiMutex.h"
 #include "io/controllers/ControlSurface.h"
 #include "io/controllers/LampRules.h"
 #include "platform/imx6/panel/AnalogBoard.h"
@@ -55,7 +56,7 @@ public:
 private:
     void renderEcho(double nowMs); // under mutex_
 
-    mutable std::mutex mutex_;
+    mutable core::PiMutex mutex_; // the panel thread (real-time) ↔ the UI: priority inheritance
     TxFrame frame_;
     bool changed_ = true;
     double lastSentMs_ = -1e12;
