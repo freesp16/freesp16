@@ -39,6 +39,20 @@ TEST_CASE("midi.parser: running status, real time inside a message, SysEx skippe
     CHECK((v[9].bytes[0] == 0xF2 && v[9].bytes[1] == 0x10 && v[9].bytes[2] == 0x01)); // SPP; 0x33 has no status now
 }
 
+TEST_CASE("midi.parser: a stray EOX (F7) outside SysEx clears running status", "[midi]")
+{
+    // F7 is system common: the data bytes after it have no status (running status would make 62 101 a Note On).
+    const auto v = parse({0x90, 60, 100, 0xF7, 62, 101, 0x90, 64, 90, 0xF7, 0xF8, 65});
+    REQUIRE(v.size() == 3);
+    CHECK((v[0].bytes[0] == 0x90 && v[0].bytes[1] == 60));
+    CHECK((v[1].bytes[0] == 0x90 && v[1].bytes[1] == 64 && v[1].bytes[2] == 90));
+    CHECK((v[2].bytes[0] == 0xF8)); // real time still passes; 65 has no status
+    // A message cut short by F7 is dropped, not completed by later data.
+    const auto w = parse({0xB0, 7, 0xF7, 100, 0xB0, 10, 64});
+    REQUIRE(w.size() == 1);
+    CHECK((w[0].bytes[0] == 0xB0 && w[0].bytes[1] == 10 && w[0].bytes[2] == 64));
+}
+
 TEST_CASE("midi.cctable: the fixed map follows the registry (MID-030/031)", "[midi]")
 {
     const auto& t = miditest::table();

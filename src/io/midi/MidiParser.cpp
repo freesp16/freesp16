@@ -39,9 +39,11 @@ bool MidiParser::feed(std::uint8_t b, core::midi::MidiEvent& out) noexcept
         have_ = 0;
         return false;
     }
-    if (b == 0xF7)
+    if (b == 0xF7) // EOX ends a SysEx; a stray one is system common all the same: running status ends
     {
         sysex_ = false;
+        status_ = 0;
+        have_ = 0;
         return false;
     }
     if (b >= 0x80)
