@@ -156,8 +156,9 @@ TEST_CASE("value lists: scales, retrigger, trigger codes, outputs, FX slot lists
     CHECK(headphoneCueAvailable(HeadphoneCue::Out12, AssignMode::EightChannel));
 
     // FX-040 slot lists, SELECT FX grid order, NONE first; DELAY means the insert delay on inserts, the send delay on
-    // buses; REVERB only on buses, DUCKER only on inserts; VINTAGE PITCH (ours) last on both.
-    REQUIRE(insertEffectTypes().size() == 12);
+    // buses; REVERB on both (on the inserts it is ours, after the reference types), DUCKER only on inserts; VINTAGE
+    // PITCH (ours) last on both.
+    REQUIRE(insertEffectTypes().size() == 13);
     REQUIRE(busEffectTypes().size() == 12);
     CHECK(insertEffectTypes().back() == EffectType::VintagePitch);
     CHECK(busEffectTypes().back() == EffectType::VintagePitch);
@@ -165,7 +166,8 @@ TEST_CASE("value lists: scales, retrigger, trigger codes, outputs, FX slot lists
     CHECK(busEffectTypes()[1] == EffectType::SendDelay);
     CHECK(effectAllowedOnInsert(EffectType::InsertDelay));
     CHECK_FALSE(effectAllowedOnInsert(EffectType::SendDelay));
-    CHECK_FALSE(effectAllowedOnInsert(EffectType::Reverb));
+    CHECK(effectAllowedOnInsert(EffectType::Reverb));
+    CHECK(insertEffectTypes()[11] == EffectType::Reverb);
     CHECK(effectAllowedOnBus(EffectType::Reverb));
     CHECK_FALSE(effectAllowedOnBus(EffectType::Ducker));
     CHECK_FALSE(effectAllowedOnBus(EffectType::InsertDelay));

@@ -82,8 +82,8 @@ TEST_CASE("validate: value ranges and enum values", "[model]")
 
 TEST_CASE("validate: effect slots", "[model]")
 {
-    expectProblem([](Project& q) { q.scenes[0].tracks[1].insertFx[1].type = EffectType::Reverb; },
-                  "track[1].insertFx[1].type: Reverb is not available on insert");
+    expectProblem([](Project& q) { q.scenes[0].tracks[1].insertFx[1].type = EffectType::SendDelay; },
+                  "track[1].insertFx[1].type: Delay is not available on insert");
     expectProblem([](Project& q) { q.scenes[0].sendFx.type = EffectType::Ducker; }, "sendFx.type: Ducker");
     expectProblem([](Project& q) { q.scenes[0].masterFx.params[5] = 1.01; }, "masterFx.params[5]");
     expectProblem([](Project& q) { q.scenes[0].tracks[0].insertFx[0].lookAhead = true; }, "lookAhead");

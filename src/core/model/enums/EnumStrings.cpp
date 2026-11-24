@@ -303,12 +303,14 @@ constexpr std::span<const std::uint8_t> kScales[] = {kChromatic,
                                                      kJapaneseMiyakobushi};
 static_assert(std::size(kScales) == std::size(kScaleType));
 
-// SELECT FX grid order (enumerations.md "Effects", FX-040).
+// SELECT FX grid order (enumerations.md "Effects", FX-040). Ours, after the reference types so those keep their grid
+// positions: Reverb on the track inserts, then VINTAGE PITCH last on both.
 constexpr EffectType kInsertTypes[] = {
     EffectType::Off,           EffectType::Chorus,          EffectType::Flanger,
     EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::InsertDelay,
     EffectType::LoFi,          EffectType::Compressor,      EffectType::Distortion,
-    EffectType::Phaser,        EffectType::Ducker,          EffectType::VintagePitch};
+    EffectType::Phaser,        EffectType::Ducker,          EffectType::Reverb,
+    EffectType::VintagePitch};
 constexpr EffectType kBusTypes[] = {
     EffectType::Off,        EffectType::SendDelay,     EffectType::Reverb,          EffectType::Chorus,
     EffectType::Flanger,    EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::LoFi,

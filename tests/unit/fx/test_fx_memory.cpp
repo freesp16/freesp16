@@ -1,8 +1,8 @@
 // FX memory budget: every type × slot pre-allocated (FX-005) must fit 24 MiB at ≤ 48 kHz. This builds the full 34-slot
 // bank from stand-in effects with the real effects' buffer sizes (Insert Delay 1 s + 2500 frames, Chorus/Flanger
-// ≈ 40 KB, Send Delay 2 × 194,500 frames, Reverb ≈ 0.4 MB, the rest small), allocated through the DSP kit's DelayLine,
-// and measures the heap the bank holds.
-// The real per-instance bytes of each registered effect are printed by test_effect_contract.cpp.
+// ≈ 40 KB, Send Delay 2 × 194,500 frames, Reverb ≈ 124 KB in every slot, the rest small), allocated through the DSP
+// kit's DelayLine, and measures the heap the bank holds. The real per-instance bytes of each registered effect are
+// printed by test_effect_contract.cpp.
 #include "tests/unit/fx/FxTestUtil.h"
 
 #include "engine/fx/dsp/DelayLine.h"
@@ -65,14 +65,14 @@ std::size_t measure(double fs)
     reg.add(fp("phaser", kIns | kBus, &make<Footprint<0, 0>>));
     reg.add(fp("ducker", kIns, &make<Footprint<0, 0>>));
     reg.add(fp("delayBus", kBus, &make<Footprint<194500, 0>>));
-    reg.add(fp("reverb", kBus, &make<Footprint<50000, 0>>));
+    reg.add(fp("reverb", kIns | kBus, &make<Footprint<15500, 0>>));
     const std::size_t before = fxtest::heapInUse();
     std::size_t held = 0;
     {
         auto bank = std::make_unique<FxSlotBank>();
         bank->build(reg, {});
         REQUIRE(bank->prepare(fs, engine::kBlockFrames));
-        CHECK(bank->insertTypes().size() == 10);
+        CHECK(bank->insertTypes().size() == 11);
         CHECK(bank->sendTypes().size() == 10);
         held = fxtest::heapInUse() - before;
     }
