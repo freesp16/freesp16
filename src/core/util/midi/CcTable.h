@@ -4,6 +4,8 @@
 // through MidiHub::setCcTable and read by the audio thread (engine/midi/CcMap). POD: no allocation, no strings.
 //
 // Scaling (MID-031, our law): Linear = lo + cc·(hi − lo)/127 (Integer/Note/Time types rounded to the nearest integer);
+// a bipolar parameter (PAN, PITCH, OFFSET: lo < 0 < hi) is centred instead, 0 → lo, 64 → 0, 127 → hi (lo·(64 − cc)/64
+// below 64, hi·(cc − 64)/63 above) and rounded to an integer (PITCH: whole semitones);
 // Bands = enumerations and booleans, 0–127 cut into `bands` equal bands (index = cc·bands/128); FX positions map onto
 // the current grid of the page position's knob, i = lo + round_half_even(cc·(hi − 1 − lo)/127), v = (i − lo)/(hi − 1 −
 // lo) (FX-086, the same arithmetic as core::fx::ccToValue).
@@ -34,6 +36,7 @@ struct CcEntry
     CcKind kind = CcKind::None;
     std::uint8_t bands = 0;    // Bands: number of values; Fx1/Fx2: page position 0–5
     bool integral = false;     // Linear: round to an integer
+    bool bipolar = false;      // Linear: 64 = 0 (lo < 0 < hi)
     core::ParamId param {};    // Linear / Bands: the track-scoped parameter
     float lo = 0.0f, hi = 1.0f;
 };
@@ -55,8 +58,13 @@ struct CcTable
 
 inline float ccLinear(const CcEntry& e, int cc) noexcept
 {
-    const float v = e.lo + static_cast<float>(cc < 0 ? 0 : (cc > 127 ? 127 : cc)) * (e.hi - e.lo) / 127.0f;
-    return e.integral ? std::nearbyint(v) : v;
+    const int c = cc < 0 ? 0 : (cc > 127 ? 127 : cc);
+    float v = e.lo + static_cast<float>(c) * (e.hi - e.lo) / 127.0f;
+    if (e.bipolar && e.lo < 0.0f && e.hi > 0.0f)
+        v = c < 64 ? e.lo * static_cast<float>(64 - c) / 64.0f : e.hi * static_cast<float>(c - 64) / 63.0f;
+    if (e.integral)
+        v = std::nearbyint(v);
+    return v == 0.0f ? 0.0f : v; // −0 → 0
 }
 
 inline int ccBand(int bands, int cc) noexcept

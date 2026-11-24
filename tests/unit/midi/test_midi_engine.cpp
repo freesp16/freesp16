@@ -227,6 +227,32 @@ TEST_CASE("midi.engine: fixed CC map, scene/pattern select, all notes off (MID-0
     CHECK(stopped == std::vector<int> {3, 9});
 }
 
+TEST_CASE("midi.engine: PAN (CC 10) and PITCH (CC 20) reach their centre at 64 (MID-031)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    drainUi(*e);
+    auto applied = [&](int cc, int v)
+    {
+        push(*e, 0xB0, static_cast<std::uint8_t>(cc), static_cast<std::uint8_t>(v), static_cast<double>(d.frame()) - 1);
+        d.blocks(2);
+        float got = -1000.0f;
+        for (const auto& u : drainUi(*e))
+            if (u.kind == core::midi::UiEvent::Kind::Param && u.scope == 0)
+                got = u.value;
+        return got;
+    };
+    CHECK(applied(10, 0) == -64.0f);
+    CHECK(applied(10, 63) == -1.0f);
+    CHECK(applied(10, 64) == 0.0f);
+    CHECK(applied(10, 127) == 64.0f);
+    CHECK(applied(20, 0) == -24.0f);
+    CHECK(applied(20, 63) == 0.0f);
+    CHECK(applied(20, 64) == 0.0f);
+    CHECK(applied(20, 127) == 24.0f);
+    CHECK(applied(20, 96) == 12.0f); // whole semitones
+}
+
 TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends them (MID-040/047/050)", "[midi]")
 {
     auto e = miditest::make();

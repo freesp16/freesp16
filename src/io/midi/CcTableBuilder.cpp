@@ -43,7 +43,8 @@ void buildCcTable(const core::ParamRegistry& registry, core::midi::CcTable& out)
             else
             {
                 e.kind = core::midi::CcKind::Linear; // MID-031: linear over the full range
-                e.integral = s.type != core::ParamType::Continuous;
+                e.bipolar = s.bipolar && s.minValue < 0.0f && s.maxValue > 0.0f; // centred: 64 = 0
+                e.integral = s.type != core::ParamType::Continuous || e.bipolar; // PITCH: whole semitones
             }
         }
     }
