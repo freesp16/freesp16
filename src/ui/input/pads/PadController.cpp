@@ -58,8 +58,29 @@ void PadController::select(int track)
     sync();
 }
 
+bool PadController::selectedIsMidi() const
+{
+    if (! cmd::hasProject(bus_))
+        return false;
+    const auto mode = cmd::project(bus_)
+                          .scenes[static_cast<std::size_t>(scene())]
+                          .tracks[static_cast<std::size_t>(selection_.selected() & 15)]
+                          .mode;
+    return mode == core::model::TrackMode::Midi || mode == core::model::TrackMode::Instrument;
+}
+
 void PadController::sync()
 {
+    // "SLICE mode cannot be used for MIDI tracks" (manual p.49): as the SLICE key does not turn it on there, a MIDI /
+    // AS-1 track selected while it is on (SHIFT + pad, the rotary, HOME) or the selected track made one ends it.
+    if ((mode_ == PadMode::Slice || (muteDown_ && modeBeforeMute_ == PadMode::Slice)) && selectedIsMidi())
+    {
+        if (mode_ == PadMode::Slice)
+            mode_ = PadMode::Play;
+        if (modeBeforeMute_ == PadMode::Slice)
+            modeBeforeMute_ = PadMode::Play;
+        postMode();
+    }
     const int s = selection_.selected() & 15;
     if (s == postedSelection_)
         return;
@@ -69,14 +90,9 @@ void PadController::sync()
 
 void PadController::onModeKey(PadMode m)
 {
-    if (m == PadMode::Slice && mode_ != PadMode::Slice && cmd::hasProject(bus_))
-    {
-        // "SLICE mode cannot be used for MIDI tracks" (the manual's MIDI NOTE settings; AS-1 tracks are MIDI too).
-        const auto mode = cmd::project(bus_).scenes[static_cast<std::size_t>(scene())]
-                              .tracks[static_cast<std::size_t>(selection_.selected() & 15)].mode;
-        if (mode == core::model::TrackMode::Midi || mode == core::model::TrackMode::Instrument)
-            return;
-    }
+    // "SLICE mode cannot be used for MIDI tracks" (manual p.49; AS-1 tracks are MIDI too).
+    if (m == PadMode::Slice && mode_ != PadMode::Slice && selectedIsMidi())
+        return;
     mode_ = (m == mode_ || m == PadMode::Play) ? PadMode::Play : m; // UI-104: the lit key turns its mode off
     if (muteDown_ && m != PadMode::Mute)
         modeBeforeMute_ = mode_; // another mode key while MUTE is held: the release keeps it

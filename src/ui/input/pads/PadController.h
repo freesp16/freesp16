@@ -74,7 +74,8 @@ public:
     // Convenience for the input dispatcher: pad, mode-key and SHIFT events; true when the event was consumed (SHIFT
     // is observed, never consumed). Panel and keyboard presses count as sent directly (UI-118).
     bool handle(const io::ControlEvent&);
-    // Posts the selection when it changed elsewhere (HOME tap, rotary): call once per UI frame.
+    // Posts the selection when it changed elsewhere (HOME tap, rotary): call once per UI frame. Ends SLICE mode when
+    // the selected track is a MIDI / AS-1 track (the SLICE key refuses it there).
     void sync();
     void setVelocityCurve(VelocityCurve c, int fixed) noexcept
     {
@@ -114,6 +115,7 @@ private:
     void postMode() { post("pads.mode", static_cast<float>(effectiveMode())); }
     void select(int track);
     void onMuteKey(bool pressed, double nowMs);
+    bool selectedIsMidi() const; // the selected track is a MIDI / AS-1 track (no SLICE mode)
 
     core::CommandBus& bus_;
     engine::EngineBridge& bridge_;
