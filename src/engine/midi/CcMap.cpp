@@ -60,6 +60,15 @@ CcMap::Result CcMap::apply(int scene, int track, int cc, int value, const FxCcCo
             sink.applyParam(out);
             return Result::Applied;
         }
+        case core::midi::CcKind::Frames:
+        {
+            const std::int64_t frames = fx.sampleFrames(track);
+            if (! e.param.valid() || frames <= 0)
+                return Result::Ignored; // no sample: no length to scale onto
+            out = ParamChange{e.param, scope, core::midi::ccFrames(e, value, frames), 0};
+            sink.applyParam(out);
+            return Result::Applied;
+        }
         case core::midi::CcKind::Fx1:
         case core::midi::CcKind::Fx2:
         {

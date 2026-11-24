@@ -895,6 +895,13 @@ bool Engine::MidiHooks::insertSync(int track, int unit, int type) const noexcept
     return (slot.optionMask >> i & 1u) != 0 && slot.options[i] != 0;
 }
 
+std::int64_t Engine::MidiHooks::sampleFrames(int track) const noexcept
+{
+    const auto* b =
+        engine != nullptr ? engine->sources_[static_cast<std::size_t>(track & 15)].voice().sample() : nullptr;
+    return b != nullptr ? b->frames : 0; // the current scene's sample of the track (switchScene installs it)
+}
+
 void Engine::MidiHooks::applyParam(const ParamChange& c) noexcept
 {
     if (engine != nullptr)

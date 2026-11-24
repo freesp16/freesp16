@@ -253,6 +253,39 @@ TEST_CASE("midi.engine: PAN (CC 10) and PITCH (CC 20) reach their centre at 64 (
     CHECK(applied(20, 96) == 12.0f); // whole semitones
 }
 
+TEST_CASE("midi.engine: PLAYBACK START / LOOP START / LENGTH (CC 21-23) span the track's sample", "[midi]")
+{
+    miditest::Sample longSample, shortSample;
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    drainUi(*e);
+    auto applied = [&](std::uint8_t status, int cc, int v)
+    {
+        push(*e, status, static_cast<std::uint8_t>(cc), static_cast<std::uint8_t>(v),
+             static_cast<double>(d.frame()) - 1);
+        d.blocks(2);
+        float got = -1.0f;
+        for (const auto& u : drainUi(*e))
+            if (u.kind == core::midi::UiEvent::Kind::Param)
+                got = u.value;
+        return got;
+    };
+    CHECK(applied(0xB0, 21, 64) == -1.0f);              // no sample yet: nothing to scale onto, ignored
+    longSample = miditest::installSample(*e, 0, 44100); // 1 s
+    shortSample = miditest::installSample(*e, 1, 1000);
+    d.blocks(1);
+    CHECK(applied(0xB0, 21, 0) == 0.0f);
+    CHECK(applied(0xB0, 21, 1) == 347.0f);     // 44100 / 127 = 347.2
+    CHECK(applied(0xB0, 21, 64) == 22224.0f);  // 64 · 44100 / 127 = 22223.6
+    CHECK(applied(0xB0, 22, 127) == 44100.0f); // LOOP START at the end
+    CHECK(applied(0xB0, 23, 127) == 44100.0f); // LENGTH: the whole sample
+    CHECK(applied(0xB1, 23, 1) == 8.0f);       // track 2: 1000 / 127 = 7.9
+    CHECK(applied(0xB1, 21, 127) == 1000.0f);
+    const auto& t = miditest::table();
+    for (int cc : {21, 22, 23})
+        CHECK(t.cc[static_cast<std::size_t>(cc)].kind == core::midi::CcKind::Frames);
+}
+
 TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends them (MID-040/047/050)", "[midi]")
 {
     auto e = miditest::make();
