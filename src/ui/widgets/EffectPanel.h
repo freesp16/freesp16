@@ -1,6 +1,6 @@
 // EffectPanel (07-ui-design/components/visuals.md "EffectPanel"; screens/effects.md; UID-825…842, UI-260…268): the one
 // panel every effect in every slot is edited on, generated from the EffectDescriptor (+ EffectUiSpec) and the
-// ParamSpecs of the slot's current effect — no effect has a bespoke screen (UID-217). Geometry = the table of
+// ParamSpecs of the slot's current effect. A CLAP editor can take over the body below the header. Geometry from
 // screens/effects.md "EffectPanel geometry": panel 16,152,1248×456; header (40 lpx icon, slot caption, name, MIX hint,
 // MASTER | SEND on the bus page, BYPASS, SELECT FX); option cells x = 24 + 208·(n−1), y 240, 192 × 80; visual zone
 // 32,336,1216×152; six knob glyphs centred (120 + 208·(n−1), 548), Ø 72. Nothing re-flows between effects (UID-003).
@@ -23,6 +23,8 @@
 #include "core/util/Registrar.h"
 #include "ui/screens/effects/FxSlots.h"
 #include "ui/screens/effects/VisualModel.h"
+#include "ui/screens/plugin/PluginSlots.h"
+#include "ui/shell/StripOwner.h"
 #include "ui/shell/UiState.h"
 #include "ui/widgets/Widget.h"
 
@@ -95,7 +97,7 @@ private:
 // The default adapter of a visual kind (used when an effect registers none).
 VisualAdapter defaultVisualAdapter(std::string_view kind) noexcept;
 
-class EffectPanel final : public Widget
+class EffectPanel final : public Widget, public StripOwner
 {
 public:
     enum class Control : std::uint8_t
@@ -117,6 +119,7 @@ public:
         SelectFx,
         Bypass,
         BusPage,
+        Presets,
         OptionCell,
         Banner
     };
@@ -148,6 +151,9 @@ public:
     bool syncOn() const;
     bool mixHint() const;
     void openSelectFx();
+    std::string_view stripTab() const noexcept override;
+    void stripColumn(int, ParamColumnModel&) const override;
+    bool stripTurnUnbound(int, int, bool) override;
     void setFocus(int index) noexcept { focus_ = index; }
     int focusCount() const noexcept;
 
@@ -168,12 +174,14 @@ private:
         int scene, track;
         std::string_view effect;
         bool sync;
+        bool custom;
         std::uint32_t changes;
         bool operator==(const Key&) const = default;
     };
     Key currentKey() const;
     void refresh() const;          // rebinds when slot, track, scene, effect or SYNC changed (no allocation unless the
     void rebind(const Key&) const; // visual kind changes)
+    int headerCount() const noexcept { return (fx::isInsert(slot_) ? 2 : 3) + (key_.effect == "plugin" ? 1 : 0); }
     int scene() const noexcept;
     int track() const noexcept;
     float value(const core::ParamSpec&) const;
@@ -200,6 +208,12 @@ private:
 
     mutable Key key_{};
     mutable bool bound_ = false;
+    bool slotControls_ = false;
+    bool editorTouch_ = false;
+    mutable std::uint32_t paintedEditorSerial_ = 0;
+    bool editingPlugin() const noexcept { return key_.custom && ! slotControls_; }
+    mutable plugin::PluginKnobBank editorBank_{};
+    mutable std::array<core::ParamSpec, 6> editorSpecs_{};
     mutable const engine::fx::EffectDescriptor* effect_ = nullptr;
     mutable const EffectUiSpec* ui_ = nullptr;
     mutable const PanelHints* hints_ = nullptr;

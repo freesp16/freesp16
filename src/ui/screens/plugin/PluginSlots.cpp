@@ -5,6 +5,34 @@
 
 namespace ui::plugin
 {
+void knobColumn(const PluginKnobBank& bank, int col, core::ParamSpec& sp, ParamColumnModel& c)
+{
+    static constexpr std::array<std::string_view, 6> kColumnIds = {
+        "plugin.k1", "plugin.k2", "plugin.k3", "plugin.k4", "plugin.k5", "plugin.k6",
+    };
+    const auto& k = bank.columns[static_cast<std::size_t>(col)];
+    if (! k.active)
+    {
+        c.spec = nullptr;
+        return;
+    }
+    sp = {};
+    sp.id = kColumnIds[static_cast<std::size_t>(col)];
+    sp.label = k.label.view();
+    sp.shortLabel = k.label.view();
+    sp.type = core::ParamType::Continuous;
+    sp.minValue = 0.0f;
+    sp.maxValue = 1.0f;
+    sp.defaultValue = 0.5f;
+    sp.bipolar = k.bipolar;
+    c.spec = &sp;
+    c.value = std::clamp(k.norm, 0.0f, 1.0f);
+    c.valueText = k.valueText.view();
+    c.stepped = k.stepped;
+    c.disabled = false;
+    c.readOnly = false;
+}
+
 LocalPluginAccess::LocalPluginAccess() = default;
 
 bool LocalPluginAccess::hasLoaded(int scene, int track) const noexcept
@@ -15,25 +43,25 @@ bool LocalPluginAccess::hasLoaded(int scene, int track) const noexcept
 std::string_view LocalPluginAccess::loadedName(int scene, int track) const noexcept
 {
     const auto& s = slots_[idx(scene, track)];
-    return s.loaded ? s.name.view() : std::string_view {};
+    return s.loaded ? s.name.view() : std::string_view{};
 }
 
 std::string_view LocalPluginAccess::loadedVendor(int scene, int track) const noexcept
 {
     const auto& s = slots_[idx(scene, track)];
-    return s.loaded ? s.vendor.view() : std::string_view {};
+    return s.loaded ? s.vendor.view() : std::string_view{};
 }
 
 std::string_view LocalPluginAccess::loadedId(int scene, int track) const noexcept
 {
     const auto& s = slots_[idx(scene, track)];
-    return s.loaded ? s.id.view() : std::string_view {};
+    return s.loaded ? s.id.view() : std::string_view{};
 }
 
 std::string_view LocalPluginAccess::loadedPath(int scene, int track) const noexcept
 {
     const auto& s = slots_[idx(scene, track)];
-    return s.loaded ? s.path.view() : std::string_view {};
+    return s.loaded ? s.path.view() : std::string_view{};
 }
 
 bool LocalPluginAccess::selectPlugin(int scene, int track, std::string_view path, std::string_view pluginId)
@@ -56,7 +84,7 @@ bool LocalPluginAccess::selectPlugin(int scene, int track, std::string_view path
     s.id.set(match != nullptr ? std::string_view(match->id) : pluginId);
     s.path.set(match != nullptr ? std::string_view(match->path) : path);
     s.name.set(match != nullptr ? std::string_view(match->name) : (! pluginId.empty() ? pluginId : path));
-    s.vendor.set(match != nullptr ? std::string_view(match->vendor) : std::string_view {});
+    s.vendor.set(match != nullptr ? std::string_view(match->vendor) : std::string_view{});
     s.preset.set("INIT");
     s.page = 0;
     s.params.fill(0.5f);
@@ -87,21 +115,22 @@ void LocalPluginAccess::setBypass(int scene, int track, bool on)
     ++changes_;
 }
 
-std::vector<PluginPresetEntry> LocalPluginAccess::presets(int scene, int track) const
+std::vector<PluginPresetEntry> LocalPluginAccess::presets(int scene, int track, std::optional<fx::Slot>) const
 {
     if (! slots_[idx(scene, track)].loaded)
         return {};
     return {{"init", "INIT"}};
 }
 
-std::string_view LocalPluginAccess::currentPreset(int scene, int track) const noexcept
+std::string_view LocalPluginAccess::currentPreset(int scene, int track, std::optional<fx::Slot>) const noexcept
 {
     const auto& s = slots_[idx(scene, track)];
-    return s.loaded ? s.preset.view() : std::string_view {};
+    return s.loaded ? s.preset.view() : std::string_view{};
 }
 
-bool LocalPluginAccess::loadPreset(int scene, int track, std::string_view key)
+bool LocalPluginAccess::loadPreset(int scene, int track, const PluginPresetEntry& preset, std::optional<fx::Slot>)
 {
+    const auto& key = preset.key;
     auto& s = slots_[idx(scene, track)];
     if (! s.loaded)
         return false;
@@ -110,7 +139,7 @@ bool LocalPluginAccess::loadPreset(int scene, int track, std::string_view key)
     return true;
 }
 
-bool LocalPluginAccess::readKnobs(int scene, int track, PluginKnobBank& out) const noexcept
+bool LocalPluginAccess::readKnobs(int scene, int track, PluginKnobBank& out, std::optional<ui::fx::Slot>) const noexcept
 {
     const auto& s = slots_[idx(scene, track)];
     out = {};
@@ -132,7 +161,8 @@ bool LocalPluginAccess::readKnobs(int scene, int track, PluginKnobBank& out) con
     return true;
 }
 
-bool LocalPluginAccess::turnKnob(int scene, int track, int column0, int detents, bool fine) noexcept
+bool LocalPluginAccess::turnKnob(int scene, int track, int column0, int detents, bool fine,
+                                 std::optional<ui::fx::Slot>) noexcept
 {
     auto& s = slots_[idx(scene, track)];
     if (! s.loaded || column0 < 0 || column0 >= 6 || detents == 0)

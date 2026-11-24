@@ -264,6 +264,8 @@ struct Document::Impl
         // The offline render service (its own Engine on its own worker; REN-001…005). The live engine is
         // muted while a job runs; render to track loads the file with the undoable LOAD (TrackLoader, REN-004).
         renderer.emplace(services::render::RenderService::Env {
+            .pluginsDir = dataDir.getChildFile("Plugins").getFullPathName().toStdString(),
+            .capturePluginStates = [this](auto& snapshot) { if (plugins) plugins->snapshotStates(snapshot); },
             .feed = feed::feeder(true),
             .samples = [this] { return services::render::SampleSnapshot::of(sync); },
             .live = &bridge,
@@ -1970,8 +1972,11 @@ void Document::Impl::render(const std::string& file, double seconds, bool withCh
     // reference. `song`: the arrangement plan too, song mode (stop at the end), its position logged per row.
     core::arrangement::SongStatus songStatus;
     {
-        services::render::OfflineEngine offline({rate, 1});
-        offline.begin(p, services::render::SampleSnapshot::of(sync), feed::feeder(song), song ? &songStatus : nullptr);
+        auto snapshot = std::make_unique<core::model::Project>(p);
+        if (plugins)
+            plugins->snapshotStates(*snapshot);
+        services::render::OfflineEngine offline({rate, 1, plugins ? plugins->pluginsDir() : std::string{}});
+        offline.begin(*snapshot, services::render::SampleSnapshot::of(sync), feed::feeder(song), song ? &songStatus : nullptr);
         auto& q = offline.bridge();
         if (song)
         {

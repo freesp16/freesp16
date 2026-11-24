@@ -6,33 +6,56 @@
 // Message thread only. Per-frame read methods (readKnobs, screenRender, bypass, hasLoaded) do not allocate.
 #pragma once
 
+#include "core/util/Result.h"
 #include "ui/shell/UiState.h"
+#include "ui/widgets/ParamColumn.h"
 #include "ui/widgets/Widget.h"
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
+namespace ui
+{
+class ShellApi;
+namespace fx
+{
+enum class Slot : std::uint8_t;
+}
+} // namespace ui
+
 namespace ui::plugin
 {
+void showEffectPresets(ShellApi&, fx::Slot, int scene, int track);
+void showEffectPicker(ShellApi&, fx::Slot, int scene, int track);
+
+struct EffectPluginView
+{
+    std::string_view path, id, name;
+    bool loaded = false;
+};
 inline constexpr int kScreenWidth = 780;
 inline constexpr int kScreenHeight = 285;
 
 struct PluginEntry
 {
-    std::string id {};     // CLAP plugin descriptor id (e.g. "com.hdslave.anvil")
-    std::string name {};   // display name (e.g. "Anvil")
-    std::string vendor {}; // vendor string (optional)
-    std::string path {};   // path relative to <data>/Plugins/ (or absolute)
+    std::string id{};     // CLAP plugin descriptor id (e.g. "com.hdslave.anvil")
+    std::string name{};   // display name (e.g. "Anvil")
+    std::string vendor{}; // vendor string (optional)
+    std::string path{};   // path relative to <data>/Plugins/ (or absolute)
     bool hasCustomScreen = false;
+    bool trackCompatible = true;
+    bool effectCompatible = false;
 };
 
 struct PluginPresetEntry
 {
-    std::string key {};
-    std::string name {};
+    std::string key{};
+    std::string name{};
+    bool user = false;
 };
 
 struct PluginKnobView
@@ -42,15 +65,17 @@ struct PluginKnobView
     bool bipolar = false;
     std::uint32_t paramId = 0;
     float norm = 0.0f; // 0..1 normalized value for the KnobStrip bar
-    FixedText<24> label {};
-    FixedText<24> valueText {};
+    FixedText<24> label{};
+    FixedText<24> valueText{};
 };
 
 struct PluginKnobBank
 {
-    FixedText<24> tab {};
-    std::array<PluginKnobView, 6> columns {};
+    FixedText<24> tab{};
+    std::array<PluginKnobView, 6> columns{};
 };
+
+void knobColumn(const PluginKnobBank&, int col, core::ParamSpec&, ParamColumnModel&);
 
 struct PluginScreenFrame
 {
@@ -77,18 +102,30 @@ public:
     virtual std::string_view loadedPath(int scene, int track) const noexcept = 0;
 
     virtual bool selectPlugin(int scene, int track, std::string_view path, std::string_view pluginId) = 0;
+    virtual EffectPluginView effectPlugin(fx::Slot, int, int) const { return {}; }
+    virtual bool selectEffectPlugin(fx::Slot, int, int, const PluginEntry&) { return false; }
     virtual void clearPlugin(int scene, int track) = 0;
 
     virtual bool bypass(int scene, int track) const noexcept = 0;
     virtual void setBypass(int scene, int track, bool on) = 0;
 
-    virtual std::vector<PluginPresetEntry> presets(int scene, int track) const = 0;
-    virtual std::string_view currentPreset(int scene, int track) const noexcept = 0;
-    virtual bool loadPreset(int scene, int track, std::string_view key) = 0;
+    virtual std::vector<PluginPresetEntry> presets(int scene, int track, std::optional<fx::Slot> slot = {}) const = 0;
+    virtual std::string_view currentPreset(int scene, int track, std::optional<fx::Slot> slot = {}) const noexcept = 0;
+    virtual bool loadPreset(int scene, int track, const PluginPresetEntry& preset,
+                            std::optional<fx::Slot> slot = {}) = 0;
+
+    virtual std::string presetNameError(const std::string& name) const { return name.empty() ? "Enter a name" : ""; }
+    // true = saved, false = the name exists and needs explicit replacement.
+    virtual core::Result<bool> savePreset(int, int, std::optional<fx::Slot>, const std::string&, bool)
+    {
+        return core::Error{"Preset storage is unavailable"};
+    }
 
     // Active 6-knob bank (custom screen page bank OR generic 6-per-page CLAP parameter bank).
-    virtual bool readKnobs(int scene, int track, PluginKnobBank& out) const noexcept = 0;
-    virtual bool turnKnob(int scene, int track, int column0, int detents, bool fine) noexcept = 0;
+    virtual bool readKnobs(int scene, int track, PluginKnobBank& out,
+                           std::optional<ui::fx::Slot> = {}) const noexcept = 0;
+    virtual bool turnKnob(int scene, int track, int column0, int detents, bool fine,
+                          std::optional<ui::fx::Slot> = {}) noexcept = 0;
     virtual bool pushKnob(int scene, int track, int column0) noexcept = 0;
 
     // Generic parameter paging when the plugin does not provide org.sixteen.screen/1.
@@ -97,12 +134,14 @@ public:
     virtual void setPage(int scene, int track, int page) noexcept = 0;
 
     // Custom body screen (org.sixteen.screen/1) — 780 x 285 physical px inside BodyTemplate::Full.
-    virtual bool hasCustomScreen(int scene, int track) const noexcept = 0;
-    virtual PluginScreenFrame screenRender(int scene, int track, std::uint32_t nowMs) noexcept = 0;
+    virtual bool hasCustomScreen(int scene, int track, std::optional<ui::fx::Slot> = {}) const noexcept = 0;
+    virtual PluginScreenFrame screenRender(int scene, int track, std::uint32_t nowMs,
+                                           std::optional<ui::fx::Slot> = {}) noexcept = 0;
     // phase: 0 = down, 1 = move, 2 = up; x in 0..779, y in 0..284.
-    virtual bool screenTouch(int scene, int track, int phase, int x, int y) noexcept = 0;
-    virtual bool screenSelectorTurn(int scene, int track, int delta) noexcept = 0;
-    virtual bool screenSelectorPush(int scene, int track) noexcept = 0;
+    virtual bool screenTouch(int scene, int track, int phase, int x, int y,
+                             std::optional<ui::fx::Slot> = {}) noexcept = 0;
+    virtual bool screenSelectorTurn(int scene, int track, int delta, std::optional<ui::fx::Slot> = {}) noexcept = 0;
+    virtual bool screenSelectorPush(int scene, int track, std::optional<ui::fx::Slot> = {}) noexcept = 0;
 
     virtual std::uint32_t changes() const noexcept = 0;
 };
@@ -132,35 +171,41 @@ public:
     bool bypass(int scene, int track) const noexcept override;
     void setBypass(int scene, int track, bool on) override;
 
-    std::vector<PluginPresetEntry> presets(int scene, int track) const override;
-    std::string_view currentPreset(int scene, int track) const noexcept override;
-    bool loadPreset(int scene, int track, std::string_view key) override;
+    std::vector<PluginPresetEntry> presets(int scene, int track, std::optional<fx::Slot> slot = {}) const override;
+    std::string_view currentPreset(int scene, int track, std::optional<fx::Slot> slot = {}) const noexcept override;
+    bool loadPreset(int scene, int track, const PluginPresetEntry& preset, std::optional<fx::Slot> slot = {}) override;
 
-    bool readKnobs(int scene, int track, PluginKnobBank& out) const noexcept override;
-    bool turnKnob(int scene, int track, int column0, int detents, bool fine) noexcept override;
+    bool readKnobs(int scene, int track, PluginKnobBank& out, std::optional<ui::fx::Slot> = {}) const noexcept override;
+    bool turnKnob(int scene, int track, int column0, int detents, bool fine,
+                  std::optional<ui::fx::Slot> = {}) noexcept override;
     bool pushKnob(int scene, int track, int column0) noexcept override;
 
     int pageCount(int scene, int track) const noexcept override;
     int currentPage(int scene, int track) const noexcept override;
     void setPage(int scene, int track, int page) noexcept override;
 
-    bool hasCustomScreen(int scene, int track) const noexcept override { (void)scene, (void)track; return false; }
-    PluginScreenFrame screenRender(int scene, int track, std::uint32_t nowMs) noexcept override
+    bool hasCustomScreen(int scene, int track, std::optional<ui::fx::Slot> = {}) const noexcept override
+    {
+        (void)scene, (void)track;
+        return false;
+    }
+    PluginScreenFrame screenRender(int scene, int track, std::uint32_t nowMs,
+                                   std::optional<ui::fx::Slot> = {}) noexcept override
     {
         (void)scene, (void)track, (void)nowMs;
         return {};
     }
-    bool screenTouch(int scene, int track, int phase, int x, int y) noexcept override
+    bool screenTouch(int scene, int track, int phase, int x, int y, std::optional<ui::fx::Slot> = {}) noexcept override
     {
         (void)scene, (void)track, (void)phase, (void)x, (void)y;
         return false;
     }
-    bool screenSelectorTurn(int scene, int track, int delta) noexcept override
+    bool screenSelectorTurn(int scene, int track, int delta, std::optional<ui::fx::Slot> = {}) noexcept override
     {
         (void)scene, (void)track, (void)delta;
         return false;
     }
-    bool screenSelectorPush(int scene, int track) noexcept override
+    bool screenSelectorPush(int scene, int track, std::optional<ui::fx::Slot> = {}) noexcept override
     {
         (void)scene, (void)track;
         return false;
@@ -173,13 +218,13 @@ private:
     {
         bool loaded = false;
         bool bypassed = false;
-        FixedText<48> id {};
-        FixedText<48> name {};
-        FixedText<48> vendor {};
-        FixedText<96> path {};
-        FixedText<32> preset {};
+        FixedText<48> id{};
+        FixedText<48> name{};
+        FixedText<48> vendor{};
+        FixedText<96> path{};
+        FixedText<32> preset{};
         int page = 0;
-        std::array<float, 6> params {0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
+        std::array<float, 6> params{0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
     };
     static std::size_t idx(int scene, int track) noexcept
     {
@@ -187,7 +232,7 @@ private:
     }
 
     std::vector<PluginEntry> catalogue_;
-    std::array<Slot, 256> slots_ {};
+    std::array<Slot, 256> slots_{};
     std::uint32_t changes_ = 0;
 };
 
@@ -205,7 +250,7 @@ public:
     explicit ScopedPluginEnvironment(const PluginEnvironment& env) : saved_(environment()) { environment() = env; }
     ~ScopedPluginEnvironment() { environment() = saved_; }
     ScopedPluginEnvironment(const ScopedPluginEnvironment&) = delete;
-    ScopedPluginEnvironment& operator= (const ScopedPluginEnvironment&) = delete;
+    ScopedPluginEnvironment& operator=(const ScopedPluginEnvironment&) = delete;
 
 private:
     PluginEnvironment saved_;

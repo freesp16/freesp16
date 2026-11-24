@@ -232,6 +232,10 @@ using core::model::TriggerMode;
 constexpr int kPitchCentsPerUnit = 100; // playback.pitch is in semitones
 
 const ModelField kFields[] = {
+    APP_TRACK_FIELD("fx1.plugin.mix", false, x.insertFx[0].params[5], x.insertFx[0].params[5] = v),
+    APP_TRACK_FIELD("fx2.plugin.mix", false, x.insertFx[1].params[5], x.insertFx[1].params[5] = v),
+    APP_SCENE_FIELD("send.plugin.mix", x.sendFx.params[5], x.sendFx.params[5] = v),
+    APP_SCENE_FIELD("master.plugin.mix", x.masterFx.params[5], x.masterFx.params[5] = v),
     // MIXER strip
     APP_TRACK_FIELD("track.volume", false, x.volume, x.volume = toInt(v)),
     APP_TRACK_FIELD("track.pan", false, x.pan, x.pan = toInt(v)),
@@ -259,7 +263,8 @@ const ModelField kFields[] = {
     APP_TRACK_FIELD("playback.pitch", false, static_cast<double>(x.playback.pitchCents) / kPitchCentsPerUnit,
                     x.playback.pitchCents = static_cast<int>(std::lround(v * kPitchCentsPerUnit))),
     APP_TRACK_FIELD("playback.timeStretch", false, static_cast<int>(x.playback.stretchMode),
-                    x.playback.stretchMode = static_cast<StretchMode>(toInt(v) < 0 ? 0 : (toInt(v) > 2 ? 2 : toInt(v)))),
+                    x.playback.stretchMode =
+                        static_cast<StretchMode>(toInt(v) < 0 ? 0 : (toInt(v) > 2 ? 2 : toInt(v)))),
     APP_TRACK_FIELD("playback.loop", false, x.playback.loop ? 1 : 0, x.playback.loop = v >= 0.5f),
     APP_TRACK_FIELD("playback.reverse", false, x.playback.reverse ? 1 : 0, x.playback.reverse = v >= 0.5f),
     APP_TRACK_FIELD("playback.bypass", false, x.playback.bypass ? 1 : 0, x.playback.bypass = v >= 0.5f),
@@ -268,14 +273,15 @@ const ModelField kFields[] = {
     APP_TRACK_FIELD("playback.length", false, x.playback.length, x.playback.length = std::llround(v)),
     // AMP ENVELOPE: display index ↔ normalised storage (ENV-001)
     APP_TRACK_FIELD("env.velocity", false, x.ampEnv.volumeIndex, x.ampEnv.volumeIndex = toInt(v)),
-    APP_TRACK_FIELD("env.attack", false,
-                    core::ampenv::clampIndex(EnvStage::Attack,
-                                             core::ampenv::indexFromStored(static_cast<float>(x.ampEnv.attack))),
-                    x.ampEnv.attack = static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Attack, v)))),
+    APP_TRACK_FIELD(
+        "env.attack", false,
+        core::ampenv::clampIndex(EnvStage::Attack, core::ampenv::indexFromStored(static_cast<float>(x.ampEnv.attack))),
+        x.ampEnv.attack = static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Attack, v)))),
     APP_TRACK_FIELD("env.hold", false, core::ampenv::indexFromStored(static_cast<float>(x.ampEnv.hold)),
                     x.ampEnv.hold = static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Hold, v)))),
     APP_TRACK_FIELD("env.release", false, core::ampenv::indexFromStored(static_cast<float>(x.ampEnv.release)),
-                    x.ampEnv.release = static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Release, v)))),
+                    x.ampEnv.release =
+                        static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Release, v)))),
     APP_TRACK_FIELD("env.sync", false, x.ampEnv.sync ? 1 : 0, x.ampEnv.sync = v >= 0.5f),
     APP_TRACK_FIELD("env.attackCurve", false, static_cast<int>(x.ampEnv.attackCurve),
                     x.ampEnv.attackCurve = static_cast<EnvelopeCurve>(toInt(v) & 1)),
@@ -295,7 +301,8 @@ const ModelField kFields[] = {
                     x.lfo.triggerMode = static_cast<LfoTriggerMode>(std::clamp(toInt(v), 0, 2))),
     APP_TRACK_FIELD("lfo.triggerOn", false, x.lfo.triggerOn == LfoTriggerOn::Both ? 1 : 0,
                     x.lfo.triggerOn = v >= 0.5f ? LfoTriggerOn::Both : LfoTriggerOn::Pad),
-    APP_TRACK_FIELD("lfo.randomStart", false, x.lfo.randomSeedCount, x.lfo.randomSeedCount = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("lfo.randomStart", false, x.lfo.randomSeedCount,
+                    x.lfo.randomSeedCount = std::clamp(toInt(v), 0, 127)),
     APP_TRACK_FIELD("lfo.bypass", false, x.lfo.bypass ? 1 : 0, x.lfo.bypass = v >= 0.5f),
     // MIDI / AS-1 tracks (MIDI NOTE, CC1, CC2, BANK SELECT, PROG CHANGE; per scene and track): saved with the project,
     // undoable, re-posted after an open. NOTE2–4 are semitones from NOTE (0 = OFF).
@@ -585,7 +592,7 @@ void ModelParamAccess::setRemote(const core::ParamSpec& s, std::uint16_t scope, 
         return;
     }
     const float v = s.clamp(value);
-    const int scene = (scope >> 4) & 15, track = scope & 15;
+    const int scene = f->scene ? scope & 15 : (scope >> 4) & 15, track = f->scene ? 0 : scope & 15;
     if (f->get(core::commands::project(bus_), scene, track) == v)
         return;
     bus_.execute(std::make_unique<SetModelParam>(*f, s.label, scene, track, v, false));

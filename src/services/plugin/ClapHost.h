@@ -15,6 +15,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -40,12 +41,14 @@ namespace services::plugin
 {
 struct CatalogueEntry
 {
-    std::string id {};
-    std::string name {};
-    std::string vendor {};
-    std::string path {};    // relative to pluginsDir (or absolute if outside)
-    std::string absPath {}; // resolved binary path passed to dlopen
+    std::string id{};
+    std::string name{};
+    std::string vendor{};
+    std::string path{};    // relative to pluginsDir (or absolute if outside)
+    std::string absPath{}; // resolved binary path passed to dlopen
     bool hasCustomScreen = false;
+    bool trackCompatible = true;
+    bool effectCompatible = false;
 };
 
 struct BundledPreset
@@ -57,7 +60,7 @@ struct BundledPreset
 struct ParamMeta
 {
     std::uint32_t id = 0;
-    std::string name {};
+    std::string name{};
     double minValue = 0.0;
     double maxValue = 1.0;
     double defaultValue = 0.0;
@@ -72,8 +75,8 @@ struct KnobReadout
     bool bipolar = false;
     std::uint32_t paramId = 0;
     float norm = 0.0f;
-    char label[24] {};
-    char valueText[24] {};
+    char label[24]{};
+    char valueText[24]{};
 };
 
 struct ScreenBitmap
@@ -86,7 +89,7 @@ struct ScreenBitmap
 };
 
 // Scans a Plugins/ directory for loadable *.clap bundles/binaries.
-std::vector<CatalogueEntry> scanPluginDirectory(const std::string& pluginsDir);
+std::vector<CatalogueEntry> scanPluginDirectory(const std::string& pluginsDir, double sampleRate = 44100.0);
 
 // One live CLAP plugin instance implementing core::audio::PluginAudioNode.
 // Created via ClapAudioNode::create(...) on the message thread; destroyed on the message thread when
@@ -95,17 +98,21 @@ class ClapAudioNode final : public core::audio::PluginAudioNode
 {
 public:
     static ClapAudioNode* create(const std::string& absPath, const std::string& pluginId, double sampleRate,
-                                 std::string& errorOut);
+                                 std::string& errorOut, bool effect = false, bool stateOnly = false,
+                                 std::string_view initialParams = {});
     ~ClapAudioNode() override;
 
     ClapAudioNode(const ClapAudioNode&) = delete;
-    ClapAudioNode& operator= (const ClapAudioNode&) = delete;
+    ClapAudioNode& operator=(const ClapAudioNode&) = delete;
 
     // ---- audio thread (strictly RT-safe) ----
     void noteOn(int frame, int note, float velocity) noexcept override;
     void noteOff(int frame, int note) noexcept override;
     void allNotesOff(int frame) noexcept override;
     bool process(const core::audio::PluginProcessContext& ctx, float* outL, float* outR) noexcept override;
+    void resetEffect() noexcept override;
+    int effectLatency() const noexcept override { return latencySamples_; }
+    void processEffect(const core::audio::PluginProcessContext& ctx, float* left, float* right) noexcept override;
     bool active() const noexcept override;
 
     // ---- message thread ----
@@ -113,6 +120,7 @@ public:
     const std::string& name() const noexcept { return name_; }
     const std::string& vendor() const noexcept { return vendor_; }
     const std::string& absPath() const noexcept { return absPath_; }
+    double sampleRate() const noexcept { return sampleRate_; }
 
     bool bypassed() const noexcept { return bypassed_.load(std::memory_order_acquire); }
     void setBypassed(bool on) noexcept;
@@ -129,7 +137,14 @@ public:
     void setPage(int page) noexcept;
 
     bool readKnobs(std::array<KnobReadout, 6>& out, char outTab[SIXTEEN_TAB_NAME_SIZE]) const noexcept;
-    bool turnKnob(int col0, int detents, bool fine) noexcept;
+    bool turnKnob(int col0, int detents, bool fine, ClapAudioNode* stateEditor = nullptr) noexcept;
+    void beforeScreenInput();
+    void afterScreenInput();
+    std::string editorState(ClapAudioNode* stateEditor) const;
+    bool parameterEditPending() const noexcept
+    {
+        return paramHead_.load(std::memory_order_acquire) != paramTail_.load(std::memory_order_acquire);
+    }
     bool pushKnob(int col0) noexcept;
 
     bool hasCustomScreen() const noexcept { return screenExt_ != nullptr; }
@@ -147,6 +162,10 @@ public:
 
 private:
     ClapAudioNode() = default;
+    bool processBlock(const core::audio::PluginProcessContext&, float* outL, float* outR, float* inL,
+                      float* inR) noexcept;
+    int latencySamples_ = 0;
+    std::uint32_t inputChannels_ = 2, outputChannels_ = 2;
 
     struct NoteEv
     {
@@ -166,6 +185,13 @@ private:
 
     bool pushParamChange(std::uint32_t id, double value) noexcept;
     void refreshParamMeta();
+    void flushInactiveParam(std::uint32_t id, double value);
+    struct UiParamEdit
+    {
+        std::uint32_t id;
+        double target, beforeInput;
+    };
+    std::vector<UiParamEdit> uiParamEdits_; // message thread only
 
     // CLAP host callbacks
     static const void* hostGetExtension(const clap_host* host, const char* extId) noexcept;
@@ -195,27 +221,29 @@ private:
     int page_ = 0;
 
     // Audio-thread state
-    std::array<NoteEv, kMaxNoteEv> noteEvs_ {};
+    std::array<NoteEv, kMaxNoteEv> noteEvs_{};
     int noteEvCount_ = 0;
     int heldNotes_ = 0;
     int silentBlocks_ = 0;
-    std::atomic<bool> bypassed_ {false};
-    std::atomic<bool> sleeping_ {false};
-    std::atomic<bool> wakeAudio_ {true};
-    std::atomic<bool> callbackRequested_ {false};
-    std::atomic<bool> flushRequested_ {false};
+    std::atomic<bool> bypassed_{false};
+    std::atomic<bool> sleeping_{false};
+    std::atomic<bool> wakeAudio_{true};
+    std::atomic<bool> callbackRequested_{false};
+    std::atomic<bool> flushRequested_{false};
 
     // Lock-free SPSC message -> audio parameter queue
-    std::array<ParamEv, kParamQueueSize> paramQueue_ {};
-    std::atomic<std::size_t> paramHead_ {0};
-    std::atomic<std::size_t> paramTail_ {0};
+    std::array<ParamEv, kParamQueueSize> paramQueue_{};
+    std::atomic<std::size_t> paramHead_{0};
+    std::atomic<std::size_t> paramTail_{0};
 
     // Audio scratch buffers (zeroed input for synths that read audio_inputs)
-    alignas(16) std::array<float, engine::kBlockFrames> silenceL_ {};
-    alignas(16) std::array<float, engine::kBlockFrames> silenceR_ {};
+    alignas(16) std::array<float, engine::kBlockFrames> silenceL_{};
+    alignas(16) std::array<float, engine::kBlockFrames> silenceR_{};
 
     // Custom body screen surface (allocated once if screenExt_ != nullptr)
-    std::vector<std::uint32_t> screenBuf_;
+    void openScreen() const noexcept;
+    mutable bool screenOpen_ = false;
+    std::unique_ptr<std::uint32_t[]> screenBuf_;
     std::uint32_t screenSerial_ = 0;
     bool screenInitialized_ = false;
 };
@@ -229,7 +257,7 @@ public:
     ~ClapHostService();
 
     ClapHostService(const ClapHostService&) = delete;
-    ClapHostService& operator= (const ClapHostService&) = delete;
+    ClapHostService& operator=(const ClapHostService&) = delete;
 
     const std::string& pluginsDir() const noexcept { return pluginsDir_; }
     void rescan();
@@ -237,12 +265,17 @@ public:
 
     // Scene and track are 0-based (0..15).
     bool mount(int scene0, int track0, const core::model::PluginTrack& spec);
-    bool loadPreset(int scene0, int track0, const std::string& key);
+    ClapAudioNode* mountedEffect(int scene0, int slot) const noexcept;
+    bool hasEffect(int scene0, int slot) const noexcept { return mountedEffect(scene0, slot) != nullptr; }
+    bool mountEffect(int scene0, int slot, const core::model::PluginTrack& spec);
+    void acknowledgeEffectEdit(int scene0, int slot, const std::string& state);
+    bool recallPreset(int scene0, int track0, std::optional<int> effectSlot, const core::model::PluginTrack& spec);
     void unmount(int scene0, int track0);
     void unmountAll();
 
     ClapAudioNode* mounted(int scene0, int track0) const noexcept;
-    const core::model::PluginTrack& mountedSpec(int scene0, int track0) const noexcept;
+    const core::model::PluginTrack& mountedSpec(int scene0, int track0,
+                                                std::optional<int> effectSlot = {}) const noexcept;
 
     void syncFromProject(const core::model::Project& project);
     void syncChanges(const core::ChangeSet& changes, const core::model::Project& project);
@@ -253,15 +286,28 @@ public:
     void bumpChanges() noexcept { ++changes_; }
 
 private:
+    struct PendingMount
+    {
+        std::unique_ptr<ClapAudioNode> node;
+        core::model::PluginTrack spec;
+    };
     struct Slot
     {
+        std::unique_ptr<PendingMount> pending;
+        bool pendingClear = false;
         ClapAudioNode* node = nullptr; // owned UI ref (release() on unmount)
-        core::model::PluginTrack spec {};
+        core::model::PluginTrack spec{};
     };
     static std::size_t idx(int scene0, int track0) noexcept
     {
         return static_cast<std::size_t>(scene0 & 15) * 16 + static_cast<std::size_t>(track0 & 15);
     }
+    bool mountSlot(Slot&, engine::SwapSlot, const core::model::PluginTrack&, bool recall = false, bool fresh = false,
+                   bool strictPreset = false);
+    bool postMount(Slot&, engine::SwapSlot, PendingMount&);
+    void clearSlot(Slot&, engine::SwapSlot);
+    void syncTrack(const core::model::Project&, int scene, int track, bool fresh = false);
+    void syncEffect(const core::model::Project&, int scene, int slot, bool fresh = false);
     std::string resolvePath(const std::string& path) const;
 
     engine::EngineBridge& bridge_;
@@ -269,7 +315,8 @@ private:
     double sampleRate_ = 44100.0;
     std::function<void(const std::string&)> log_;
     std::vector<CatalogueEntry> catalogue_;
-    std::array<Slot, 256> slots_ {};
+    std::array<Slot, 256> slots_{};
+    std::vector<Slot> effects_ = std::vector<Slot>(16 * engine::kPluginFxSlots);
     std::uint32_t changes_ = 0;
 };
 } // namespace services::plugin

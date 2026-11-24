@@ -505,8 +505,11 @@ void writeEffect(Node& n, std::string_view base, const m::EffectSlot& in, Ctx& c
         fx.type = m::EffectType::Off;
     }
     Props p(n, std::string(base), &fx.extras, c.report, at);
-    p.put("effectType", S("FxType_" + std::string(m::storedName(fx.type))),
-          [&](const Var& k) { return sameEnum<m::EffectType>(k, fx.type, m::EffectType::Off, "FxType_"); });
+    const auto type = fx.type == m::EffectType::Plugin ? m::EffectType::Off : fx.type;
+    if (type != fx.type)
+        c.report.drop("CLAP effect " + fx.plugin.name, at);
+    p.put("effectType", S("FxType_" + std::string(m::storedName(type))),
+          [&](const Var& k) { return sameEnum<m::EffectType>(k, type, m::EffectType::Off, "FxType_"); });
     std::vector<Var> params;
     const auto keptParams = p.kept("params");
     for (std::size_t k = 0; k < 6; ++k)

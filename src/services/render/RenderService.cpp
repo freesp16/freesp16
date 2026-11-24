@@ -114,7 +114,8 @@ juce::File renderFileFor(const juce::File& dir, const std::string& project, cons
 }
 
 Rendered render(const model::Project& source, const RenderJob& job, const SampleSnapshot& samples,
-                const ProjectFeeder& feed, double rate, const std::atomic<bool>* cancel, std::atomic<float>* progress)
+                const ProjectFeeder& feed, double rate, const std::atomic<bool>* cancel, std::atomic<float>* progress,
+                const std::string& pluginsDir)
 {
     Rendered out;
     out.sampleRate = rate;
@@ -174,7 +175,7 @@ Rendered render(const model::Project& source, const RenderJob& job, const Sample
     const double expected = fixedLength ? static_cast<double>(nominal) : songSeconds * rate;
 
     // The engine, the project, the set-up.
-    OfflineEngine e({rate, direct ? 2 : 1});
+    OfflineEngine e({rate, direct ? 2 : 1, pluginsDir});
     core::arrangement::SongStatus status;
     e.begin(*p, samples, feed, song ? &status : nullptr);
     auto& q = e.bridge();
@@ -398,6 +399,8 @@ JobHandle RenderService::start(const model::Project& p, const RenderJob& spec, P
     auto job = std::make_shared<Job>();
     job->handle = next_++;
     job->project = std::make_unique<model::Project>(p); // REN-001: the copy (message thread)
+    if (env_.capturePluginStates)
+        env_.capturePluginStates(*job->project);
     if (env_.samples)
         job->samples = env_.samples();
     job->spec = spec;
@@ -423,9 +426,9 @@ JobHandle RenderService::start(const model::Project& p, const RenderJob& spec, P
     const auto feed = env_.feed;
     const double rate = env_.sampleRate;
     worker_.run(
-        [job, feed, rate]
+        [job, feed, rate, pluginsDir = env_.pluginsDir]
         {
-            auto r = render(*job->project, job->spec, job->samples, feed, rate, &job->cancel, &job->fraction);
+            auto r = render(*job->project, job->spec, job->samples, feed, rate, &job->cancel, &job->fraction, pluginsDir);
             job->samples = {}; // the references go as soon as the audio is rendered
             if (r.cancelled)
             {

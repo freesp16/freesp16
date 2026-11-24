@@ -243,15 +243,22 @@ private:
         const int y1 = std::min(clip_.y1, iy0 + ih);
         if (x0 >= x1 || y0 >= y1)
             return;
+        // Filter along the shrinking axis of an FX editor. Fractional Y scaling with nearest
+        // sampling can discard an entire horizontal stroke even when the bitmap is 1:1 in X.
+        const bool filterY = ih < c.srcH;
         const std::uint32_t tintA = c.argb >> 24;
         const bool oneToOne = (iw == c.srcW && ih == c.srcH);
         const bool opaqueTint = (c.argb == 0xFFFFFFFFu);
         for (int y = y0; y < y1; ++y)
         {
-            const int sy = oneToOne ? (y - iy0)
-                                    : std::clamp(static_cast<int>(static_cast<float>(y - iy0) * c.srcH / ih), 0,
-                                                 static_cast<int>(c.srcH) - 1);
+            const float sourceY =
+                filterY ? std::clamp((static_cast<float>(y) + 0.5f - fy0) * c.srcH / fh - 0.5f, 0.0f,
+                                     static_cast<float>(c.srcH - 1))
+                        : (ih == c.srcH ? static_cast<float>(y - iy0) : static_cast<float>(y - iy0) * c.srcH / ih);
+            const int sy = static_cast<int>(sourceY);
             const std::uint32_t* srcRow = c.pixels + static_cast<std::ptrdiff_t>(sy) * c.srcStride;
+            const std::uint32_t* nextRow = sy + 1 < c.srcH ? srcRow + c.srcStride : srcRow;
+            const auto nextWeight = filterY ? static_cast<unsigned>((sourceY - sy) * 256.0f + 0.5f) : 0u;
             std::uint32_t* dstRow = px_ + static_cast<std::ptrdiff_t>(y) * stride_;
             if (oneToOne && opaqueTint)
             {
@@ -270,22 +277,27 @@ private:
             {
                 for (int x = x0; x < x1; ++x)
                 {
-                    const int sx = oneToOne ? (x - ix0)
-                                            : std::clamp(static_cast<int>(static_cast<float>(x - ix0) * c.srcW / iw), 0,
-                                                         static_cast<int>(c.srcW) - 1);
-                    const std::uint32_t sp = srcRow[sx];
-                    const std::uint32_t sa = ((sp >> 24) * tintA + 127) / 255;
-                    if (sa == 0)
-                        continue;
-                    std::uint32_t rgb = sp & 0x00FFFFFFu;
-                    if (! opaqueTint)
+                    const int sx = iw == c.srcW ? x - ix0
+                                                : std::min(static_cast<int>(static_cast<float>(x - ix0) * c.srcW / iw),
+                                                           static_cast<int>(c.srcW) - 1);
+                    const auto background = dstRow[x];
+                    const auto composite = [&](std::uint32_t sp)
                     {
-                        const std::uint32_t r = (((sp >> 16) & 0xFFu) * ((c.argb >> 16) & 0xFFu) + 127) / 255;
-                        const std::uint32_t g = (((sp >> 8) & 0xFFu) * ((c.argb >> 8) & 0xFFu) + 127) / 255;
-                        const std::uint32_t b = ((sp & 0xFFu) * (c.argb & 0xFFu) + 127) / 255;
-                        rgb = (r << 16) | (g << 8) | b;
-                    }
-                    dstRow[x] = sa >= 255 ? rgb : blendPixel(dstRow[x], rgb, sa + (sa >> 7));
+                        const auto sa = ((sp >> 24) * tintA + 127) / 255;
+                        std::uint32_t rgb = sp & 0x00FFFFFFu;
+                        if (! opaqueTint)
+                        {
+                            const auto r = (((sp >> 16) & 0xFFu) * ((c.argb >> 16) & 0xFFu) + 127) / 255;
+                            const auto g = (((sp >> 8) & 0xFFu) * ((c.argb >> 8) & 0xFFu) + 127) / 255;
+                            const auto b = ((sp & 0xFFu) * (c.argb & 0xFFu) + 127) / 255;
+                            rgb = (r << 16) | (g << 8) | b;
+                        }
+                        return sa == 255 ? rgb : blendPixel(background, rgb, sa + (sa >> 7));
+                    };
+                    const auto first = composite(srcRow[sx]);
+                    // Compositing both samples on the same background keeps transparent texels
+                    // from bleeding their unassociated RGB into the bilinear result.
+                    dstRow[x] = nextWeight == 0 ? first : blendPixel(first, composite(nextRow[sx]), nextWeight);
                 }
             }
         }

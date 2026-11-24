@@ -1,5 +1,6 @@
 // FxSlotBank — see FxSlotBank.h.
 #include "engine/fx/FxSlotBank.h"
+#include "engine/fx/effects/Plugin.h"
 
 #include "engine/fx/EffectRegistryOrder.h"
 
@@ -86,11 +87,21 @@ void FxSlotBank::build(const EffectRegistry& registry, std::span<const std::stri
         const SlotKind k = kindOf(s);
         const auto& list = k == SlotKind::Insert ? insertTypes_ : (k == SlotKind::Send ? sendTypes_ : masterTypes_);
         slots_[static_cast<std::size_t>(s)]->build(k, list);
+        auto* plugin = dynamic_cast<effects::Plugin*>(slots_[s]->effect(typeIndexOf(list, "plugin")));
+        plugins_[s] = plugin;
+        if (plugin)
+            plugin->send = k == SlotKind::Send;
         auto& st = state_[static_cast<std::size_t>(s)];
         st = SlotParams{};
         st.stored.assign(list.size() * 6, 0.0f); // rt-ok: message thread, build()
     }
     routes_.build(insertTypes_, sendTypes_, masterTypes_, paramIds, internalIndex);
+}
+
+void FxSlotBank::setPlugin(int slot, core::audio::PluginAudioNode* node) noexcept
+{
+    if (slot >= 0 && slot < kFxSlots && plugins_[slot])
+        plugins_[slot]->node = node;
 }
 
 bool FxSlotBank::prepare(double sampleRate, int maxBlock)
@@ -356,7 +367,8 @@ ProcessContext FxSlotBank::beginBlock(const BlockContext& ctx, std::uint16_t mid
             }
         midiMask_ = midiTrackMask;
     }
-    ctx_ = ProcessContext{ctx.sampleRate, ctx.bpm, ctx.playing, ctx.triggerMask, ctx.triggerOffset, midiTrackMask};
+    ctx_ = ProcessContext{ctx.sampleRate,    ctx.bpm,       ctx.playing, ctx.triggerMask,
+                          ctx.triggerOffset, midiTrackMask, ctx.ppqStart};
     return ctx_;
 }
 

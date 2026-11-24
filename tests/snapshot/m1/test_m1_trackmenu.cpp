@@ -80,7 +80,7 @@ TEST_CASE("ui.m1.trackMenu: TRACK TYPE opens the 5-item type list including PLUG
     f.settle();
     REQUIRE(f.shell->popupDepth() == 1);
     const auto& dl = f.frame();
-    for (const char* item : {"SAMPLE", "THRU", "MIDI", "AS-1", "PLUGIN"})
+    for (const char* item : {"SAMPLE", "THRU", "MIDI", "TORAIZ AS-1", "PLUGIN"})
     {
         bool found = false;
         for (const auto& c : dl.commands())

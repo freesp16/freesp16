@@ -125,6 +125,17 @@ if(NOT APP_SANITIZERS)
         $<$<CONFIG:Release,RelWithDebInfo>:APP_CHECK_PLAYBACK_TIMING=1>)
 endif()
 
+# Exercise the real dynamic loader with a multi-descriptor bundle on the host architecture.
+add_library(clap_effect_fixture MODULE fixtures/clap/EffectFixture.cpp)
+target_include_directories(clap_effect_fixture PRIVATE ${CMAKE_SOURCE_DIR}/third_party/clap/include)
+set_target_properties(clap_effect_fixture PROPERTIES PREFIX "" SUFFIX ".clap"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/fixture-plugins")
+add_dependencies(${APP_TARGET_PREFIX}_tests_render clap_effect_fixture)
+target_compile_definitions(${APP_TARGET_PREFIX}_tests_render PRIVATE CLAP_TEST_EFFECT="$<TARGET_FILE:clap_effect_fixture>")
+add_dependencies(${APP_TARGET_PREFIX}_tests_plugin clap_effect_fixture)
+target_compile_definitions(${APP_TARGET_PREFIX}_tests_plugin PRIVATE
+    CLAP_FIXTURE_DIR="$<TARGET_FILE_DIR:clap_effect_fixture>")
+
 # Snapshot tests.
 file(GLOB_RECURSE APP_SNAPSHOT_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/snapshot/*.cpp)
 if(APP_SNAPSHOT_SOURCES)

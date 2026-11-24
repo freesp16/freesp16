@@ -29,7 +29,8 @@ enum class EffectType : std::uint8_t
     Distortion,
     Compressor,
     Ducker,
-    VintagePitch
+    VintagePitch,
+    Plugin
 };
 enum class LfoShape : std::uint8_t { Sine, Triangle, SawUp, SawDown, Square, Random };   // our list
 enum class LfoTriggerMode : std::uint8_t { Free, Retrigger, OneShot };                 // ours (OQ-19)

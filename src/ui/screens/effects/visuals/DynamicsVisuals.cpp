@@ -197,6 +197,42 @@ private:
     FixedText<4> number_;
 };
 
+class SlotLevels final : public FxVisual
+{
+public:
+    using FxVisual::FxVisual;
+    std::string_view kind() const noexcept override { return "slotLevels"; }
+    bool setModel(const VisualModel& m) override
+    {
+        const bool changed = m.in != model_.in || m.out != model_.out;
+        model_ = m;
+        return changed;
+    }
+    void build(DrawList& dl, const UiContext& ctx) const override
+    {
+        const auto& p = ctx.palette;
+        zoneBox(dl, p, zone_);
+        const float width = zone_.w / 2 - 72;
+        for (int side = 0; side < 2; ++side)
+        {
+            const float x = zone_.x + 32 + side * zone_.w / 2;
+            dl.text(x, zone_.y + 44, Align::Left, TextStyleId::Label, p.text2, side == 0 ? "INPUT" : "OUTPUT");
+            const auto& levels = side == 0 ? model_.in : model_.out;
+            const float y = zone_.y + 72;
+            dl.fill({x, y, width, 10}, p.surface3, 2);
+            const float fill = width * std::clamp(std::max(levels[0], levels[1]), 0.0f, 1.0f);
+            if (fill > 0)
+                dl.fill({x, y, fill, 10}, p.meterLow, 2);
+        }
+    }
+    bool dirty(double) const override { return model_.playing; }
+};
+
+std::unique_ptr<Widget> makeSlotLevels(const ScreenSpec&, const WidgetArgs& a)
+{
+    return std::make_unique<SlotLevels>(a.bounds.w > 0 ? a.bounds : fxzone::zone);
+}
+
 std::unique_ptr<Widget> makeMeters(const ScreenSpec&, const WidgetArgs& a)
 {
     return std::make_unique<Meters>(a.bounds.w > 0 ? a.bounds : fxzone::zone);
@@ -208,5 +244,6 @@ std::unique_ptr<Widget> makeDuck(const ScreenSpec&, const WidgetArgs& a)
 } // namespace
 } // namespace ui::fxvis
 
+APP_REGISTER_WIDGET("fxvisual.slotLevels", &ui::fxvis::makeSlotLevels)
 APP_REGISTER_WIDGET("fxvisual.meters", &ui::fxvis::makeMeters)
 APP_REGISTER_WIDGET("fxvisual.duckEnvelope", &ui::fxvis::makeDuck)

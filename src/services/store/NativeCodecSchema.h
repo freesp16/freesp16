@@ -540,6 +540,7 @@ void schema(V& v, T& o, const m::EffectSlot& d)
     v.field("type1", o.type1, d.type1);
     v.field("type2", o.type2, d.type2);
     v.field("params", o.params, d.params);
+    v.object("plugin", o.plugin, d.plugin);
     v.effectMemory("perType", o.typeMemory);
     v.end();
 }

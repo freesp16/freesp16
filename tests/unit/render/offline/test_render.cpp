@@ -4,6 +4,7 @@
 // 64-frame blocks) and the app's paced QueuedBridge flushed once per period.
 #include "services/library/AudioFile.h"
 #include "services/library/SidecarStore.h"
+#include "services/plugin/ClapHost.h"
 #include "services/render/AudioWriter.h"
 #include "services/render/RenderService.h"
 #include "tests/fakes/FakeEngineBridge.h"
@@ -83,7 +84,20 @@ TEST_CASE("offline render: a project without samples renders digital silence (no
 
 TEST_CASE("offline render: the offline render equals the live engine's output of the same pattern bit for bit")
 {
-    const auto f = makeFixture();
+    auto f = makeFixture();
+    SECTION("Built-in signal path") {}
+    SECTION("Mounted CLAP gain in the master slot")
+    {
+        const auto dry = renderJob(f, pattern(2));
+        auto& master = f.project->scenes[0].masterFx;
+        master.type = core::model::EffectType::Plugin;
+        master.params[5] = 1.0;
+        master.plugin = {.path = CLAP_TEST_EFFECT, .pluginId = "test.stereo"};
+        const auto wet = renderJob(f, pattern(2));
+        const auto dryPeak = rendertest::peak(dry.left);
+        REQUIRE(dryPeak > 0.01);
+        REQUIRE(rendertest::peak(wet.left) == Catch::Approx(dryPeak * 0.25).margin(1e-5));
+    }
     const auto offline = renderJob(f, pattern(2));
     REQUIRE(offline.left.size() == 2 * 88200);
 
@@ -91,6 +105,8 @@ TEST_CASE("offline render: the offline render equals the live engine's output of
     auto live = engine::createEngine(rnd::builtinEngineSetup());
     live->prepare(f.rate, 256);
     rnd::QueuedBridge q(live->bridge(), 1024);
+    services::plugin::ClapHostService plugins(q, {}, f.rate);
+    plugins.syncFromProject(*f.project);
     app::feed::forwardAll(*f.project, q);
     app::feed::postPlan(*f.project, q, nullptr);
     app::feed::postSlices(*f.project, q, f.samples);

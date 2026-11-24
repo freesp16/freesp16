@@ -128,6 +128,8 @@ Engine::Engine(const EngineSetup& setup, const EngineOptions& options) : options
     arrangement_.bindParams(setup.resolveParam, params_); // arrangement.play / loop / start
     voice::acceptVoiceSwaps(*this); // SwapSlot::TrackSample / Preview (the sample library posts them)
     voice::acceptSliceSwaps(*this); // SwapSlot::SliceMap (the app posts one table per edit)
+    for (auto kind : {SwapSlot::InsertPlugin1, SwapSlot::InsertPlugin2, SwapSlot::BusPlugin})
+        acceptSwaps(kind, &core::audio::releasePluginNode);
     acceptSwaps(SwapSlot::TrackPlugin, &core::audio::releasePluginNode); // SwapSlot::TrackPlugin (hosted CLAP)
     for (int t = 0; t < kTracks; ++t)
         sources_[static_cast<std::size_t>(t)].attach(&env_, t);
@@ -550,6 +552,9 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
         if (old != nullptr && ! bridge_.retire(old, s->slot.kind, ctx.blockIndex))
             return false; // retire queue full: keep the old object installed, retry next block
         swaps_.exchange(s->slot, s->object);
+        const int fxSlot = pluginFxIndex(s->slot);
+        if (fxSlot >= 0 && s->slot.scene == triggerRouter_.scene())
+            fxBank_.setPlugin(fxSlot, core::audio::asPluginNode(s->object));
         return true;
     }
     if (const auto* t = std::get_if<TriggerNow>(&m))
@@ -685,6 +690,7 @@ void Engine::switchScene(int scene) noexcept
     state.quirkMask = fxScenes_.quirk;
     for (int sl = 0; sl < fx::kFxSlots; ++sl)
     {
+        fxBank_.setPlugin(sl, core::audio::asPluginNode(swaps_.get(pluginFxSwap(scene, sl))));
         auto& slot = state.slot[static_cast<std::size_t>(sl)];
         if (const float* v = fxScenes_.at(scene, sl, slot.type))
             for (int k = 0; k < 6; ++k)

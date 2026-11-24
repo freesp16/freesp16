@@ -10,6 +10,7 @@
 #include "ui/descriptors/ModuleSpec.h"
 #include "ui/descriptors/PopupSpec.h"
 #include "ui/descriptors/ScreenSpec.h"
+#include "ui/screens/effects/FxSlots.h"
 #include "ui/screens/home/TrackInfo.h"
 #include "ui/screens/plugin/PluginSlots.h"
 #include "ui/shell/Layout.h"
@@ -26,6 +27,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -52,77 +54,24 @@ constexpr RectF paramCardRect(int col) noexcept
     return {32.0f + static_cast<float>(col) * 204.0f, 252.0f, 192.0f, 336.0f};
 }
 
-// Lifetime-safe wrapper around ListPopup that owns backing label strings for ListItem::label string_views.
-class OwningListPopup final : public PopupWidget
+struct PluginListStorage
 {
-public:
-    struct Storage
-    {
-        std::vector<std::string> labels;
-        std::vector<plugin::PluginEntry> plugins;
-        std::vector<plugin::PluginPresetEntry> presets;
-    };
-
-    OwningListPopup(std::shared_ptr<Storage> storage, ListRequest req)
-        : PopupWidget(PopupSpec::Kind::List), storage_(std::move(storage)), inner_(std::move(req))
-    {
-    }
-
-    RectF bounds() const noexcept override { return inner_.bounds(); }
-    void build(DrawList& dl, const UiContext& ctx) const override
-    {
-        auto& in = const_cast<ListPopup&>(inner_);
-        in.dx = dx;
-        in.dy = dy;
-        in.state = state;
-        in.shell = shell;
-        in.build(dl, ctx);
-    }
-    bool handle(const io::ControlEvent& e, UiContext& ctx) override
-    {
-        inner_.dx = dx;
-        inner_.dy = dy;
-        inner_.state = state;
-        inner_.shell = shell;
-        const bool consumed = inner_.handle(e, ctx);
-        closed = inner_.closed;
-        return consumed;
-    }
-    bool text(std::string_view utf8) override
-    {
-        const bool r = inner_.text(utf8);
-        closed = inner_.closed;
-        return r;
-    }
-    bool textKey(TextKey k) override
-    {
-        const bool r = inner_.textKey(k);
-        closed = inner_.closed;
-        return r;
-    }
-    void cancel() override
-    {
-        inner_.cancel();
-        closed = inner_.closed;
-    }
-    bool dirty(double nowMs) const override { return inner_.dirty(nowMs); }
-
-private:
-    std::shared_ptr<Storage> storage_;
-    ListPopup inner_;
+    std::vector<std::string> labels;
+    std::vector<plugin::PluginEntry> plugins;
 };
 
-std::unique_ptr<PopupWidget> makeSelectPlugin(const PopupSpec&, ShellApi& shell)
+ListRequest pluginList(ShellApi& shell, int scene, int track, std::optional<fx::Slot> slot)
 {
     auto& access = plugin::environment().pluginAccess();
     access.rescan();
-    auto storage = std::make_shared<OwningListPopup::Storage>();
+    auto storage = std::make_shared<PluginListStorage>();
     storage->plugins = access.catalogue();
 
-    const int scene = shell.state().scene;
-    const int track = shell.state().selectedTrack;
-    const std::string currentId(access.loadedId(scene, track));
-    const std::string currentPath(access.loadedPath(scene, track));
+    std::erase_if(storage->plugins,
+                  [slot](const auto& e) { return slot ? ! e.effectCompatible : ! e.trackCompatible; });
+    const auto current =
+        slot ? access.effectPlugin(*slot, scene, track)
+             : plugin::EffectPluginView{access.loadedPath(scene, track), access.loadedId(scene, track), {}};
 
     storage->labels.reserve(storage->plugins.size() + 2);
     storage->labels.emplace_back("NONE");
@@ -130,12 +79,12 @@ std::unique_ptr<PopupWidget> makeSelectPlugin(const PopupSpec&, ShellApi& shell)
         storage->labels.emplace_back(entry.name.empty() ? entry.path : entry.name);
 
     ListRequest req;
-    req.title = "SELECT PLUGIN";
+    req.title = slot ? "SELECT EFFECT PLUGIN" : "SELECT PLUGIN";
     req.current = 0;
     req.items.push_back({storage->labels[0], {}, {}, -1, true});
     if (storage->plugins.empty())
     {
-        storage->labels.emplace_back("NO .CLAP PLUGINS IN Plugins/");
+        storage->labels.emplace_back(slot ? "NO COMPATIBLE EFFECTS IN Plugins/" : "NO .CLAP PLUGINS IN Plugins/");
         req.items.push_back({storage->labels.back(), {}, {}, -2, false});
     }
     else
@@ -144,16 +93,21 @@ std::unique_ptr<PopupWidget> makeSelectPlugin(const PopupSpec&, ShellApi& shell)
         {
             const auto& e = storage->plugins[i];
             req.items.push_back({storage->labels[i + 1], {}, {}, static_cast<int>(i), true});
-            if ((! currentId.empty() && e.id == currentId) || (! currentPath.empty() && e.path == currentPath))
+            if (e.id == current.id && (current.path.empty() || e.path == current.path))
                 req.current = static_cast<int>(i + 1);
         }
     }
 
-    req.onChoose = [storage, &shell, scene, track](int, const ListItem& item)
+    req.onChoose = [storage, &shell, scene, track, slot](int, const ListItem& item)
     {
         auto& acc = plugin::environment().pluginAccess();
         if (item.value < 0)
         {
+            if (slot)
+            {
+                fx::environment().slotAccess().selectEffect(*slot, scene, track, fx::kNone);
+                return;
+            }
             acc.clearPlugin(scene, track);
             if (track >= 1 && track <= 16)
             {
@@ -167,6 +121,16 @@ std::unique_ptr<PopupWidget> makeSelectPlugin(const PopupSpec&, ShellApi& shell)
         if (idx >= storage->plugins.size())
             return;
         const auto& chosen = storage->plugins[idx];
+        if (slot)
+        {
+            if (! acc.selectEffectPlugin(*slot, scene, track, chosen))
+            {
+                ToastRequest toast;
+                toast.text = "Could not load effect";
+                shell.showToast(std::move(toast));
+            }
+            return;
+        }
         if (acc.selectPlugin(scene, track, chosen.path, chosen.id) && track >= 1 && track <= 16)
         {
             auto& s = shell.state().tracks[static_cast<std::size_t>(track - 1)];
@@ -174,53 +138,116 @@ std::unique_ptr<PopupWidget> makeSelectPlugin(const PopupSpec&, ShellApi& shell)
             s.name = acc.loadedName(scene, track);
         }
     };
-    return std::make_unique<OwningListPopup>(storage, std::move(req));
+    return req; // onChoose keeps the item label storage alive
+}
+
+std::unique_ptr<PopupWidget> makeSelectPlugin(const PopupSpec&, ShellApi& shell)
+{
+    return std::make_unique<ListPopup>(pluginList(shell, shell.state().scene, shell.state().selectedTrack, {}));
+}
+
+struct PresetTarget
+{
+    int scene, track;
+    std::optional<fx::Slot> slot;
+    std::string pluginId;
+
+    std::string_view mountedId() const
+    {
+        auto& a = plugin::environment().pluginAccess();
+        if (! slot)
+            return a.loadedId(scene, track);
+        const auto fx = a.effectPlugin(*slot, scene, track);
+        return fx.loaded ? fx.id : std::string_view{};
+    }
+};
+
+void savePreset(ShellApi& shell, const PresetTarget& target, const std::string& name, bool replace)
+{
+    if (target.mountedId() != target.pluginId)
+    {
+        shell.showToast({.text = "Plugin selection changed", .onClick = {}});
+        return;
+    }
+    auto result =
+        plugin::environment().pluginAccess().savePreset(target.scene, target.track, target.slot, name, replace);
+    if (! result || result.value())
+    {
+        shell.showToast({.text = result ? "Saved " + name : result.error().message, .onClick = {}});
+        return;
+    }
+    MessageRequest confirm;
+    confirm.title = "REPLACE PRESET";
+    confirm.lines = {"Replace " + name + " on the data drive?"};
+    confirm.buttons = {{"CANCEL", ButtonStyle::Plain}, {"REPLACE", ButtonStyle::Primary}};
+    confirm.defaultButton = 0;
+    confirm.onResult = [&shell, target, name](int button)
+    {
+        if (button == 1)
+            savePreset(shell, target, name, true);
+    };
+    shell.showMessage(std::move(confirm));
+}
+
+ListRequest presetList(ShellApi& shell, int scene, int track, std::optional<fx::Slot> slot)
+{
+    auto& access = plugin::environment().pluginAccess();
+    PresetTarget target{scene, track, slot, {}};
+    target.pluginId = target.mountedId();
+    ListRequest req;
+    req.title = "PRESETS";
+    if (target.pluginId.empty())
+    {
+        req.items.push_back({"NO PLUGIN LOADED", {}, {}, -1, false});
+        return req;
+    }
+    auto entries = std::make_shared<std::vector<plugin::PluginPresetEntry>>(access.presets(scene, track, slot));
+    const auto current = access.currentPreset(scene, track, slot);
+    req.grouped = true;
+    req.items.push_back({"SAVE PRESET...", {}, {}, -1, true});
+    for (std::size_t i = 0; i < entries->size(); ++i)
+    {
+        const auto& entry = (*entries)[i];
+        req.items.push_back(
+            {entry.name.empty() ? entry.key : entry.name, entry.user ? "USER" : "FACTORY", {}, static_cast<int>(i)});
+        if (! entry.user && ! current.empty() && entry.key == current)
+            req.current = static_cast<int>(req.items.size()) - 1;
+    }
+    req.onChoose = [&shell, entries, target](int, const ListItem& item)
+    {
+        if (target.mountedId() != target.pluginId)
+        {
+            shell.showToast({.text = "Plugin selection changed", .onClick = {}});
+            return;
+        }
+        if (item.value < 0)
+        {
+            DialogRequest dialog;
+            dialog.title = "SAVE PLUGIN PRESET";
+            dialog.prompt = "Preset name";
+            dialog.hint = "Available in all projects on this drive";
+            dialog.buttons = {{"CANCEL", ButtonStyle::Plain}, {"SAVE", ButtonStyle::Primary}};
+            dialog.validate = [](std::string_view text)
+            { return plugin::environment().pluginAccess().presetNameError(std::string(text)); };
+            dialog.onResult = [&shell, target](int button, std::string_view text)
+            {
+                if (button == 1)
+                    savePreset(shell, target, std::string(text), false);
+            };
+            shell.showDialog(std::move(dialog));
+            return;
+        }
+        const auto& preset = entries->at(static_cast<std::size_t>(item.value));
+        const bool ok =
+            plugin::environment().pluginAccess().loadPreset(target.scene, target.track, preset, target.slot);
+        shell.showToast({.text = ok ? preset.name : "Could not load preset", .onClick = {}});
+    };
+    return req;
 }
 
 std::unique_ptr<PopupWidget> makePluginPresets(const PopupSpec&, ShellApi& shell)
 {
-    auto& access = plugin::environment().pluginAccess();
-    const int scene = shell.state().scene;
-    const int track = shell.state().selectedTrack;
-    auto storage = std::make_shared<OwningListPopup::Storage>();
-    storage->presets = access.presets(scene, track);
-    const std::string cur(access.currentPreset(scene, track));
-
-    ListRequest req;
-    req.title = "PRESETS";
-    req.current = -1;
-    if (storage->presets.empty())
-    {
-        storage->labels.emplace_back(access.hasLoaded(scene, track) ? "NO PRESETS" : "NO PLUGIN LOADED");
-        req.items.push_back({storage->labels.back(), {}, {}, -1, false});
-    }
-    else
-    {
-        storage->labels.reserve(storage->presets.size());
-        for (std::size_t i = 0; i < storage->presets.size(); ++i)
-        {
-            storage->labels.emplace_back(storage->presets[i].name.empty() ? storage->presets[i].key
-                                                                          : storage->presets[i].name);
-            req.items.push_back({storage->labels.back(), {}, {}, static_cast<int>(i), true});
-            if (! cur.empty() && (storage->presets[i].key == cur || storage->presets[i].name == cur))
-                req.current = static_cast<int>(i);
-        }
-    }
-    req.onChoose = [storage, scene, track, &shell](int, const ListItem& item)
-    {
-        if (item.value < 0)
-            return;
-        const auto idx = static_cast<std::size_t>(item.value);
-        if (idx < storage->presets.size())
-        {
-            const bool loaded =
-                plugin::environment().pluginAccess().loadPreset(scene, track, storage->presets[idx].key);
-            ToastRequest toast;
-            toast.text = loaded ? storage->labels[idx] : "Could not load preset";
-            shell.showToast(std::move(toast));
-        }
-    };
-    return std::make_unique<OwningListPopup>(storage, std::move(req));
+    return std::make_unique<ListPopup>(presetList(shell, shell.state().scene, shell.state().selectedTrack, {}));
 }
 
 class PluginPanel final : public Widget, public StripOwner
@@ -242,28 +269,7 @@ public:
             return;
         if (col == 0)
             syncBank();
-        const auto& k = bank_.columns[static_cast<std::size_t>(col)];
-        if (! k.active)
-        {
-            c.spec = nullptr;
-            return;
-        }
-        auto& sp = knobSpecs_[static_cast<std::size_t>(col)];
-        sp = {};
-        sp.id = kColumnIds[static_cast<std::size_t>(col)];
-        sp.label = k.label.view();
-        sp.shortLabel = k.label.view();
-        sp.type = core::ParamType::Continuous;
-        sp.minValue = 0.0f;
-        sp.maxValue = 1.0f;
-        sp.defaultValue = 0.5f;
-        sp.bipolar = k.bipolar;
-        c.spec = &sp;
-        c.value = std::clamp(k.norm, 0.0f, 1.0f);
-        c.valueText = k.valueText.view();
-        c.stepped = k.stepped;
-        c.disabled = false;
-        c.readOnly = false;
+        plugin::knobColumn(bank_, col, knobSpecs_[static_cast<std::size_t>(col)], c);
     }
 
     bool stripTurnUnbound(int col, int detents, bool fine) override
@@ -315,7 +321,8 @@ public:
                 {
                     dl.fill(kBody, theme::withOpacity(p.bg, 0.55f));
                     dl.fill({kBody.right() - 128, kBody.y + 16, 112, 32}, p.warn, tk::radiusS);
-                    dl.text(kBody.right() - 72, kBody.y + 32, Align::Centre, TextStyleId::Label, p.onAccent, "BYPASSED");
+                    dl.text(kBody.right() - 72, kBody.y + 32, Align::Centre, TextStyleId::Label, p.onAccent,
+                            "BYPASSED");
                 }
                 return;
             }
@@ -510,10 +517,6 @@ public:
     }
 
 private:
-    static constexpr std::array<std::string_view, 6> kColumnIds = {
-        "plugin.k1", "plugin.k2", "plugin.k3", "plugin.k4", "plugin.k5", "plugin.k6",
-    };
-
     void syncBank() const noexcept
     {
         if (state_ == nullptr)
@@ -521,8 +524,7 @@ private:
         auto& access = plugin::environment().pluginAccess();
         const int s = state_->scene, t = state_->selectedTrack;
         const std::uint32_t ch = access.changes();
-        if (! bankDirty_ && s == bankScene_ && t == bankTrack_ && ch == bankChanges_ &&
-            ! access.hasCustomScreen(s, t))
+        if (! bankDirty_ && s == bankScene_ && t == bankTrack_ && ch == bankChanges_ && ! access.hasCustomScreen(s, t))
             return;
         access.readKnobs(s, t, bank_);
         bankScene_ = s;
@@ -533,15 +535,15 @@ private:
 
     ShellApi* shell_;
     UiState* state_;
-    mutable plugin::PluginKnobBank bank_ {};
-    mutable std::array<core::ParamSpec, 6> knobSpecs_ {};
+    mutable plugin::PluginKnobBank bank_{};
+    mutable std::array<core::ParamSpec, 6> knobSpecs_{};
     mutable int bankScene_ = -1, bankTrack_ = -1;
     mutable std::uint32_t bankChanges_ = 0xFFFFFFFFu;
     mutable std::uint32_t lastChanges_ = 0xFFFFFFFFu;
     mutable bool bankDirty_ = true;
-    mutable FixedText<64> subtitle_ {};
-    mutable FixedText<16> pageText_ {};
-    mutable std::array<FixedText<4>, 6> knobNum_ {};
+    mutable FixedText<64> subtitle_{};
+    mutable FixedText<16> pageText_{};
+    mutable std::array<FixedText<4>, 6> knobNum_{};
     bool touchActive_ = false;
 };
 
@@ -552,6 +554,16 @@ std::unique_ptr<Widget> makePluginPanel(const ScreenSpec&, const WidgetArgs& a)
 
 constexpr ModuleSpec kPluginModule{"plugin", "PLUGIN", "PluginThumb", "plugin.strip", "track.plugin", 0b10000};
 } // namespace
+
+void plugin::showEffectPresets(ShellApi& shell, fx::Slot slot, int scene, int track)
+{
+    shell.showList(presetList(shell, scene, track, slot));
+}
+
+void plugin::showEffectPicker(ShellApi& shell, fx::Slot slot, int scene, int track)
+{
+    shell.showList(pluginList(shell, scene, track, slot));
+}
 } // namespace ui
 
 APP_REGISTER_WIDGET("PluginPanel", &ui::makePluginPanel)

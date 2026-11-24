@@ -3,7 +3,7 @@
 // the slot has held keeps its last settings so switching back restores them (FX-007, FMT-014).
 #pragma once
 
-#include "core/model/Extras.h"
+#include "core/model/PluginTrack.h"
 #include "core/model/enums/Enums.h"
 
 #include <array>
@@ -30,6 +30,7 @@ struct EffectSlot
     int type1 = 0, type2 = 0;
     std::array<double, 6> params {};
     std::vector<EffectSettings> typeMemory; // FX-007: last settings of every other type this slot has held
+    PluginTrack plugin{};
     Extras extras {};
     friend bool operator== (const EffectSlot&, const EffectSlot&) = default;
 };

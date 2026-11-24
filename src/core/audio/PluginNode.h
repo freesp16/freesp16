@@ -46,10 +46,13 @@ public:
     // Renders `ctx.frames` stereo samples into outL / outR (overwriting).
     // Returns false when silent / bypassed / idle (outL / outR left untouched).
     virtual bool process(const PluginProcessContext& ctx, float* outL, float* outR) noexcept = 0;
+    virtual void resetEffect() noexcept {}
+    virtual int effectLatency() const noexcept { return 0; }
+    virtual void processEffect(const PluginProcessContext&, float*, float*) noexcept {}
     virtual bool active() const noexcept = 0;
 
 private:
-    mutable std::atomic<int> refs_ {1};
+    mutable std::atomic<int> refs_{1};
 };
 
 // RetireQueue / SwapTable destroy callback (runs on the message thread).

@@ -1,21 +1,26 @@
 // Plugin tracks: TrackMode::Plugin model + undo + codec round-trip, DrawCmd::Op::Blit raster & damage,
 // Engine SwapSlot::TrackPlugin + TrackSource triggers/audio/retirement, and TRACK TYPE -> PLUGIN -> SELECT PLUGIN ->
 // track.plugin custom body screen + 6-knob StripOwner flow.
+#include "app/PluginAdapter.h"
 #include "core/audio/PluginNode.h"
 #include "core/commands/CommandBusAccess.h"
+#include "core/commands/fx/FxCommands.h"
 #include "core/commands/track/TrackCommands.h"
 #include "core/model/ModelOps.h"
 #include "core/model/Project.h"
 #include "core/model/enums/EnumStrings.h"
 #include "core/params/ParamRegistry.h"
 #include "engine/Engine.h"
+#include "services/plugin/ClapHost.h"
 #include "services/store/NativeCodec.h"
+#include "tests/unit/engine/EngineTestUtil.h"
 #include "tests/unit/store/StoreTestSupport.h"
 #include "tests/unit/trigger/TriggerRig.h"
 #include "ui/render/Damage.h"
 #include "ui/render/DrawList.h"
 #include "ui/render/GlyphAtlas.h"
 #include "ui/render/Renderer.h"
+#include "ui/screens/effects/ModelFxSlots.h"
 #include "ui/screens/plugin/PluginSlots.h"
 #include "ui/shell/Shell.h"
 
@@ -95,19 +100,19 @@ public:
     bool hasLoaded(int scene, int track) const noexcept override { return scene == 1 && track == 1 && loaded_; }
     std::string_view loadedName(int scene, int track) const noexcept override
     {
-        return hasLoaded(scene, track) ? std::string_view("Anvil") : std::string_view {};
+        return hasLoaded(scene, track) ? std::string_view("Anvil") : std::string_view{};
     }
     std::string_view loadedVendor(int scene, int track) const noexcept override
     {
-        return hasLoaded(scene, track) ? std::string_view("Test") : std::string_view {};
+        return hasLoaded(scene, track) ? std::string_view("Test") : std::string_view{};
     }
     std::string_view loadedId(int scene, int track) const noexcept override
     {
-        return hasLoaded(scene, track) ? std::string_view("com.test.anvil") : std::string_view {};
+        return hasLoaded(scene, track) ? std::string_view("com.test.anvil") : std::string_view{};
     }
     std::string_view loadedPath(int scene, int track) const noexcept override
     {
-        return hasLoaded(scene, track) ? std::string_view("Anvil.clap") : std::string_view {};
+        return hasLoaded(scene, track) ? std::string_view("Anvil.clap") : std::string_view{};
     }
     bool selectPlugin(int scene, int track, std::string_view, std::string_view id) override
     {
@@ -133,21 +138,42 @@ public:
         bypassed_ = on;
         ++changes_;
     }
-    std::vector<ui::plugin::PluginPresetEntry> presets(int, int) const override
+    std::vector<ui::plugin::PluginPresetEntry> presets(int, int, std::optional<ui::fx::Slot>) const override
     {
-        return loaded_ ? std::vector<ui::plugin::PluginPresetEntry>{{"fm-perc", "FM Perc"}, {"kick", "Kick"}}
-                       : std::vector<ui::plugin::PluginPresetEntry>{};
+        if (! loaded_)
+            return {};
+        std::vector<ui::plugin::PluginPresetEntry> entries;
+        if (! savedName.empty())
+            entries.push_back({savedName, savedName, true});
+        entries.push_back({"fm-perc", "FM Perc"});
+        entries.push_back({"kick", "Kick"});
+        return entries;
     }
-    std::string_view currentPreset(int, int) const noexcept override { return loaded_ ? preset_ : std::string_view {}; }
-    bool loadPreset(int, int, std::string_view key) override
+    std::string_view currentPreset(int, int, std::optional<ui::fx::Slot> = {}) const noexcept override
+    {
+        return loaded_ ? preset_ : std::string_view{};
+    }
+    bool loadPreset(int, int, const ui::plugin::PluginPresetEntry& preset, std::optional<ui::fx::Slot>) override
     {
         if (! loaded_)
             return false;
-        preset_ = std::string(key);
+        preset_ = preset.key;
         ++changes_;
         return true;
     }
-    bool readKnobs(int scene, int track, ui::plugin::PluginKnobBank& out) const noexcept override
+    std::string savedName;
+    int writes = 0;
+    core::Result<bool> savePreset(int, int, std::optional<ui::fx::Slot>, const std::string& name, bool replace) override
+    {
+        if (savedName == name && ! replace)
+            return false;
+        savedName = name;
+        ++writes;
+        return true;
+    }
+
+    bool readKnobs(int scene, int track, ui::plugin::PluginKnobBank& out,
+                   std::optional<ui::fx::Slot> = {}) const noexcept override
     {
         out = {};
         if (! hasLoaded(scene, track))
@@ -170,7 +196,8 @@ public:
         }
         return true;
     }
-    bool turnKnob(int scene, int track, int col0, int detents, bool fine) noexcept override
+    bool turnKnob(int scene, int track, int col0, int detents, bool fine,
+                  std::optional<ui::fx::Slot> = {}) noexcept override
     {
         if (! hasLoaded(scene, track) || col0 < 0 || col0 >= 6)
             return false;
@@ -184,14 +211,18 @@ public:
     int pageCount(int, int) const noexcept override { return 1; }
     int currentPage(int, int) const noexcept override { return 0; }
     void setPage(int, int, int) noexcept override {}
-    bool hasCustomScreen(int scene, int track) const noexcept override { return hasLoaded(scene, track); }
-    ui::plugin::PluginScreenFrame screenRender(int scene, int track, std::uint32_t) noexcept override
+    bool hasCustomScreen(int scene, int track, std::optional<ui::fx::Slot> = {}) const noexcept override
+    {
+        return hasLoaded(scene, track);
+    }
+    ui::plugin::PluginScreenFrame screenRender(int scene, int track, std::uint32_t,
+                                               std::optional<ui::fx::Slot> = {}) noexcept override
     {
         if (! hasLoaded(scene, track))
             return {};
         return {pixels_.data(), ui::plugin::kScreenWidth, ui::plugin::kScreenHeight, ui::plugin::kScreenWidth, serial_};
     }
-    bool screenTouch(int, int, int phase, int x, int y) noexcept override
+    bool screenTouch(int, int, int phase, int x, int y, std::optional<ui::fx::Slot> = {}) noexcept override
     {
         lastTouchPhase = phase;
         lastTouchX = x;
@@ -200,14 +231,14 @@ public:
         ++changes_;
         return true;
     }
-    bool screenSelectorTurn(int, int, int delta) noexcept override
+    bool screenSelectorTurn(int, int, int delta, std::optional<ui::fx::Slot> = {}) noexcept override
     {
         selectorDelta += delta;
         ++serial_;
         ++changes_;
         return true;
     }
-    bool screenSelectorPush(int, int) noexcept override
+    bool screenSelectorPush(int, int, std::optional<ui::fx::Slot> = {}) noexcept override
     {
         ++selectorPushes;
         return true;
@@ -220,8 +251,8 @@ public:
 private:
     std::vector<ui::plugin::PluginEntry> catalogue_;
     std::vector<std::uint32_t> pixels_;
-    std::array<float, 6> knobs_ {0.25f, 0.50f, 0.75f, 0.40f, 0.60f, 0.20f};
-    std::string preset_ {"fm-perc"};
+    std::array<float, 6> knobs_{0.25f, 0.50f, 0.75f, 0.40f, 0.60f, 0.20f};
+    std::string preset_{"fm-perc"};
     bool loaded_ = false;
     bool bypassed_ = false;
     std::uint32_t serial_ = 1;
@@ -298,25 +329,26 @@ TEST_CASE("plugin: DrawCmd::Op::Blit renders 1:1 in SoftRasterizer and tracks Fr
 TEST_CASE("plugin: Engine SwapSlot::TrackPlugin renders audio on triggers and retires cleanly", "[plugin][engine]")
 {
     const auto& params = core::builtinParams();
-    auto resolve = [&](std::string_view id) { return params.idOf(id).value_or(core::ParamId {}); };
-    engine::EngineSetup setup {};
+    auto resolve = [&](std::string_view id) { return params.idOf(id).value_or(core::ParamId{}); };
+    engine::EngineSetup setup{};
     setup.resolveParam = resolve;
     setup.testTone = false;
 
     auto eng = std::make_unique<engine::Engine>(setup);
     eng->prepare(44100.0, 256);
 
-    std::atomic<int> destroyed {0};
+    std::atomic<int> destroyed{0};
     auto* mock = new MockPluginNode(&destroyed);
     mock->retain(); // engine's reference
 
-    REQUIRE(eng->bridge().post(engine::ParamChange {*params.idOf("track.mode"), 0, 4.0f, 0})); // scene 0 track 0 = Plugin
-    REQUIRE(eng->bridge().post(engine::ObjectSwap {{engine::SwapSlot::TrackPlugin, 0, 0}, mock}));
-    REQUIRE(eng->bridge().post(engine::TriggerNow {0, 110, 64, 0}));
+    REQUIRE(
+        eng->bridge().post(engine::ParamChange{*params.idOf("track.mode"), 0, 4.0f, 0})); // scene 0 track 0 = Plugin
+    REQUIRE(eng->bridge().post(engine::ObjectSwap{{engine::SwapSlot::TrackPlugin, 0, 0}, mock}));
+    REQUIRE(eng->bridge().post(engine::TriggerNow{0, 110, 64, 0}));
 
-    std::array<float, 256> outL {}, outR {};
+    std::array<float, 256> outL{}, outR{};
     float* outs[2] = {outL.data(), outR.data()};
-    eng->process(engine::AudioIO {outs, 1, nullptr, 0, 256, 0});
+    eng->process(engine::AudioIO{outs, 1, nullptr, 0, 256, 0});
 
     CHECK(mock->noteOns == 1);
     CHECK(mock->lastNote == 64);
@@ -326,12 +358,79 @@ TEST_CASE("plugin: Engine SwapSlot::TrackPlugin renders audio on triggers and re
     CHECK(peakL > 0.05f);
 
     // Replace with nullptr and drain RetireQueue: engine drops its reference.
-    REQUIRE(eng->bridge().post(engine::ObjectSwap {{engine::SwapSlot::TrackPlugin, 0, 0}, nullptr}));
-    eng->process(engine::AudioIO {outs, 1, nullptr, 0, 256, 0});
+    REQUIRE(eng->bridge().post(engine::ObjectSwap{{engine::SwapSlot::TrackPlugin, 0, 0}, nullptr}));
+    eng->process(engine::AudioIO{outs, 1, nullptr, 0, 256, 0});
     eng->bridge().retirePending();
     CHECK(destroyed.load() == 0); // test still owns its initial ref
     mock->release();
     CHECK(destroyed.load() == 1);
+}
+
+TEST_CASE("CLAP effects process live track audio in both inserts and the master, including undo and bypass",
+          "[plugin][fx][engine]")
+{
+    auto setup = enginetest::fullSetup();
+    setup.testTone = false;
+    auto engine = std::make_unique<engine::Engine>(setup);
+    engine->prepare(44100, 256);
+    auto& bridge = engine->bridge();
+    services::plugin::ClapHostService host(bridge, CLAP_FIXTURE_DIR, 44100);
+    core::CommandBus bus;
+    core::commands::replaceProject(bus, core::model::newDefaultProject());
+    core::commands::setBridge(bus,
+                              [&](const auto& changes, const auto& p)
+                              {
+                                  host.syncChanges(changes, p);
+                                  ui::fx::forwardFxChanges(changes, p, bridge);
+                              });
+    const auto& params = core::builtinParams();
+    REQUIRE(bridge.post(engine::ObjectSwap{{engine::SwapSlot::TrackPlugin, 0, 0}, new MockPluginNode(nullptr)}));
+    REQUIRE(bridge.post(engine::ParamChange{*params.idOf("track.mode"), 0, 4.0f, 0}));
+    REQUIRE(bridge.post(engine::TriggerNow{0, 110, 64, 0}));
+    // Compare steady-state peaks after each slot's native activation/bypass ramps.
+    auto level = [&] { return enginetest::peak(enginetest::render(*engine, 4096).l, 3072); };
+    const float dry = level();
+    REQUIRE(dry > 0.05f);
+    core::model::PluginTrack spec{.path = "clap_effect_fixture.clap", .pluginId = "test.stereo", .name = "Stereo gain"};
+    app::PluginUiAdapter adapter(bus, host);
+    adapter.rescan();
+    const auto catalogue = adapter.catalogue();
+    const auto stereo =
+        std::find_if(catalogue.begin(), catalogue.end(), [](const auto& e) { return e.id == "test.stereo"; });
+    REQUIRE(stereo != catalogue.end());
+    const auto master = ui::fx::pathOf(ui::fx::Slot::Master, 1, 1);
+    float expected = dry;
+    for (auto s : {ui::fx::Slot::Fx1, ui::fx::Slot::Fx2, ui::fx::Slot::Master})
+    {
+        REQUIRE(adapter.selectEffectPlugin(s, 1, 1, *stereo));
+        CHECK(adapter.effectPlugin(s, 1, 1).loaded);
+        expected *= 0.25f;
+        CHECK(std::fabs(level() - expected) < 0.0001f);
+    }
+    auto missing = *stereo;
+    missing.path = "removed.clap";
+    CHECK_FALSE(adapter.selectEffectPlugin(ui::fx::Slot::Master, 1, 1, missing));
+    CHECK(adapter.effectPlugin(ui::fx::Slot::Master, 1, 1).path == stereo->path);
+    CHECK(std::fabs(level() - expected) < 0.0001f);
+    bus.execute(core::makeSetFxBypass(master, true));
+    CHECK(std::fabs(level() - dry / 16) < 0.0001f);
+    REQUIRE(bus.undo());
+    CHECK(std::fabs(level() - expected) < 0.0001f);
+
+    REQUIRE(bridge.post(engine::ParamChange{*params.idOf("track.sendAmount"), 0, 127, 0}));
+    const auto send = ui::fx::pathOf(ui::fx::Slot::Send, 1, 1);
+    bus.execute(std::make_unique<core::SelectFxType>(send, core::model::EffectType::Plugin, spec));
+    CHECK(level() > expected + 0.0001f);
+    REQUIRE(bus.undo());
+    CHECK(std::fabs(level() - expected) < 0.0001f);
+
+    spec.path = "removed.clap";
+    bus.execute(std::make_unique<core::SelectFxType>(send, core::model::EffectType::Plugin, spec));
+    for (float mix : {1.0f, 0.5f, 0.0f})
+    {
+        REQUIRE(bridge.post(engine::ParamChange{*params.idOf("send.plugin.mix"), 0, mix, 0}));
+        CHECK(std::fabs(level() - expected) < 0.0001f);
+    }
 }
 
 TEST_CASE("plugin: overlapping scale pads release their own notes", "[plugin][engine]")
@@ -367,13 +466,14 @@ TEST_CASE("plugin: overlapping scale pads release their own notes", "[plugin][en
     rig->src[0].setPlugin(nullptr);
 }
 
-TEST_CASE("plugin: TRACK TYPE -> PLUGIN (mode-only) -> SELECT PLUGIN -> track.plugin custom UI + 6 knobs", "[plugin][ui]")
+TEST_CASE("plugin: TRACK TYPE -> PLUGIN (mode-only) -> SELECT PLUGIN -> track.plugin custom UI + 6 knobs",
+          "[plugin][ui]")
 {
     MockCustomScreenAccess access;
     ui::plugin::ScopedPluginEnvironment scoped({&access});
 
-    ui::ShellConfig cfg {core::builtinParams(),
-                         [](ui::TextStyleId, std::string_view t) { return 8.0f * static_cast<float>(t.size()); }};
+    ui::ShellConfig cfg{core::builtinParams(),
+                        [](ui::TextStyleId, std::string_view t) { return 8.0f * static_cast<float>(t.size()); }};
     ui::Shell shell(std::move(cfg));
     ui::DrawList dl;
     dl.reserve(4096, 32768);
@@ -388,7 +488,7 @@ TEST_CASE("plugin: TRACK TYPE -> PLUGIN (mode-only) -> SELECT PLUGIN -> track.pl
     { shell.dispatch({k, c, static_cast<std::int16_t>(v), io::kSourceVirtual, now}); };
     auto touch = [&](float cx, float cy, std::int16_t phase = ui::touch::kDown)
     {
-        io::ControlEvent e {io::ControlEvent::Kind::Touch, io::Control::Screen, phase, io::kSourceVirtual, now};
+        io::ControlEvent e{io::ControlEvent::Kind::Touch, io::Control::Screen, phase, io::kSourceVirtual, now};
         e.x = static_cast<std::int16_t>(cx / ui::touch::kToCanvas + 0.5f);
         e.y = static_cast<std::int16_t>(cy / ui::touch::kToCanvas + 0.5f);
         shell.dispatch(e);
@@ -473,6 +573,39 @@ TEST_CASE("plugin: TRACK TYPE -> PLUGIN (mode-only) -> SELECT PLUGIN -> track.pl
     CHECK(access.selectorPushes == 0);
     CHECK(access.selectorDelta == 0);
     CHECK(access.lastTouchPhase == -1);
+
+    auto enterName = [&]
+    {
+        touch(1190, 88);
+        frame();
+        REQUIRE(visible("SAVE PRESET..."));
+        send(io::ControlEvent::Kind::Turn, io::Control::Selector, -8);
+        send(io::ControlEvent::Kind::Press, io::Control::SelectorPush);
+        frame();
+        REQUIRE(visible("SAVE PLUGIN PRESET"));
+        shell.typeText("Night Drive");
+        shell.textKey(ui::TextKey::Return);
+        frame();
+    };
+    enterName();
+    REQUIRE(access.savedName == "Night Drive");
+    REQUIRE(access.writes == 1);
+    enterName();
+    REQUIRE(visible("REPLACE PRESET"));
+    send(io::ControlEvent::Kind::Press, io::Control::Back);
+    frame();
+    REQUIRE(access.writes == 1);
+    enterName();
+    send(io::ControlEvent::Kind::Turn, io::Control::Selector, 1);
+    send(io::ControlEvent::Kind::Press, io::Control::SelectorPush);
+    frame();
+    REQUIRE(access.writes == 2);
+    touch(1190, 88);
+    frame();
+    REQUIRE(visible("USER"));
+    REQUIRE(visible("Night Drive"));
+    send(io::ControlEvent::Kind::Press, io::Control::Back);
+    frame();
 
     // Turn hardware knob 1 -> updates plugin param 0 via StripOwner::stripTurnUnbound.
     const float before = shell.column(0).value;

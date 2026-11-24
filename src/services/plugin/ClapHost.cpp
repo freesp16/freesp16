@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstring>
 #include <dlfcn.h>
+#include <limits>
 
 namespace services::plugin
 {
@@ -20,6 +21,8 @@ namespace
 // Idle threshold before putting a silent CLAP plugin to sleep (~5 s at 44.1 kHz / 64 frames).
 constexpr int kIdleSilenceBlocks = 3450;
 constexpr float kSilencePeak = 1e-6f;
+// Characters outside the base64 alphabet distinguish parameter-only patches from opaque CLAP state.
+constexpr std::string_view kParamsPrefix = "params-v1:";
 
 std::string resolveClapBinary(const juce::File& item)
 {
@@ -59,9 +62,9 @@ struct BlockEventList
         clap_event_note_t note;
         clap_event_param_value_t param;
     };
-    std::array<Storage, kMax> items {};
+    std::array<Storage, kMax> items{};
     std::uint32_t count = 0;
-    clap_input_events_t iface {};
+    clap_input_events_t iface{};
 
     BlockEventList() noexcept
     {
@@ -121,7 +124,7 @@ struct BlockEventList
 
 struct DiscardOutEvents
 {
-    clap_output_events_t iface {};
+    clap_output_events_t iface{};
     DiscardOutEvents() noexcept
     {
         iface.ctx = this;
@@ -139,26 +142,36 @@ void copyTrunc(char* dst, std::size_t dstSize, std::string_view src) noexcept
     dst[n] = '\0';
 }
 
-bool parseTrackPluginPath(std::string_view s, int& scene, int& track) noexcept
+bool hasFeature(const clap_plugin_descriptor_t& desc, const char* feature) noexcept
 {
-    auto num = [&s](std::string_view prefix, int& out)
-    {
-        if (s.substr(0, prefix.size()) != prefix)
-            return false;
-        s.remove_prefix(prefix.size());
-        const auto r = std::from_chars(s.data(), s.data() + s.size(), out);
-        if (r.ec != std::errc {} || r.ptr == s.data() || r.ptr == s.data() + s.size() || *r.ptr != ']')
-            return false;
-        s.remove_prefix(static_cast<std::size_t>(r.ptr - s.data()) + 1);
-        return true;
-    };
-    if (! num("scene[", scene) || ! num(".track[", track))
+    for (auto p = desc.features; p && *p; ++p)
+        if (std::strcmp(*p, feature) == 0)
+            return true;
+    return false;
+}
+
+template <class Project> auto& effectAt(Project& project, int scene, int slot)
+{
+    auto& sc = project.scenes[scene];
+    if (slot < 2 * engine::kTracks)
+        return sc.tracks[slot / 2].insertFx[slot % 2];
+    return slot == 2 * engine::kTracks ? sc.sendFx : sc.masterFx;
+}
+
+bool takeIndex(std::string_view& path, std::string_view prefix, int& index) noexcept
+{
+    if (! path.starts_with(prefix))
         return false;
-    return (s == ".plugin" || s == ".mode") && scene >= 0 && scene < 16 && track >= 0 && track < 16;
+    auto text = path.substr(prefix.size());
+    const auto r = std::from_chars(text.data(), text.data() + text.size(), index);
+    if (r.ec != std::errc{} || r.ptr == text.data() + text.size() || *r.ptr != ']' || index < 0 || index >= 16)
+        return false;
+    path = text.substr(static_cast<std::size_t>(r.ptr - text.data()) + 1);
+    return true;
 }
 } // namespace
 
-std::vector<CatalogueEntry> scanPluginDirectory(const std::string& pluginsDir)
+std::vector<CatalogueEntry> scanPluginDirectory(const std::string& pluginsDir, double sampleRate)
 {
     std::vector<CatalogueEntry> out;
     if (pluginsDir.empty())
@@ -169,7 +182,7 @@ std::vector<CatalogueEntry> scanPluginDirectory(const std::string& pluginsDir)
 
     // Collect *.clap files and *.clap bundle directories (avoid descending into macOS .clap bundles).
     std::vector<juce::File> candidates;
-    std::vector<juce::File> stack {root};
+    std::vector<juce::File> stack{root};
     while (! stack.empty())
     {
         const juce::File dir = stack.back();
@@ -192,8 +205,8 @@ std::vector<CatalogueEntry> scanPluginDirectory(const std::string& pluginsDir)
         if (handle == nullptr)
             continue;
         const auto* entry = static_cast<const clap_plugin_entry_t*>(dlsym(handle, "clap_entry"));
-        if (entry == nullptr || ! clap_version_is_compatible(entry->clap_version) || entry->init == nullptr ||
-            ! entry->init(bin.c_str()))
+        if (entry == nullptr || ! clap_version_is_compatible(entry->clap_version) || entry->get_factory == nullptr ||
+            entry->init == nullptr || ! entry->init(bin.c_str()))
         {
             dlclose(handle);
             continue;
@@ -214,6 +227,9 @@ std::vector<CatalogueEntry> scanPluginDirectory(const std::string& pluginsDir)
                 ce.vendor = desc->vendor != nullptr ? desc->vendor : "";
                 ce.path = rel;
                 ce.absPath = bin;
+                const bool fx = hasFeature(*desc, CLAP_PLUGIN_FEATURE_AUDIO_EFFECT);
+                ce.trackCompatible = ! fx || hasFeature(*desc, CLAP_PLUGIN_FEATURE_INSTRUMENT);
+                ce.effectCompatible = fx;
                 out.push_back(std::move(ce));
             }
         }
@@ -221,6 +237,17 @@ std::vector<CatalogueEntry> scanPluginDirectory(const std::string& pluginsDir)
             entry->deinit();
         dlclose(handle);
     }
+
+    // Probe after releasing the scan handle, using the same layout and activation checks as mounting.
+    for (auto& candidate : out)
+        if (candidate.effectCompatible)
+        {
+            std::string error;
+            auto* node = ClapAudioNode::create(candidate.absPath, candidate.id, sampleRate, error, true);
+            candidate.effectCompatible = node != nullptr;
+            if (node)
+                node->release();
+        }
 
     std::sort(out.begin(), out.end(), [](const CatalogueEntry& a, const CatalogueEntry& b)
               { return a.name != b.name ? a.name < b.name : a.id < b.id; });
@@ -264,7 +291,7 @@ void ClapAudioNode::hostRequestCallback(const clap_host* host) noexcept
 }
 
 ClapAudioNode* ClapAudioNode::create(const std::string& absPath, const std::string& pluginId, double sampleRate,
-                                     std::string& errorOut)
+                                     std::string& errorOut, bool effect, bool stateOnly, std::string_view initialParams)
 {
     const std::string bin = resolveClapBinary(juce::File(absPath));
     const std::string target = bin.empty() ? absPath : bin;
@@ -276,8 +303,8 @@ ClapAudioNode* ClapAudioNode::create(const std::string& absPath, const std::stri
         return nullptr;
     }
     const auto* entry = static_cast<const clap_plugin_entry_t*>(dlsym(handle, "clap_entry"));
-    if (entry == nullptr || ! clap_version_is_compatible(entry->clap_version) || entry->init == nullptr ||
-        ! entry->init(target.c_str()))
+    if (entry == nullptr || ! clap_version_is_compatible(entry->clap_version) || entry->get_factory == nullptr ||
+        entry->init == nullptr || ! entry->init(target.c_str()))
     {
         dlclose(handle);
         errorOut = "invalid or incompatible clap_entry";
@@ -325,7 +352,7 @@ ClapAudioNode* ClapAudioNode::create(const std::string& absPath, const std::stri
     node->vendor_ = chosenDesc->vendor != nullptr ? chosenDesc->vendor : "";
     node->sampleRate_ = sampleRate > 0.0 ? sampleRate : 44100.0;
 
-    node->hostStorage_ = new clap_host_t {};
+    node->hostStorage_ = new clap_host_t{};
     node->hostStorage_->clap_version = CLAP_VERSION_INIT;
     node->hostStorage_->host_data = node;
     node->hostStorage_->name = "Sixteen CLAP Host";
@@ -347,17 +374,56 @@ ClapAudioNode* ClapAudioNode::create(const std::string& absPath, const std::stri
 
     if (node->plugin_->get_extension != nullptr)
     {
-        node->paramsExt_ = static_cast<const clap_plugin_params_t*>(node->plugin_->get_extension(node->plugin_, CLAP_EXT_PARAMS));
-        node->stateExt_ = static_cast<const clap_plugin_state_t*>(node->plugin_->get_extension(node->plugin_, CLAP_EXT_STATE));
+        node->paramsExt_ =
+            static_cast<const clap_plugin_params_t*>(node->plugin_->get_extension(node->plugin_, CLAP_EXT_PARAMS));
+        node->stateExt_ =
+            static_cast<const clap_plugin_state_t*>(node->plugin_->get_extension(node->plugin_, CLAP_EXT_STATE));
         auto getPresetLoad = [&](const char* ext)
         { return static_cast<const clap_plugin_preset_load_t*>(node->plugin_->get_extension(node->plugin_, ext)); };
         node->presetLoad_ = getPresetLoad(CLAP_EXT_PRESET_LOAD);
         if (! node->presetLoad_)
             node->presetLoad_ = getPresetLoad(CLAP_EXT_PRESET_LOAD_COMPAT);
-        node->screenExt_ =
-            static_cast<const sixteen_plugin_screen_t*>(node->plugin_->get_extension(node->plugin_, SIXTEEN_EXT_SCREEN));
+        node->screenExt_ = static_cast<const sixteen_plugin_screen_t*>(
+            node->plugin_->get_extension(node->plugin_, SIXTEEN_EXT_SCREEN));
+        if (node->screenExt_ && ! node->screenExt_->render)
+            node->screenExt_ = nullptr;
     }
 
+    if (effect)
+    {
+        const auto* ports = node->plugin_->get_extension
+                                ? static_cast<const clap_plugin_audio_ports_t*>(
+                                      node->plugin_->get_extension(node->plugin_, CLAP_EXT_AUDIO_PORTS))
+                                : nullptr;
+        clap_audio_port_info_t input{}, output{};
+        if (! clap_version_is_compatible(chosenDesc->clap_version) ||
+            ! hasFeature(*chosenDesc, CLAP_PLUGIN_FEATURE_AUDIO_EFFECT) || ! ports || ! ports->count || ! ports->get ||
+            ports->count(node->plugin_, true) != 1 || ports->count(node->plugin_, false) != 1 ||
+            ! ports->get(node->plugin_, 0, true, &input) || ! ports->get(node->plugin_, 0, false, &output) ||
+            input.channel_count < 1 || input.channel_count > 2 || output.channel_count < 1 || output.channel_count > 2)
+        {
+            errorOut = "effect needs one mono or stereo input and output";
+            delete node;
+            return nullptr;
+        }
+        node->inputChannels_ = input.channel_count;
+        node->outputChannels_ = output.channel_count;
+    }
+    if (! initialParams.empty())
+    {
+        node->refreshParamMeta();
+        if (! node->loadStateBase64(initialParams))
+        {
+            errorOut = "Plugin rejected the saved parameters";
+            delete node;
+            return nullptr;
+        }
+    }
+    if (stateOnly)
+    {
+        node->refreshParamMeta();
+        return node;
+    }
     if (node->plugin_->activate != nullptr)
     {
         if (! node->plugin_->activate(node->plugin_, node->sampleRate_, engine::kBlockFrames, engine::kBlockFrames))
@@ -371,13 +437,19 @@ ClapAudioNode* ClapAudioNode::create(const std::string& absPath, const std::stri
     if (node->plugin_->start_processing != nullptr)
         node->processing_ = node->plugin_->start_processing(node->plugin_);
 
-    node->refreshParamMeta();
-    if (node->screenExt_ != nullptr)
+    if (effect && (! node->activated_ || ! node->processing_ || ! node->plugin_->process))
     {
-        node->screenBuf_.assign(static_cast<std::size_t>(SIXTEEN_SCREEN_WIDTH) * SIXTEEN_SCREEN_HEIGHT, 0xFF0B0E11u);
-        if (node->screenExt_->on_open != nullptr)
-            node->screenExt_->on_open(node->plugin_);
+        errorOut = "effect could not start processing";
+        delete node;
+        return nullptr;
     }
+    if (effect)
+        if (const auto* latency = static_cast<const clap_plugin_latency_t*>(
+                node->plugin_->get_extension(node->plugin_, CLAP_EXT_LATENCY));
+            latency && latency->get)
+            node->latencySamples_ =
+                static_cast<int>(std::min<std::uint32_t>(latency->get(node->plugin_), std::numeric_limits<int>::max()));
+    node->refreshParamMeta();
     return node;
 }
 
@@ -385,7 +457,7 @@ ClapAudioNode::~ClapAudioNode()
 {
     if (plugin_ != nullptr)
     {
-        if (screenExt_ != nullptr && screenExt_->on_close != nullptr)
+        if (screenOpen_ && screenExt_->on_close != nullptr)
             screenExt_->on_close(plugin_);
         if (processing_ && plugin_->stop_processing != nullptr)
             plugin_->stop_processing(plugin_);
@@ -418,7 +490,7 @@ void ClapAudioNode::refreshParamMeta()
     cachedValues_.reserve(n);
     for (std::uint32_t i = 0; i < n; ++i)
     {
-        clap_param_info_t info {};
+        clap_param_info_t info{};
         if (! paramsExt_->get_info(plugin_, i, &info))
             continue;
         ParamMeta m;
@@ -478,6 +550,37 @@ bool ClapAudioNode::active() const noexcept
 
 bool ClapAudioNode::process(const core::audio::PluginProcessContext& ctx, float* outL, float* outR) noexcept
 {
+    return processBlock(ctx, outL, outR, nullptr, nullptr);
+}
+
+void ClapAudioNode::resetEffect() noexcept
+{
+    if (plugin_->reset)
+        plugin_->reset(plugin_);
+}
+
+void ClapAudioNode::processEffect(const core::audio::PluginProcessContext& ctx, float* left, float* right) noexcept
+{
+    if (ctx.frames < 1 || ctx.frames > engine::kBlockFrames)
+        return;
+    float* input = left;
+    if (inputChannels_ == 1)
+    {
+        for (int i = 0; i < ctx.frames; ++i)
+            silenceL_[i] = (left[i] + right[i]) * 0.5f;
+        input = silenceL_.data();
+    }
+    float wetL[engine::kBlockFrames], wetR[engine::kBlockFrames];
+    if (processBlock(ctx, wetL, wetR, input, right))
+    {
+        std::copy_n(wetL, ctx.frames, left);
+        std::copy_n(outputChannels_ == 1 ? wetL : wetR, ctx.frames, right);
+    }
+}
+
+bool ClapAudioNode::processBlock(const core::audio::PluginProcessContext& ctx, float* outL, float* outR, float* inL,
+                                 float* inR) noexcept
+{
     if (plugin_ == nullptr || plugin_->process == nullptr || ctx.frames <= 0 || ctx.frames > engine::kBlockFrames)
     {
         noteEvCount_ = 0;
@@ -488,15 +591,13 @@ bool ClapAudioNode::process(const core::audio::PluginProcessContext& ctx, float*
     const bool hasParams = paramHead_.load(std::memory_order_acquire) != paramTail_.load(std::memory_order_relaxed);
     const bool woke = wakeAudio_.exchange(false, std::memory_order_acq_rel);
 
-    if (bypassed_.load(std::memory_order_acquire))
+    const bool bypass = bypassed_.load(std::memory_order_acquire);
+    if (bypass && ! hasParams)
     {
-        // Drain pending params so state stays in sync even while bypassed, but emit silence.
-        paramTail_.store(paramHead_.load(std::memory_order_acquire), std::memory_order_release);
         noteEvCount_ = 0;
         return false;
     }
-
-    if (sleeping_.load(std::memory_order_relaxed) && ! hasNotes && ! hasParams && ! woke && ! ctx.playing)
+    if (! inL && sleeping_.load(std::memory_order_relaxed) && ! hasNotes && ! hasParams && ! woke && ! ctx.playing)
         return false;
 
     sleeping_.store(false, std::memory_order_relaxed);
@@ -505,19 +606,28 @@ bool ClapAudioNode::process(const core::audio::PluginProcessContext& ctx, float*
     // Drain SPSC param queue at frame 0
     std::size_t tail = paramTail_.load(std::memory_order_relaxed);
     const std::size_t head = paramHead_.load(std::memory_order_acquire);
-    while (tail != head)
+    while (tail != head && inEvents.count < BlockEventList::kMax - static_cast<std::size_t>(noteEvCount_))
     {
         const auto& ev = paramQueue_[tail];
         inEvents.pushParam(0, ev.id, ev.value);
         tail = (tail + 1) & (kParamQueueSize - 1);
     }
-    paramTail_.store(tail, std::memory_order_release);
+    if (bypass)
+    {
+        DiscardOutEvents out;
+        if (paramsExt_ && paramsExt_->flush)
+            paramsExt_->flush(plugin_, &inEvents.iface, &out.iface);
+        paramTail_.store(tail, std::memory_order_release);
+        noteEvCount_ = 0;
+        return false;
+    }
 
     // Push per-block notes
     for (int i = 0; i < noteEvCount_; ++i)
     {
         const auto& ne = noteEvs_[static_cast<std::size_t>(i)];
-        const auto t = static_cast<std::uint32_t>(ne.frame < 0 ? 0 : (ne.frame >= ctx.frames ? ctx.frames - 1 : ne.frame));
+        const auto t =
+            static_cast<std::uint32_t>(ne.frame < 0 ? 0 : (ne.frame >= ctx.frames ? ctx.frames - 1 : ne.frame));
         if (ne.kind == 1)
             inEvents.pushNote(CLAP_EVENT_NOTE_ON, t, ne.note, static_cast<double>(ne.velocity));
         else if (ne.kind == 2)
@@ -530,21 +640,21 @@ bool ClapAudioNode::process(const core::audio::PluginProcessContext& ctx, float*
     std::memset(outL, 0, sizeof(float) * static_cast<std::size_t>(ctx.frames));
     std::memset(outR, 0, sizeof(float) * static_cast<std::size_t>(ctx.frames));
 
-    float* inPtrs[2] = {silenceL_.data(), silenceR_.data()};
+    float* inPtrs[2] = {inL ? inL : silenceL_.data(), inR ? inR : silenceR_.data()};
     float* outPtrs[2] = {outL, outR};
-    clap_audio_buffer_t inBuf {};
+    clap_audio_buffer_t inBuf{};
     inBuf.data32 = inPtrs;
-    inBuf.channel_count = 2;
+    inBuf.channel_count = inputChannels_;
     inBuf.latency = 0;
-    inBuf.constant_mask = 0x3;
+    inBuf.constant_mask = inL ? 0 : 0x3;
 
-    clap_audio_buffer_t outBuf {};
+    clap_audio_buffer_t outBuf{};
     outBuf.data32 = outPtrs;
-    outBuf.channel_count = 2;
+    outBuf.channel_count = outputChannels_;
     outBuf.latency = 0;
     outBuf.constant_mask = 0;
 
-    clap_event_transport_t transport {};
+    clap_event_transport_t transport{};
     transport.header.size = sizeof(clap_event_transport_t);
     transport.header.time = 0;
     transport.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
@@ -552,14 +662,15 @@ bool ClapAudioNode::process(const core::audio::PluginProcessContext& ctx, float*
     transport.flags = static_cast<std::uint32_t>(CLAP_TRANSPORT_HAS_TEMPO | CLAP_TRANSPORT_HAS_BEATS_TIMELINE) |
                       (ctx.playing ? static_cast<std::uint32_t>(CLAP_TRANSPORT_IS_PLAYING) : 0u);
     transport.tempo = ctx.bpm > 0.0 ? ctx.bpm : 120.0;
-    transport.song_pos_beats = static_cast<clap_beattime>(std::llround(ctx.ppqStart * static_cast<double>(CLAP_BEATTIME_FACTOR)));
+    transport.song_pos_beats =
+        static_cast<clap_beattime>(std::llround(ctx.ppqStart * static_cast<double>(CLAP_BEATTIME_FACTOR)));
     transport.bar_number = static_cast<std::int32_t>(std::floor(ctx.ppqStart * 0.25));
     transport.bar_start = static_cast<clap_beattime>(transport.bar_number * 4LL * CLAP_BEATTIME_FACTOR);
     transport.tsig_num = 4;
     transport.tsig_denom = 4;
 
     DiscardOutEvents outEvents;
-    clap_process_t proc {};
+    clap_process_t proc{};
     proc.steady_time = -1;
     proc.frames_count = static_cast<std::uint32_t>(ctx.frames);
     proc.transport = &transport;
@@ -571,6 +682,10 @@ bool ClapAudioNode::process(const core::audio::PluginProcessContext& ctx, float*
     proc.out_events = &outEvents.iface;
 
     const clap_process_status st = plugin_->process(plugin_, &proc);
+    paramTail_.store(tail, std::memory_order_release);
+
+    if (inL)
+        return st != CLAP_PROCESS_ERROR;
 
     float peak = 0.0f;
     for (int i = 0; i < ctx.frames; ++i)
@@ -660,8 +775,17 @@ bool ClapAudioNode::setParamValue(std::uint32_t id, double value) noexcept
     double clamped = std::clamp(value, meta->minValue, meta->maxValue);
     if (meta->stepped)
         clamped = std::round(clamped);
+    if (! parameterEditPending())
+        uiParamEdits_.clear();
+    if (! pushParamChange(id, clamped))
+        return false;
     cachedValues_[index] = clamped;
-    return pushParamChange(id, clamped);
+    auto edit = std::find_if(uiParamEdits_.begin(), uiParamEdits_.end(), [id](const auto& e) { return e.id == id; });
+    if (edit == uiParamEdits_.end())
+        uiParamEdits_.push_back({id, clamped, clamped});
+    else
+        edit->target = clamped;
+    return true;
 }
 
 int ClapAudioNode::pageCount() const noexcept
@@ -679,15 +803,16 @@ bool ClapAudioNode::readKnobs(std::array<KnobReadout, 6>& out, char outTab[SIXTE
     out = {};
     copyTrunc(outTab, SIXTEEN_TAB_NAME_SIZE, name_.empty() ? std::string_view("PLUGIN") : std::string_view(name_));
 
-    std::array<std::uint32_t, 6> ids {
+    std::array<std::uint32_t, 6> ids{
         SIXTEEN_INVALID_PARAM_ID, SIXTEEN_INVALID_PARAM_ID, SIXTEEN_INVALID_PARAM_ID,
         SIXTEEN_INVALID_PARAM_ID, SIXTEEN_INVALID_PARAM_ID, SIXTEEN_INVALID_PARAM_ID,
     };
 
     bool customKnobs = false;
+    openScreen();
     if (screenExt_ != nullptr && screenExt_->knobs != nullptr)
     {
-        char tabBuf[SIXTEEN_TAB_NAME_SIZE] {};
+        char tabBuf[SIXTEEN_TAB_NAME_SIZE]{};
         if (screenExt_->knobs(plugin_, ids.data(), tabBuf))
         {
             customKnobs = true;
@@ -727,18 +852,22 @@ bool ClapAudioNode::readKnobs(std::array<KnobReadout, 6>& out, char outTab[SIXTE
     return any;
 }
 
-bool ClapAudioNode::turnKnob(int col0, int detents, bool fine) noexcept
+bool ClapAudioNode::turnKnob(int col0, int detents, bool fine, ClapAudioNode* stateEditor) noexcept
 {
     if (col0 < 0 || col0 >= 6 || detents == 0)
         return false;
-    std::array<KnobReadout, 6> bank {};
-    char tab[SIXTEEN_TAB_NAME_SIZE] {};
+    std::array<KnobReadout, 6> bank{};
+    char tab[SIXTEEN_TAB_NAME_SIZE]{};
     if (! readKnobs(bank, tab) || ! bank[static_cast<std::size_t>(col0)].active)
         return false;
     const ParamMeta* meta = paramById(bank[static_cast<std::size_t>(col0)].paramId);
     if (meta == nullptr || meta->readOnly)
         return false;
-    const double cur = paramValue(meta->id);
+    double cur = stateEditor ? stateEditor->paramValue(meta->id) : paramValue(meta->id);
+    if (! stateEditor && parameterEditPending())
+        for (const auto& edit : uiParamEdits_)
+            if (edit.id == meta->id)
+                cur = edit.target;
     double next = cur;
     if (meta->stepped)
         next = std::round(cur) + static_cast<double>(detents);
@@ -748,15 +877,79 @@ bool ClapAudioNode::turnKnob(int col0, int detents, bool fine) noexcept
         const double step = span * (fine ? 0.005 : 0.025);
         next = cur + static_cast<double>(detents) * step;
     }
-    return setParamValue(meta->id, next);
+    next = std::clamp(next, meta->minValue, meta->maxValue);
+    if (next == cur || ! setParamValue(meta->id, next))
+        return false;
+    // The project needs the intended state even if Save or Undo precedes the next audio block.
+    // CLAP permits flush on the main thread for this inactive, private copy only.
+    if (stateEditor)
+        stateEditor->flushInactiveParam(meta->id, next);
+    return true;
+}
+
+void ClapAudioNode::flushInactiveParam(std::uint32_t id, double value)
+{
+    if (activated_ || ! paramsExt_ || ! paramsExt_->flush)
+        return;
+    BlockEventList event;
+    DiscardOutEvents out;
+    event.pushParam(0, id, value);
+    paramsExt_->flush(plugin_, &event.iface, &out.iface);
+}
+
+void ClapAudioNode::beforeScreenInput()
+{
+    if (! parameterEditPending())
+        uiParamEdits_.clear();
+    for (auto& edit : uiParamEdits_)
+        edit.beforeInput = paramValue(edit.id);
+}
+
+void ClapAudioNode::afterScreenInput()
+{
+    for (auto& edit : uiParamEdits_)
+    {
+        const auto value = paramValue(edit.id);
+        if (value != edit.beforeInput && value != edit.target)
+        {
+            // A touch on the same parameter supersedes its queued encoder turn.
+            // Queue the newer value without changing the list being iterated.
+            if (pushParamChange(edit.id, value))
+                edit.target = value;
+        }
+    }
+}
+
+std::string ClapAudioNode::editorState(ClapAudioNode* stateEditor) const
+{
+    // Test the queue before taking the snapshot: an edit completing between those reads
+    // is already present, and applying its absolute value again has the same result.
+    if (uiParamEdits_.empty() || ! parameterEditPending())
+        return saveStateBase64();
+    std::unique_ptr<ClapAudioNode> mirror;
+    if (! stateEditor)
+    {
+        std::string error;
+        mirror.reset(create(absPath_, id_, sampleRate_, error, false, true));
+        stateEditor = mirror.get();
+    }
+    if (! stateEditor)
+        return {};
+    auto state = saveStateBase64();
+    if (! stateEditor->loadStateBase64(state))
+        return {};
+    for (const auto& edit : uiParamEdits_)
+        if (stateEditor->paramValue(edit.id) != edit.target)
+            stateEditor->flushInactiveParam(edit.id, edit.target);
+    return stateEditor->saveStateBase64();
 }
 
 bool ClapAudioNode::pushKnob(int col0) noexcept
 {
     if (col0 < 0 || col0 >= 6)
         return false;
-    std::array<KnobReadout, 6> bank {};
-    char tab[SIXTEEN_TAB_NAME_SIZE] {};
+    std::array<KnobReadout, 6> bank{};
+    char tab[SIXTEEN_TAB_NAME_SIZE]{};
     if (! readKnobs(bank, tab) || ! bank[static_cast<std::size_t>(col0)].active)
         return false;
     const ParamMeta* meta = paramById(bank[static_cast<std::size_t>(col0)].paramId);
@@ -765,12 +958,31 @@ bool ClapAudioNode::pushKnob(int col0) noexcept
     return setParamValue(meta->id, meta->defaultValue);
 }
 
+void ClapAudioNode::openScreen() const noexcept
+{
+    if (screenExt_ && ! screenOpen_)
+    {
+        screenOpen_ = true;
+        if (screenExt_->on_open)
+            screenExt_->on_open(plugin_);
+    }
+}
+
 ScreenBitmap ClapAudioNode::renderScreen(std::uint32_t nowMs) noexcept
 {
-    if (screenExt_ == nullptr || screenExt_->render == nullptr || screenBuf_.empty())
+    if (! screenExt_)
         return {};
-    sixteen_screen_surface_t surf {};
-    surf.pixels = screenBuf_.data();
+    openScreen();
+    if (! screenBuf_)
+    {
+        constexpr auto count = SIXTEEN_SCREEN_WIDTH * SIXTEEN_SCREEN_HEIGHT;
+        screenBuf_.reset(new (std::nothrow) std::uint32_t[count]);
+        if (! screenBuf_)
+            return {};
+        std::fill_n(screenBuf_.get(), count, 0xff0b0e11u);
+    }
+    sixteen_screen_surface_t surf{};
+    surf.pixels = screenBuf_.get();
     surf.width = SIXTEEN_SCREEN_WIDTH;
     surf.height = SIXTEEN_SCREEN_HEIGHT;
     surf.stride = SIXTEEN_SCREEN_WIDTH;
@@ -781,7 +993,7 @@ ScreenBitmap ClapAudioNode::renderScreen(std::uint32_t nowMs) noexcept
         screenInitialized_ = true;
         ++screenSerial_;
     }
-    return {screenBuf_.data(), SIXTEEN_SCREEN_WIDTH, SIXTEEN_SCREEN_HEIGHT, SIXTEEN_SCREEN_WIDTH, screenSerial_};
+    return {screenBuf_.get(), SIXTEEN_SCREEN_WIDTH, SIXTEEN_SCREEN_HEIGHT, SIXTEEN_SCREEN_WIDTH, screenSerial_};
 }
 
 bool ClapAudioNode::touchScreen(int phase, int x, int y) noexcept
@@ -807,10 +1019,20 @@ bool ClapAudioNode::selectorPush() noexcept
 
 std::string ClapAudioNode::saveStateBase64() const
 {
-    if (stateExt_ == nullptr || stateExt_->save == nullptr || plugin_ == nullptr)
-        return {};
+    if (! stateExt_ || ! stateExt_->save || ! stateExt_->load)
+    {
+        juce::Array<juce::var> values;
+        if (paramsExt_ && paramsExt_->flush)
+            for (const auto& param : paramsMeta_)
+                if (! param.readOnly)
+                    values.add(juce::var(
+                        juce::Array<juce::var>{juce::var(static_cast<juce::int64>(param.id)), paramValue(param.id)}));
+        return values.isEmpty()
+                   ? std::string{}
+                   : std::string(kParamsPrefix) + juce::JSON::toString(juce::var(values), true, 17).toStdString();
+    }
     juce::MemoryBlock bytes;
-    clap_ostream_t stream {};
+    clap_ostream_t stream{};
     stream.ctx = &bytes;
     stream.write = [](const clap_ostream_t* s, const void* buf, std::uint64_t size) -> std::int64_t
     {
@@ -826,6 +1048,35 @@ std::string ClapAudioNode::saveStateBase64() const
 
 bool ClapAudioNode::loadStateBase64(std::string_view b64)
 {
+    if (b64.starts_with(kParamsPrefix))
+    {
+        if (activated_ || ! paramsExt_ || ! paramsExt_->flush)
+            return false;
+        b64.remove_prefix(kParamsPrefix.size());
+        auto data = juce::JSON::parse(juce::String::fromUTF8(b64.data(), static_cast<int>(b64.size())));
+        const auto* values = data.getArray();
+        if (! values)
+            return false;
+        std::vector<ParamEv> edits;
+        for (const auto& entry : *values)
+        {
+            const auto* pair = entry.getArray();
+            if (! pair || pair->size() != 2)
+                return false;
+            const auto& id = (*pair)[0];
+            const auto& v = (*pair)[1];
+            const auto number = static_cast<juce::int64>(id);
+            if ((! id.isInt() && ! id.isInt64()) || number < 0 || number > UINT32_MAX ||
+                (! v.isDouble() && ! v.isInt() && ! v.isInt64()) || ! std::isfinite(static_cast<double>(v)))
+                return false;
+            const auto* param = paramById(static_cast<std::uint32_t>(number));
+            if (param && ! param->readOnly)
+                edits.push_back({param->id, std::clamp(static_cast<double>(v), param->minValue, param->maxValue)});
+        }
+        for (const auto& edit : edits)
+            flushInactiveParam(edit.id, edit.value);
+        return ! edits.empty();
+    }
     if (b64.empty() || stateExt_ == nullptr || stateExt_->load == nullptr || plugin_ == nullptr)
         return false;
     juce::MemoryOutputStream decoded;
@@ -836,8 +1087,8 @@ bool ClapAudioNode::loadStateBase64(std::string_view b64)
         const std::uint8_t* data;
         std::size_t size;
         std::size_t pos;
-    } ctx {static_cast<const std::uint8_t*>(decoded.getData()), decoded.getDataSize(), 0};
-    clap_istream_t stream {};
+    } ctx{static_cast<const std::uint8_t*>(decoded.getData()), decoded.getDataSize(), 0};
+    clap_istream_t stream{};
     stream.ctx = &ctx;
     stream.read = [](const clap_istream_t* s, void* buf, std::uint64_t size) -> std::int64_t
     {
@@ -864,8 +1115,8 @@ void ClapAudioNode::pollMainThread() noexcept
         return;
     if (callbackRequested_.exchange(false, std::memory_order_acq_rel) && plugin_->on_main_thread != nullptr)
         plugin_->on_main_thread(plugin_);
-    if (flushRequested_.exchange(false, std::memory_order_acq_rel) && paramsExt_ != nullptr && paramsExt_->flush != nullptr &&
-        sleeping_.load(std::memory_order_relaxed))
+    if (flushRequested_.exchange(false, std::memory_order_acq_rel) && paramsExt_ != nullptr &&
+        paramsExt_->flush != nullptr && sleeping_.load(std::memory_order_relaxed))
     {
         BlockEventList emptyIn;
         DiscardOutEvents emptyOut;
@@ -884,11 +1135,18 @@ ClapHostService::ClapHostService(engine::EngineBridge& bridge, std::string plugi
 ClapHostService::~ClapHostService()
 {
     unmountAll();
+    // A full bridge may still own the engine reference; release our independent reference.
+    for (auto& slot : slots_)
+        if (slot.node)
+            slot.node->release();
+    for (auto& slot : effects_)
+        if (slot.node)
+            slot.node->release();
 }
 
 void ClapHostService::rescan()
 {
-    catalogue_ = scanPluginDirectory(pluginsDir_);
+    catalogue_ = scanPluginDirectory(pluginsDir_, sampleRate_);
     ++changes_;
     if (log_)
         log_("PLUGIN scan dir=" + pluginsDir_ + " found=" + std::to_string(catalogue_.size()));
@@ -911,18 +1169,59 @@ std::string ClapHostService::resolvePath(const std::string& path) const
 
 bool ClapHostService::mount(int scene0, int track0, const core::model::PluginTrack& spec)
 {
-    auto& slot = slots_[idx(scene0, track0)];
+    return mountSlot(
+        slots_[idx(scene0, track0)],
+        {engine::SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene0 & 15), static_cast<std::uint8_t>(track0 & 15)},
+        spec);
+}
+
+ClapAudioNode* ClapHostService::mountedEffect(int scene0, int slot) const noexcept
+{
+    if (scene0 < 0 || scene0 >= 16 || slot < 0 || slot >= engine::kPluginFxSlots)
+        return nullptr;
+    const auto& current = effects_[scene0 * engine::kPluginFxSlots + slot];
+    return current.pending || current.pendingClear ? nullptr : current.node;
+}
+
+void ClapHostService::acknowledgeEffectEdit(int scene0, int slot, const std::string& state)
+{
+    if (mountedEffect(scene0, slot))
+        effects_[scene0 * engine::kPluginFxSlots + slot].spec.stateBase64 = state;
+}
+
+bool ClapHostService::mountEffect(int scene0, int slot, const core::model::PluginTrack& spec)
+{
+    if (scene0 < 0 || scene0 >= 16 || slot < 0 || slot >= engine::kPluginFxSlots)
+        return false;
+    return mountSlot(effects_[scene0 * engine::kPluginFxSlots + slot], engine::pluginFxSwap(scene0, slot), spec);
+}
+
+bool ClapHostService::mountSlot(Slot& slot, engine::SwapSlot swapSlot, const core::model::PluginTrack& spec,
+                                bool recall, bool fresh, bool strictPreset)
+{
+    if (recall && ! fresh && slot.pending && slot.pending->spec == spec)
+        return true;
+    if (recall)
+        slot.pending.reset();
     if (spec.path.empty() && spec.pluginId.empty())
     {
-        unmount(scene0, track0);
-        return true;
+        clearSlot(slot, swapSlot);
+        return ! slot.pendingClear;
     }
 
     // Undo to the initial sound of a stateless plugin needs a fresh instance.
-    const bool needsInitialSound = spec.stateBase64.empty() && spec.presetKey.empty() && ! slot.spec.presetKey.empty();
-    if (slot.node != nullptr && slot.spec.path == spec.path && slot.spec.pluginId == spec.pluginId &&
+    const bool needsInitialSound = spec.stateBase64.empty() && spec.presetKey.empty() &&
+                                   (! slot.spec.stateBase64.empty() || ! slot.spec.presetKey.empty());
+    if (slot.node && slot.node->parameterEditPending() && slot.spec.stateBase64 != spec.stateBase64)
+        fresh = true; // an older queued edit must never land after Undo
+    const bool parameterPatch = spec.stateBase64.starts_with(kParamsPrefix);
+    if (parameterPatch && spec.stateBase64 != slot.spec.stateBase64)
+        fresh = true;
+    if (! fresh && slot.node != nullptr && slot.spec.path == spec.path && slot.spec.pluginId == spec.pluginId &&
         ! needsInitialSound)
     {
+        slot.pending.reset();
+        slot.pendingClear = false;
         slot.node->setBypassed(spec.bypass);
         if (! spec.stateBase64.empty() &&
             (spec.stateBase64 != slot.spec.stateBase64 || spec.presetKey != slot.spec.presetKey))
@@ -946,65 +1245,105 @@ bool ClapHostService::mount(int scene0, int track0, const core::model::PluginTra
             }
     }
     std::string err;
-    ClapAudioNode* node = ClapAudioNode::create(absPath, spec.pluginId, sampleRate_, err);
+    ClapAudioNode* node =
+        ClapAudioNode::create(absPath, spec.pluginId, sampleRate_, err, swapSlot.kind != engine::SwapSlot::TrackPlugin,
+                              false, parameterPatch ? std::string_view(spec.stateBase64) : std::string_view{});
+    auto location = [swapSlot]
+    {
+        const int fx = engine::pluginFxIndex(swapSlot);
+        return " s=" + std::to_string(swapSlot.scene + 1) +
+               (fx < 0 ? " t=" + std::to_string(swapSlot.index + 1) : " fxSlot=" + std::to_string(fx));
+    };
     if (node == nullptr)
     {
         if (log_)
-            log_("PLUGIN mount failed s=" + std::to_string(scene0 + 1) + " t=" + std::to_string(track0 + 1) +
-                 " path=" + absPath + " err=" + err);
+            log_("PLUGIN mount failed" + location() + " path=" + absPath + " err=" + err);
         return false;
     }
-    const bool restoredState = ! spec.stateBase64.empty() && node->loadStateBase64(spec.stateBase64);
+    const bool restoredState =
+        parameterPatch || (! spec.stateBase64.empty() && node->loadStateBase64(spec.stateBase64));
     const bool missingPreset = ! restoredState && ! spec.presetKey.empty() && ! node->loadBundledPreset(spec.presetKey);
     if (missingPreset && log_)
         log_("PLUGIN preset unavailable id=" + node->id() + " key=" + spec.presetKey);
     node->setBypassed(spec.bypass);
 
-    // Retain one reference for the engine's SwapTable; post swap.
-    node->retain();
-    const engine::SwapSlot swapSlot {engine::SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene0 & 15),
-                                     static_cast<std::uint8_t>(track0 & 15)};
-    if (! bridge_.post(engine::ObjectSwap {swapSlot, node}))
-    {
-        node->release(); // engine did not take ownership
-        node->release(); // drop our ref too
+    PendingMount prepared{std::unique_ptr<ClapAudioNode>(node), spec};
+    if (strictPreset && (missingPreset || (! spec.stateBase64.empty() && ! restoredState)))
         return false;
-    }
-
-    if (slot.node != nullptr)
-        slot.node->release();
-    slot.node = node;
-    slot.spec = spec;
+    if (strictPreset && spec.stateBase64.empty())
+        prepared.spec.stateBase64 = node->saveStateBase64();
     if (missingPreset)
-        slot.spec.presetKey.clear();
-    if (slot.spec.name.empty())
-        slot.spec.name = node->name();
-    ++changes_;
-    if (log_)
-        log_("PLUGIN mounted s=" + std::to_string(scene0 + 1) + " t=" + std::to_string(track0 + 1) +
-             " id=" + node->id() + " screen=" + (node->hasCustomScreen() ? "custom" : "generic"));
+        prepared.spec.presetKey.clear();
+    if (prepared.spec.name.empty())
+        prepared.spec.name = node->name();
+    if (postMount(slot, swapSlot, prepared))
+    {
+        slot.pending.reset();
+        return true;
+    }
+    if (! recall)
+        return false;
+    slot.pending = std::make_unique<PendingMount>(std::move(prepared));
+    slot.pendingClear = false;
     return true;
 }
 
-bool ClapHostService::loadPreset(int scene0, int track0, const std::string& key)
+bool ClapHostService::postMount(Slot& slot, engine::SwapSlot swapSlot, PendingMount& prepared)
 {
-    auto& slot = slots_[idx(scene0, track0)];
-    if (! slot.node || ! slot.node->loadBundledPreset(key))
+    auto* node = prepared.node.get();
+    node->retain(); // the swap table owns this reference once post succeeds
+    if (! bridge_.post(engine::ObjectSwap{swapSlot, node}))
+    {
+        node->release();
         return false;
-    slot.spec.presetKey = key;
-    slot.spec.stateBase64 = slot.node->saveStateBase64();
+    }
+    if (slot.node)
+        slot.node->release();
+    slot.node = prepared.node.release();
+    slot.spec = std::move(prepared.spec);
+    slot.pendingClear = false;
     ++changes_;
+    if (log_)
+    {
+        const int fx = engine::pluginFxIndex(swapSlot);
+        log_("PLUGIN mounted s=" + std::to_string(swapSlot.scene + 1) +
+             (fx < 0 ? " t=" + std::to_string(swapSlot.index + 1) : " fxSlot=" + std::to_string(fx)) +
+             " id=" + node->id() + " screen=" + (node->hasCustomScreen() ? "custom" : "generic"));
+    }
     return true;
+}
+
+bool ClapHostService::recallPreset(int scene0, int track0, std::optional<int> effectSlot,
+                                   const core::model::PluginTrack& spec)
+{
+    if (scene0 < 0 || scene0 >= 16 || track0 < 0 || track0 >= 16 ||
+        (effectSlot && (*effectSlot < 0 || *effectSlot >= engine::kPluginFxSlots)))
+        return false;
+    const auto swap = effectSlot ? engine::pluginFxSwap(scene0, *effectSlot)
+                                 : engine::SwapSlot{engine::SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene0),
+                                                    static_cast<std::uint8_t>(track0)};
+    auto& slot = effectSlot ? effects_[scene0 * engine::kPluginFxSlots + *effectSlot] : slots_[idx(scene0, track0)];
+    // Validate on a replacement instance before publishing. Pending edits on the old instance cannot leak into it.
+    return slot.node && slot.node->id() == spec.pluginId && mountSlot(slot, swap, spec, false, true, true);
 }
 
 void ClapHostService::unmount(int scene0, int track0)
 {
-    auto& slot = slots_[idx(scene0, track0)];
+    clearSlot(slots_[idx(scene0, track0)], {engine::SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene0 & 15),
+                                            static_cast<std::uint8_t>(track0 & 15)});
+}
+
+void ClapHostService::clearSlot(Slot& slot, engine::SwapSlot swapSlot)
+{
+    slot.pending.reset();
     if (slot.node == nullptr && slot.spec.path.empty() && slot.spec.pluginId.empty())
         return;
-    const engine::SwapSlot swapSlot {engine::SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene0 & 15),
-                                     static_cast<std::uint8_t>(track0 & 15)};
-    bridge_.post(engine::ObjectSwap {swapSlot, nullptr});
+    if (! bridge_.post(engine::ObjectSwap{swapSlot, nullptr}))
+    {
+        slot.pendingClear = true;
+        return;
+    }
+    slot.pendingClear = false;
     if (slot.node != nullptr)
     {
         slot.node->release();
@@ -1019,29 +1358,67 @@ void ClapHostService::unmountAll()
     for (int s = 0; s < 16; ++s)
         for (int t = 0; t < 16; ++t)
             unmount(s, t);
+    for (int s = 0; s < 16; ++s)
+        for (int i = 0; i < engine::kPluginFxSlots; ++i)
+            clearSlot(effects_[s * engine::kPluginFxSlots + i], engine::pluginFxSwap(s, i));
 }
 
 ClapAudioNode* ClapHostService::mounted(int scene0, int track0) const noexcept
 {
-    return slots_[idx(scene0, track0)].node;
+    const auto& slot = slots_[idx(scene0, track0)];
+    return slot.pending || slot.pendingClear ? nullptr : slot.node;
 }
 
-const core::model::PluginTrack& ClapHostService::mountedSpec(int scene0, int track0) const noexcept
+const core::model::PluginTrack& ClapHostService::mountedSpec(int scene0, int track0,
+                                                             std::optional<int> effectSlot) const noexcept
 {
-    return slots_[idx(scene0, track0)].spec;
+    if (effectSlot && (scene0 < 0 || scene0 >= 16 || *effectSlot < 0 || *effectSlot >= engine::kPluginFxSlots))
+    {
+        static const core::model::PluginTrack empty;
+        return empty;
+    }
+    return effectSlot ? effects_[scene0 * engine::kPluginFxSlots + *effectSlot].spec : slots_[idx(scene0, track0)].spec;
+}
+
+void ClapHostService::syncEffect(const core::model::Project& project, int scene, int slot, bool fresh)
+{
+    const auto& fx = effectAt(project, scene, slot);
+    auto& current = effects_[scene * engine::kPluginFxSlots + slot];
+    if (fx.type == core::model::EffectType::Plugin)
+    {
+        if (! fresh && ! current.pending && current.node && ! current.pendingClear && current.spec == fx.plugin)
+            return;
+        if (mountSlot(current, engine::pluginFxSwap(scene, slot), fx.plugin, true, fresh))
+            return;
+    }
+    clearSlot(current, engine::pluginFxSwap(scene, slot));
 }
 
 void ClapHostService::syncFromProject(const core::model::Project& project)
 {
     for (int s = 0; s < 16; ++s)
+        for (int i = 0; i < engine::kPluginFxSlots; ++i)
+            syncEffect(project, s, i, true);
+    for (int s = 0; s < 16; ++s)
         for (int t = 0; t < 16; ++t)
         {
-            const auto& tr = project.scenes[static_cast<std::size_t>(s)].tracks[static_cast<std::size_t>(t)];
-            if (tr.mode == core::model::TrackMode::Plugin && (! tr.plugin.path.empty() || ! tr.plugin.pluginId.empty()))
-                mount(s, t, tr.plugin);
-            else
-                unmount(s, t);
+            syncTrack(project, s, t, true);
         }
+}
+
+void ClapHostService::syncTrack(const core::model::Project& project, int s, int t, bool fresh)
+{
+    const auto& tr = project.scenes[static_cast<std::size_t>(s)].tracks[static_cast<std::size_t>(t)];
+    if (tr.mode == core::model::TrackMode::Plugin && (! tr.plugin.path.empty() || ! tr.plugin.pluginId.empty()))
+    {
+        auto& slot = slots_[idx(s, t)];
+        engine::SwapSlot swap{engine::SwapSlot::TrackPlugin, static_cast<std::uint8_t>(s),
+                              static_cast<std::uint8_t>(t)};
+        if (! mountSlot(slot, swap, tr.plugin, true, fresh))
+            clearSlot(slot, swap);
+    }
+    else
+        unmount(s, t);
 }
 
 void ClapHostService::syncChanges(const core::ChangeSet& changes, const core::model::Project& project)
@@ -1053,36 +1430,97 @@ void ClapHostService::syncChanges(const core::ChangeSet& changes, const core::mo
             syncFromProject(project);
             return;
         }
-        int s = 0, t = 0;
-        if (! parseTrackPluginPath(path, s, t))
+        std::string_view rest(path);
+        int s = 0, t = 0, unit = 0;
+        if (! takeIndex(rest, "scene[", s))
             continue;
-        const auto& tr = project.scenes[static_cast<std::size_t>(s)].tracks[static_cast<std::size_t>(t)];
-        if (tr.mode == core::model::TrackMode::Plugin && (! tr.plugin.path.empty() || ! tr.plugin.pluginId.empty()))
-            mount(s, t, tr.plugin);
-        else
-            unmount(s, t);
+        if (rest.empty())
+        {
+            for (int i = 0; i < engine::kPluginFxSlots; ++i)
+                syncEffect(project, s, i, true);
+            for (int track = 0; track < 16; ++track)
+                syncTrack(project, s, track, true);
+            continue;
+        }
+        if (rest == ".sendFx" || rest == ".masterFx")
+        {
+            syncEffect(project, s, 2 * engine::kTracks + (rest == ".masterFx" ? 1 : 0));
+            continue;
+        }
+        if (! takeIndex(rest, ".track[", t))
+            continue;
+        if (takeIndex(rest, ".insertFx[", unit) && unit < 2)
+        {
+            syncEffect(project, s, 2 * t + unit);
+            continue;
+        }
+        if (rest.empty())
+        {
+            syncEffect(project, s, 2 * t);
+            syncEffect(project, s, 2 * t + 1);
+        }
+        else if (rest != ".plugin" && rest != ".mode")
+            continue;
+        syncTrack(project, s, t);
     }
 }
 
 void ClapHostService::snapshotStates(core::model::Project& project) const
 {
     for (int s = 0; s < 16; ++s)
+        for (int i = 0; i < engine::kPluginFxSlots; ++i)
+        {
+            auto& fx = effectAt(project, s, i);
+            const auto& slot = effects_[s * engine::kPluginFxSlots + i];
+            if (fx.type == core::model::EffectType::Plugin && ! slot.pending && ! slot.pendingClear && slot.node &&
+                ! slot.node->parameterEditPending() && slot.spec.path == fx.plugin.path &&
+                slot.spec.pluginId == fx.plugin.pluginId)
+                if (auto state = slot.node->saveStateBase64(); ! state.empty())
+                    fx.plugin.stateBase64 = std::move(state);
+        }
+    for (int s = 0; s < 16; ++s)
         for (int t = 0; t < 16; ++t)
         {
             const auto& slot = slots_[idx(s, t)];
             auto& tr = project.scenes[static_cast<std::size_t>(s)].tracks[static_cast<std::size_t>(t)];
-            if (tr.mode != core::model::TrackMode::Plugin || slot.node == nullptr || slot.spec.path != tr.plugin.path ||
+            if (tr.mode != core::model::TrackMode::Plugin || ! mounted(s, t) || slot.spec.path != tr.plugin.path ||
                 slot.spec.pluginId != tr.plugin.pluginId)
                 continue;
-            if (auto state = slot.node->saveStateBase64(); ! state.empty())
+            if (auto state = slot.node->editorState(nullptr); ! state.empty())
                 tr.plugin.stateBase64 = std::move(state);
         }
 }
 
 void ClapHostService::pollMainThread()
 {
-    for (auto& slot : slots_)
-        if (slot.node != nullptr)
+    for (int i = 0; i < static_cast<int>(slots_.size()); ++i)
+    {
+        auto& slot = slots_[i];
+        if (slot.pending)
+        {
+            engine::SwapSlot swap{engine::SwapSlot::TrackPlugin, static_cast<std::uint8_t>(i / 16),
+                                  static_cast<std::uint8_t>(i % 16)};
+            if (postMount(slot, swap, *slot.pending))
+                slot.pending.reset();
+        }
+        else if (slot.pendingClear)
+            unmount(i / 16, i % 16);
+        else if (slot.node)
             slot.node->pollMainThread();
+    }
+    for (int i = 0; i < static_cast<int>(effects_.size()); ++i)
+    {
+        auto& slot = effects_[i];
+        const auto swap = engine::pluginFxSwap(i / engine::kPluginFxSlots, i % engine::kPluginFxSlots);
+        if (slot.pending)
+        {
+            if (postMount(slot, swap, *slot.pending))
+                slot.pending.reset();
+        }
+        else if (slot.pendingClear)
+            clearSlot(slot, swap);
+        else if (slot.node)
+            slot.node->pollMainThread();
+    }
 }
 } // namespace services::plugin

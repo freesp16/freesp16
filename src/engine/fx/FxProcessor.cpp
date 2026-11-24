@@ -288,6 +288,12 @@ bool FxProcessor::process(float* l, float* r, const ProcessContext& ctx) noexcep
         run(l, r, c);
         if (crossfade)
             byp_.crossfade(l, r, dryL_, dryR_, kBlockFrames);
+        // A missing return must contribute nothing, including the shell's dry mix and bypass.
+        if (cur_ >= 0 && ! effects_[static_cast<std::size_t>(cur_)]->available())
+        {
+            std::fill_n(l, kBlockFrames, 0.0f);
+            std::fill_n(r, kBlockFrames, 0.0f);
+        }
         break;
     }
     }

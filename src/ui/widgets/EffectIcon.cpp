@@ -61,23 +61,16 @@ constexpr IconPart kVpitch[] = {
     {K::Path, "M 2 19 L 9.5 6 V 19 L 17 6 V 19 L 22 10.5"},
     {K::Path, "M 2 12.5 L 5.75 6 V 19 L 13.25 6 V 19 L 20.75 6 V 19", {}, 0, 0, 0, 0, 0.35f}};
 // ext: any effect without its own drawing (P3 extensions, test effects)
+constexpr IconPart kPlugin[] = {{K::Path, "M 9 3 V 8 M 15 3 V 8"},
+                                {K::Path, "M 6 8 H 18 V 11 C 18 14.5 15.5 17 12 17 C 8.5 17 6 14.5 6 11 Z"},
+                                {K::Path, "M 12 17 V 19 C 12 21 10 22 8 22"}};
 constexpr IconPart kExt[] = {{K::Path, "M 4 4 H 20 V 20 H 4 Z"}, {K::Path, "M 12 8 V 16 M 8 12 H 16"}};
 
-constexpr IconDef kIcons[] = {{"none", kNone},
-                              {"chorus", kChorus},
-                              {"flanger", kFlanger},
-                              {"phaser", kPhaser},
-                              {"eq2", kEq2},
-                              {"filter", kFilter},
-                              {"delay", kDelay},
-                              {"delayBus", kDelay},
-                              {"reverb", kReverb},
-                              {"lofi", kLofi},
-                              {"distortion", kDistortion},
-                              {"compressor", kCompressor},
-                              {"ducker", kDucker},
-                              {"vpitch", kVpitch},
-                              {"ext", kExt}};
+constexpr IconDef kIcons[] = {
+    {"none", kNone},     {"chorus", kChorus}, {"flanger", kFlanger},       {"phaser", kPhaser},
+    {"eq2", kEq2},       {"filter", kFilter}, {"delay", kDelay},           {"delayBus", kDelay},
+    {"reverb", kReverb}, {"lofi", kLofi},     {"distortion", kDistortion}, {"compressor", kCompressor},
+    {"ducker", kDucker}, {"vpitch", kVpitch}, {"plugin", kPlugin},         {"ext", kExt}};
 
 // --- flattening into primitives
 // ---------------------------------------------------------------------------------------

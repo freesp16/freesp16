@@ -167,8 +167,8 @@ std::uint64_t FrameDiff::hash(const DrawList& list, const DrawCmd& c) noexcept
     h = mix(h, c.argb);
     if (c.op == DrawCmd::Op::Blit)
     {
-        h = mix(h, (static_cast<std::uint64_t>(c.textOffset) << 32) | (static_cast<std::uint64_t>(c.srcW) << 16) |
-                       c.srcH);
+        h = mix(h,
+                (static_cast<std::uint64_t>(c.textOffset) << 32) | (static_cast<std::uint64_t>(c.srcW) << 16) | c.srcH);
         h = mix(h, static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(c.pixels)));
     }
     else if (c.op == DrawCmd::Op::Text)

@@ -12,6 +12,7 @@
 // the pattern compiler's destroy; SliceMap: the slice table; LiveTake: the capture hub's reference).
 #pragma once
 
+#include "core/audio/PluginNode.h"
 #include "core/audio/SampleBuffer.h"
 #include "core/util/arrangement/ArrangementPlan.h"
 #include "core/util/chain/ChainPlan.h"
@@ -78,6 +79,8 @@ private:
             return;
         if (s->slot.kind == engine::SwapSlot::TrackSample || s->slot.kind == engine::SwapSlot::Preview)
             core::audio::release(static_cast<const core::audio::SampleBuffer*>(s->object));
+        else if (s->slot.kind == engine::SwapSlot::TrackPlugin || engine::pluginFxIndex(s->slot) >= 0)
+            core::audio::releasePluginNode(s->object);
         else if (s->slot.kind == engine::SwapSlot::Pattern && core::sequencer::patternCompiler().destroy != nullptr)
             core::sequencer::patternCompiler().destroy(s->object);
         else if (s->slot.kind == engine::SwapSlot::ProjectConfig) // the pattern chain

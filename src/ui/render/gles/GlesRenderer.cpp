@@ -451,9 +451,8 @@ private:
         {
             if (c.op == DrawCmd::Op::Blit)
             {
-                if (batchBlit != nullptr &&
-                    (batchBlit->pixels != c.pixels || batchBlit->srcW != c.srcW || batchBlit->srcH != c.srcH ||
-                     batchBlit->textOffset != c.textOffset))
+                if (batchBlit != nullptr && (batchBlit->pixels != c.pixels || batchBlit->srcW != c.srcW ||
+                                             batchBlit->srcH != c.srcH || batchBlit->textOffset != c.textOffset))
                     flushBatch();
                 batchBlit = &c;
                 const float x0 = t.offsetX + c.rect.x * t.scale, y0 = t.offsetY + c.rect.y * t.scale;

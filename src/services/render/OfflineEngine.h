@@ -29,11 +29,17 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace core::model
 {
 struct Project;
+}
+
+namespace services::plugin
+{
+class ClapHostService;
 }
 
 namespace services::library
@@ -88,6 +94,7 @@ public:
     {
         double sampleRate = 44100.0;
         int outPorts = 1; // logical ports rendered (engine::OutPort order): 1 = Main, 2 = Main + OUT 3-4, …
+        std::string pluginsDir{};
     };
     explicit OfflineEngine(Config);
     ~OfflineEngine();
@@ -120,6 +127,7 @@ private:
     Config config_;
     std::unique_ptr<engine::AudioEngine> engine_;
     QueuedBridge queue_;
+    std::unique_ptr<plugin::ClapHostService> plugins_;
     std::vector<std::array<float, engine::kBlockFrames>> buffers_;
     std::vector<float*> pointers_;
     std::uint64_t blocks_ = 0;
