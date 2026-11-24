@@ -4,6 +4,7 @@
 #include "ui/input/transport/TransportController.h"
 
 #include "core/params/ParamRegistry.h"
+#include "io/controllers/LampRules.h"
 #include "tests/fakes/FakeEngineBridge.h"
 #include "ui/shell/ParamAccess.h"
 #include "ui/shell/UiState.h"
@@ -270,4 +271,78 @@ TEST_CASE("transport.controller: under MIDI clock the followed BPM, the MIDI bad
     CHECK(std::string(s.bpm.text) == "120.0");
     CHECK(s.syncBadge.empty());
     CHECK_FALSE(s.syncLost);
+}
+
+TEST_CASE("transport.controller: under MIDI clock PLAY only arms; the external Start plays", "[transport]")
+{
+    fakes::FakeEngineBridge bridge;
+    TransportController t(bridge);
+    engine::PlayheadFeed feed {};
+    feed.blockIndex = 100;
+    feed.externalClock = true;
+    t.sync(feed);
+    ui::UiState s;
+    io::LampFrame lamps;
+
+    // PLAY from stop: armed (PLAY blinks fast), nothing posted, still stopped.
+    const auto posted = bridge.posted.size();
+    t.handle(press(io::Control::Play));
+    CHECK(bridge.posted.size() == posted);
+    CHECK(t.state() == State::Stopped);
+    CHECK(t.playArmed());
+    t.publish(s);
+    CHECK(s.playArmed);
+    CHECK_FALSE(s.playing);
+    io::ModeLamps m;
+    m.playArmed = s.playArmed;
+    io::modeLamps(m, lamps);
+    CHECK(lamps[io::Control::Play].mode == io::LampMode::BlinkFast);
+    // PLAY again disarms; a third arms again.
+    t.onPlay();
+    CHECK_FALSE(t.playArmed());
+    t.onPlay();
+    CHECK(t.playArmed());
+    // REC armed too: still no pre-count from PLAY (the clock's Start starts the recording).
+    t.onRec();
+    t.onPlay();
+    t.onPlay();
+    CHECK(bridge.posted.size() == posted);
+
+    // The master's Start: the engine reports playing; the arm is spent, PLAY lit.
+    feed.blockIndex = 200;
+    feed.playing = true;
+    feed.ppq = 1.0;
+    t.sync(feed);
+    CHECK(t.state() == State::Playing);
+    CHECK_FALSE(t.playArmed());
+    t.publish(s);
+    CHECK(s.playing);
+    CHECK_FALSE(s.playArmed);
+    // PLAY while the clock plays: nothing (no local pause).
+    t.onPlay();
+    CHECK(bridge.posted.size() == posted);
+    CHECK(t.state() == State::Playing);
+
+    // The master's Stop pauses; PLAY arms (no Continue posted); STOP posts Stop and disarms.
+    feed.blockIndex = 300;
+    feed.playing = false;
+    t.sync(feed);
+    CHECK(t.state() == State::Paused);
+    t.onPlay();
+    CHECK(t.playArmed());
+    CHECK(bridge.posted.size() == posted);
+    t.onStop();
+    CHECK(is(lastCmd(bridge), TransportCmd::Stop, 1.0));
+    CHECK_FALSE(t.playArmed());
+
+    // Armed, then the sync is switched off: the arm ends and PLAY is the unit's own again.
+    t.onPlay();
+    CHECK(t.playArmed());
+    feed.blockIndex = 400;
+    feed.ppq = 0.0;
+    feed.externalClock = false;
+    t.sync(feed);
+    CHECK_FALSE(t.playArmed());
+    t.onPlay();
+    CHECK(is(lastCmd(bridge), TransportCmd::Play, 0.0));
 }

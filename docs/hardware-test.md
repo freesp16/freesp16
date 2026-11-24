@@ -183,9 +183,10 @@ and say what played. `midi=0` in a variant turns MIDI off (to isolate it); the M
 **Clock sync (HUMAN, 10 min each).** SET › SYNC SOURCE = MIDI CLOCK, a DAW or drum machine as master on MIDI IN (DIN,
 then USB), a pattern with a 4-on-the-floor kick on both. (1) Start from the master at 120, then at 174 BPM: the kicks
 stay together for 10 minutes — no flam growing over time — and BPM shows the master's tempo steadily. (2) Stop and
-Continue from the master mid-bar: the unit resumes on the master's bar. (3) With the master running, press PLAY on the
-unit: it starts on its own bar 1 and stays locked to the master's ticks (no drift; the bar offset stays where it
-started). (4) Pull the cable for 2 s and plug it back: the unit keeps time meanwhile and picks the clock up without
+Continue from the master mid-bar: the unit resumes on the master's bar. (3) With the master stopped, press PLAY on the
+unit: it does not start — PLAY (lamp and the status-row ▶) blinks fast, armed — and starts on the master's Start; PLAY
+again before that disarms, STOP disarms, and PLAY while the master plays does nothing. A pad with PAD STARTS SEQUENCE
+does not start it either. With SYNC SOURCE back on INTERNAL, PLAY plays at once again. (4) Pull the cable for 2 s and plug it back: the unit keeps time meanwhile and picks the clock up without
 jumping back. The `MIDI stats` line then also shows `clock_in_jitter=` (µs RMS: how much the master's ticks wander,
 typically 50–3000 for a DAW over USB) and `clock_in_relocks=` (grows only when the master changes tempo). Then the
 unit as master (SYNC SOURCE = INTERNAL, MIDI OUT clock on) into a receiver: the receiver's BPM shows the unit's tempo

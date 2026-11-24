@@ -797,8 +797,9 @@ TEST_CASE("midi.engine: the transport phase-locks to an external clock (SYN-012:
 
 namespace
 {
-// A clock at `clockBpm` into an engine whose own tempo is `internalBpm`: Start from the clock (or none: the unit's own
-// PLAY), then 8 bars of ticks; returns the playhead's quarters per minute over the last 4 bars and the shown BPM.
+// A clock at `clockBpm` into an engine whose own tempo is `internalBpm`: Start from the clock, or none (`playFirst`: the
+// unit was already playing when the sync was switched on — under MIDI clock its PLAY no longer starts), then 8 bars
+// of ticks; returns the playhead's quarters per minute over the last 4 bars and the shown BPM.
 struct FollowResult
 {
     double ppqRateBpm = 0, shownBpm = 0, ppq = 0;
@@ -810,9 +811,9 @@ FollowResult followAt(double clockBpm, double internalBpm, bool clockStart, bool
     auto e = miditest::make(kRate);
     miditest::Driver d {*e, 64};
     d.param("transport.tempo", 0, static_cast<float>(internalBpm));
-    d.param("midi.syncSource", 0, 1.0f);
     if (playFirst)
-        e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+        e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0}); // sync still off
+    d.param("midi.syncSource", 0, 1.0f);
     d.blocks(4);
     const double P = 60.0 * kRate / (24.0 * clockBpm);
     const double t0 = static_cast<double>(d.frame()) + 2000.0;
@@ -828,8 +829,6 @@ FollowResult followAt(double clockBpm, double internalBpm, bool clockStart, bool
         {
             if (clockStart)
                 push(*e, 0xFA, 0, 0, t0 - P / 2);
-            else if (! playFirst)
-                e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
             started = true;
         }
         while (next < ticks && t0 + next * P < now)
@@ -862,21 +861,19 @@ TEST_CASE("midi.engine: the transport takes the external clock's tempo, not the 
 {
     for (const double clock : {90.0, 140.0, 174.0})
         for (const bool start : {true, false})
-            for (const bool playFirst : {false, true})
-            {
-                if (start && playFirst)
-                    continue;
-                const auto r = followAt(clock, 120.0, start, playFirst);
-                INFO("clock " << clock << " start " << start << " playFirst " << playFirst << ": playhead "
-                              << r.ppqRateBpm << " BPM, shown " << r.shownBpm << ", ppq " << r.ppq);
-                CHECK(std::fabs(r.ppqRateBpm - clock) < 0.5);
-                CHECK(std::fabs(r.shownBpm - clock) < 0.15);
-                CHECK(r.external); // the UI's MIDI badge and followed BPM
-                CHECK_FALSE(r.lostWhileRunning);
-                CHECK(r.lostAfter);
-                CHECK(std::fabs(r.shownAfterLoss - clock) < 0.15);
-                CHECK(std::fabs(r.rateAfterLoss - clock) < 0.5);
-            }
+        {
+            const bool playFirst = ! start; // without a Start: the unit was playing before the sync came on
+            const auto r = followAt(clock, 120.0, start, playFirst);
+            INFO("clock " << clock << " start " << start << " playFirst " << playFirst << ": playhead " << r.ppqRateBpm
+                          << " BPM, shown " << r.shownBpm << ", ppq " << r.ppq);
+            CHECK(std::fabs(r.ppqRateBpm - clock) < 0.5);
+            CHECK(std::fabs(r.shownBpm - clock) < 0.15);
+            CHECK(r.external); // the UI's MIDI badge and followed BPM
+            CHECK_FALSE(r.lostWhileRunning);
+            CHECK(r.lostAfter);
+            CHECK(std::fabs(r.shownAfterLoss - clock) < 0.15);
+            CHECK(std::fabs(r.rateAfterLoss - clock) < 0.5);
+        }
 }
 
 TEST_CASE("midi.engine: the USB port takes OUT or OUT + MIDI IN only (manual 1.60 p.12)", "[midi]")

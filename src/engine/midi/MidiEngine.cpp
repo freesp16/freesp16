@@ -270,8 +270,8 @@ void MidiEngine::correct(double ppq, double ppqPerFrame, double& bpm, double& ph
         return;
     if (! follower_.hasPosition() && ! follower_.positionPending() && pendingStart_ == Pending::None)
     {
-        // No Start / SPP placed the clock (the unit's own PLAY, sync switched on mid-song, the clock back after a
-        // loss): the transport keeps its bars and locks onto the tick grid nearest to where it is.
+        // No Start / SPP placed the clock (sync switched on while the unit plays, the clock back after a loss): the
+        // transport keeps its bars and locks onto the tick grid nearest to where it is.
         follower_.adoptPosition(ppq + (follower_.lastTickTime() - static_cast<double>(blockStart_)) * ppqPerFrame);
     }
     double b = tempo;

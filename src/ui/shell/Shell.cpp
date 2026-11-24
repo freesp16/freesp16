@@ -427,7 +427,7 @@ void Shell::updateFrameModels(double nowMs)
     statusRow_.set({router_.breadcrumb(), state_.playing, state_.recArmed || state_.samplerRec, state_.midiInAtMs,
                     state_.midiOutAtMs, state_.syncBadge, state_.syncLost,
                     showCpu ? cpuText_.view() : std::string_view{}, showCpu && cpu_.percent() >= kCpuHighPercent,
-                    state_.padMuteView, muteModeSummary()});
+                    state_.padMuteView, muteModeSummary(), state_.playArmed});
     drawnPadMuteView_ = state_.padMuteView;
     ContextBarModel cb = contextBar_.model();
     cb.kind = s.contextBar;

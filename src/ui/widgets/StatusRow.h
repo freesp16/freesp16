@@ -1,6 +1,7 @@
 // StatusRow (components/frame.md "StatusRow", "Breadcrumb", "StatusIndicators"; UID-300, UI-200/201): y 0–40 on `bg`.
 // Breadcrumb at x 16 in the label style, ancestors text-2, current text-1, `›` separators in text-3 with 8 lpx gaps,
-// middle segments collapse to `…` beyond 560 lpx. Indicators right-aligned to x 1264, 40 apart: PLAY ▶, REC ●, OUT,
+// middle segments collapse to `…` beyond 560 lpx. Indicators right-aligned to x 1264, 40 apart: PLAY ▶ (blinking
+// while armed under MIDI clock), REC ●, OUT,
 // IN (+ the SYNC badge when not internal, then "CPU 37%" while UTILITY › CPU USAGE is ON). The notification slot
 // (x 320–880) belongs to Toast / caution chips. Left of the indicators, while the pads are in MUTE mode, a MUTE badge
 // (accent, the MIXER's MUTE colour) followed by the tracks' MUTE MODE ("STOP SOUND", "STOP STEPS" or the split
@@ -27,6 +28,7 @@ struct StatusRowModel
     bool cpuHigh = false;   // drawn in `warn`
     UiState::PadMuteView padMute = UiState::PadMuteView::None;
     std::string_view muteMode{}; // the MUTE badge's detail (the tracks' MUTE MODE), empty = none
+    bool playArmed = false;      // MIDI clock sync: PLAY pressed, waiting for the external Start (▶ blinks fast)
 };
 
 class StatusRow final : public Widget

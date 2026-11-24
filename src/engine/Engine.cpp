@@ -385,7 +385,8 @@ void Engine::renderBlock() noexcept
     afs_.beginBlock(triggerRouter_.blockEvents(), lfo_.lfo(afs_.track() < 0 ? 0 : afs_.track()).value());
     modSink_.beginBlock(triggerRouter_.scene(), ctx.bpm);
     modMatrix_.applyBlock(fxBank_, modSink_);          //    once per block, after the locks, before the voices
-    if (sequencer_.seq.takeStartRequest())             //    padStartsSequence (SEQ-047): the hit starts the transport
+    // padStartsSequence (SEQ-047): the hit starts the transport — not under MIDI clock sync (only the clock's Start).
+    if (sequencer_.seq.takeStartRequest() && ! midi_.following())
         transport_.command(TransportCmd {TransportCmd::Play, 0.0});
     midi_.processOut(ctx, buffers_);  // 7  MIDI out
     if (transport_.secondStopThisBlock())
@@ -536,7 +537,10 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
     }
     if (const auto* t = std::get_if<TransportCmd>(&m))
     {
-        transport_.command(*t);
+        // Under MIDI clock sync only the external device starts the transport (its Start / Continue, MidiEngine):
+        // a UI Play / Continue (PLAY, the device-restore resume) is dropped; the UI shows PLAY armed instead.
+        if (! (midi_.following() && (t->kind == TransportCmd::Play || t->kind == TransportCmd::Continue)))
+            transport_.command(*t);
         return true;
     }
     if (const auto* s = std::get_if<ObjectSwap>(&m))

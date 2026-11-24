@@ -5,7 +5,9 @@
 //
 //   period start  beginPeriod(): the audio clock anchor (DLL) and the output lead (the device's buffer) → the hub (the
 //                 sender's sample → monotonic mapping: every message leaves when its frame is heard)
-//   step 1        onParam(): midi.* ParamChanges (core/params/catalogue/midi.cpp)
+//   step 1        onParam(): midi.* ParamChanges (core/params/catalogue/midi.cpp). While following (following()), the
+//                 engine drops a UI Play / Continue and the pad start (SEQ-047): only the clock's Start / Continue
+//                 starts the transport (the UI shows PLAY armed); STOP still stops it
 //   step 2        processIn(): drain the ports, schedule at arrival + the fixed latency (MidiInQueue.h), then per due
 //                 event in time order:
 //                   F8 clock          → ClockFollower (sync source MIDI CLOCK on the sync port, IN clock enabled):
@@ -30,8 +32,8 @@
 //                 applied CCs and the followed tempo go to the UI (UiEvent) for the model / display
 //   step 3        the transport calls the follower's correction (Transport::setCorrection): tempo = the follower's,
 //                 phase steered onto the clock's ticks by a bounded rate correction (no drift; a jump only when > ½ tick
-//                 off). Without a Start / SPP (the unit's own PLAY, sync switched on mid-song, the clock back after a
-//                 loss) the transport's position is adopted onto the nearest tick: it keeps its bars and locks.
+//                 off). Without a Start / SPP (sync switched on while the unit plays, the clock back after a loss)
+//                 the transport's position is adopted onto the nearest tick: it keeps its bars and locks.
 //   step 7        processOut(): MIDI and AS-1 tracks (MidiTrackPlayer: notes + chords — NOTE2–4 are semitones from
 //                 NOTE, an AS-1 track sends NOTE alone — a step's PITCH lock, length, the Active CC1/CC2 values (pitch
 //                 bend, aftertouch) before each trigger's notes, bank / program on a scene switch, MID-040…050), the

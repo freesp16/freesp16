@@ -60,6 +60,13 @@ double TransportController::tempo() const
 
 void TransportController::onPlay()
 {
+    if (external_)
+    {
+        // MIDI clock sync: the external device starts the sequencer (Start / Continue); PLAY only arms.
+        if (state_ == State::Stopped || state_ == State::Paused)
+            playArmed_ = ! playArmed_;
+        return;
+    }
     switch (state_)
     {
         case State::Stopped:
@@ -89,6 +96,7 @@ void TransportController::onStop()
     // STOP: back to step 1, tails ring; a second STOP (already stopped) silences everything (SYN-001).
     post({TransportCmd::Stop, state_ == State::Stopped ? 2.0 : 1.0});
     state_ = State::Stopped;
+    playArmed_ = false;
 }
 
 void TransportController::onRec()
@@ -170,6 +178,8 @@ void TransportController::sync(const engine::PlayheadFeed& feed)
     feedBpm_ = feed.bpm;
     external_ = feed.externalClock;
     clockLost_ = feed.clockLost;
+    if (! external_ || feed.playing || feed.preCount)
+        playArmed_ = false; // sync off, or the clock started the transport
     if (feed.blockIndex == 0)
         return; // the engine is not running yet
     if (posted_ && feed.blockIndex < postedAt_ + kSettleBlocks)
@@ -189,6 +199,7 @@ void TransportController::publish(UiState& s, double patternStartPpq) const
 {
     s.playing = state_ == State::Playing || state_ == State::PreCount;
     s.recArmed = recArmed_;
+    s.playArmed = playArmed_ && ! s.playing;
     s.bpm.format("%.1f", tempo());
     s.syncBadge = external_ ? std::string_view("MIDI") : std::string_view {}; // the status row, BPM/QUANTIZE
     s.syncLost = external_ && clockLost_;

@@ -56,6 +56,7 @@ struct UiState
     int selectedTrack = 1; // 1–16, persists across screens (UID-502)
     int scene = 1, pattern = 1;
     bool playing = false, recArmed = false, dirty = false;
+    bool playArmed = false; // MIDI clock sync: PLAY pressed, waiting for the external Start (PLAY lamp / ▶ blink)
     bool shift = false; // SHIFT held: fine steps + FINE captions (UID-161)
     int stepHeld = 0;   // 1–16 while a step key is held (UID-166), 0 = none
     // BYPASS mode (UI-221): lit by the context bar's BYPASS; while on, a tap or push on a bypassable module toggles

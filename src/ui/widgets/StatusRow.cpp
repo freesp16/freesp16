@@ -87,7 +87,9 @@ void StatusRow::build(DrawList& dl, const UiContext& ctx) const
     // Indicators, right to left: PLAY, REC, OUT, IN, then SYNC.
     float ix = layout::indicatorsRight;
     const double now = ctx.nowMs;
-    dl.text(ix, cy, Align::Right, TextStyleId::Caption, model_.playing ? p.play : p.text3, "\xE2\x96\xB6"); // ▶
+    // PLAY: lit while playing; blinking fast while armed under MIDI clock (waiting for the external Start).
+    const bool playLit = model_.playing || (model_.playArmed && theme::blinkOn(now, tk::motionBlinkFastMs));
+    dl.text(ix, cy, Align::Right, TextStyleId::Caption, playLit ? p.play : p.text3, "\xE2\x96\xB6"); // ▶
     ix -= layout::indicatorPitch;
     // REC: rec while armed; pulsing 1 Hz while armed and stopped (blink-slow).
     const bool recLit = model_.recArmed && (model_.playing || theme::blinkOn(now, tk::motionBlinkSlowMs));

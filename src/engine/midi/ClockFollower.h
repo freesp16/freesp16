@@ -24,7 +24,7 @@
 // (24 ticks) of clock.
 //
 // Position (SYN-012 "phase locks to ticks"): setNextTickPosition(q) after Start (q = 0), Continue or SPP; without one
-// (the unit's own PLAY under a running clock, sync switched on mid-song) the transport's position is adopted onto the
+// (sync switched on mid-song while the unit plays, the clock back after a loss) the transport's position is adopted onto the
 // tick grid (adoptPosition). ppqAt(frame) extrapolates from the fitted newest tick, so the transport is steered onto
 // the clock without drift. lost(now): no tick for more than 500 ms (SYN-013).
 #pragma once
