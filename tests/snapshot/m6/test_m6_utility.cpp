@@ -587,3 +587,84 @@ TEST_CASE("m6.utility: drawing UTILITY and moving its focus allocate nothing aft
     CHECK(core::rt::violationCount() - before == 0);
     CHECK(t.value(t.rowOf("DISK SPACE")) == "1.5 GB");
 }
+
+TEST_CASE("m6.utility: temperature switches control the status row independently and persist", "[m6][temperature]")
+{
+    Session session;
+    M6Fixture t;
+    juce::TemporaryFile file;
+    REQUIRE(t.prefs.load(file.getFile()));
+    ui::utility::utilityEnv().temperatureSensors = {true, true, false};
+    services::system::Temperatures sample{41, 53, {}};
+    ui::utility::utilityEnv().temperatures = [&](auto, double) { return sample; };
+    REQUIRE(t.m.open("utility"));
+    const auto toggle = [&](const char* name, int direction)
+    {
+        t.focusRow(name);
+        t.push();
+        t.turn(direction);
+        t.push();
+    };
+    CHECK_FALSE(t.m.hasText("CPU 41°C"));
+    CHECK_FALSE(t.m.hasText("GPU 53°C"));
+    toggle("CPU TEMP", 1);
+    CHECK(t.m.hasText("CPU 41°C"));
+    CHECK_FALSE(t.m.hasText("GPU 53°C"));
+    toggle("GPU TEMP", 1);
+    CHECK(t.m.hasText("CPU 41°C"));
+    CHECK(t.m.hasText("GPU 53°C"));
+    CHECK_FALSE(t.m.hasText("SoC 47°C"));
+    CHECK(t.rowOf("SoC TEMP") < 0);
+    toggle("CPU TEMP", -1);
+    CHECK_FALSE(t.m.hasText("CPU 41°C"));
+    CHECK(t.m.hasText("GPU 53°C"));
+    sample = {};
+    t.m.f.frame(16);
+    CHECK(t.m.hasText("GPU N/A"));
+    CHECK_FALSE(t.m.hasText("SoC 47°C"));
+    REQUIRE(t.m.open("home"));
+    CHECK(t.m.hasText("GPU N/A"));
+    t.prefs.flush();
+    st::Preferences loaded;
+    REQUIRE(loaded.load(file.getFile()));
+    CHECK(loaded.get("ui.showCpuTemp") == 0);
+    CHECK(loaded.get("ui.showGpuTemp") == 1);
+    REQUIRE(t.m.open("utility"));
+    toggle("GPU TEMP", -1);
+    CHECK_FALSE(t.m.hasText("GPU N/A"));
+}
+
+TEST_CASE("m6.utility: one die sensor has one SoC temperature switch", "[m6][temperature]")
+{
+    Session session;
+    M6Fixture t;
+    auto& env = ui::utility::utilityEnv();
+    env.temperatureSensors.soc = true;
+    services::system::TemperatureSelection requested;
+    env.temperatures = [&](auto wanted, double)
+    {
+        requested = wanted;
+        return services::system::Temperatures{{}, {}, 47};
+    };
+    REQUIRE(t.m.open("utility"));
+    REQUIRE(t.rowOf("CPU TEMP") < 0);
+    REQUIRE(t.rowOf("GPU TEMP") < 0);
+    t.focusRow("SoC TEMP");
+    CHECK(t.value(t.focus()) == "OFF");
+    CHECK_FALSE(requested.any());
+    t.push();
+    t.turn(1);
+    t.push();
+    CHECK(t.m.hasText("SoC 47°C"));
+    CHECK(requested == env.temperatureSensors);
+    CHECK(t.prefs.get("ui.showSocTemp") == 1);
+    REQUIRE(t.m.open("home"));
+    CHECK(t.m.hasText("SoC 47°C"));
+    REQUIRE(t.m.open("utility"));
+    t.focusRow("SoC TEMP");
+    t.push();
+    t.turn(-1);
+    t.push();
+    CHECK_FALSE(t.m.hasText("SoC 47°C"));
+    CHECK_FALSE(requested.any());
+}

@@ -134,6 +134,11 @@ void addRegistered(std::string_view page, std::vector<SettingsRow>& out, const c
                 continue;
             if (spec.infoSource == "needs:keyboard" && utilityEnv().keyboard && ! utilityEnv().keyboard())
                 continue; // KEYBOARD MAP on a platform without a keyboard (the hardware)
+            const auto sensors = utilityEnv().temperatureSensors;
+            if ((spec.infoSource == "needs:cpuTemp" && ! sensors.cpu) ||
+                (spec.infoSource == "needs:gpuTemp" && ! sensors.gpu) ||
+                (spec.infoSource == "needs:socTemp" && ! sensors.soc))
+                continue;
             SettingsRow r;
             r.label = std::string(spec.label);
             switch (spec.kind)

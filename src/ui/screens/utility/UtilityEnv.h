@@ -3,6 +3,8 @@
 // Document.cpp); every one may be empty (tests, a platform without MIDI) and the row then shows "—". Message thread.
 #pragma once
 
+#include "services/system/Temperatures.h"
+
 #include <functional>
 #include <string>
 #include <vector>
@@ -32,6 +34,8 @@ struct UtilityEnv
     std::function<std::vector<LibraryLocation>()> libraryLocations; // root first
     // LIBRARY LOCATIONS edits: the composition root re-reads the "library.locations" preference list.
     std::function<void()> libraryChanged;
+    services::system::TemperatureSelection temperatureSensors{};
+    std::function<services::system::Temperatures(services::system::TemperatureSelection, double nowMs)> temperatures;
 };
 
 UtilityEnv& utilityEnv() noexcept;

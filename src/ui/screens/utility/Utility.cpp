@@ -110,7 +110,13 @@ APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 180, {kValue, "AU
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 190, {kValue, "THEME", "ui.theme"}}))
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 200, {kValue, "UI SCALE", "ui.scale"}}))
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 205, {kValue, "AMP ENV AUTO ZOOM", "ui.envAutoZoom"}}))
+APP_REGISTER_SETTINGS((SettingsRowEntry{
+    "utility", "machine", 206, {kValue, "SoC TEMP", "ui.showSocTemp", {}, "needs:socTemp"}}))
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 207, {kValue, "CPU USAGE", "ui.showCpu"}}))
+APP_REGISTER_SETTINGS((SettingsRowEntry{
+    "utility", "machine", 208, {kValue, "CPU TEMP", "ui.showCpuTemp", {}, "needs:cpuTemp"}}))
+APP_REGISTER_SETTINGS((SettingsRowEntry{
+    "utility", "machine", 209, {kValue, "GPU TEMP", "ui.showGpuTemp", {}, "needs:gpuTemp"}}))
 // Further Sixteen preferences of settings.md (Behaviour) that no screen edits otherwise: appended.
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 210, {kValue, "PATTERN SWITCH", "scene.switchMode"}}))
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 220, {kValue, "SONG END", "arrangement.loop"}}))

@@ -115,6 +115,24 @@ void StatusRow::build(DrawList& dl, const UiContext& ctx) const
         dl.text(ix - field - kCpuGap, cy, Align::Right, TextStyleId::Caption, p.text3, "CPU");
         ix -= field + kCpuGap + width("CPU") + tk::space[5];
     }
+    const auto drawTemperature = [&](const char* label, std::optional<int> degrees)
+    {
+        FixedText<16> text;
+        if (degrees)
+            text.format("%s %d°C", label, *degrees);
+        else
+            text.format("%s N/A", label);
+        dl.text(ix, cy, Align::Right, TextStyleId::Caption, p.text2, text.view());
+        ix -= width(text.view()) + tk::space[3];
+    };
+    const auto& t = model_.temperatures;
+    const auto show = model_.showTemp;
+    if (show.gpu)
+        drawTemperature("GPU", t.gpu);
+    if (show.cpu)
+        drawTemperature("CPU", t.cpu);
+    if (show.soc)
+        drawTemperature("SoC", t.soc);
     // MUTE / SOLO: a filled badge, right-aligned before the indicators, the MUTE MODE detail after it.
     if (model_.padMute != UiState::PadMuteView::None)
     {

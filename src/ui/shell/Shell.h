@@ -135,6 +135,7 @@ private:
     void enterScreen(double nowMs);
     PopupWidget* pushPopup(std::unique_ptr<PopupWidget>);
     void resolveStrip();
+    services::system::TemperatureSelection shownTemperatures() const;
     void updateFrameModels(double nowMs);
     std::string_view muteModeSummary();
     void updateStripModel(double nowMs);
@@ -225,6 +226,9 @@ private:
     const core::ParamSpec* showCpuSpec_ = nullptr;   // ui.showCpu (UTILITY › CPU USAGE), looked up once
     const core::ParamSpec* muteModeSpec_ = nullptr;  // track.muteMode (the status row's MUTE badge detail)
     FixedText<24> muteModeText_;
+    const core::ParamSpec* showCpuTempSpec_ = nullptr;
+    const core::ParamSpec* showGpuTempSpec_ = nullptr;
+    const core::ParamSpec* showSocTempSpec_ = nullptr;
     UiState::PadMuteView drawnPadMuteView_ = UiState::PadMuteView::None;
     core::CpuUsage cpu_;                             // sampled once a second while CPU USAGE is ON
     double cpuSampledMs_ = -1e18;
