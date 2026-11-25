@@ -2,6 +2,7 @@
 
 #include "core/commands/scene/SceneCommands.h"
 #include "core/commands/sequencer/SequencerCommands.h"
+#include "core/edit/EditCommands.h"
 #include "core/model/ModelOps.h"
 #include "ui/screens/sequence/M2Session.h"
 
@@ -285,5 +286,12 @@ std::unique_ptr<core::Command> resetTrack(const Project& project, int scene, int
     }
     return std::make_unique<TrackSet>(scene, track, std::make_unique<Track>(core::model::defaultTrack(track)),
                                       std::move(patterns), "DELETE TRACK");
+}
+void exchangeTrackSlots(int scene, int source, int destination)
+{
+    const auto a = core::edit::trackRef(scene, source, true);
+    const auto b = core::edit::trackRef(scene, destination, true);
+    if (auto change = core::edit::makeSwap(a, b))
+        Session::instance().execute(std::move(change));
 }
 } // namespace ui::m2::cmd
