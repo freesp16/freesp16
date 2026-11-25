@@ -23,7 +23,10 @@ TEST_CASE("edit.engine: a track pasted while playing is heard from the next bloc
     edittest::Bus b(false);
     auto& source = b.project().scenes[0].tracks[1];
     int destination = 0;
-    SECTION("a paste mutes the sounding track") { source.mute = true; }
+    SECTION("a paste mutes the sounding track")
+    {
+        source.mute = true;
+    }
     SECTION("a paste preserves the sounding track's audio settings")
     {
         source.name = "Pasted settings"; // change the model while preserving the tone
@@ -47,7 +50,8 @@ TEST_CASE("edit.engine: a track pasted while playing is heard from the next bloc
         REQUIRE(x->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0}));
 
     constexpr int kPaste = engine::kBlockFrames * 300; // block-aligned: the paste lands between two blocks
-    const auto compareAudio = [&](std::string_view phase, int frames) {
+    const auto compareAudio = [&](std::string_view phase, int frames)
+    {
         CAPTURE(phase);
         const auto expected = enginetest::render(*ref, frames, engine::kBlockFrames);
         const auto actual = enginetest::render(*e, frames, engine::kBlockFrames);
@@ -68,7 +72,7 @@ TEST_CASE("edit.engine: a track pasted while playing is heard from the next bloc
     CHECK(hookCalls == 1);
     const auto mute = core::builtinParams().idOf("track.mute").value();
     if (mutesTone)
-        REQUIRE(ref->bridge().post(engine::ParamChange {mute, 0, 1.0f, 0})); // independent normal mute fade
+        REQUIRE(ref->bridge().post(engine::ParamChange{mute, 0, 1.0f, 0})); // independent normal mute fade
     const auto after = compareAudio("after paste", 4096);
     if (mutesTone)
     {
@@ -90,7 +94,7 @@ TEST_CASE("edit.engine: a track pasted while playing is heard from the next bloc
 
     REQUIRE(b.bus.undo());
     if (mutesTone)
-        REQUIRE(ref->bridge().post(engine::ParamChange {mute, 0, 0.0f, 0}));
+        REQUIRE(ref->bridge().post(engine::ParamChange{mute, 0, 0.0f, 0}));
     const auto restored = compareAudio("after undo", 4096);
     CHECK(enginetest::peak(restored.l, 512) > 0.2f);
     CHECK(enginetest::peak(restored.r, 512) > 0.2f);

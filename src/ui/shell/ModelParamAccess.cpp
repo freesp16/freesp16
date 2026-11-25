@@ -380,7 +380,7 @@ const ModelField kFields[] = {
                     x.routing.output = static_cast<core::model::OutputAssign>(std::clamp(toInt(v), 0, 12))),
     APP_TRACK_FIELD("routing.thruBypass", false, thruBypassOf(x.routing), setThruBypass(x.routing, v)),
     APP_TRACK_FIELD("track.motionRec", true, motionRecOf(x), setMotionRec(x, v)), // never posted: the UI's alone
-    APP_TRACK_FIELD("track.muteMode", false, muteModeOf(x), setMuteMode(x, v)), // the mixer's strip (STOP STEPS)
+    APP_TRACK_FIELD("track.muteMode", false, muteModeOf(x), setMuteMode(x, v)),   // the mixer's strip (STOP STEPS)
     APP_SCENE_FIELD("routing.assignMode", static_cast<int>(x.routing.assignMode),
                     x.routing.assignMode = static_cast<core::model::AssignMode>(std::clamp(toInt(v), 0, 1))),
     APP_SCENE_FIELD("routing.headphoneCue", x.routing.headphoneSource,

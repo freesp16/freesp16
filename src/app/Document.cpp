@@ -4,9 +4,11 @@
 
 #include "app/LibraryAdapters.h"
 #include "app/M5Hosts.h"
+#include "app/PluginAdapter.h"
 #include "app/ProjectFeed.h"
 #include "app/QueuedBridge.h"
 #include "app/ext/Extensions.h"
+
 #include "core/commands/CommandBusAccess.h"
 #include "core/commands/arrangement/ArrangementCommands.h"
 #include "core/commands/arrangement/ArrangementPlanBuilder.h"
@@ -53,7 +55,6 @@
 #include "ui/input/steps/PadStepEntry.h"
 #include "ui/input/steps/PatternSync.h"
 #include "ui/input/steps/StepController.h"
-#include "app/PluginAdapter.h"
 #include "ui/screens/effects/ModelFxSlots.h"
 #include "ui/screens/project/StoreProjectSource.h"
 #include "ui/screens/sequence/M2Session.h"
@@ -263,16 +264,22 @@ struct Document::Impl
         library.setInUse([this](const juce::File& f) { return pool.uses(f); });
         // The offline render service (its own Engine on its own worker; REN-001…005). The live engine is
         // muted while a job runs; render to track loads the file with the undoable LOAD (TrackLoader, REN-004).
-        renderer.emplace(services::render::RenderService::Env {
+        renderer.emplace(services::render::RenderService::Env{
             .pluginsDir = dataDir.getChildFile("Plugins").getFullPathName().toStdString(),
-            .capturePluginStates = [this](auto& snapshot) { if (plugins) plugins->snapshotStates(snapshot); },
+            .capturePluginStates =
+                [this](auto& snapshot)
+            {
+                if (plugins)
+                    plugins->snapshotStates(snapshot);
+            },
             .feed = feed::feeder(true),
             .samples = [this] { return services::render::SampleSnapshot::of(sync); },
             .live = &bridge,
             .sampleRate = config.sampleRate,
             .outputDir = dataDir.getChildFile("RenderedAudio"),
-            .projectName = [this] { return session ? session->store().name().toStdString() : std::string {}; },
-            .assignToTrack = [this](int scene, int track, const juce::File& file)
+            .projectName = [this] { return session ? session->store().name().toStdString() : std::string{}; },
+            .assignToTrack =
+                [this](int scene, int track, const juce::File& file)
             {
                 loader.load(scene, track, file, [this, scene, track](core::Result<void> r, const lib::LoadInfo&)
                             { log("RENDER JOB assigned scene=%d track=%d %s", scene + 1, track + 1,
@@ -1976,7 +1983,8 @@ void Document::Impl::render(const std::string& file, double seconds, bool withCh
         if (plugins)
             plugins->snapshotStates(*snapshot);
         services::render::OfflineEngine offline({rate, 1, plugins ? plugins->pluginsDir() : std::string{}});
-        offline.begin(*snapshot, services::render::SampleSnapshot::of(sync), feed::feeder(song), song ? &songStatus : nullptr);
+        offline.begin(*snapshot, services::render::SampleSnapshot::of(sync), feed::feeder(song),
+                      song ? &songStatus : nullptr);
         auto& q = offline.bridge();
         if (song)
         {

@@ -345,8 +345,8 @@ void MidiEngine::controlChange(int ch, int cc, int value, int frame) noexcept
             heldNote_[static_cast<std::size_t>(t)] = -1;
             continue;
         }
-        if (! (trackIsSample(t) || trackIs(t, static_cast<int>(trigger::TrackMode::Thru))
-               || trackIs(t, static_cast<int>(trigger::TrackMode::Plugin))))
+        if (! (trackIsSample(t) || trackIs(t, static_cast<int>(trigger::TrackMode::Thru)) ||
+               trackIs(t, static_cast<int>(trigger::TrackMode::Plugin))))
             continue; // MID-030: Sample / Thru / Plugin audio tracks only
         if (w_.fx == nullptr || w_.sink == nullptr)
             continue;
@@ -413,8 +413,8 @@ void MidiEngine::channelMessage(const MidiEvent& e, int frame) noexcept
                 return;
             for (int t = 0; t < kTracks; ++t) // MID-021: notes 24–72 on the track's receive channel, note − 48
             {
-                if (rxChannel_[static_cast<std::size_t>(t)] != ch + 1
-                    || (! trackIsSample(t) && ! trackIs(t, static_cast<int>(trigger::TrackMode::Plugin))))
+                if (rxChannel_[static_cast<std::size_t>(t)] != ch + 1 ||
+                    (! trackIsSample(t) && ! trackIs(t, static_cast<int>(trigger::TrackMode::Plugin))))
                     continue;
                 int semis = d1 - 48;
                 if (w_.pitchPreserving != nullptr && w_.pitchPreserving(w_.user, t))

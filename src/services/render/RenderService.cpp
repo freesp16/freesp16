@@ -428,7 +428,8 @@ JobHandle RenderService::start(const model::Project& p, const RenderJob& spec, P
     worker_.run(
         [job, feed, rate, pluginsDir = env_.pluginsDir]
         {
-            auto r = render(*job->project, job->spec, job->samples, feed, rate, &job->cancel, &job->fraction, pluginsDir);
+            auto r =
+                render(*job->project, job->spec, job->samples, feed, rate, &job->cancel, &job->fraction, pluginsDir);
             job->samples = {}; // the references go as soon as the audio is rendered
             if (r.cancelled)
             {

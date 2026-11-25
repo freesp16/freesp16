@@ -8,7 +8,14 @@
 
 namespace core::model
 {
-enum class TrackMode : std::uint8_t { Sample, Midi, Thru, Instrument, Plugin }; // TRK, tracks.md
+enum class TrackMode : std::uint8_t
+{
+    Sample,
+    Midi,
+    Thru,
+    Instrument,
+    Plugin
+}; // TRK, tracks.md
 enum class TriggerMode : std::uint8_t { OneShot, Gate };                       // pad hits only (M p.18, p.38)
 enum class StretchMode : std::uint8_t { Off, Resample, MasterTempo };          // PLY-030
 enum class EnvelopeCurve : std::uint8_t { Linear, Curve };                     // ENV, attack/release curve

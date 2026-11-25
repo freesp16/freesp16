@@ -73,7 +73,8 @@ public:
     bool hasPlugin() const noexcept { return plugin_ != nullptr; }
     bool sounding() const noexcept
     {
-        return voice_.active() || thruGain_ > 0.0f || (mode_ == TrackMode::Plugin && plugin_ != nullptr && plugin_->active());
+        return voice_.active() || thruGain_ > 0.0f ||
+               (mode_ == TrackMode::Plugin && plugin_ != nullptr && plugin_->active());
     }
     float playPosition() const noexcept { return voice_.playPosition(); } // PlayheadFeed (PLY-045)
     voice::TrackVoice& voice() noexcept { return voice_; }

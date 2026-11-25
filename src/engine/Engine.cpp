@@ -637,8 +637,8 @@ void Engine::renderSources(BlockContext& ctx) noexcept
         if (e.kind != trigger::TriggerKind::Full)
             continue;
         const auto& src = sources_[static_cast<std::size_t>(e.track)];
-        if ((src.hasSample() && src.mode() == model::TrackMode::Sample)
-            || (src.hasPlugin() && src.mode() == model::TrackMode::Plugin))
+        if ((src.hasSample() && src.mode() == model::TrackMode::Sample) ||
+            (src.hasPlugin() && src.mode() == model::TrackMode::Plugin))
             ++starts;
         else if (testToneAllowed_ && (e.source == trigger::TriggerSource::Pad || e.source == trigger::TriggerSource::Midi))
             testTone_.trigger(e.velocity); // TEMPORARY: a live hit on an empty track pings (walking-skeleton behaviour)

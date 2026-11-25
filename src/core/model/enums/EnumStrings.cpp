@@ -307,16 +307,16 @@ static_assert(std::size(kScales) == std::size(kScaleType));
 
 // SELECT FX grid order (enumerations.md "Effects", FX-040). Ours, after the reference types so those keep their grid
 // positions: Reverb on the track inserts, then VINTAGE PITCH and the plugin picker on both.
-constexpr EffectType kInsertTypes[] = {
-    EffectType::Off,           EffectType::Chorus,          EffectType::Flanger,
-    EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::InsertDelay,
-    EffectType::LoFi,          EffectType::Compressor,      EffectType::Distortion,
-    EffectType::Phaser,        EffectType::Ducker,          EffectType::Reverb,
-    EffectType::VintagePitch, EffectType::Plugin};
+constexpr EffectType kInsertTypes[] = {EffectType::Off,           EffectType::Chorus,          EffectType::Flanger,
+                                       EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::InsertDelay,
+                                       EffectType::LoFi,          EffectType::Compressor,      EffectType::Distortion,
+                                       EffectType::Phaser,        EffectType::Ducker,          EffectType::Reverb,
+                                       EffectType::VintagePitch,  EffectType::Plugin};
 constexpr EffectType kBusTypes[] = {
     EffectType::Off,        EffectType::SendDelay,     EffectType::Reverb,          EffectType::Chorus,
     EffectType::Flanger,    EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::LoFi,
-    EffectType::Compressor, EffectType::Distortion,    EffectType::Phaser,          EffectType::VintagePitch, EffectType::Plugin};
+    EffectType::Compressor, EffectType::Distortion,    EffectType::Phaser,          EffectType::VintagePitch,
+    EffectType::Plugin};
 
 template <std::size_t N> constexpr bool contains(const EffectType (&list)[N], EffectType t) noexcept
 {

@@ -371,8 +371,8 @@ void EffectPanel::paintHeader(DrawList& dl, const UiContext& ctx) const
     {
         const auto loaded = plugin::environment().pluginAccess().effectPlugin(slot_, scene(), track());
         if (! loaded.name.empty())
-            name = TrackTile::middleTruncate(loaded.name, kPresets.x - 108, TextStyleId::Title, ctx.measure,
-                                             shortened, sizeof shortened);
+            name = TrackTile::middleTruncate(loaded.name, kPresets.x - 108, TextStyleId::Title, ctx.measure, shortened,
+                                             sizeof shortened);
         if (! loaded.loaded)
             caption = "PLUGIN UNAVAILABLE";
     }
@@ -688,7 +688,8 @@ bool EffectPanel::stripTurnUnbound(int col, int detents, bool fine)
 bool EffectPanel::handle(const io::ControlEvent& e, UiContext&)
 {
     refresh();
-    if (key_.effect == "plugin" && touch::isTouch(e) && e.value == touch::kDown && contains(kPresets, touch::x(e), touch::y(e)))
+    if (key_.effect == "plugin" && touch::isTouch(e) && e.value == touch::kDown &&
+        contains(kPresets, touch::x(e), touch::y(e)))
     {
         activate(headerCount() - 1);
         return true;

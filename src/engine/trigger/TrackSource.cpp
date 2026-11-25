@@ -129,18 +129,19 @@ void TrackSource::onEvent(const TriggerEvent& e, TriggerMode triggerMode) noexce
         const float vel = static_cast<float>(e.velocity) * (1.0f / 127.0f);
         switch (e.kind)
         {
-            case TriggerKind::Full:
-            case TriggerKind::Half:
-                plugin_->noteOn(frame, note, vel > 1.0f ? 1.0f : (vel < 0.0f ? 0.0f : vel));
-                return;
-            case TriggerKind::Release:
-                // The router retains the pitch from the pad press. Other notes on this track may still be held.
-                plugin_->noteOff(frame, note);
-                return;
-            case TriggerKind::Stop:
-                plugin_->allNotesOff(frame);
-                return;
-            case TriggerKind::LockOnly: return;
+        case TriggerKind::Full:
+        case TriggerKind::Half:
+            plugin_->noteOn(frame, note, vel > 1.0f ? 1.0f : (vel < 0.0f ? 0.0f : vel));
+            return;
+        case TriggerKind::Release:
+            // The router retains the pitch from the pad press. Other notes on this track may still be held.
+            plugin_->noteOff(frame, note);
+            return;
+        case TriggerKind::Stop:
+            plugin_->allNotesOff(frame);
+            return;
+        case TriggerKind::LockOnly:
+            return;
         }
         return;
     }
@@ -325,9 +326,9 @@ bool TrackSource::render(const BlockContext& ctx, const float* inL, const float*
         wrote = true;
     if (mode_ == TrackMode::Plugin && plugin_ != nullptr)
     {
-        const core::audio::PluginProcessContext pctx {ctx.sampleRate, ctx.bpm, ctx.ppqStart, ctx.ppqEnd,
-                                                      ctx.frames,     ctx.playing, ctx.startedThisBlock,
-                                                      ctx.stoppedThisBlock};
+        const core::audio::PluginProcessContext pctx{
+            ctx.sampleRate, ctx.bpm,     ctx.ppqStart,         ctx.ppqEnd,
+            ctx.frames,     ctx.playing, ctx.startedThisBlock, ctx.stoppedThisBlock};
         if (wrote)
         {
             if (plugin_->process(pctx, tailL_, tailR_))

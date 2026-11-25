@@ -82,8 +82,8 @@ constexpr StripSpec kBrowseStrip{"BROWSE", {}}, kLiveStrip{"LIVE SAMPLING", {}},
     kScaleStrip{"SET SCALE", {"scaleMidi.area", "", "scaleMidi.root", "", "", ""}},
     kLimiterStrip{"SOFT LIMITER", {"mixer.softLimiter", "", "", "", "", ""}},
     kMotionRecStrip{"MOTION RECORD", {"track.motionRec", "", "", "", "", ""}}, kMotionStrip{"MOTION", {}},
-    kMuteModeStrip{"MUTE MODE", {"track.muteMode", "", "", "", "", ""}},
-    kPluginStrip{"PLUGIN", {}}, kSelectPluginStrip{"SELECT PLUGIN", {}}, kPluginPresetsStrip{"PRESETS", {}};
+    kMuteModeStrip{"MUTE MODE", {"track.muteMode", "", "", "", "", ""}}, kPluginStrip{"PLUGIN", {}},
+    kSelectPluginStrip{"SELECT PLUGIN", {}}, kPluginPresetsStrip{"PRESETS", {}};
 
 // --- the six slots and four header actions per track type (track-menu.md "The six slots per track type") ---
 struct Card
@@ -528,7 +528,7 @@ private:
             std::snprintf(pluginTitle_.data(), pluginTitle_.size(), "PLUGIN : %.*s", static_cast<int>(pname.size()),
                           pname.data());
             m.title = pluginTitle_.data();
-            m.effect = loaded ? acc.loadedId(state_->scene, state_->selectedTrack) : std::string_view {};
+            m.effect = loaded ? acc.loadedId(state_->scene, state_->selectedTrack) : std::string_view{};
         }
         m.thumb = cd.thumb;
         m.port = cd.port;
@@ -801,7 +801,7 @@ private:
     mutable std::array<StripSpec, 2> fxStrips_ {};
     mutable int fxStripIndex_ = 0;
     mutable std::array<std::array<char, 40>, 2> fxTitle_ {};
-    mutable std::array<char, 40> pluginTitle_ {};
+    mutable std::array<char, 40> pluginTitle_{};
     mutable m1::SampleView view_{};
     mutable std::array<FixedText<16>, 4> values_{}; // BANK SELECT / PROG CHANGE value texts
     mutable FixedText<40> motionText_{};
