@@ -389,20 +389,25 @@ ClapAudioNode* ClapAudioNode::create(const std::string& absPath, const std::stri
             node->screenExt_ = nullptr;
     }
 
-    if (effect)
+    const auto* ports = node->plugin_->get_extension
+                            ? static_cast<const clap_plugin_audio_ports_t*>(
+                                  node->plugin_->get_extension(node->plugin_, CLAP_EXT_AUDIO_PORTS))
+                            : nullptr;
+    // Older track instruments without port metadata use the original silent stereo input.
+    if (effect || ports)
     {
-        const auto* ports = node->plugin_->get_extension
-                                ? static_cast<const clap_plugin_audio_ports_t*>(
-                                      node->plugin_->get_extension(node->plugin_, CLAP_EXT_AUDIO_PORTS))
-                                : nullptr;
         clap_audio_port_info_t input{}, output{};
-        if (! clap_version_is_compatible(chosenDesc->clap_version) ||
-            ! hasFeature(*chosenDesc, CLAP_PLUGIN_FEATURE_AUDIO_EFFECT) || ! ports || ! ports->count || ! ports->get ||
-            ports->count(node->plugin_, true) != 1 || ports->count(node->plugin_, false) != 1 ||
-            ! ports->get(node->plugin_, 0, true, &input) || ! ports->get(node->plugin_, 0, false, &output) ||
-            input.channel_count < 1 || input.channel_count > 2 || output.channel_count < 1 || output.channel_count > 2)
+        const bool validPorts = ports && ports->count && ports->get;
+        const auto inputCount = validPorts ? ports->count(node->plugin_, true) : 0u;
+        if (! clap_version_is_compatible(chosenDesc->clap_version) || ! validPorts ||
+            (effect && (! hasFeature(*chosenDesc, CLAP_PLUGIN_FEATURE_AUDIO_EFFECT) || inputCount != 1)) ||
+            inputCount > 1 || ports->count(node->plugin_, false) != 1 ||
+            (inputCount == 1 &&
+             (! ports->get(node->plugin_, 0, true, &input) || input.channel_count < 1 || input.channel_count > 2)) ||
+            ! ports->get(node->plugin_, 0, false, &output) || output.channel_count < 1 || output.channel_count > 2)
         {
-            errorOut = "effect needs one mono or stereo input and output";
+            errorOut = effect ? "effect needs one mono or stereo input and output"
+                              : "instrument needs one mono or stereo output and at most one mono or stereo input";
             delete node;
             return nullptr;
         }
@@ -434,12 +439,12 @@ ClapAudioNode* ClapAudioNode::create(const std::string& absPath, const std::stri
         }
         node->activated_ = true;
     }
-    if (node->plugin_->start_processing != nullptr)
+    if (node->activated_ && node->plugin_->start_processing != nullptr)
         node->processing_ = node->plugin_->start_processing(node->plugin_);
 
-    if (effect && (! node->activated_ || ! node->processing_ || ! node->plugin_->process))
+    if (! node->processing_ || ! node->plugin_->process)
     {
-        errorOut = "effect could not start processing";
+        errorOut = "plugin could not start processing";
         delete node;
         return nullptr;
     }
@@ -646,7 +651,7 @@ bool ClapAudioNode::processBlock(const core::audio::PluginProcessContext& ctx, f
     inBuf.data32 = inPtrs;
     inBuf.channel_count = inputChannels_;
     inBuf.latency = 0;
-    inBuf.constant_mask = inL ? 0 : 0x3;
+    inBuf.constant_mask = inL ? 0u : (1u << inputChannels_) - 1u;
 
     clap_audio_buffer_t outBuf{};
     outBuf.data32 = outPtrs;
@@ -674,9 +679,9 @@ bool ClapAudioNode::processBlock(const core::audio::PluginProcessContext& ctx, f
     proc.steady_time = -1;
     proc.frames_count = static_cast<std::uint32_t>(ctx.frames);
     proc.transport = &transport;
-    proc.audio_inputs = &inBuf;
+    proc.audio_inputs = inputChannels_ ? &inBuf : nullptr;
     proc.audio_outputs = &outBuf;
-    proc.audio_inputs_count = 1;
+    proc.audio_inputs_count = inputChannels_ ? 1u : 0u;
     proc.audio_outputs_count = 1;
     proc.in_events = &inEvents.iface;
     proc.out_events = &outEvents.iface;
@@ -684,8 +689,12 @@ bool ClapAudioNode::processBlock(const core::audio::PluginProcessContext& ctx, f
     const clap_process_status st = plugin_->process(plugin_, &proc);
     paramTail_.store(tail, std::memory_order_release);
 
+    if (st == CLAP_PROCESS_ERROR)
+        return false;
     if (inL)
-        return st != CLAP_PROCESS_ERROR;
+        return true;
+    if (outputChannels_ == 1)
+        std::copy_n(outL, ctx.frames, outR);
 
     float peak = 0.0f;
     for (int i = 0; i < ctx.frames; ++i)

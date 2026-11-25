@@ -41,6 +41,21 @@ TEST_CASE("CLAP FX discovery and rendering respect descriptor roles and port lay
     }
 }
 
+TEST_CASE("CLAP instrument audio uses its declared input count and duplicates mono output", "[plugin]")
+{
+    using namespace services::plugin;
+    std::string error;
+    const auto path = juce::File(CLAP_FIXTURE_DIR).getChildFile("clap_effect_fixture.clap");
+    std::unique_ptr<ClapAudioNode> node(
+        ClapAudioNode::create(path.getFullPathName().toStdString(), "test.instrument", 44100, error));
+    REQUIRE(node);
+    std::array<float, 64> left{}, right{};
+    node->noteOn(0, 60, 1.0f);
+    REQUIRE(node->process({}, left.data(), right.data()));
+    CHECK(left.front() == 0.25f);
+    CHECK(right == left);
+}
+
 TEST_CASE("FX slots restore the exact descriptor on undo and native project load", "[plugin][fx][store]")
 {
     using namespace core::model;
