@@ -47,6 +47,7 @@ const Tails& tails()
 {
     static const Tails t = [] {
         Tails out;
+        out.track.emplace_back("playback.sample"); // sample assignment is an edit path, not a knob parameter
         for (const auto& spec : core::builtinParams().all())
         {
             const std::string_view id = spec.id;

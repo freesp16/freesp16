@@ -2,7 +2,8 @@
 // template content+meter, context bar menu (TRACKS selected), the TrackTile grid in its setting variant (VEL / CHOKE /
 // #NN badges, chip and frame in the pad colour, so a PAD COLOR turn shows at once), the MASTER meter and the strip
 // VELOCITY, CHOKE, PAD COLOR, MOTION REC, MUTE MODE of the selected track (track parameters, none lockable: a held
-// step disables them, UI-204). A tap selects; the screen never navigates (UID-530). The grid widget lives in ui/screens/home/.
+// step disables them, UI-204). Two track selections exchange track contents and sequences. The grid widget lives in
+// ui/screens/home/.
 #include "ui/descriptors/ScreenSpec.h"
 
 namespace
