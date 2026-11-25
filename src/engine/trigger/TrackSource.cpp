@@ -165,6 +165,11 @@ void TrackSource::onEvent(const TriggerEvent& e, TriggerMode triggerMode) noexce
     }
 }
 
+void TrackSource::stopPlayback(bool loopsOnly) noexcept
+{
+    voice_.stopPlayback(loopsOnly);
+}
+
 void TrackSource::choke(int frame) noexcept
 {
     const int f = clampFrame(frame);

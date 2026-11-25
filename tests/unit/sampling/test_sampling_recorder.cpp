@@ -329,6 +329,15 @@ TEST_CASE("sampling.session: live take with LOOP AFTER REC — installed on the 
     CHECK((loop2 - loopDevice) % bar == 0);
     const std::int64_t onset2 = firstAbove(d.mainL.data(), static_cast<std::int64_t>(d.mainL.size()), 0.05f, loop2 + 400);
     CHECK(std::llabs(onset2 - (loop2 + 1000)) <= 2);
+
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 1.0}));
+    d.run(*e, bar, in);
+    CHECK(static_cast<LiveState>(hub->status.liveState.load()) == LiveState::LoopPending);
+    CHECK_FALSE(e->trackSource(5).voice().mainActive());
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    d.run(*e, 4096, in);
+    CHECK(static_cast<LiveState>(hub->status.liveState.load()) == LiveState::Looping);
+    CHECK(e->trackSource(5).voice().mainActive());
 }
 
 TEST_CASE("sampling.session: NUDGE ±1 frame … ±1 beat moves the saved window exactly (clamped to one beat)",

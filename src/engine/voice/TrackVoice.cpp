@@ -74,6 +74,14 @@ void TrackVoice::stop(int frame, float fadeMs) noexcept
     queue({Event::Stop, clampFrame(frame), msToFrames(fadeMs, engineRate_), 0.0f, 0.0f, {}});
 }
 
+void TrackVoice::stopPlayback(bool loopsOnly) noexcept
+{
+    if (! loopsOnly || main_.loop)
+        fadeHead(main_, fadeFrames_);
+    if (deferred_ && (! loopsOnly || deferredEvent_.params.region.loop))
+        deferred_ = false;
+}
+
 void TrackVoice::queue(const Event& e) noexcept
 {
     if (numEvents_ == kMaxEventsPerBlock)

@@ -143,3 +143,18 @@ BENCH(bench_engine_m1, 181000)
         });
     bench::doNotOptimize(rig->engine->voiceStarts());
 }
+
+BENCH(bench_engine_transport_stops, 181000)
+{
+    auto rig = std::make_unique<Rig>();
+    state.run(
+        [&]
+        {
+            // Cycle PLAY, STOP and hard STOP under the existing sixteen-track load.
+            const auto phase = rig->block % 3;
+            rig->engine->bridge().post(engine::TransportCmd{
+                phase == 0 ? engine::TransportCmd::Play : engine::TransportCmd::Stop, static_cast<double>(phase)});
+            rig->step();
+            bench::doNotOptimize(rig->l[17]);
+        });
+}
