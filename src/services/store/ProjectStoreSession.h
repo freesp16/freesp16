@@ -11,7 +11,7 @@
 //     session.startup([&](const StartupResult& r) { … restore r.selection, show r.message … });
 //     per frame:            session.frame(nowMs);     (after workers.pump())
 //     audio device lost:    session.onAudioDeviceLost();   … back: session.onAudioDeviceRestored();
-//     quit:                 session.shutdown();      power key: session.shutdown(true);
+//     quit:                 session.finishSession();      power key: session.saveForPowerOff();
 // Directory layout under dataDir (LIB-001's root layout): Projects/, Backups/, System/ (resume.json,
 // resume.sixteen, resuming/, resumed, crashed/, autosave/, trash/ on the device).
 #pragma once
@@ -75,9 +75,8 @@ public:
     // switched off, as the stock software does (the project file stays untouched and the project dirty).
     void startup(std::function<void(const StartupResult&)> done);
     void frame(double nowMs); // autosave tick (playing from the engine's playhead), resume settle
-    void shutdown(bool powerOff = false); // clean exit: ends the early-exit watch, keeps the selection; waits for no
-                                          // worker. powerOff (the power key): unsaved changes are autosaved first
-                                          // and System/poweroff marks the next start-up's restore as automatic
+    void finishSession();
+    Result<void> saveForPowerOff(); // writes a checked recovery snapshot and its next-startup marker
     juce::File powerOffMarker() const { return systemDir().getChildFile("poweroff"); }
 
     // NFR-012. Lost: remember the transport, pause it (position kept), autosave now when dirty, report the state.
@@ -128,6 +127,7 @@ private:
     Progress startupProgress_;
     std::optional<double> settleAtMs_;
     bool settlePending_ = false;
+    juce::String verifiedSnapshotName_;
     bool restoreWithoutAsking_ = false; // the last session ended with the power key
     double lastNowMs_ = 0;
     DeviceState deviceState_ = DeviceState::Running;

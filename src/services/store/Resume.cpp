@@ -200,14 +200,14 @@ Result<void> Resume::markLoaded(const juce::File& bundle, const Selection& selec
     return copied;
 }
 
-void Resume::updateSelection(const Selection& selection)
+Result<void> Resume::persistSelection(const Selection& selection)
 {
-    std::lock_guard lock(mutex_);
-    if (auto rec = read())
-    {
-        rec->selection = selection;
-        (void) write(*rec);
-    }
+    std::lock_guard guard(mutex_);
+    auto rec = read();
+    if (! rec)
+        return {};
+    rec->selection = selection;
+    return write(*rec);
 }
 
 void Resume::setAside()

@@ -285,7 +285,10 @@ void Preferences::waitIdle() const
 void Preferences::flush()
 {
     waitIdle();
-    if (! dirty_ || file_ == juce::File())
+    if (file_ == juce::File())
+        return;
+    const bool retry = ! lastError().empty();
+    if (! dirty_ && ! retry)
         return;
     dirty_ = false;
     inFlight_->store(true);

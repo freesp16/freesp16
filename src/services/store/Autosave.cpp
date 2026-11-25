@@ -94,6 +94,18 @@ bool Autosave::writeNow()
     return true;
 }
 
+Result<void> Autosave::persistDirtyProject()
+{
+    workers_.drain();
+    if (core::commands::hasProject(bus_) && bus_.dirty())
+    {
+        start();
+        workers_.drain();
+        return completion_;
+    }
+    return {};
+}
+
 void Autosave::start()
 {
     busy_ = true;
@@ -110,9 +122,10 @@ void Autosave::start()
     if (bundle_ != juce::File() && (target.isAChildOf(bundle_) || target == bundle_))
     {
         busy_ = false;
+        completion_ = Result<void>::failure("Autosave destination is inside the project bundle",
+                                            target.getFullPathName().toStdString());
         if (onWritten)
-            onWritten(Result<void>::failure("Autosave refused: " + target.getFullPathName().toStdString() +
-                                            " is inside the project"));
+            onWritten(completion_);
         return;
     }
     auto result = std::make_shared<Result<void>>();
@@ -133,7 +146,8 @@ void Autosave::start()
             if (alive.expired())
                 return;
             busy_ = false;
-            if (*result)
+            completion_ = *result;
+            if (completion_)
                 ++writes_;
             else
             {
