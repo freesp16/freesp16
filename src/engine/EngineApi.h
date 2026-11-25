@@ -47,9 +47,24 @@ constexpr std::size_t kMessageQueueSize = 4096; // threading.md: UI → audio FI
 // Values are float: sample positions above 2^24 frames (~6.3 min at 44.1 kHz) travel as an ObjectSwap (region object).
 struct ParamChange { core::ParamId param; std::uint16_t scope; float value; std::uint16_t rampSamples; };
 struct TransportCmd { enum Kind : std::uint8_t { Play, Stop, Pause, HardStop, Continue, SetTempo, Locate } kind; double value; };
-struct SwapSlot { enum Kind : std::uint8_t { TrackSample, Preview, Pattern, SceneConfig, ProjectConfig, LiveTake,
-                                              SliceMap, TrackPlugin, InsertPlugin1, InsertPlugin2, BusPlugin } kind; // appended (the order is stable)
-                  std::uint8_t scene, index; };                     // index = track or pattern
+struct SwapSlot
+{
+    enum Kind : std::uint8_t
+    {
+        TrackSample,
+        Preview,
+        Pattern,
+        SceneConfig,
+        ProjectConfig,
+        LiveTake,
+        SliceMap,
+        TrackPlugin,
+        InsertPlugin1,
+        InsertPlugin2,
+        BusPlugin
+    } kind; // appended (the order is stable)
+    std::uint8_t scene, index;
+}; // index = track or pattern
 // CLAP FX instances use the same linear slot order as the mixer: two inserts per track, then Send and Master.
 inline constexpr int kPluginFxSlots = 2 * kTracks + 2;
 constexpr SwapSlot pluginFxSwap(int scene, int slot) noexcept

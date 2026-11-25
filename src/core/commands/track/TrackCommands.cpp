@@ -24,7 +24,10 @@ model::TriggerMode& triggerField(Project& p, const ParamPath& a) { return at(p, 
 int& chokeField(Project& p, const ParamPath& a) { return at(p, a).chokeGroup; }
 int& colourField(Project& p, const ParamPath& a) { return at(p, a).colour; }
 bool& velocityField(Project& p, const ParamPath& a) { return at(p, a).ampEnv.velocitySensitive; }
-model::PluginTrack& pluginField(Project& p, const ParamPath& a) { return at(p, a).plugin; }
+model::PluginTrack& pluginField(Project& p, const ParamPath& a)
+{
+    return at(p, a).plugin;
+}
 bool& patternMuteField(Project& p, const ParamPath& a)
 {
     return p.scenes[a.scene & 15].patterns[a.pattern & 15].trackMutes[a.track & 15];
@@ -42,7 +45,7 @@ constexpr Field kChoke {"chokeGroup", "track.chokeGroup", "CHOKE"};
 constexpr Field kColour {"padColor", "track.padColor", "PAD COLOR"};
 constexpr Field kVelocity {"padVelocity", "track.padVelocity", "VELOCITY"};
 constexpr Field kSolo {"solo", "track.solo", "SOLO"}; // not in kFields: ui::forwardModelChanges posts it
-constexpr Field kPlugin {"plugin", "track.plugin", "SELECT PLUGIN"}; // not in kFields: plugin host swaps audio node
+constexpr Field kPlugin{"plugin", "track.plugin", "SELECT PLUGIN"}; // not in kFields: plugin host swaps audio node
 constexpr const Field* kFields[] = {&kMute, &kMode, &kTrigger, &kChoke, &kColour, &kVelocity};
 
 std::string pathOf(int scene, int track, std::string_view tail)

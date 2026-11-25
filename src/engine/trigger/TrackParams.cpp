@@ -25,29 +25,37 @@ bool applyTrackParam(TrackSettings& s, TrackField field, float value) noexcept
     bool scale = false;
     switch (field)
     {
-        case TrackField::Mode: return store(s.mode, roundIndex(value, 0, 4));
-        case TrackField::TriggerMode: return store(s.triggerMode, roundIndex(value, 0, 1));
-        case TrackField::ChokeGroup: return store(s.chokeGroup, roundIndex(value, 0, 8));
-        case TrackField::InputSource: return store(s.input, roundIndex(value, 0, 3));
-        case TrackField::ScaleType: scale = store(s.scaleType, roundIndex(value, 0, core::scales::kScales - 1)); break;
-        case TrackField::KeyShift:
-            scale = store(s.keyShift, roundIndex(value, core::scales::kMinKeyShift, core::scales::kMaxKeyShift));
-            break;
-        case TrackField::ScaleArea:
-            scale = store(s.window, roundIndex(value, core::scales::kMinWindow, core::scales::kMaxWindow));
-            break;
-        case TrackField::MidiScaleType:
-            if (! store(s.midiScaleType, roundIndex(value, 0, core::scales::kScales - 1)))
-                return false;
-            s.midiPadSemitones = core::scales::padTable(core::scales::scaleMask(s.midiScaleType), 0, s.midiWindow);
-            return true;
-        case TrackField::MidiScaleRoot: return store(s.midiRoot, roundIndex(value, 0, 119)); // C0…B9
-        case TrackField::MidiScaleArea:
-            if (! store(s.midiWindow, roundIndex(value, core::scales::kMinWindow, core::scales::kMaxWindow)))
-                return false;
-            s.midiPadSemitones = core::scales::padTable(core::scales::scaleMask(s.midiScaleType), 0, s.midiWindow);
-            return true;
-        case TrackField::Count: return false;
+    case TrackField::Mode:
+        return store(s.mode, roundIndex(value, 0, 4));
+    case TrackField::TriggerMode:
+        return store(s.triggerMode, roundIndex(value, 0, 1));
+    case TrackField::ChokeGroup:
+        return store(s.chokeGroup, roundIndex(value, 0, 8));
+    case TrackField::InputSource:
+        return store(s.input, roundIndex(value, 0, 3));
+    case TrackField::ScaleType:
+        scale = store(s.scaleType, roundIndex(value, 0, core::scales::kScales - 1));
+        break;
+    case TrackField::KeyShift:
+        scale = store(s.keyShift, roundIndex(value, core::scales::kMinKeyShift, core::scales::kMaxKeyShift));
+        break;
+    case TrackField::ScaleArea:
+        scale = store(s.window, roundIndex(value, core::scales::kMinWindow, core::scales::kMaxWindow));
+        break;
+    case TrackField::MidiScaleType:
+        if (! store(s.midiScaleType, roundIndex(value, 0, core::scales::kScales - 1)))
+            return false;
+        s.midiPadSemitones = core::scales::padTable(core::scales::scaleMask(s.midiScaleType), 0, s.midiWindow);
+        return true;
+    case TrackField::MidiScaleRoot:
+        return store(s.midiRoot, roundIndex(value, 0, 119)); // C0…B9
+    case TrackField::MidiScaleArea:
+        if (! store(s.midiWindow, roundIndex(value, core::scales::kMinWindow, core::scales::kMaxWindow)))
+            return false;
+        s.midiPadSemitones = core::scales::padTable(core::scales::scaleMask(s.midiScaleType), 0, s.midiWindow);
+        return true;
+    case TrackField::Count:
+        return false;
     }
     if (scale)
         s.padSemitones = core::scales::padTable(core::scales::scaleMask(s.scaleType), s.keyShift, s.window);

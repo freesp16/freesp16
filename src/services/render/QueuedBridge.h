@@ -16,8 +16,8 @@
 #include "core/audio/SampleBuffer.h"
 #include "core/util/arrangement/ArrangementPlan.h"
 #include "core/util/chain/ChainPlan.h"
-#include "core/util/sequencer/PatternImage.h"
 #include "core/util/sampling/CaptureHub.h"
+#include "core/util/sequencer/PatternImage.h"
 #include "core/util/slice/SliceTable.h"
 #include "engine/EngineApi.h"
 

@@ -488,7 +488,7 @@ void Shell::updateFrameModels(double nowMs)
     const auto* modeSpec = params_.find("track.mode");
     const int modeVal = modeSpec != nullptr
                             ? static_cast<int>(std::lround(values_->get(*modeSpec, state_.trackScope())))
-                            : (tr.typeBadge == "MIDI" ? 1
+                            : (tr.typeBadge == "MIDI"   ? 1
                                : tr.typeBadge == "THRU" ? 2
                                : tr.typeBadge == "AS-1" ? 3
                                : tr.typeBadge == "PLUG" ? 4

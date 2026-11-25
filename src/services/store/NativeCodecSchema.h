@@ -503,8 +503,7 @@ void schema(V& v, T& o, const m::TrackRouting& d)
     v.end();
 }
 
-template <typename V, typename T>
-void schema(V& v, T& o, const m::PluginTrack& d)
+template <typename V, typename T> void schema(V& v, T& o, const m::PluginTrack& d)
 {
     v.begin(o.extras);
     v.field("path", o.path, d.path);
