@@ -1,7 +1,7 @@
 // The 4 × 4 TrackTile grid of HOME and TRACK SETTING (home.md, track-setting.md; UID-500…504, UID-525…531): tiles
 // in pad order at the fixed grid (layout::trackTile), selection following taps and the rotary (wraps 1 → 16), trigger
 // flashes and mini levels from the engine's meter feed (EngineFeeds, UID-503). HOME opens TRACK MENU on a second tap
-// or a rotary push (UID-155, UI-401); TRACK SETTING never navigates (UID-530).
+// or a rotary push (UID-155, UI-401). In TRACK SETTING, choose a pair of pads to exchange their tracks.
 #pragma once
 
 #include "ui/widgets/TrackTile.h"
@@ -24,6 +24,9 @@ public:
 
 private:
     void bindStripForMode() const;
+    void swapSelection(int picked);
+    int sourceScene_ = -1;
+    int sourceTrack_ = 0;
     ShellApi* shell_;
     UiState* state_;
     TrackTileModel::Variant variant_;
