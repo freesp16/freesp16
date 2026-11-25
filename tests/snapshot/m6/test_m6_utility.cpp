@@ -11,6 +11,7 @@
 #include "ui/shell/Layout.h"
 #include "ui/widgets/ListPopup.h"
 #include "ui/widgets/Message.h"
+#include "ui/widgets/StatusRow.h"
 
 #include "ProjectIdentity.h"
 
@@ -605,25 +606,25 @@ TEST_CASE("m6.utility: temperature switches control the status row independently
         t.turn(direction);
         t.push();
     };
-    CHECK_FALSE(t.m.hasText("CPU 41°C"));
-    CHECK_FALSE(t.m.hasText("GPU 53°C"));
+    CHECK_FALSE(t.m.hasText("41°C"));
+    CHECK_FALSE(t.m.hasText("53°C"));
     toggle("CPU TEMP", 1);
-    CHECK(t.m.hasText("CPU 41°C"));
-    CHECK_FALSE(t.m.hasText("GPU 53°C"));
+    CHECK(t.m.hasText("41°C"));
+    CHECK_FALSE(t.m.hasText("53°C"));
     toggle("GPU TEMP", 1);
-    CHECK(t.m.hasText("CPU 41°C"));
-    CHECK(t.m.hasText("GPU 53°C"));
-    CHECK_FALSE(t.m.hasText("SoC 47°C"));
+    CHECK(t.m.hasText("41°C"));
+    CHECK(t.m.hasText("53°C"));
+    CHECK_FALSE(t.m.hasText("SoC"));
     CHECK(t.rowOf("SoC TEMP") < 0);
     toggle("CPU TEMP", -1);
-    CHECK_FALSE(t.m.hasText("CPU 41°C"));
-    CHECK(t.m.hasText("GPU 53°C"));
+    CHECK_FALSE(t.m.hasText("41°C"));
+    CHECK(t.m.hasText("53°C"));
     sample = {};
     t.m.f.frame(16);
-    CHECK(t.m.hasText("GPU N/A"));
-    CHECK_FALSE(t.m.hasText("SoC 47°C"));
+    CHECK(t.m.hasText("N/A"));
+    CHECK_FALSE(t.m.hasText("SoC"));
     REQUIRE(t.m.open("home"));
-    CHECK(t.m.hasText("GPU N/A"));
+    CHECK(t.m.hasText("N/A"));
     t.prefs.flush();
     st::Preferences loaded;
     REQUIRE(loaded.load(file.getFile()));
@@ -631,10 +632,10 @@ TEST_CASE("m6.utility: temperature switches control the status row independently
     CHECK(loaded.get("ui.showGpuTemp") == 1);
     REQUIRE(t.m.open("utility"));
     toggle("GPU TEMP", -1);
-    CHECK_FALSE(t.m.hasText("GPU N/A"));
+    CHECK_FALSE(t.m.hasText("N/A"));
 }
 
-TEST_CASE("m6.utility: one die sensor has one SoC temperature switch", "[m6][temperature]")
+TEST_CASE("m6.utility: one die sensor supplies the CPU temperature switch", "[m6][temperature]")
 {
     Session session;
     M6Fixture t;
@@ -647,24 +648,76 @@ TEST_CASE("m6.utility: one die sensor has one SoC temperature switch", "[m6][tem
         return services::system::Temperatures{{}, {}, 47};
     };
     REQUIRE(t.m.open("utility"));
-    REQUIRE(t.rowOf("CPU TEMP") < 0);
+    REQUIRE(t.rowOf("SoC TEMP") < 0);
     REQUIRE(t.rowOf("GPU TEMP") < 0);
-    t.focusRow("SoC TEMP");
+    t.focusRow("CPU TEMP");
     CHECK(t.value(t.focus()) == "OFF");
     CHECK_FALSE(requested.any());
     t.push();
     t.turn(1);
     t.push();
-    CHECK(t.m.hasText("SoC 47°C"));
+    CHECK(t.m.hasText("47°C"));
     CHECK(requested == env.temperatureSensors);
     CHECK(t.prefs.get("ui.showSocTemp") == 1);
     REQUIRE(t.m.open("home"));
-    CHECK(t.m.hasText("SoC 47°C"));
+    CHECK(t.m.hasText("47°C"));
     REQUIRE(t.m.open("utility"));
-    t.focusRow("SoC TEMP");
+    t.focusRow("CPU TEMP");
     t.push();
     t.turn(-1);
     t.push();
-    CHECK_FALSE(t.m.hasText("SoC 47°C"));
+    CHECK_FALSE(t.m.hasText("SoC"));
     CHECK_FALSE(requested.any());
+}
+
+TEST_CASE("m6.utility: enabled CPU metrics share a label and close the gap when either is hidden", "[m6][temperature]")
+{
+    Session session;
+    ui::FocusState focus;
+    const auto measureText = snapshot::measure();
+    const ui::UiContext ctx{ui::theme::palette(), measureText, 0, focus};
+    ui::StatusRow row;
+    ui::StatusRowModel model;
+    model.temperatures = {{}, 53, 47};
+    model.syncBadge = "EXT";
+    for (const bool gpu : {false, true})
+        for (const bool load : {false, true})
+            for (const bool temp : {false, true})
+            {
+                CAPTURE(gpu, load, temp);
+                model.cpu = load ? "7%" : "";
+                model.showTemp = {false, gpu, temp};
+                row.set(model);
+                ui::DrawList dl;
+                row.build(dl, ctx);
+                const auto anchor = [&](std::string_view text)
+                {
+                    float x = -1.0f;
+                    for (const auto& cmd : dl.commands())
+                        if (cmd.op == ui::DrawCmd::Op::Text && dl.textOf(cmd) == text)
+                        {
+                            CHECK(x < 0); // each visible label or value is drawn once
+                            x = cmd.rect.x;
+                        }
+                    return x;
+                };
+                const float cpu = anchor("CPU"), usage = anchor("7%"), heat = anchor("47°C");
+                CHECK((cpu >= 0) == (load || temp));
+                CHECK((usage >= 0) == load);
+                CHECK((heat >= 0) == temp);
+                CHECK((anchor("GPU") >= 0) == gpu);
+                CHECK((anchor("53°C") >= 0) == gpu);
+                if (load || temp)
+                {
+                    const float first = load ? usage : heat;
+                    const float labelGap = load && temp ? 2.0f : 4.0f;
+                    CHECK(std::abs(first - cpu - labelGap) < 0.01f);
+                    if (load && temp)
+                        CHECK(std::abs(heat - usage - measureText(ui::TextStyleId::Caption, "7%") - L::gap) < 0.01f);
+                    const auto last = temp ? heat + measureText(ui::TextStyleId::Caption, "47°C")
+                                           : usage + measureText(ui::TextStyleId::Caption, "7%");
+                    const auto nextLabel = gpu ? "GPU" : "EXT";
+                    CHECK(last < anchor(nextLabel) - measureText(ui::TextStyleId::Caption, nextLabel));
+                }
+            }
 }

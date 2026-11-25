@@ -27,6 +27,8 @@ TEST_CASE("temperature monitor reads the enabled thermal zones on a worker", "[t
     workers.drain();
     CHECK(unit.poll(die, 1).soc == 47);
     zone("thermal_zone7", "cpu-thermal", "51500\n");
+    const services::system::TemperatureSelection cpuOnly{true, false, false};
+    CHECK(services::system::TemperatureMonitor(workers, path).available() == cpuOnly);
     zone("thermal_zone8", "gpu-thermal", "400\n");
     zone("thermal_zone0", "board", "87000\n");
     zone("cooling_device0", "gpu", "68000\n");

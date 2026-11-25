@@ -100,7 +100,7 @@ TemperatureMonitor::TemperatureMonitor(library::Workers& workers, std::string ro
 TemperatureSelection TemperatureMonitor::available() const
 {
     const bool cpu = ! sensors_->cpu.empty(), gpu = ! sensors_->gpu.empty();
-    return {cpu, gpu, ! sensors_->soc.empty() && ! (cpu && gpu)};
+    return {cpu, gpu, ! cpu && ! sensors_->soc.empty()};
 }
 
 Temperatures TemperatureMonitor::poll(TemperatureSelection wanted, double nowMs)
