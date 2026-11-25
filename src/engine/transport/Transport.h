@@ -9,10 +9,11 @@
 //
 // Commands (TransportCmd; applied by the step-1 FIFO drain, i.e. at the next block start):
 //   Play(bars)  Stopped/Paused → from PPQ 0; bars 1–2 (clamped) first run a pre-count from −4·bars to 0 (PreCount:
-//               ctx.playing false, BlockBuffers::timing.preCount true, the metronome clicks); playing / pre-count: no-op
+//               ctx.playing false, BlockBuffers::timing.preCount true, the metronome clicks); playing / pre-count:
+//               no-op
 //   Continue    Stopped/Paused → Playing from the current position (a pause or a Locate); otherwise no-op
 //   Stop(0)     pause: Playing → Paused, the position is kept; PreCount → Stopped at 0; otherwise no-op   (= Pause)
-//   Stop(1)     Playing/Paused/PreCount → Stopped, back to PPQ 0 (step 1), tails ring; when already Stopped it is the
+//   Stop(1)     Playing/Paused/PreCount → Stopped, back to step 1, looping voices fade; when already Stopped it is the
 //               spec's second STOP and acts as Stop(2) (SYN-001; the FX-036 rule)
 //   Stop(2)     hard stop: Stopped at 0 and hardStop for one block (voices fade, FX tails are cut)       (= HardStop)
 //   SetTempo    20.0–300.0 BPM on the 0.1 grid (SYN-002); takes effect at the block start, the position is kept
@@ -30,6 +31,13 @@
 
 namespace engine::transport
 {
+enum class StopAction : std::uint8_t
+{
+    None,
+    Loops,
+    All
+};
+
 enum class State : std::uint8_t
 {
     Stopped,
@@ -73,7 +81,8 @@ public:
     int nudge() const noexcept { return nudgeDir_; }
 
     // Edges of the last advance() (one block each).
-    bool hardStopThisBlock() const noexcept { return hardStopEdge_; }
+    StopAction stopAction() const noexcept { return stopEdge_; }
+    bool hardStopThisBlock() const noexcept { return stopEdge_ == StopAction::All; }
     bool locatedThisBlock() const noexcept { return locatedEdge_; } // the position jumped (Locate, Stop to 0, Play)
     bool preCountThisBlock() const noexcept { return preCountBlock_; } // the block was (entirely) pre-count
     int startFrame() const noexcept { return startFrame_; }          // frame of the start edge (0 unless pre-count)
@@ -83,7 +92,7 @@ private:
     void rebase() noexcept;                   // fold the frames into the anchor (before a rate change)
     void locate(double ppq) noexcept;         // anchor = ppq exactly
     void updateRate() noexcept;               // ppf_ from bpm_, nudge, sample rate (after rebase)
-    void stopAtZero(bool hard) noexcept;
+    void stopAtZero() noexcept;
 
     double sampleRate_ = 44100.0;
     double bpm_ = 120.0;
@@ -95,8 +104,8 @@ private:
     std::int64_t frames_ = 0;                  // frames advanced since the anchor
     State state_ = State::Stopped;
     bool wasPlaying_ = false;                  // state_ was Playing at the end of the previous block
-    bool hardStopPending_ = false, locatedPending_ = false;
-    bool hardStopEdge_ = false, locatedEdge_ = false, preCountBlock_ = false;
+    StopAction stopPending_ = StopAction::None, stopEdge_ = StopAction::None;
+    bool locatedPending_ = false, locatedEdge_ = false, preCountBlock_ = false;
     int startFrame_ = 0;
     CorrectionFn correction_ = nullptr;
     void* correctionUser_ = nullptr;

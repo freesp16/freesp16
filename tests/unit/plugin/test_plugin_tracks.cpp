@@ -78,6 +78,8 @@ public:
     }
     bool active() const noexcept override { return sounding; }
 
+    void resetEffect() noexcept override { ++resets; }
+    int resets = 0;
     int lastNote = -1, lastOffNote = -1;
     float lastVel = 0.0f;
     int noteOns = 0, noteOffs = 0, allOffs = 0;
@@ -357,6 +359,15 @@ TEST_CASE("plugin: Engine SwapSlot::TrackPlugin renders audio on triggers and re
         peakL = std::max(peakL, std::fabs(s));
     CHECK(peakL > 0.05f);
 
+    REQUIRE(eng->bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    enginetest::render(*eng, 256);
+    REQUIRE(eng->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 1.0}));
+    CHECK(enginetest::peak(enginetest::render(*eng, 1024).l, 512) > 0.05f);
+    CHECK(mock->resets == 0);
+    REQUIRE(eng->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 2.0}));
+    CHECK(enginetest::peak(enginetest::render(*eng, 1024).l, 512) == 0.0f);
+    CHECK(mock->resets == 1);
+
     // Replace with nullptr and drain RetireQueue: engine drops its reference.
     REQUIRE(eng->bridge().post(engine::ObjectSwap{{engine::SwapSlot::TrackPlugin, 0, 0}, nullptr}));
     eng->process(engine::AudioIO{outs, 1, nullptr, 0, 256, 0});
@@ -364,6 +375,33 @@ TEST_CASE("plugin: Engine SwapSlot::TrackPlugin renders audio on triggers and re
     CHECK(destroyed.load() == 0); // test still owns its initial ref
     mock->release();
     CHECK(destroyed.load() == 1);
+}
+
+TEST_CASE("plugin: two Stop presses preserve then silence a loaded CLAP instrument", "[plugin][engine][stop-audio]")
+{
+    auto engine = enginetest::make(false);
+    auto& bridge = engine->bridge();
+    const auto path = juce::File(CLAP_FIXTURE_DIR).getChildFile("clap_effect_fixture.clap");
+    std::string error;
+    std::unique_ptr<services::plugin::ClapAudioNode> instrument(
+        services::plugin::ClapAudioNode::create(path.getFullPathName().toStdString(), "test.instrument", 44100, error));
+    INFO(error);
+    REQUIRE(instrument);
+    REQUIRE(bridge.post(engine::ObjectSwap{{engine::SwapSlot::TrackPlugin, 0, 0}, instrument.get()}));
+    instrument.release(); // the engine now owns this reference
+    REQUIRE(bridge.post(engine::ParamChange{*core::builtinParams().idOf("track.mode"), 0, 4.0f, 0}));
+
+    const engine::TriggerNow hit{0, 110, 64, 0};
+    auto level = [&] { return enginetest::peak(enginetest::render(*engine, 2048).l, 1024); };
+    REQUIRE(bridge.post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    REQUIRE(bridge.post(hit));
+    REQUIRE(level() > 0.05f);
+    REQUIRE(bridge.post(engine::TransportCmd{engine::TransportCmd::Stop, 1.0}));
+    CHECK(level() > 0.05f);
+    REQUIRE(bridge.post(engine::TransportCmd{engine::TransportCmd::Stop, 1.0}));
+    CHECK(level() == 0.0f);
+    REQUIRE(bridge.post(hit));
+    CHECK(level() > 0.05f);
 }
 
 TEST_CASE("CLAP effects process live track audio in both inserts and the master, including undo and bypass",

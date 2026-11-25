@@ -66,6 +66,7 @@ public:
     // 2 ms; the main voice restarts at region.start (or the region end when reversed).
     void start(const PlaybackParams&, float modCents, int frame, float tailGain) noexcept;
     void stop(int frame, float fadeMs = kFadeMs) noexcept; // choke, hard stop, mode change
+    void stopPlayback(bool loopsOnly) noexcept;            // block start, before new triggers
     void setModCents(int source, float cents) noexcept;   // ModSource index
     float modCents(int source) const noexcept
     {

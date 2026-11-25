@@ -246,3 +246,19 @@ TEST_CASE("trigger.engine: a pad hit on track 1 without a sample does not interr
     CHECK(minPeak > 0.15f); // a 64-frame window of the 440 Hz tone peaks ≥ 0.18; a dropout block would be 0
     CHECK(enginetest::maxStep(out.l) < 0.2f);
 }
+
+TEST_CASE("trigger.engine: a browser audition rings through STOP and stays silent after hard STOP",
+          "[trigger][engine][stop-audio]")
+{
+    voicetest::TestBuffer buffer(std::vector<float>(44100, 0.25f));
+    auto e = enginetest::make(false);
+    auto level = [&] { return enginetest::peak(enginetest::render(*e, 1024).l, 512); };
+    REQUIRE(install(*e, buffer, engine::voice::previewSlot()));
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    REQUIRE(level() > 0.0f);
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 1.0}));
+    CHECK(level() > 0.0f);
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 2.0}));
+    CHECK(level() == 0.0f);
+    CHECK(level() == 0.0f);
+}

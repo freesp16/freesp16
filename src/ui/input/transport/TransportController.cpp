@@ -86,7 +86,7 @@ void TransportController::onPlay()
 
 void TransportController::onStop()
 {
-    // STOP: back to step 1, tails ring; a second STOP (already stopped) silences everything (SYN-001).
+    // STOP returns to step 1 and cuts loops. Pressing it again cuts the remaining voices and FX tails.
     post({TransportCmd::Stop, state_ == State::Stopped ? 2.0 : 1.0});
     state_ = State::Stopped;
 }

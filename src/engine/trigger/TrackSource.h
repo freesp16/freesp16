@@ -60,6 +60,7 @@ public:
     void setSliceMap(const voice::SliceMap* map) noexcept { sliceMap_ = map; }
     int playingSlice() const noexcept { return voice_.mainActive() ? noteSlice_ : -1; } // −1 = whole region / idle
     void onEvent(const TriggerEvent&, TriggerMode) noexcept;
+    void stopPlayback(bool loopsOnly) noexcept;
     void choke(int frame) noexcept; // TRK-020: 2 ms fade of the sounding note, pending starts of this block dropped
     // Writes 64 frames into l/r (overwritten). inL/inR: this block's audio input (null = none). false = silent block
     // (l/r untouched).

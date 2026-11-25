@@ -138,6 +138,15 @@ void LiveSampler::disarm() noexcept
     statusDirty_ = true;
 }
 
+void LiveSampler::stopPlayback() noexcept
+{
+    if (state_ == LiveState::Looping)
+    {
+        state_ = LiveState::LoopPending;
+        statusDirty_ = true;
+    }
+}
+
 void LiveSampler::setNudge(std::int32_t frames) noexcept
 {
     pendingNudge_ = frames;
