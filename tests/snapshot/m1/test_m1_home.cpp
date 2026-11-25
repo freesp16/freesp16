@@ -161,7 +161,7 @@ TEST_CASE("ui.m1.trackSetting: TRACK SETTING matches track-setting.svg", "[snaps
     CHECK(compare(ours, mock, kGrid, "m1-track-setting-tiles").match >= kGate);
     CHECK(compare(ours, mock, L::contextBar, "m1-track-setting-context").match >= kGate);
     CHECK(compare(ours, mock, L::canvas, "m1-track-setting").match >= kGate);
-    // TRACK SETTING never navigates (UID-530)
+    // Choosing the first track keeps the screen open.
     f.press(io::Control::SelectorPush);
     f.settle();
     CHECK(f.shell->router().current().id == "trackSetting");

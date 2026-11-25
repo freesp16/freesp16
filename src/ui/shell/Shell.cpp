@@ -804,7 +804,9 @@ void Shell::contextAction(ContextBar::Item item)
     case ContextBar::Menu3:
     {
         const auto target = kMenuTargets[item - ContextBar::Menu0];
-        if (router_.current().id != target)
+        if (item == ContextBar::Menu0 && target == router_.current().id)
+            home();
+        else if (target != router_.current().id)
             open(target);
         break;
     }
