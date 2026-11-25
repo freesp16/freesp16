@@ -46,12 +46,15 @@ constexpr std::uint32_t kDelayQuirkWarmUp = 1u << 0;    // FX-680 / FX-780
 constexpr std::uint32_t kDelayQuirkStaleRing = 1u << 1; // FX-681 / FX-781
 constexpr std::uint32_t kDelayQuirkCtorTime = 1u << 2;  // FX-682 / FX-782
 
+constexpr std::uint32_t kDelayQuirkGatedTime = 1u << 3; // Reference digital time changes fade through silence.
+
 class InsertDelay final : public EffectBase
 {
 public:
     enum Option : int
     {
-        kOptSync = 0 // options[0] "fx.delay.sync"
+        kOptSync = 0,
+        kOptMode = 1 // DIGITAL / TAPE
     };
 
     void prepare(double sampleRate, int maxBlock) override;
@@ -89,6 +92,7 @@ private:
     double fs_ = 44100.0;
     dsp::delay::Param p_[6];
     dsp::delay::Toggle sync_;
+    dsp::delay::TapeColour colour_;
     dsp::delay::Param bpm_;
     int syncV_ = 0;
     float bpmV_ = 120.0f, timeV_ = 0.5f;

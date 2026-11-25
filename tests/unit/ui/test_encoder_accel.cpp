@@ -210,6 +210,10 @@ TEST_CASE("param step: no float drift, the same detents land on the same value",
     CHECK(std::string(buf) == "+12.3");
     // A value off the grid stays off it (only rounding error is absorbed).
     CHECK(pitch.step(0.25f, 1, false) == 1.25f);
+    // A fractional lower bound must also cancel exactly when the grid reaches zero.
+    auto fractional = pitch;
+    fractional.minValue = -0.3f;
+    CHECK(sameBits(fractional.step(0.1f, -1, true), 0.0f));
 }
 
 namespace

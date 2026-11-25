@@ -115,6 +115,7 @@ TEST_CASE("ext toggle: TOGGLE off releases a latched note and restores the model
 TEST_CASE("ext toggle: a one-shot sample that ends clears the latch; posted hits latch by track", "[ext][toggle]")
 {
     voicetest::TestBuffer buf(std::vector<float>(4000, 0.25f)); // 90 ms, LOOP off
+    voicetest::TestBuffer loop(std::vector<float>(60000, 0.25f));
     auto e = enginetest::make(false);
     REQUIRE(install(*e, buf, 1));
     REQUIRE(toggle(*e, 1, true));
@@ -131,7 +132,6 @@ TEST_CASE("ext toggle: a one-shot sample that ends clears the latch; posted hits
     CHECK(e->voiceStarts() == 2);
 
     // A posted hit without a pad (virtual panel / MIDI-style, pad −1) latches by track.
-    voicetest::TestBuffer loop(std::vector<float>(60000, 0.25f));
     REQUIRE(install(*e, loop, 3));
     REQUIRE(e->bridge().post(engine::ParamChange {id("playback.loop"), 3, 1.0f, 0}));
     REQUIRE(toggle(*e, 3, true));

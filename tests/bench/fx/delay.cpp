@@ -13,7 +13,7 @@
 
 namespace
 {
-void benchDelay(bench::State& state, bool glide)
+void benchDelay(bench::State& state, bool glide, bool modulate = false, bool tape = false)
 {
     using namespace engine::fx;
     constexpr int N = engine::kBlockFrames;
@@ -30,12 +30,15 @@ void benchDelay(bench::State& state, bool glide)
     const float k[6] = {1.0f, 0.9f, 0.3f, 0.0f, 0.0f, 1.0f};
     for (int i = 0; i < 6; ++i)
         e.setParam(i, k[i]);
+    e.setOption(InsertDelay::kOptMode, tape ? 1 : 0);
     e.reset();
     int iter = 0;
     state.run(
         [&]
         {
             ++iter;
+            if (modulate)
+                e.setParam(0, static_cast<float>(iter & 255) / 255.0f);
             if (glide && (iter & 63) == 0) // keep the hi-cut gliding (≈ 500 steps between the two targets)
                 e.setParam(2, (iter & 64) != 0 ? 0.8f : 0.3f);
             std::memcpy(l, inL, sizeof l);
@@ -54,4 +57,14 @@ BENCH(fx_delay, 6000)
 BENCH(fx_delay_steady, 6000) // no glide: the common case
 {
     benchDelay(state, false);
+}
+
+BENCH(fx_delay_digital_sweep, 6000)
+{
+    benchDelay(state, true, true, false);
+}
+
+BENCH(fx_delay_tape_sweep, 6000)
+{
+    benchDelay(state, true, true, true);
 }

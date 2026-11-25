@@ -25,10 +25,12 @@
 // denormals; so does the app on its audio thread (FTZ, FX-055).
 #pragma once
 
+#include "engine/fx/dsp/Interp.h"
 #include "engine/fx/dsp/Numerics.h"
 #include "engine/fx/dsp/Ramps.h"
 #include "engine/fx/dsp/Vec.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -351,6 +353,144 @@ private:
     SmoothFloat r_;
 };
 
+// Reads the existing rings. Digital finishes a short two-tap crossfade before taking the latest target.
+// Tape varies one fractional tap. Its speed limits keep recorded audio moving forward on large turns.
+template <int Ch> class MovingTap
+{
+public:
+    void prepare(double fs) noexcept
+    {
+        fadeSamples_ = std::max(1, static_cast<int>(0.016 * fs));
+        invFade_ = 1.0f / static_cast<float>(fadeSamples_);
+        // One block-linear segment of a 45 ms servo response. Calculate the pole off the audio thread.
+        glide_ = 1.0 / (0.045 * fs);
+    }
+
+    void snap(int delay) noexcept
+    {
+        head_ = delay;
+        fadeTo_ = delay;
+        remaining_ = 0;
+    }
+
+    bool settled(int delay) const noexcept { return remaining_ == 0 && head_ == delay; }
+
+    void read(const Ring (&rings)[Ch], float* const* out, int n, int target, bool tape) noexcept
+    {
+        int i = 0;
+        while (i < n)
+        {
+            if (settled(target))
+            {
+                for (int ch = 0; ch < Ch; ++ch)
+                    rings[ch].read(out[ch] + i, rings[ch].wrap(rings[ch].w() + i - target), n - i);
+                return;
+            }
+
+            if (tape && remaining_ == 0)
+            {
+                const double error = target - head_;
+                const double speed = std::clamp(error * glide_, -1.5, 0.75);
+                for (; i < n; ++i)
+                {
+                    for (int ch = 0; ch < Ch; ++ch)
+                        out[ch][i] = sample(rings[ch], i, head_);
+                    head_ += speed;
+                }
+                if (std::abs(target - head_) < 0.001)
+                    head_ = target;
+                return;
+            }
+
+            if (remaining_ == 0)
+            {
+                fadeTo_ = target;
+                remaining_ = fadeSamples_;
+            }
+            const int count = std::min(remaining_, n - i);
+            for (int ch = 0; ch < Ch; ++ch)
+            {
+                const Ring& ring = rings[ch];
+                float old[kMaxN];
+                const int from = static_cast<int>(head_);
+                if (head_ == from)
+                    ring.read(old, ring.wrap(ring.w() + i - from), count);
+                else // returning from a tape sweep
+                    for (int j = 0; j < count; ++j)
+                        old[j] = sample(ring, i + j, head_);
+                float* wet = out[ch] + i;
+                ring.read(wet, ring.wrap(ring.w() + i - fadeTo_), count);
+                for (int j = 0; j < count; ++j)
+                    wet[j] =
+                        interp::linear(old[j], wet[j], static_cast<float>(fadeSamples_ - remaining_ + j) * invFade_);
+            }
+            i += count;
+            remaining_ -= count;
+            if (remaining_ == 0)
+                head_ = fadeTo_;
+        }
+    }
+
+private:
+    static float sample(const Ring& ring, int i, double delay) noexcept
+    {
+        const int whole = static_cast<int>(delay);
+        const int pos = ring.wrap(ring.w() + i - whole);
+        return interp::linear(ring.at(pos), ring.at(pos == 0 ? ring.len() - 1 : pos - 1),
+                              static_cast<float>(delay - whole));
+    }
+
+    double head_ = 0.0, glide_ = 0.0;
+    float invFade_ = 1.0f;
+    int fadeTo_ = 0, remaining_ = 0, fadeSamples_ = 1;
+};
+
+// Bandwidth loss and soft saturation on the wet signal, inside the feedback loop. Fade the colour
+// in and out so switching the mode on a ringing tail never resets the delay or steps its level.
+class TapeColour
+{
+public:
+    void prepare(double fs) noexcept
+    {
+        lowPass_ = static_cast<float>(1.0 - std::exp(-2.0 * kPi * 5200.0 / fs));
+        mix_.prepareSamples(fs, std::max(1, static_cast<int>(0.010 * fs)));
+    }
+    void set(bool tape) noexcept { mix_.setTarget(tape ? 1.0f : 0.0f); }
+    bool tape() const noexcept { return mix_.target() != 0.0f; }
+    void reset(bool tape) noexcept
+    {
+        mix_.snap(tape ? 1.0f : 0.0f);
+        state_[0] = state_[1] = 0.0f;
+    }
+    void process(float* left, float* right, int n) noexcept
+    {
+        if (! tape() && ! mix_.ramping())
+            return;
+        float blend[kMaxN];
+        const bool fading = mix_.ramping();
+        if (fading)
+            mix_.block(blend, n);
+        float* channels[] = {left, right};
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            float low = state_[ch];
+            for (int i = 0; i < n; ++i)
+            {
+                const float dry = channels[ch][i];
+                low += lowPass_ * (dry - low);
+                const float x = std::clamp(low, -1.0f, 1.0f);
+                const float coloured = 0.985f * (x - x * x * x / 3.0f);
+                channels[ch][i] = fading ? interp::linear(dry, coloured, blend[i]) : coloured;
+            }
+            state_[ch] = low;
+        }
+    }
+
+private:
+    SmoothFloat mix_;
+    float lowPass_ = 0.0f, state_[2]{};
+};
+
 // ------------------------------------------------------------------------------------------------ Module
 
 // DelayModuleStereo (Ch = 2, insert_delay.py) / DelayModule (Ch = 1, send_delay.py DelayModuleMono).
@@ -368,6 +508,7 @@ public:
         std::size_t bytes = 0;
         for (auto& r : ring_)
             bytes += r.prepare(fullThr_ + 2500);
+        tap_.prepare(fs);
         gate_.prepare(fs, rampSamples(fs));
         init();
         return bytes;
@@ -385,6 +526,8 @@ public:
         for (auto& r : ring_)
             r.clear();
         pos_ = 0;
+        tap_.snap(D_);
+        referenceTime_ = true;
         gate_.setNow(0.0f);
         warm_ = full_ = false;
         cnt_ = 0;
@@ -406,7 +549,8 @@ public:
         pms_ = x;
         pend_ = true;
         pD_ = samples(x);
-        gate_.close();
+        if (referenceTime_)
+            gate_.close();
     }
     int chunk() const noexcept { return pend_ ? (D_ < pD_ ? D_ : pD_) : D_; } // 0xecacc
     float ms() const noexcept { return ms_; }
@@ -415,8 +559,23 @@ public:
     const Gate& gate() const noexcept { return gate_; }
 
     // 0xecaf4: n gated samples into out[ch] (no write happens during the request). warmUp = the FX-680/780 quirk.
-    template <bool Neon> void read(float* const* out, int n, bool warmUp) noexcept
+    template <bool Neon> void read(float* const* out, int n, bool warmUp, bool tape = false) noexcept
     {
+        if (! referenceTime_ || tape || ! tap_.settled(D_))
+        {
+            ms_ = pms_;
+            D_ = pD_;
+            pend_ = false;
+            tap_.read(ring_, out, n, D_, tape);
+            if (referenceTime_)
+            {
+                // Returning to the Reference reader after playing Tape uses the same ring position.
+                pos_ = ring_[0].wrap(ring_[0].w() + n - D_);
+                gate_.setNow(1.0f);
+                full_ = warm_ = true;
+            }
+            return;
+        }
         int rem = n, done = 0;
         for (;;)
         {
@@ -456,7 +615,10 @@ public:
             else if (! gate_.closing())
                 gate_.open();
             if (rem < 1)
+            {
+                tap_.snap(D_);
                 return;
+            }
         }
     }
     void write(const float* const* in, int n) noexcept
@@ -467,7 +629,7 @@ public:
     // 0xec94c. Reference (staleRing): commit a pending delay, rewind the indices, keep the samples. Sixteen: the rings
     // read as zero afterwards (FX-681/781). warmUp: the gate closes at once (the warm-up gate re-arms); Sixteen
     // (FX-680/780 fix): the gate is open from the reset, the zeroed ring makes the first echo correct.
-    void reset(bool staleRing, bool warmUp) noexcept
+    void reset(bool staleRing, bool warmUp, bool referenceTime = false) noexcept
     {
         if (pend_)
         {
@@ -482,6 +644,8 @@ public:
             else
                 r.clear();
         }
+        tap_.snap(D_);
+        referenceTime_ = referenceTime;
         pos_ = ring_[0].wrap(-D_);
         gate_.setNow(warmUp ? 0.0f : 1.0f);
         warm_ = full_ = false;
@@ -496,6 +660,8 @@ private:
     int D_ = 2205, pD_ = 2205;
     bool pend_ = false;
     Ring ring_[Ch];
+    MovingTap<Ch> tap_;
+    bool referenceTime_ = true;
     int pos_ = 0;
     Gate gate_;
     bool warm_ = false, full_ = false;

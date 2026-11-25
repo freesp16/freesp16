@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14]
+        os: [ubuntu-24.04, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
     name: benchmarks (performance budgets, > 10 % regression fails)
     # Apple silicon (NEON paths, like the device). The baseline is per machine model (ci/bench-baseline.json): a runner
     # model without an entry passes as "new"; record it from the uploaded results (check_regression.py --update).
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -82,7 +82,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: build/host-release/_deps
-          key: deps-bench-macos-14-${{ hashFiles('tests/CMakeLists.txt') }}
+          key: deps-bench-macos-15-${{ hashFiles('tests/CMakeLists.txt') }}
       - name: Bench stage
         run: ci/run-local.sh bench
       - name: Bench results

@@ -89,7 +89,11 @@ constexpr EffectParamDef kParams[] = {
      .defMaster = 0.5f,
      .format = &fmtPercent},
 };
-constexpr EffectOptionDef kOptions[] = {{.key = "sync", .label = "SYNC", .shortLabel = "SYNC"}};
+constexpr std::string_view kModes[] = {"DIGITAL", "TAPE"};
+constexpr EffectOptionDef kOptions[] = {
+    {.key = "sync", .label = "SYNC", .shortLabel = "SYNC"},
+    {.key = "type1", .label = "MODE", .shortLabel = "MODE", .enumLabels = kModes},
+};
 
 void addSendDelayParams(ParamRegistry& r)
 {

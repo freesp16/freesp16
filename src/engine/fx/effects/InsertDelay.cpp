@@ -56,6 +56,7 @@ std::uint32_t InsertDelay::hiCutStepOf(float v) noexcept
 void InsertDelay::prepare(double sampleRate, int)
 {
     fs_ = sampleRate;
+    colour_.prepare(sampleRate);
     bytes_ = mod_.prepare(sampleRate, 1000.0f);
     fb_.prepareSamples(sampleRate, rampSamples(sampleRate));
     hiCut_.prepare(SteppedIir1::Kind::LowPass, sampleRate, 1000, 2000.0, 20000.0);
@@ -68,6 +69,7 @@ void InsertDelay::init() noexcept // the constructor 0x103488
     for (int k = 0; k < 6; ++k)
         p_[k].init(kCtor[k]);
     sync_.init(0);
+    colour_.reset(false);
     bpm_.init(120.0f);
     syncV_ = 0;
     bpmV_ = 120.0f;
@@ -88,6 +90,8 @@ void InsertDelay::setOption(int which, int value) noexcept
 {
     if (which == kOptSync)
         sync_.set(static_cast<float>(value));
+    else if (which == kOptMode)
+        colour_.set(value == 1);
     else if (which == kClearState && value != 0)
         init();
 }
@@ -131,8 +135,10 @@ void InsertDelay::reset() noexcept // slot 27 0x102d04: slot 32, then 0x103d20 (
     }
     applyParams();
     applyParams();
+    colour_.reset(colour_.tape());
+    const bool referenceTime = (quirks_ & kDelayQuirkGatedTime) != 0;
     const bool stale = (quirks_ & kDelayQuirkStaleRing) != 0;
-    mod_.reset(stale, (quirks_ & kDelayQuirkWarmUp) != 0);
+    mod_.reset(stale, (quirks_ & kDelayQuirkWarmUp) != 0, referenceTime);
     if (! stale) // Sixteen (FX-681): no pre-reset audio, so the hi-cut's state goes with the ring (FX-660 keeps it)
         hiCut_.zeroState();
     warmUp_ = (quirks_ & kDelayQuirkWarmUp) != 0;
@@ -150,8 +156,9 @@ template <bool Neon> void InsertDelay::run(float* left, float* right, float bpm)
         const int ch = mod_.chunk();
         const int c = ch < n - pos ? ch : n - pos;
         float* y[2] = {yL_ + pos, yR_ + pos};
-        mod_.read<Neon>(y, c, warmUp_);
+        mod_.read<Neon>(y, c, warmUp_, colour_.tape());
         hiCut_.process<Neon>(yL_ + pos, yR_ + pos, c);
+        colour_.process(yL_ + pos, yR_ + pos, c);
         copy<Neon>(wL_ + pos, yL_ + pos, c);
         copy<Neon>(wR_ + pos, yR_ + pos, c);
         smoothMul<Neon>(fb_, wL_ + pos, wR_ + pos, c); // × g (147-sample ramp)
@@ -190,7 +197,7 @@ void InsertDelay::process(float* left, float* right, const ProcessContext& ctx) 
 
 namespace
 {
-constexpr std::string_view kInsertDelayOptions[] = {"fx.delay.sync"};
+constexpr std::string_view kInsertDelayOptions[] = {"fx.delay.sync", "fx.delay.type1"};
 } // namespace
 
 // Registration: Insert only (FX-040), gate mode 1 (FX-625), no wet high-pass, the piecewise

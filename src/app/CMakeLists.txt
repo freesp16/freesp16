@@ -21,19 +21,18 @@ target_link_libraries(${PROJECT_IDENTITY_NAME} PRIVATE ${CMAKE_DL_LIBS})
 app_target_defaults(${PROJECT_IDENTITY_NAME})
 set_target_properties(${PROJECT_IDENTITY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# App info for launchers on the unit (the USB boot menu): the machine name (what the launcher shows), version, id and
-# the 128 x 128 app icon
-# (resources/icons/app-icon.png) in an ELF note, .note.appinfo, found through the program headers and kept by
-# strip. Format: tools/gen-app-info.py.
-set(APP_INFO_SOURCE ${APP_GENERATED_DIR}/AppInfoNote.cpp)
-add_custom_command(
-    OUTPUT ${APP_INFO_SOURCE}
-    COMMAND Python3::Interpreter ${CMAKE_SOURCE_DIR}/tools/gen-app-info.py ${CMAKE_SOURCE_DIR}/resources/icons/app-icon.png
-            ${APP_INFO_SOURCE} ${PROJECT_IDENTITY_NAME} ${PROJECT_IDENTITY_VERSION} ${PROJECT_IDENTITY_ID}
-    DEPENDS ${CMAKE_SOURCE_DIR}/tools/gen-app-info.py ${CMAKE_SOURCE_DIR}/resources/icons/app-icon.png
-    COMMENT "Generating the app-info note"
-    VERBATIM)
-target_sources(${PROJECT_IDENTITY_NAME} PRIVATE ${APP_INFO_SOURCE})
+# The unit launcher reads the app icon and metadata from an ELF note.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(APP_INFO_SOURCE ${APP_GENERATED_DIR}/AppInfoNote.cpp)
+    add_custom_command(
+        OUTPUT ${APP_INFO_SOURCE}
+        COMMAND Python3::Interpreter ${CMAKE_SOURCE_DIR}/tools/gen-app-info.py ${CMAKE_SOURCE_DIR}/resources/icons/app-icon.png
+                ${APP_INFO_SOURCE} ${PROJECT_IDENTITY_NAME} ${PROJECT_IDENTITY_VERSION} ${PROJECT_IDENTITY_ID}
+        DEPENDS ${CMAKE_SOURCE_DIR}/tools/gen-app-info.py ${CMAKE_SOURCE_DIR}/resources/icons/app-icon.png
+        COMMENT "Generating the app-info note"
+        VERBATIM)
+    target_sources(${PROJECT_IDENTITY_NAME} PRIVATE ${APP_INFO_SOURCE})
+endif()
 
 if(APP_BUILD_DEVICE_APP)
     set(APP_GLDISPATCH_SRC ${CMAKE_SOURCE_DIR}/src/platform/common/display/gldispatch)

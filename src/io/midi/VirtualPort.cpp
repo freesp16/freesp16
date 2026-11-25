@@ -2,7 +2,7 @@
 
 #include "core/util/midi/MidiWire.h"
 
-#include <time.h>
+#include "io/midi/MidiWait.h"
 
 #include <algorithm>
 #include <cmath>
@@ -14,16 +14,6 @@ namespace io::midi
 {
 namespace
 {
-void sleepUntilNs(std::int64_t t) noexcept
-{
-    timespec ts {};
-    ts.tv_sec = static_cast<time_t>(t / 1000000000LL);
-    ts.tv_nsec = static_cast<long>(t % 1000000000LL);
-    while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr) != 0)
-    {
-    }
-}
-
 std::string trim(std::string_view s)
 {
     while (! s.empty() && (s.front() == ' ' || s.front() == '\t'))
@@ -145,10 +135,10 @@ public:
         const std::int64_t limit = now + static_cast<std::int64_t>(timeoutMs) * 1000000LL;
         if (next < 0 || next > limit)
         {
-            sleepUntilNs(limit);
+            waitUntilMonotonicNs(limit);
             return 0;
         }
-        sleepUntilNs(next);
+        waitUntilMonotonicNs(next);
         int n = 0;
         const std::int64_t due = core::midi::monotonicNs();
         while (n + 3 <= cap)
