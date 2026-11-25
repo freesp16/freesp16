@@ -458,3 +458,81 @@ TEST_CASE("seq.engine: REPEAT hits never start the transport or fill a count-in"
     rig.until(rig.frame + static_cast<long>(2.0 * stepFrames()));
     CHECK(repeatsRecorded(rig.events(), 2) > 0);
 }
+
+TEST_CASE("seq.engine: first STOP fades the actual loop; second STOP silences the remaining sample",
+          "[seq][engine][stop-audio]")
+{
+    bool storedLoop = false, playingLoop = false, gate = false;
+    SECTION("one shot") {}
+    SECTION("gated pad")
+    {
+        gate = true;
+    }
+    SECTION("looped gated pad")
+    {
+        storedLoop = playingLoop = gate = true;
+    }
+    SECTION("step locks LOOP on")
+    {
+        playingLoop = true;
+    }
+    SECTION("step locks LOOP off")
+    {
+        storedLoop = true;
+    }
+
+    voicetest::TestBuffer buffer(std::vector<float>(44100, 0.125f));
+    Rig rig;
+    auto p = pattern();
+    if (! gate)
+    {
+        put(*p, 0, 0);
+        lock(*p, 0, 0, engine::voice::lockslot::Loop, playingLoop ? 1.0f : 0.0f);
+    }
+    core::audio::retain(buffer.get());
+    REQUIRE(rig.e->bridge().post(engine::ObjectSwap{engine::voice::trackSampleSlot(0, 0), buffer.get()}));
+    REQUIRE(rig.param("playback.loop", storedLoop ? 1.0f : 0.0f));
+    REQUIRE(rig.param("track.triggerMode", gate ? 1.0f : 0.0f));
+    REQUIRE(rig.install(*p));
+    REQUIRE(rig.play());
+    if (gate)
+        REQUIRE(rig.e->bridge().post(engine::TriggerNow{0, 127, 60, 0}));
+    rig.blocks(16);
+    auto level = [&] { return enginetest::peak(rig.mainL, rig.mainL.size() - 128); };
+    REQUIRE(level() > 0.05f);
+
+    REQUIRE(rig.pause());
+    rig.blocks(16);
+    CHECK(level() > 0.05f);
+    REQUIRE(rig.stop()); // a real STOP after PAUSE must still cut the loop
+    rig.blocks(16);
+    CHECK_FALSE(rig.e->bridge().playhead().playing);
+    if (playingLoop)
+        CHECK(level() == 0.0f);
+    else
+        CHECK(level() > 0.05f);
+
+    REQUIRE(rig.stop()); // already stopped
+    rig.blocks(16);
+    CHECK(level() == 0.0f);
+    // An audition while stopped must still sound after the hard stop.
+    REQUIRE(rig.e->bridge().post(engine::TriggerNow{0, 127, 60, 0}));
+    rig.blocks(16);
+    CHECK(level() > 0.05f);
+}
+
+TEST_CASE("seq.engine: a hard STOP separates earlier and later hits in the same FIFO drain",
+          "[seq][engine][stop-audio]")
+{
+    Rig rig;
+    REQUIRE(installSample(rig, 0));
+    const engine::TriggerNow hit{0, 127, 60, 0};
+    REQUIRE(rig.e->bridge().post(hit));
+    REQUIRE(rig.e->bridge().post(engine::TransportCmd{engine::TransportCmd::HardStop, 0.0}));
+    rig.blocks(16);
+    CHECK(enginetest::peak(rig.mainL, rig.mainL.size() - 128) == 0.0f);
+    REQUIRE(rig.e->bridge().post(engine::TransportCmd{engine::TransportCmd::HardStop, 0.0}));
+    REQUIRE(rig.e->bridge().post(hit));
+    rig.blocks(16);
+    CHECK(enginetest::peak(rig.mainL, rig.mainL.size() - 128) > 0.05f);
+}

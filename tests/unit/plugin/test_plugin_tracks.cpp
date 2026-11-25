@@ -78,6 +78,8 @@ public:
     }
     bool active() const noexcept override { return sounding; }
 
+    void resetEffect() noexcept override { ++resets; }
+    int resets = 0;
     int lastNote = -1, lastOffNote = -1;
     float lastVel = 0.0f;
     int noteOns = 0, noteOffs = 0, allOffs = 0;
@@ -356,6 +358,15 @@ TEST_CASE("plugin: Engine SwapSlot::TrackPlugin renders audio on triggers and re
     for (float s : outL)
         peakL = std::max(peakL, std::fabs(s));
     CHECK(peakL > 0.05f);
+
+    REQUIRE(eng->bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    enginetest::render(*eng, 256);
+    REQUIRE(eng->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 1.0}));
+    CHECK(enginetest::peak(enginetest::render(*eng, 1024).l, 512) > 0.05f);
+    CHECK(mock->resets == 0);
+    REQUIRE(eng->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 2.0}));
+    CHECK(enginetest::peak(enginetest::render(*eng, 1024).l, 512) == 0.0f);
+    CHECK(mock->resets == 1);
 
     // Replace with nullptr and drain RetireQueue: engine drops its reference.
     REQUIRE(eng->bridge().post(engine::ObjectSwap{{engine::SwapSlot::TrackPlugin, 0, 0}, nullptr}));
