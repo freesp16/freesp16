@@ -4,6 +4,8 @@
 //    channels 12/14 (sp16-emulator docs/audio-jack-map.md), OUT3-4 = 8/10, OUT5-6 = 4/6, OUT7-8 = 0/2 (inferred,
 //    not observed; the map is the setting audio_map) and PHONES on the second PCM hw:ak4452audio,0 channels 0/1
 //    (AlsaOutputConfig::auxDevice).
+//  - imx6 DJS-1000: MAIN on hw:ak4452audio,1, 2 channels S24_LE (mainS24), PHONES on hw:ak4452audio,0 at the PHONES
+//    LEVEL knob (auxLevel).
 //  - linux: `default` (or the setting audio_device), 2 channels, MAIN = 0/1, the other ports absent; snd_pcm_writei
 //    (RW interleaved access, no mmap), so it works through the PipeWire/PulseAudio ALSA plugins.
 // JUCE's ALSA backend only opens devices it enumerated, and the codec is not enumerable in the emulator; this thin
@@ -26,6 +28,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -83,6 +86,12 @@ struct AlsaOutputConfig
     // assignable DAC pairs, F111; setting main_gain). The engine's float full scale is then +6 dBFS: a track at
     // VELOCITY 127 (×2) with a full-scale sample reaches the DAC's full scale instead of clipping it.
     float mainGain = 1.0f;
+    // S24_LE on the main PCM when it offers it (the DJS-1000's master on hw:ak4452audio,1, as its stock firmware runs
+    // it), else S16_LE.
+    bool mainS24 = false;
+    // A live level 0…1 on the aux PCM's samples, read once a period (DJS-1000: its PHONES LEVEL knob, which is not
+    // analog). Null = none.
+    std::shared_ptr<std::atomic<float>> auxLevel {};
 };
 
 class AlsaOutput final : public AudioDevice
@@ -124,6 +133,8 @@ private:
     void* pcm_ = nullptr; // snd_pcm_t*
     unsigned period_ = 0, periods_ = 0, rate_ = 0, buffer_ = 0;
     std::vector<std::int16_t> interleaved_;
+    std::vector<std::int32_t> interleaved32_; // the main PCM in S24_LE (mainS24_)
+    bool mainS24_ = false;
     void* aux_ = nullptr;                    // snd_pcm_t* of AlsaOutputConfig::auxDevice (null = none)
     std::vector<std::int16_t> auxInterleaved_;
     std::vector<std::int32_t> auxInterleaved32_; // S24_LE (auxS24_)

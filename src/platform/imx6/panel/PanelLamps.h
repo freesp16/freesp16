@@ -5,8 +5,9 @@
 //               kHeartbeatMs = 4 Hz while nothing changes) and the local echo below; the panel link's reader thread
 //               takes the frame to send (PanelLink.cpp)
 //   standby     — hardMute() (the power key, before the audio stops): every frame sent from then on carries HardMute
-//               (TX 0x66 bit 0). enterStandby() (the app's power-off, Imx6Platform::enterStandby): from then on the bus
-//               sends one dark frame with HardMute and the standby flag (TX 0x67 bit 0) on the same schedule and
+//               (SP-16 TX 0x66 bit 0, DJS-1000 0x6c bit 0). enterStandby() (the app's power-off,
+//               Imx6Platform::enterStandby): from then on the bus sends one dark frame with HardMute and the standby
+//               flag (SP-16 TX 0x67 bit 0, DJS-1000 0x6c bit 1) on the same schedule and
 //               ignores publish()/echo(); the unit's power MCU (M1) then cuts the power, as after the stock app's
 //               standby. The link keeps sending it (heartbeat) until then, never only once: the driver drops a frame
 //               queued just before its timer stops (hardware notes, "Trap C")
@@ -36,7 +37,13 @@ public:
     static constexpr double kMinGapMs = 10.0;     // changes are coalesced to ≤ 100 frames/s
     static constexpr double kEchoTickMs = 33.0;   // echo fades are recomputed at ~30 Hz while one runs
 
-    LampBus();
+    explicit LampBus(Unit unit = Unit::Sp16);
+    Unit unit() const noexcept { return unit_; }
+    // DJS-1000 (PanelMap::muteUntilLive): its panel keeps the outputs muted until setOutputsLive(true), the app's audio
+    // running, and shows its start-up state until the panel's first answer (answered()). Any thread; no effect on the
+    // SP-16.
+    void setOutputsLive(bool live);
+    void answered();
     // Message thread (PanelLamps::flush): the LampModel's frame replaces the echo for good.
     void publish(const TxFrame&);
     // Reader threads: input seen by the panel or the strip, for the echo (ignored once a LampModel publishes).
@@ -55,9 +62,12 @@ public:
 
 private:
     void renderEcho(double nowMs); // under mutex_
+    void flagChanged(std::atomic<bool>& flag, bool value);
 
     mutable core::PiMutex mutex_; // the panel thread (real-time) ↔ the UI: priority inheritance
+    Unit unit_;
     TxFrame frame_;
+    std::atomic<bool> outputsLive_ {false}, answered_ {false};
     bool changed_ = true;
     double lastSentMs_ = -1e12;
     std::atomic<bool> external_ {false}, standby_ {false};
@@ -77,7 +87,7 @@ public:
     // is in use through the send/return loop (any route), THRU otherwise; its high-pass DAC follows afs.hpCutoff (the
     // HP CUTOFF pot or the popup). Both on change only, at flush().
     explicit PanelLamps(std::shared_ptr<LampBus> bus, std::shared_ptr<AnalogBoard> board = {})
-        : bus_(std::move(bus)), board_(std::move(board))
+        : bus_(std::move(bus)), board_(std::move(board)), frame_(bus_->unit())
     {
     }
     void setLamp(io::Control c, std::uint32_t rgb, std::uint8_t level) override

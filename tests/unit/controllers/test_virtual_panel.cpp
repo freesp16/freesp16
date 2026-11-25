@@ -45,6 +45,8 @@ TEST_CASE("the virtual panel draws every UI-101 / UI-102 control, hit areas >= 4
         CHECK(p.item(static_cast<Control>(c)) != nullptr);
     for (const auto c : io::lampControls())
     {
+        if (c >= Control::PadModeHotSlice && c < Control::Count)
+            continue; // the DJS-1000's own keys: the virtual panel draws the SP-16's
         INFO(io::lampName(c));
         CHECK(p.item(c) != nullptr); // every lamp has its place (UID-929)
     }

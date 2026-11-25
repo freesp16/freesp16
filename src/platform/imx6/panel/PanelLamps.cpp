@@ -19,7 +19,7 @@ std::uint32_t echoColour(io::Control c) noexcept
 }
 } // namespace
 
-LampBus::LampBus()
+LampBus::LampBus(Unit unit) : unit_(unit), frame_(unit)
 {
     echo_[io::Control::StripModePitch] = {io::LampMode::On, io::lampcolour::white, 0};
     renderEcho(0);
@@ -61,7 +61,7 @@ bool LampBus::enterStandby()
         std::lock_guard<core::PiMutex> lock(mutex_);
         if (wake_ == nullptr)
             return false; // no panel link: nothing would carry the flag
-        TxFrame f;
+        TxFrame f(unit_);
         f.setHardMute(true);
         f.setStandby(true);
         f.finish();
@@ -128,7 +128,7 @@ void LampBus::renderEcho(double nowMs)
 {
     lastEchoRenderMs_ = nowMs;
     echoDirty_ = false;
-    TxFrame f;
+    TxFrame f(unit_);
     for (const auto c : io::lampControls())
     {
         const auto out = io::resolve(echo_[c], nowMs);
@@ -155,9 +155,14 @@ bool LampBus::take(double nowMs, TxFrame& out, double& waitMs)
     if (due)
     {
         out = frame_;
-        if (hardMute_ && ! standby())
+        // HardMute after the power key. On the DJS-1000 also until the app's audio runs, and the start-up bit until
+        // the panel has answered.
+        const bool live = ! panelMap(unit_).muteUntilLive || outputsLive_.load(std::memory_order_acquire);
+        const bool startup = panelMap(unit_).startup.mask != 0 && ! answered_.load(std::memory_order_acquire);
+        if ((hardMute_ || ! live || startup) && ! standby())
         {
-            out.setHardMute(true);
+            out.setHardMute(hardMute_ || ! live);
+            out.setStartup(startup);
             out.finish(); // the CRC again
         }
         changed_ = false;
@@ -169,6 +174,25 @@ bool LampBus::take(double nowMs, TxFrame& out, double& waitMs)
         waitMs = 1.0;
     return due;
 }
+
+void LampBus::flagChanged(std::atomic<bool>& flag, bool value)
+{
+    if (flag.exchange(value, std::memory_order_acq_rel) == value)
+        return;
+    void (*wake)(void*) = nullptr;
+    void* arg = nullptr;
+    {
+        std::lock_guard<core::PiMutex> lock(mutex_);
+        changed_ = true; // sent at once, whoever changed it
+        wake = wake_;
+        arg = wakeArg_;
+    }
+    if (wake != nullptr)
+        wake(arg);
+}
+
+void LampBus::setOutputsLive(bool live) { flagChanged(outputsLive_, live); }
+void LampBus::answered() { flagChanged(answered_, true); }
 
 void PanelLamps::flush()
 {

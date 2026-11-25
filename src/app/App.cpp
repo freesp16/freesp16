@@ -19,7 +19,8 @@
 //   render=auto|gl-fb|gl-x11|juce-gl|soft|juce[,...]  order to try (auto = the display's order; imx6: gl-fb,gl-x11,juce-gl,soft)
 //   compare=0|1       benchmark every backend first (default 0: GL backends are still probed in a child, one frame,
 //                     but nothing is measured; the emulator smoke passes compare=1)      compare_frames=N   (default 300)
-//   audio=0|1         (default 1)       audio_device=hw:ak4458audio,0 (imx6: direct ALSA; falls back to JUCE ALSA)
+//   audio=0|1         (default 1)       audio_device=<PCM> (default: the platform's. imx6: direct ALSA on
+//                     hw:ak4458audio,0, the DJS-1000's hw:ak4452audio,1, falling back to JUCE ALSA; linux `default`)
 //   run_frames=N      stop after N frames (default 0 = until SIGTERM/SIGINT; the host smoke test uses it)
 //   dev_kit=<folder>  development: load the folder's first 16 audio files onto tracks 1–16 at start-up (relative =
 //                     under the data directory; the emulator smoke's generated kit), "KIT ready" once installed
@@ -124,7 +125,7 @@ std::string envName(std::string_view key)
 const platform::Settings& defaultSettings()
 {
     static const platform::Settings s {{"platform", "auto"}, {"render", "auto"}, {"compare", "0"},
-                                       {"compare_frames", "300"}, {"audio", "1"}, {"audio_device", "hw:ak4458audio,0"},
+                                       {"compare_frames", "300"}, {"audio", "1"}, {"audio_device", ""},
                                        {"run_frames", "0"}, {"dev_kit", ""}, {"dev_kit_scenes", "1"},
                                        {"diag_interval", "10"}, {"internal_disk", "/mnt/emmc"},
                                        {"test_tone", "0"}};

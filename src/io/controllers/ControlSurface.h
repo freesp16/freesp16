@@ -42,6 +42,10 @@ enum class Control : std::uint16_t { Pad1 = 0, Pad2, Pad3, Pad4, Pad5, Pad6, Pad
                                      ExtNudgeDown, ExtNudgeUp, ExtAccent, ExtMixer, ExtBrowse, ExtUtility, ExtProject,
                                      Strip,                                                         // absolute 0–127 + contact
                                      Screen,                                                        // LCD touch (Touch/Drag/Release)
+                                     // DJS-1000 panel controls (not on the SP-16 panel; its NUDGE keys are ExtNudgeUp
+                                     // and ExtNudgeDown, its PROJECT key ExtProject)
+                                     PadModeHotSlice, TempoFader, TempoReset, TempoRange, Sync, Master, FxOn, FxLevel,
+                                     PhonesLevel, LiveSampling, FxSelect,
                                      Count };
 
 constexpr Control pad(int n1Based) noexcept { return static_cast<Control>(static_cast<int>(Control::Pad1) + n1Based - 1); }

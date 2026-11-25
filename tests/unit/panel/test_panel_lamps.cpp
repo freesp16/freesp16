@@ -74,18 +74,32 @@ TEST_CASE("panel lamps: pads and steps are RGB channels scaled to 0x4a, mono lam
     CHECK_FALSE(f.setLamp(io::knob(1), 0xFFFFFF, 255));
 }
 
-TEST_CASE("panel lamps: every lamp control of the logical map has a channel, and no two share one")
+TEST_CASE("panel lamps: every lamp control of a unit's panel has a channel there, and no two share one")
 {
-    TxFrame f;
-    std::set<std::pair<bool, int>> used;
-    for (const auto c : io::lampControls())
+    // The SP-16's own lamps (TRACK, the analog filter's) and the DJS-1000's own (its DJ section, HOT SLICE, PROJECT).
+    const auto sp16Only = [](io::Control c) {
+        return c == io::Control::PadModeTrack || c == io::Control::AfsActive || c == io::Control::AfsOver;
+    };
+    const auto djsOnly = [](io::Control c) {
+        return c == io::Control::ExtProject || (c >= io::Control::PadModeHotSlice && c < io::Control::Count);
+    };
+    for (const auto unit : {Unit::Sp16, Unit::Djs1000})
     {
-        INFO(io::lampName(c));
-        CHECK(f.setLamp(c, 0xFFFFFF, 255));
+        INFO(unitModel(unit));
+        TxFrame f(unit);
+        std::size_t onPanel = 0;
+        for (const auto c : io::lampControls())
+        {
+            INFO(io::lampName(c));
+            const bool expected = unit == Unit::Sp16 ? ! djsOnly(c) : ! sp16Only(c);
+            CHECK(f.setLamp(c, 0xFFFFFF, 255) == expected);
+            onPanel += expected ? 1 : 0;
+        }
+        std::set<std::pair<bool, int>> used;
+        for (const auto& l : panelMap(unit).lamps)
+            CHECK(used.insert({l.rgb, l.channel}).second);
+        CHECK(used.size() == onPanel);
     }
-    for (const auto& l : kLamps)
-        CHECK(used.insert({l.rgb, l.channel}).second);
-    CHECK(used.size() == io::lampControls().size());
 }
 
 TEST_CASE("panel lamps: the bus sends on change (coalesced) and resends as a 4 Hz heartbeat")

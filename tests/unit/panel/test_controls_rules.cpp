@@ -33,8 +33,9 @@ TEST_CASE("controls: the logical control map covers §2.1")
     CHECK(io::controlInfo(io::Control::StripModeUser2).group == 2);
     CHECK_FALSE(io::controlInfo(io::Control::ExtUndo).reference);
     // lamps: 16 pads, 16 steps, 4 bar keys + 4 position lamps, 4 pad modes, rec/stop/play, scene/pattern, hold,
-    // active, 8 strip LEDs, 4 mode indicators, over
-    CHECK(io::lampControls().size() == 16 + 16 + 4 + 4 + 4 + 3 + 2 + 1 + 1 + 8 + 4 + 1);
+    // active, 8 strip LEDs, 4 mode indicators, over, and the DJS-1000's 8 lit keys (HOT SLICE, TEMPO RESET, SYNC,
+    // MASTER, FX ON, LIVE SAMPLING, FX, PROJECT)
+    CHECK(io::lampControls().size() == 16 + 16 + 4 + 4 + 4 + 3 + 2 + 1 + 1 + 8 + 4 + 1 + 8);
     CHECK(io::lampName(io::barPositionLamp(3)) == "bar.position.3");
     CHECK(io::isBarPositionLamp(io::barPositionLamp(4)));
     CHECK_FALSE(io::isBarPositionLamp(io::Control::Bar4));
