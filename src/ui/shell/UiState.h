@@ -62,6 +62,7 @@ struct UiState
     // its bypass instead of focusing or opening it. Ends with a second BYPASS tap or when the screen changes.
     bool bypassMode = false;
     FixedText<12> bpm{"120.0"}, quantize{"1/16"}, position{"001:01:01"};
+    double liveBpm = 0; // > 0: the tempo a DJS-1000's TEMPO fader plays, shown as the BPM (the project's is kept)
     std::string_view syncBadge{}; // empty = INTERNAL (hidden); "MIDI" / "LINK"
     bool syncLost = false;
     double midiInAtMs = -1e9, midiOutAtMs = -1e9;
