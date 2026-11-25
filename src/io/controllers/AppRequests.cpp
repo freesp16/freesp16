@@ -32,6 +32,10 @@ bool quitRequested() noexcept { return quit.load(std::memory_order_relaxed); }
 void clearQuitRequest() noexcept { quit.store(false, std::memory_order_relaxed); }
 
 void requestStandby() noexcept { standby.store(true, std::memory_order_relaxed); }
+bool consumeStandbyRequest() noexcept
+{
+    return standby.exchange(false);
+}
 bool standbyRequested() noexcept { return standby.load(std::memory_order_relaxed); }
 void clearStandbyRequest() noexcept { standby.store(false, std::memory_order_relaxed); }
 

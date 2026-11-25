@@ -12,9 +12,9 @@ void requestQuit() noexcept;
 bool quitRequested() noexcept;
 void clearQuitRequest() noexcept; // tests
 
-// Standby (the panel's POWER/STANDBY key, the scripted input's `standby`): the app quits cleanly, then hands the
-// machine to its power controller (platform::Platform::enterStandby). Any thread (atomic).
+// A request from POWER/STANDBY or the input script. The message thread consumes it and checks the save.
 void requestStandby() noexcept;
+bool consumeStandbyRequest() noexcept;
 bool standbyRequested() noexcept;
 void clearStandbyRequest() noexcept; // tests
 

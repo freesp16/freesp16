@@ -59,6 +59,7 @@ public:
     void tick(double nowMs, bool playing); // message thread, once per frame (a few compares when idle)
     void onDeviceLost();                   // NFR-012: write now when there are unsaved changes
     bool writeNow();                       // false when nothing is unsaved or a write runs
+    Result<void> persistDirtyProject();
     void onSaved();                        // the user saved: the autosave copy is stale and removed
 
     bool busy() const noexcept { return busy_; }
@@ -98,6 +99,7 @@ private:
     juce::File bundle_;
     std::shared_ptr<core::model::Project> snapshot_; // reused (shared with a running write)
     bool enabled_ = true, busy_ = false, staleAfterWrite_ = false, againWhenDone_ = false;
+    Result<void> completion_;
     int writes_ = 0;
     std::shared_ptr<bool> alive_ = std::make_shared<bool>(true);
 };

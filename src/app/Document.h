@@ -93,8 +93,8 @@ public:
     // The touch strip's lamps (8 LEDs, MODE indicators, HOLD) over the shell's lamp frame, before io::apply;
     // the step keys (the selected track's shown bar) or, in a SCENE / PATTERN mode, those keys' lamps.
     void lamps(io::LampFrame&) const;
-    void shutdown(bool powerOff = false); // clean exit (keeps the resume state); flushes the preferences;
-                                          // powerOff (the power key): unsaved changes are autosaved too
+    std::string persistBeforeStandby(); // empty on success
+    void shutdown(bool storagePrepared = false);
     // PAD/BUTTON BRIGHTNESS (UI-159) for io::apply. Commands (`cmd …`): prefs | pref <key> <value> |
     // prefs-flush | prefs-export <file> | prefs-import <file> (logged "PREFS …").
     io::LampBrightness lampBrightness() const;

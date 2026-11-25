@@ -30,7 +30,7 @@ TEST_CASE("project.resume: the last project and its selection reopen", "[project
         CHECK(env.system().getChildFile("resume.json").existsAsFile());
         CHECK(env.system().getChildFile("resume.sixteen/project.json").existsAsFile());
         env.selection = {4, 6, 8, "MIXER"};
-        env.session->shutdown(); // keeps the selection at quit
+        env.session->finishSession(); // keeps the selection at quit
     }
     Env env(d);
     const auto result = env.startup();
@@ -87,7 +87,7 @@ TEST_CASE("project.resume: a project that stopped the app twice after resuming i
         env.startup();
         REQUIRE(env.store().create("Boom").ok());
         REQUIRE(env.save(SaveKind::Save, {}).ok());
-        env.session->shutdown();
+        env.session->finishSession();
     }
     {
         Env boot1(d);
@@ -110,7 +110,7 @@ TEST_CASE("project.resume: a project that stopped the app twice after resuming i
         env.startup();
         REQUIRE(env.store().create("Fine").ok());
         REQUIRE(env.save(SaveKind::Save, {}).ok());
-        env.session->shutdown();
+        env.session->finishSession();
     }
     for (int i = 0; i < 4; ++i)
     {
@@ -133,13 +133,13 @@ TEST_CASE("project.resume: resume off starts a new project; a missing project re
         setTempo(env.bus, 111.0);
         REQUIRE(env.save(SaveKind::Save, {}).ok());
         bundle = env.store().file();
-        env.session->shutdown();
+        env.session->finishSession();
     }
     {
         Env off(d, st::SessionConfig {.resumeEnabled = false}); // PRJ-022
         CHECK_FALSE(off.startup().resumed);
         CHECK(off.store().name() == st::kUntitledName);
-        off.session->shutdown();
+        off.session->finishSession();
     }
     REQUIRE(bundle.deleteRecursively()); // removed behind the app's back
     Env env(d);
@@ -162,7 +162,7 @@ TEST_CASE("project.resume: a damaged last project is set aside and a new one sta
         REQUIRE(env.store().create("Broken").ok());
         REQUIRE(env.save(SaveKind::Save, {}).ok());
         bundle = env.store().file();
-        env.session->shutdown();
+        env.session->finishSession();
     }
     REQUIRE(bundle.getChildFile("project.json").replaceWithText("{ not json"));
     Env env(d);
@@ -208,7 +208,7 @@ TEST_CASE("project.resume: a newer autosave is offered and restored as an undoab
         REQUIRE(env.bus.undo());
         CHECK(env.project().settings.tempo == 100.0);
         CHECK_FALSE(env.store().dirty());
-        env.session->shutdown();
+        env.session->finishSession();
     }
     {
         Env env(d); // declined: the copy is set aside and not offered again
@@ -222,7 +222,7 @@ TEST_CASE("project.resume: a newer autosave is offered and restored as an undoab
         CHECK(env.project().settings.tempo == 100.0);
         CHECK_FALSE(autosaveFile.existsAsFile());
         CHECK(autosaveFile.getSiblingFile("Draft.discarded.json").existsAsFile());
-        env.session->shutdown();
+        env.session->finishSession();
     }
     Env env(d);
     env.session->askRestore = [&](const juce::File&, std::function<void(bool)>) { ++asked; };
@@ -239,11 +239,13 @@ TEST_CASE("project.resume: after the power key the last project reopens with its
         REQUIRE(env.store().create("Live").ok());
         setTempo(env.bus, 100.0);
         REQUIRE(env.save(SaveKind::Save, {}).ok());
-        juce::Thread::sleep(1100); // file times have 1 s resolution on some file systems
         setTempo(env.bus, 140.0);  // unsaved, younger than the autosave interval
         env.selection = {2, 0, 5, "SEQUENCE"};
-        env.session->shutdown(true); // the power key: autosave now, mark the restore as automatic
+        REQUIRE(env.session->saveForPowerOff().ok());
         CHECK(env.session->powerOffMarker().existsAsFile());
+        const auto savedProject = env.store().file().getChildFile("meta.json");
+        const auto recoveryCopy = env.session->autosave().file();
+        REQUIRE(recoveryCopy.setLastModificationTime(savedProject.getLastModificationTime()));
     }
     int asked = 0;
     {
@@ -262,6 +264,9 @@ TEST_CASE("project.resume: after the power key the last project reopens with its
         CHECK(env.store().dirty()); // still unsaved: SAVE writes it, UNDO returns to the saved version
         CHECK(st::openProject(env.store().file()).value()->settings.tempo == 100.0); // the user's file is untouched
         CHECK_FALSE(env.session->powerOffMarker().exists()); // used once
+        const auto later =
+            env.store().file().getChildFile("meta.json").getLastModificationTime() + juce::RelativeTime::seconds(4);
+        REQUIRE(env.session->autosave().file().setLastModificationTime(later));
     } // a crash this time (no shutdown): the next start asks again
     Env env(d);
     env.session->askRestore = [&](const juce::File&, std::function<void(bool)> answer)
@@ -281,7 +286,7 @@ TEST_CASE("project.resume: an untitled project switched off with the power key c
         Env env(d);
         env.startup();
         setTempo(env.bus, 133.0); // never saved
-        env.session->shutdown(true);
+        REQUIRE(env.session->saveForPowerOff().ok());
     }
     int asked = 0;
     Env env(d);
@@ -290,4 +295,21 @@ TEST_CASE("project.resume: an untitled project switched off with the power key c
     CHECK(asked == 0);
     CHECK(env.store().name() == st::kUntitledName);
     CHECK(env.project().settings.tempo == 133.0);
+}
+
+TEST_CASE("project.power: failed recovery blocks standby until a later write succeeds", "[project]")
+{
+    const auto files = disk("standby-storage");
+    Env running(files);
+    running.startup();
+    setTempo(running.bus, 157.0);
+    const auto folder = running.session->autosave().file().getParentDirectory();
+    REQUIRE(folder.replaceWithText("occupy the autosave directory name"));
+    REQUIRE_FALSE(running.session->saveForPowerOff().ok());
+    CHECK_FALSE(running.session->powerOffMarker().exists());
+    CHECK(running.project().settings.tempo == 157.0);
+    REQUIRE(folder.deleteFile());
+    REQUIRE(running.session->saveForPowerOff().ok());
+    CHECK(running.session->autosave().file().existsAsFile());
+    CHECK(running.session->powerOffMarker().existsAsFile());
 }

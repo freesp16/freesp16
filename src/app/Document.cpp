@@ -1078,14 +1078,47 @@ void Document::lamps(io::LampFrame& frame) const
                                    io::lampcolour::amber, 0};
 }
 
-void Document::shutdown(bool powerOff)
+std::string Document::persistBeforeStandby()
+{
+    auto& document = *impl_;
+    document.workers.drain();
+    if (document.sampling && document.sampling->recording())
+        return "Finish the recording before switching off";
+    if (auto* capture = document.samplingHost.get())
+    {
+        if (capture->liveUnsaved())
+            return "Save or unload the live recording before switching off";
+        for (int scene = 0; scene != 16; ++scene)
+            for (int pad = 0; pad != 16; ++pad)
+                if (capture->unsaved(scene, pad))
+                    return "Save or discard the temporary recording before switching off";
+    }
+
+    document.prefs.flush();
+    const auto prefsError = document.prefs.lastError();
+    if (prefsError.size() != 0)
+    {
+        document.log("STANDBY preferences: %s", prefsError.c_str());
+        return "Could not write preferences";
+    }
+    const auto result = document.session->saveForPowerOff();
+    if (result)
+        return {};
+    document.log("STANDBY project: %s", result.error().message.c_str());
+    return "Could not write the project's recovery data";
+}
+
+void Document::shutdown(bool storagePrepared)
 {
     io::midi::setUiEventSink(nullptr);
     if (impl_->renderer) // a running render is cancelled, the live output unmuted (before the engine goes)
         impl_->renderer->stop();
     impl_->preview.stop();
-    impl_->session->shutdown(powerOff);
-    impl_->prefs.flush(); // nothing unsaved at quit
+    if (! storagePrepared)
+    {
+        impl_->prefs.flush();
+        impl_->session->finishSession();
+    } // nothing unsaved at quit
     impl_->log("PREFS flushed writes=%d%s", impl_->prefs.writes(),
                impl_->prefs.lastError().empty() ? "" : (" error=" + impl_->prefs.lastError()).c_str());
 }

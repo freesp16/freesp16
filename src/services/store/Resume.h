@@ -70,7 +70,7 @@ public:
     void settle();            // ends the early-exit watch (session ran long enough, or a clean shutdown)
     // After a save or a load (worker): resume.json + the resume copy. Another project resets the early-exit count.
     Result<void> markLoaded(const juce::File& bundle, const Selection&);
-    void updateSelection(const Selection&); // a clean shutdown keeps the current selection
+    Result<void> persistSelection(const Selection&); // refresh the selection in the existing record
     void forget();                          // the resume target was deleted: nothing to resume
     void setAside();                        // the resume target failed to load: move it to System/crashed/
 

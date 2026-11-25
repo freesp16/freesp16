@@ -178,7 +178,7 @@ TEST_CASE("project.device: losing the audio device pauses, autosaves at once and
     CHECK(std::get<engine::TransportCmd>(bridge.posted[0]).value == 37.25);
     CHECK(std::get<engine::TransportCmd>(bridge.posted[1]).kind == engine::TransportCmd::Continue);
     CHECK(states == std::vector<st::DeviceState> {st::DeviceState::Lost, st::DeviceState::Running});
-    session.shutdown();
+    session.finishSession();
 }
 
 TEST_CASE("project.power: a power-off shutdown autosaves unsaved changes, a plain quit does not", "[project]")
@@ -196,7 +196,10 @@ TEST_CASE("project.power: a power-off shutdown autosaves unsaved changes, a plai
         workers.drain();
         REQUIRE(session.store().create("Gig").ok());
         setTempo(bus, 128.0); // unsaved, younger than the autosave interval
-        session.shutdown(powerOff); // the write completes inside: shutdown drains the workers
+        if (! powerOff)
+            session.finishSession();
+        else
+            REQUIRE(session.saveForPowerOff().ok());
         CHECK(session.autosave().writes() == (powerOff ? 1 : 0));
         CHECK(session.autosave().file().existsAsFile() == powerOff);
     }
@@ -238,5 +241,5 @@ TEST_CASE("project.device: an audio drop-out stops the real engine cleanly and t
     for (float v : device.mainLeft())
         finite = finite && std::isfinite(v);
     CHECK(finite);
-    session.shutdown();
+    session.finishSession();
 }

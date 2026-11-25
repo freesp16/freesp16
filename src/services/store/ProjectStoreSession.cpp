@@ -3,6 +3,8 @@
 #include "core/commands/CommandBusAccess.h"
 #include "core/model/ModelOps.h"
 
+#include <tuple>
+
 namespace services::store
 {
 namespace model = ::core::model;
@@ -85,8 +87,10 @@ void ProjectSession::startup(std::function<void(const StartupResult&)> done)
     systemDir().createDirectory();
     AtomicWriter::recoverLeftovers(projectsDir());
     AtomicWriter::recoverLeftovers(systemDir());
-    restoreWithoutAsking_ = powerOffMarker().existsAsFile(); // read once: a later crash asks again
-    powerOffMarker().deleteFile();
+    const auto bootMarker = powerOffMarker();
+    restoreWithoutAsking_ = bootMarker.existsAsFile();
+    verifiedSnapshotName_ = restoreWithoutAsking_ ? bootMarker.loadFileAsString().trim() : juce::String{};
+    bootMarker.deleteFile();
     const auto decision = resume_->atStartup(config_.resumeEnabled);
     StartupResult result;
     result.message = decision.message;
@@ -134,9 +138,18 @@ void ProjectSession::startupOpen(const StartupDecision& decision, std::function<
                   });
 }
 
-void ProjectSession::offerAutosave(const std::optional<juce::File>& autosave, StartupResult result,
+void ProjectSession::offerAutosave(const std::optional<juce::File>& newer, StartupResult result,
                                    std::function<void(const StartupResult&)> done)
 {
+    auto autosave = newer;
+    const auto expected = autosave_.file();
+    if (verifiedSnapshotName_.isNotEmpty() && expected.getFileName() == verifiedSnapshotName_)
+    {
+        // The FAT timestamp may tie the last manual save.
+        const auto header = Autosave::readHeader(expected);
+        if (header && store_.file() == header->project)
+            autosave = expected;
+    }
     if (autosave && restoreWithoutAsking_) // switched off with the power key: back where it was, no question
     {
         restoreAutosave(*autosave,
@@ -234,16 +247,31 @@ void ProjectSession::frame(double nowMs)
     autosave_.tick(nowMs, playing);
 }
 
-void ProjectSession::shutdown(bool powerOff)
+void ProjectSession::finishSession()
 {
-    if (powerOff)
-        autosave_.onDeviceLost(); // the power goes next: unsaved work on disk, as for a lost device (NFR-012)
-    workers_.drain(); // a save or autosave in flight completes; nothing is dropped
-    if (powerOff)
-        powerOffMarker().create(); // the next start-up restores the autosave without asking
+    workers_.drain();
     resume_->settle();
-    if (config_.selection)
-        resume_->updateSelection(config_.selection());
+    if (config_.selection != nullptr)
+        std::ignore = resume_->persistSelection(config_.selection());
+}
+
+Result<void> ProjectSession::saveForPowerOff()
+{
+    const auto snapshot = autosave_.persistDirtyProject();
+    if (! snapshot.ok())
+        return snapshot.error();
+
+    resume_->settle();
+    if (config_.selection != nullptr)
+    {
+        const auto selection = resume_->persistSelection(config_.selection());
+        if (! selection.ok())
+            return selection.error();
+    }
+    std::string receipt;
+    if (bus_.dirty())
+        receipt = autosave_.file().getFileName().toStdString();
+    return AtomicWriter::writeFileAtomically(powerOffMarker(), receipt.c_str(), receipt.length());
 }
 
 void ProjectSession::onAudioDeviceLost()
