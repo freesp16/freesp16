@@ -172,6 +172,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" out/package/* --draft --title "${GITHUB_REF_NAME}" --notes "The hardware build for the boot menu (copy it next to the boot menu's autoexec.bin), the same in a tarball with the licences, and an emulator mod. No firmware included."
+        run: gh release create "${GITHUB_REF_NAME}" out/package/* --draft --title "${GITHUB_REF_NAME}" --notes "The hardware build for the boot menu (copy it next to the boot menu's autoexec.bin), and the same in a tarball with the licences. No firmware included."
     permissions:
       contents: write
