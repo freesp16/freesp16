@@ -48,7 +48,7 @@ for stage in $stages; do
       ! docker run --rm -v "$PWD":/work -w /work "$image" arm-linux-gnueabi-readelf -d "out/armel/$PROJECT_NAME" \
         | grep -E 'NEEDED.*(EGL|GLES|GAL)';;
     package)
-      step "package: device tarball + emulator mod"
+      step "package: device binary + tarball"
       scripts/package.sh;;
     long)
       step "long: the tests labelled long (excluded from host)"
