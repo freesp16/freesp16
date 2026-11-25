@@ -71,6 +71,7 @@ public:
     void arm(int scene, int track, std::int64_t lengthFrames, bool loopAfterRec) noexcept;
     void arm(int track, std::int64_t lengthFrames, bool loopAfterRec) noexcept { arm(scene_, track, lengthFrames, loopAfterRec); }
     void disarm() noexcept;                    // live.rec = 0: Armed → Idle; Recording → stops at once (shorter take)
+    void stopPlayback() noexcept;              // restart a playing take on the next transport boundary
     void setNudge(std::int32_t frames) noexcept;
     void takeReady(int track, std::uint32_t seq) noexcept;
     void unload(int track) noexcept;           // the take's track was unloaded / replaced: no more loop triggers

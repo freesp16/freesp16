@@ -3,7 +3,7 @@
 //
 //   PLAY   Stopped → Play (with the pre-count bars of transport.preCount when REC is armed, SEQ-044);
 //          Playing → Stop(0) (pause, the position is kept); Paused → Continue; during the pre-count → Stop(1)
-//   STOP   Playing / Paused / pre-count → Stop(1) (back to step 1, tails ring); Stopped → Stop(2) (hard stop:
+//   STOP   Playing / Paused / pre-count → Stop(1) (back to step 1, cuts loops); Stopped → Stop(2) (hard stop:
 //          everything silent, tails included)
 //   REC    toggles the record arm (the sequencer's recorder reads recArmed())
 //   TAP    (ext.tap, and the BPM/QUANTIZE panel's TAP) core::musictime::TapTempo → transport.tempo

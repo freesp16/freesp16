@@ -88,6 +88,7 @@ public:
     void setItem(int set, int item, const UserItem&) noexcept;
 
     // Step 6, before the router: this block's REPEAT hits (frame-accurate), at most kMaxHits; returns the count.
+    void stopRepeats() noexcept;
     int collectHits(const BlockContext&, std::span<trigger::TriggerEvent, kMaxHits> out) noexcept;
     template <class Sink> // TriggerRouter (push(const TriggerEvent&) → bool) or a test sink
     void collect(const BlockContext& ctx, Sink& sink) noexcept
@@ -154,6 +155,7 @@ private:
     std::uint8_t selected_ = 0;
 
     // REPEAT.
+    std::uint16_t stoppedRepeats_ = 0; // held pads silenced by STOP, until a fresh pad or strip press
     bool repeatActive_ = false;
     double phase_ = 0.0; // frames since the last repeat hit (or since REPEAT became active)
     std::uint64_t dropped_ = 0;

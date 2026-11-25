@@ -41,7 +41,7 @@ void RibbonEngine::prepare(double sampleRate) noexcept
     phase_ = 0.0;
     // The router forgets its held pads in prepare (their releases never come): so does the ribbon.
     heldCount_.fill(0);
-    held_ = sticky_ = targets_ = 0;
+    held_ = sticky_ = targets_ = stoppedRepeats_ = 0;
     changed();
 }
 
@@ -125,6 +125,8 @@ void RibbonEngine::onStrip(int position, bool contact) noexcept
         changed();
         return;
     }
+    if (! contact_)
+        stoppedRepeats_ = 0;
     if (! contact_ || p != position_)
         changed();
     contact_ = true;
@@ -232,10 +234,20 @@ float RibbonEngine::pitchCents() const noexcept
     return p < 0 ? 0.0f : core::ribbon::pitchCents(p, bottomCents_, topCents_);
 }
 
+void RibbonEngine::stopRepeats() noexcept
+{
+    if (mode_ == Mode::Repeat && effectivePosition() >= 0)
+    {
+        stoppedRepeats_ = held_;
+        repeatActive_ = false;
+    }
+}
+
 int RibbonEngine::collectHits(const BlockContext& ctx, std::span<trigger::TriggerEvent, kMaxHits> out) noexcept
 {
     const int p = effectivePosition();
-    const bool active = mode_ == Mode::Repeat && p >= 0 && held_ != 0;
+    const auto repeatTracks = static_cast<std::uint16_t>(held_ & ~stoppedRepeats_);
+    const bool active = mode_ == Mode::Repeat && p >= 0 && repeatTracks != 0;
     for (auto& s : sincePress_)
         s += kBlockFrames;
     if (! active)
@@ -279,7 +291,7 @@ int RibbonEngine::collectHits(const BlockContext& ctx, std::span<trigger::Trigge
     int n = 0;
     for (int t = 0; t < kTracks; ++t)
     {
-        if (! (held_ >> t & 1u))
+        if (! (repeatTracks >> t & 1u))
             continue;
         const auto ti = static_cast<std::size_t>(t);
         if (sincePress_[ti] - kBlockFrames + hitFrame < 0.5 * interval) // the pad's own hit is that note (no flam)
@@ -307,6 +319,7 @@ void RibbonEngine::observe(std::span<const trigger::TriggerEvent> events, const 
         const auto t = static_cast<std::size_t>(e.track);
         if (e.kind == trigger::TriggerKind::Full)
         {
+            stoppedRepeats_ = static_cast<std::uint16_t>(stoppedRepeats_ & ~(1u << t));
             if (heldCount_[t] < 255)
                 ++heldCount_[t];
             velocity_[t] = e.velocity;

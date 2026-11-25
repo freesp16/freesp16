@@ -355,6 +355,16 @@ void Engine::renderBlock() noexcept
     sampling_.input(buffers_);        //    input stage: soft limiter + meter → the post-limiter input
     midi_.processIn(ctx);             // 2  MIDI in
     transport_.process(ctx, buffers_); // 3
+    const auto stop = transport_.transport().stopAction();
+    if (stop != transport::StopAction::None)
+    {
+        for (auto& source : sources_)
+            source.stopPlayback(stop == transport::StopAction::Loops);
+        sampling_.live().stopPlayback();
+        ribbon_.stopRepeats();
+        if (stop == transport::StopAction::All)
+            preview_.stop();
+    }
     sync_.process(ctx, buffers_);     // 4
     chain_.setSuspended(arrangement_.suspendsChain()); // 5: song mode is on, the chain waits
     chain_.process(ctx, buffers_.timing, sceneSwitch_.switcher, swaps_.as<scene::ChainPlan>(scene::kChainSlot)); // 5
@@ -536,6 +546,10 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
     }
     if (const auto* t = std::get_if<TransportCmd>(&m))
     {
+        // Earlier pad hits in this FIFO must reach the voices before the stop takes effect.
+        if (triggerRouter_.pending() != 0 &&
+            (t->kind == TransportCmd::HardStop || (t->kind == TransportCmd::Stop && t->value >= 0.5)))
+            return false;
         transport_.command(*t);
         return true;
     }

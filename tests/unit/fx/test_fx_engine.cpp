@@ -1,6 +1,8 @@
 // The FX slot bank inside engine::Engine: ParamTarget::Fx routing, the mixer hooks per block, the
 // effect panel feed through EngineBridge::fxMeters, the metered slot, and the second-STOP edge of the transport.
+#include "engine/voice/VoiceSwaps.h"
 #include "tests/unit/engine/EngineTestUtil.h"
+#include "tests/unit/voice/VoiceHarness.h"
 
 #include "engine/fx/EffectRegistryOrder.h"
 #include "engine/fx/FxSlotState.h"
@@ -112,4 +114,28 @@ TEST_CASE("fx.engine: STOP while stopped is the second STOP (FX-036)", "[fx][eng
     t.command({engine::TransportCmd::Pause, 0});
     t.process(ctx, b);
     CHECK_FALSE(t.secondStopThisBlock()); // PAUSE never clears the tails
+}
+
+TEST_CASE("fx.engine: a loop stops feeding master reverb on STOP and hard STOP clears its tail",
+          "[fx][engine][stop-audio]")
+{
+    voicetest::TestBuffer buffer(voicetest::sine(4096, 220.0, 44100.0, 0.1f));
+    engine::EngineOptions opts;
+    opts.testTone = false;
+    auto e = std::make_unique<engine::Engine>(enginetest::fullSetup(), opts);
+    e->prepare(44100.0, 256);
+    core::audio::retain(buffer.get());
+    REQUIRE(e->bridge().post(engine::ObjectSwap{engine::voice::trackSampleSlot(0, 0), buffer.get()}));
+    REQUIRE(post(*e, "playback.loop", 1.0f, 0));
+    REQUIRE(post(*e, "master.type", typeValue(SlotKind::Master, "reverb"), 0));
+    REQUIRE(post(*e, "master.reverb.mix", 0.5f, 0));
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    REQUIRE(e->bridge().post(engine::TriggerNow{0, 127, 60, 0}));
+    REQUIRE(enginetest::peak(enginetest::render(*e, 22050).l, 16384) > 0.01f);
+
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 1.0}));
+    CHECK(enginetest::peak(enginetest::render(*e, 4096).l, 2048) > 0.0001f);
+    CHECK_FALSE(e->trackSource(0).voice().mainActive());
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 2.0}));
+    CHECK(enginetest::peak(enginetest::render(*e, 44100).l, 2048) < 0.00001f);
 }
