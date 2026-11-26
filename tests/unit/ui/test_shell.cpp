@@ -129,6 +129,36 @@ TEST_CASE("shell: two-tap — the first tap on a tile selects, the second opens 
     CHECK(h.shell->router().current().id == "home");
 }
 
+TEST_CASE("shell: TRACKS opens Track Setting only from Home and returns Home from other menu screens", "[ui][shell]")
+{
+    Harness h;
+    const auto tapTracks = [&h]
+    {
+        const auto button = L::menuButton(0);
+        const auto x = button.x + button.w / 2;
+        const auto y = button.y + button.h / 2;
+        h.touch(x, y);
+        h.touch(x, y, ui::touch::kUp);
+        h.frame();
+    };
+    h.shell->selectTrack(5);
+
+    tapTracks();
+    REQUIRE(h.shell->router().current().id == "trackSetting");
+    tapTracks();
+    CHECK(h.shell->router().current().id == "home");
+
+    for (const auto* screen : {"mixer", "arranger", "utility", "project"})
+    {
+        CAPTURE(screen);
+        REQUIRE(h.shell->open(screen));
+        h.frame();
+        tapTracks();
+        CHECK(h.shell->router().current().id == "home");
+        CHECK(h.shell->state().selectedTrack == 5);
+    }
+}
+
 TEST_CASE("shell: menu buttons open their screens and light while shown (UID-305, UI-207)", "[ui][shell]")
 {
     Harness h;
