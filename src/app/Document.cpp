@@ -394,7 +394,9 @@ struct Document::Impl
         services::interop::sp16::setUserMapFile(dataDir.getChildFile("System/interop/sp16-param-index-map.json"));
         session->onProjectReplaced = [this](const core::model::Project& p, const store::LoadReport& report)
         {
-            sync.syncAll(p);
+            if (sampling)
+                sampling->resetLive();
+            sync.syncAll(p, /*replacingProject=*/true);
             slices.syncAll(p); // the samples still loading post theirs when installed
             if (chain)
                 postChain(core::edit::PatternChainBuilder::clear()); // a chain belongs to the project it was built in
@@ -425,9 +427,11 @@ struct Document::Impl
 
         // Takes go to <library>/Recordings (SMP-007); the ring is allocated on first use.
         sampling.emplace(bridge, workers,
-                         services::sampling::SessionConfig {
-                             dataDir.getChildFile("Recordings"), config.sampleRate,
-                             [](std::string_view id) { return core::builtinParams().idOf(id).value_or(core::ParamId {}); }});
+                         services::sampling::SessionConfig{
+                             dataDir.getChildFile("Recordings"), config.sampleRate, [](std::string_view id)
+                             { return core::builtinParams().idOf(id).value_or(core::ParamId{}); },
+                             [this](int s, int t, const core::audio::SampleBuffer* buffer)
+                             { return sync.installLive(s, t, buffer); }});
         sampling->log = [this](const std::string& line) { log("%s", line.c_str()); };
         sampling->onTake = [this](const services::sampling::TakeInfo& t)
         {
@@ -2053,15 +2057,17 @@ void Document::Impl::samplingCommand(const std::string& cmd, std::istringstream&
     if (cmd == "sample-rec" || cmd == "live-arm")
     {
         in >> track >> channels;
+        if (cmd == "live-arm")
+        {
+            if (sampling->liveArm(scene, (track - 1) & 15))
+                log("LIVE ARM track=%d", track);
+            else
+                log("LIVE ARM refused track=%d", track);
+            return;
+        }
         if (! sampling->ensureCapture(ph.bpm > 0 ? ph.bpm : 120.0))
         {
             log("%s", "SAMPLING REC refused: no memory for the capture ring");
-            return;
-        }
-        if (cmd == "live-arm")
-        {
-            sampling->liveArm(scene, (track - 1) & 15);
-            log("LIVE ARM track=%d", track);
             return;
         }
         auto r = sampling->record(scene, (track - 1) & 15, channels == 1 ? 1 : 2);

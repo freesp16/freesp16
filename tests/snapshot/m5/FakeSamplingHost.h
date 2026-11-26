@@ -139,10 +139,11 @@ public:
         if (done)
             done(true, {});
     }
-    void unloadLive(int, int track) override
+    bool unloadLive() override
     {
-        calls.push_back("unload " + std::to_string(track));
+        calls.push_back("unload " + std::to_string(liveTake));
         liveTake = -1;
+        return true;
     }
     std::uint32_t revision() const override { return rev; }
 

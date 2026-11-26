@@ -51,6 +51,11 @@ public:
                           transport_->recArmed() ? 1 : 0);
             log_(line);
         }
+        // A take can finish between displayed frames while the renderer is throttled.
+        if (beforeFrame_ && shell_.current().id == "trackSetting" &&
+            ((ev.kind == io::ControlEvent::Kind::Touch && ev.value == touch::kDown) ||
+             (ev.kind == io::ControlEvent::Kind::Press && ev.control == io::Control::SelectorPush)))
+            beforeFrame_(shell_.state(), nowMs);
         shell_.dispatch(ev);
     }
     void frame(DrawList& dl, double nowMs) override

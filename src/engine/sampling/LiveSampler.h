@@ -74,7 +74,7 @@ public:
     void stopPlayback() noexcept;              // restart a playing take on the next transport boundary
     void setNudge(std::int32_t frames) noexcept;
     void takeReady(int track, std::uint32_t seq) noexcept;
-    void unload(int track) noexcept;           // the take's track was unloaded / replaced: no more loop triggers
+    void resolve(int token) noexcept; // saved take sequence (low 24 bits), or a negative reset token
 
     // ---- step 6 (before TriggerRouter::process) ----
     // frame = boundaryFrame() of this block (−1 none); head = ring head at the block start; latency = frames the
@@ -96,6 +96,8 @@ private:
 
     double sampleRate_ = 44100.0;
     bool mode_ = false, loopAfterRec_ = false;
+    bool unsaved_ = false;
+    std::uint32_t resetToken_ = 0;
     int lengthIndex_ = 2;
     LiveState state_ = LiveState::Idle;
     LiveTake take_ {};

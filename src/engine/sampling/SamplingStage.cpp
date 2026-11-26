@@ -77,6 +77,9 @@ bool SamplingStage::set(SamplingParam p, std::uint16_t scope, float value) noexc
         case SamplingParam::LiveTakeReady:
             live_.takeReady(scope & 15, static_cast<std::uint32_t>(v < 0 ? 0 : v));
             return true;
+        case SamplingParam::LiveResolve:
+            live_.resolve(v);
+            return true;
         case SamplingParam::InputLatency: inputLatency_ = clampi(v, 0, 8192); return true;
         case SamplingParam::Quantize: quantize_ = clampi(v, 0, 5); return true; // the take keeps its copy
         case SamplingParam::Drop:

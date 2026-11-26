@@ -68,15 +68,17 @@ enum class SamplingParam : std::uint8_t
     LiveRec,
     LiveNudge,
     LiveTakeReady,
+    LiveResolve,
     InputLatency,
     Quantize,
     Drop,
     Count
 };
 inline constexpr std::string_view kSamplingParamIds[] = {
-    "sampling.source",  "sampling.threshold", "sampling.length", "sampling.rec",       "sampling.preRoll",
-    "sampling.screenOpen", "live.mode",       "live.length",     "live.loopAfterRec", "live.rec",
-    "live.nudge",       "live.takeReady",     "live.inputLatency", "sampling.quantize", "sampling.drop"};
+    "sampling.source",     "sampling.threshold", "sampling.length", "sampling.rec",      "sampling.preRoll",
+    "sampling.screenOpen", "live.mode",          "live.length",     "live.loopAfterRec", "live.rec",
+    "live.nudge",          "live.takeReady",     "live.resolve",    "live.inputLatency", "sampling.quantize",
+    "sampling.drop"};
 static_assert(std::size(kSamplingParamIds) == static_cast<std::size_t>(SamplingParam::Count));
 
 enum class Source : std::uint8_t { LineIn, LineInL, LineInR, Resample }; // sampling.source order (SMP-001)

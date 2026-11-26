@@ -188,9 +188,6 @@ public:
                 previousLive(scene, track, b);
             if (alive.expired())
                 return;
-            liveTrack_ = track;
-            liveScene_ = scene;
-            liveDirty_ = true;
             ++rev_;
         };
     }
@@ -357,17 +354,16 @@ public:
 
     bool liveArm(int scene, int track) override
     {
-        if (! capture())
+        if (! session_.liveArm(scene, track))
             return false;
-        session_.liveArm(scene, track);
         log("LIVE ARM track=%d (screen)", track + 1);
         return true;
     }
     void liveDisarm(int scene, int track) override { session_.liveDisarm(scene, track); }
     void setNudge(std::int32_t frames) override { session_.setNudge(frames); }
-    bool liveUnsaved() const override { return liveTrack_ >= 0 && liveDirty_; }
-    int liveScene() const override { return liveScene_; }
-    int liveTrack() const override { return liveTrack_; }
+    bool liveUnsaved() const override { return session_.liveUnsaved(); }
+    int liveScene() const override { return session_.liveScene(); }
+    int liveTrack() const override { return session_.liveTrack(); }
     void saveLive(int, ui::m5::HostDone done) override
     {
         // SAVE TO LIBRARY = <library>/Recordings (SMP-025): "LIVE NN.wav", the first free number.
@@ -385,7 +381,6 @@ public:
                                   return;
                               if (r)
                               {
-                                  liveDirty_ = false;
                                   ++rev_;
                                   log("LIVE SAVE ok file=%s (screen)", r.value().getFullPathName().toRawUTF8());
                               }
@@ -394,13 +389,16 @@ public:
                                                                : r.error().message);
                           });
     }
-    void unloadLive(int scene, int track) override
+    bool unloadLive() override
     {
-        if (core::commands::hasProject(env_.bus))
-            env_.bus.execute(smp::unloadTrack(scene, track)); // SMP-025: undoable; the bus hook clears the engine slot
-        liveTrack_ = -1;
-        liveDirty_ = false;
+        const int scene = session_.liveScene(), track = session_.liveTrack();
+        if (! session_.unloadLive())
+            return false;
+        if (core::commands::hasProject(env_.bus) &&
+            ! core::commands::project(env_.bus).scenes[scene].tracks[track].playback.sample.empty())
+            env_.bus.execute(smp::unloadTrack(scene, track)); // model sample removal remains undoable
         ++rev_;
+        return true;
     }
     std::uint32_t revision() const override { return rev_; }
 
@@ -560,8 +558,6 @@ private:
     M5HostEnv env_;
     services::sampling::SamplingSession& session_;
     std::map<int, Take> takes_;
-    int liveTrack_ = -1, liveScene_ = 0;
-    bool liveDirty_ = false;
     std::uint32_t rev_ = 1;
     std::shared_ptr<bool> alive_ = std::make_shared<bool>(true);
 };

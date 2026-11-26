@@ -384,6 +384,65 @@ TEST_CASE("sampling.session: NUDGE ±1 frame … ±1 beat moves the saved window
     }
 }
 
+TEST_CASE("sampling.session: resolve the live take before accepting another", "[sampling][live]")
+{
+    TempDir t;
+    auto e = make();
+    services::library::Workers workers(1);
+    services::sampling::SamplingSession s(e->bridge(), workers, {t.dir, 44100.0, resolver()});
+    REQUIRE(s.ensureCapture(120.0));
+    REQUIRE(param(*e, "live.mode", 1.0f));
+    REQUIRE(param(*e, "live.length", 0.0f));
+    REQUIRE(s.liveArm(0, 1));
+    Driver d;
+    d.run(*e, 8192, ramp());
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    d.run(*e, 24000, ramp());
+    REQUIRE(static_cast<LiveState>(s.hub()->status.liveState.load()) == LiveState::Done);
+
+    // The engine rejects an arm posted before the message thread has installed the take.
+    REQUIRE(param(*e, "live.rec", 1.0f, 5));
+    d.run(*e, 256, ramp());
+    CHECK(static_cast<LiveState>(s.hub()->status.liveState.load()) == LiveState::Done);
+    CHECK(s.hub()->status.liveTrack.load() == 1);
+
+    s.frame();
+    SECTION("a project change invalidates an in-flight build")
+    {
+        s.resetLive();
+        workers.drain();
+        d.run(*e, 256, ramp());
+        s.frame();
+        CHECK(s.liveBuffer() == nullptr);
+        CHECK_FALSE(s.liveUnsaved());
+        CHECK(s.liveArm(0, 5));
+        return;
+    }
+
+    REQUIRE(waitFor(workers, [&] { return s.liveBuffer() != nullptr; }));
+    CHECK(s.liveUnsaved());
+    CHECK(s.liveTrack() == 1);
+    CHECK_FALSE(s.liveArm(0, 5));
+    SECTION("save releases the next capture")
+    {
+        bool saved = false;
+        s.saveLive(t.dir.getChildFile("saved.wav"), [&](core::Result<juce::File> result) { saved = result.ok(); });
+        REQUIRE(waitFor(workers, [&] { return saved; }));
+        CHECK_FALSE(s.liveUnsaved());
+    }
+    SECTION("unload releases the next capture")
+    {
+        REQUIRE(s.unloadLive());
+        CHECK(s.liveBuffer() == nullptr);
+        CHECK_FALSE(s.liveUnsaved());
+    }
+    REQUIRE(s.liveArm(0, 5));
+    d.run(*e, 2 * 88200, ramp());
+    s.frame();
+    REQUIRE(waitFor(workers, [&] { return s.liveTrack() == 5; }));
+    CHECK(s.liveUnsaved());
+}
+
 TEST_CASE("sampling.session: ring size — ≥ 30 s, 8 bars + margins when longer, capped at 64 s", "[sampling][live]")
 {
     using S = services::sampling::SamplingSession;

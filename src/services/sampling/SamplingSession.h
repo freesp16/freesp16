@@ -48,6 +48,7 @@ struct SessionConfig
     juce::File recordings;   // <library>/Recordings (SMP-007)
     double sampleRate = 44100.0;
     std::function<core::ParamId(std::string_view)> resolveParam; // ParamSpec id → ParamId (the engine's bindings)
+    std::function<bool(int scene, int track, const core::audio::SampleBuffer*)> installLive = {};
 };
 
 class SamplingSession
@@ -77,7 +78,12 @@ public:
     std::function<void(const TakeInfo&)> onTake; // message thread
 
     // ---- live sampling (SMP-020…027) ----
-    void liveArm(int scene, int track);   // live.rec = 1 (live.mode must be on)
+    bool liveArm(int scene, int track); // live.rec = 1 (live.mode must be on)
+    bool liveUnsaved() const noexcept { return live_.dirty; }
+    int liveScene() const noexcept { return live_.scene; }
+    int liveTrack() const noexcept { return live_.buffer != nullptr ? live_.track : -1; }
+    bool unloadLive();
+    void resetLive(); // invalidate work and capture when replacing the project
     void liveDisarm(int scene, int track);
     void setNudge(std::int32_t frames);
     void frame();
@@ -94,6 +100,9 @@ public:
 private:
     bool post(std::string_view id, std::uint16_t scope, float value);
     void buildLive(bool full);
+    bool installLive(int scene, int track, const core::audio::SampleBuffer*);
+    void acknowledgeSave(std::uint32_t seq);
+    bool hasPendingTake() const;
     void collect();
 
     engine::EngineBridge& bridge_;
@@ -111,9 +120,12 @@ private:
         std::int64_t postCaptured = 0;
         int scene = 0, track = 0, channels = 2;
         float bpm = 120, bars = 1;
-        bool building = false, rebuildWanted = false;
+        bool building = false, rebuildWanted = false, dirty = false;
         const core::audio::SampleBuffer* buffer = nullptr; // our reference to the installed take
     } live_;
+    std::uint32_t liveReset_ = 0;
+    bool resetPending_ = false;
+    bool saveAckPending_ = false;
     std::vector<core::audio::SampleBuffer*> owned_; // take buffers we allocated (freed when refs reach 0)
     std::vector<std::string> salvaged_;             // WavWriter::salvage's lines, logged by the first frame()
 };

@@ -42,7 +42,9 @@ public:
     TrackSampleSync& operator=(const TrackSampleSync&) = delete;
 
     void onChange(const core::ChangeSet&, const core::model::Project&);
-    void syncAll(const core::model::Project&);
+    void syncAll(const core::model::Project&, bool replacingProject = false);
+    // Live takes are outside the project. A null buffer clears the actual audio slot.
+    bool installLive(int scene, int track, Handle);
 
     // The buffer the document uses at (scene, track): nullptr while empty or loading.
     Handle current(int scene, int track) const noexcept { return slot(scene, track).buffer; }
@@ -59,12 +61,12 @@ private:
         std::string key, path; // SampleKey id and its pool path, as last synced
         Handle buffer = nullptr;
         std::uint32_t generation = 0;
-        bool loading = false;
+        bool loading = false, live = false;
     };
     Slot& slot(int s, int t) noexcept { return slots_[static_cast<std::size_t>((s & 15) * 16 + (t & 15))]; }
     const Slot& slot(int s, int t) const noexcept { return slots_[static_cast<std::size_t>((s & 15) * 16 + (t & 15))]; }
-    void sync(int scene, int track, const core::model::Project&);
-    void install(int scene, int track, Handle);
+    void sync(int scene, int track, const core::model::Project&, bool replacingProject = false);
+    bool install(int scene, int track, Handle);
 
     SamplePool& pool_;
     engine::EngineBridge& bridge_;

@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <memory>
 #include <string>
 
 namespace ui
@@ -145,17 +146,19 @@ public:
             return true;
         case kRailUnload:
             if (h != nullptr && hasTake())
-            {
-                h->unloadLive(scene(), h->liveTrack());
-                toast("Take unloaded");
-            }
+                toast(h->unloadLive() ? "Take unloaded" : "Could not unload the take");
             return true;
         case kRailSave:
             if (h != nullptr && hasTake())
             {
                 const int to = static_cast<int>(std::lround(get("live.saveTo")));
-                h->saveLive(to, [this](bool ok, std::string m)
-                            { toast(ok ? std::string("Saved to Recordings/") : "Save failed: " + m); });
+                const std::weak_ptr<int> alive = alive_;
+                h->saveLive(to,
+                            [this, alive](bool ok, std::string m)
+                            {
+                                if (! alive.expired())
+                                    toast(ok ? std::string("Saved to Recordings/") : "Save failed: " + m);
+                            });
             }
             return true;
         default:
@@ -250,8 +253,10 @@ private:
         const auto ls = liveState();
         if (ls == LiveState::Armed || ls == LiveState::Recording)
             h->liveDisarm(scene(), target());
+        else if (h->liveUnsaved())
+            toast("Save or unload the live take before recording again");
         else if (! h->liveArm(scene(), target()))
-            toast("REC refused: no memory for the capture ring");
+            toast("REC is not ready");
     }
     TakeStripModel takeModel(const LiveSamplingFeed& f) const
     {
@@ -280,6 +285,7 @@ private:
 
     ShellApi* shell_;
     UiState* state_;
+    std::shared_ptr<int> alive_ = std::make_shared<int>(0);
     mutable RingView ring_;
     mutable m5::InputLevel input_ {};
     mutable FixedText<24> nudge_, caption_;

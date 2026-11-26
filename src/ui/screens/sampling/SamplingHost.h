@@ -58,7 +58,7 @@ public:
         return unsaved(scene, track) || (liveUnsaved() && liveScene() == scene && liveTrack() == track);
     }
     virtual void saveLive(int saveTo, HostDone done) = 0;
-    virtual void unloadLive(int scene, int track) = 0; // SMP-025 UNLOAD: the take leaves the track (undoable)
+    virtual bool unloadLive() = 0; // SMP-025 UNLOAD: remove the take from its original slot
 
     virtual std::uint32_t revision() const = 0; // +1 whenever a take, a save or a discard changed something
 
