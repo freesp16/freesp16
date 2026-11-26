@@ -366,14 +366,7 @@ public:
     int liveTrack() const override { return session_.liveTrack(); }
     void saveLive(int, ui::m5::HostDone done) override
     {
-        // SAVE TO LIBRARY = <library>/Recordings (SMP-025): "LIVE NN.wav", the first free number.
-        juce::File target;
-        for (int n = 1; n < 1000; ++n)
-        {
-            target = env_.recordings.getChildFile(juce::String::formatted("LIVE %03d.wav", n));
-            if (! target.exists())
-                break;
-        }
+        const auto target = services::sampling::proposeName(env_.recordings, "LIVE");
         std::weak_ptr<bool> alive = alive_;
         session_.saveLive(target, [this, alive, done](core::Result<juce::File> r)
                           {
@@ -391,12 +384,8 @@ public:
     }
     bool unloadLive() override
     {
-        const int scene = session_.liveScene(), track = session_.liveTrack();
         if (! session_.unloadLive())
             return false;
-        if (core::commands::hasProject(env_.bus) &&
-            ! core::commands::project(env_.bus).scenes[scene].tracks[track].playback.sample.empty())
-            env_.bus.execute(smp::unloadTrack(scene, track)); // model sample removal remains undoable
         ++rev_;
         return true;
     }

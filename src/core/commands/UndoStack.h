@@ -41,6 +41,8 @@ public:
     // older one already restores the state before both edits). Returns true when it merged.
     bool pushOrMerge(std::unique_ptr<Command> inverse, std::size_t bytes, double nowMs);
 
+    const Command* nextUndo() const noexcept { return undo_.empty() ? nullptr : undo_.back().cmd.get(); }
+    const Command* nextRedo() const noexcept { return redo_.empty() ? nullptr : redo_.back().cmd.get(); }
     bool undo(const Runner& run); // false when there is nothing to undo
     bool redo(const Runner& run); // false when there is nothing to redo
 

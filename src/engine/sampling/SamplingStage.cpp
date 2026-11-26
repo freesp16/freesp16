@@ -68,7 +68,8 @@ bool SamplingStage::set(SamplingParam p, std::uint16_t scope, float value) noexc
         case SamplingParam::LiveRec:
             if (value >= 0.5f)
             {
-                live_.arm(scope >> 4 & 15, scope & 15, 0, liveLoop_); // the hub may arrive in this block's drain
+                // The host encodes a request token as 1 + token. The untagged control still uses 1.
+                live_.arm(scope >> 4 & 15, scope & 15, 0, liveLoop_, static_cast<std::uint32_t>(v - 1));
             }
             else
                 live_.disarm();

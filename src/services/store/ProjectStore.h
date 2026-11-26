@@ -187,6 +187,9 @@ public:
     // $Bundle + the configured roots for the open project (the SamplePool resolver; PRJ-040 resolution).
     SampleRoots roots() const;
 
+    // Refuses to replace the active project at the start of a request or when its worker completes.
+    std::function<Result<void>()> admitReplacement;
+
     // Called after create/open swapped the model (the composition root: TrackSampleSync::syncAll, parameter push,
     // screen rebuild, scene/pattern selection from project.settings).
     std::function<void(const core::model::Project&, const LoadReport&)> onReplaced;

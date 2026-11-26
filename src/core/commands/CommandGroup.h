@@ -40,7 +40,8 @@ public:
     std::string_view label() const override { return label_; }
     void apply(model::Project&) override;                                          // children in order
     std::unique_ptr<Command> inverse(const model::Project& before) const override; // see the header comment
-    bool undoable() const override;                                                // any child undoable
+    bool undoable() const override;
+    bool blockedTrackSwap(const TrackSwapGuard&) const override;                   // any child undoable
     void collectChanges(ChangeSet&) const override;                                // union of the children's
     std::size_t sizeBytes() const override;
 

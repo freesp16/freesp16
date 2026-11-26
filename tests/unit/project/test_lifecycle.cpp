@@ -79,6 +79,36 @@ TEST_CASE("project.lifecycle: a load posts Stop(1) before anything else", "[proj
     CHECK(cmd->value == 1.0);
 }
 
+TEST_CASE("project.lifecycle: replacement must still be allowed when the load completes", "[project]")
+{
+    Env env("replacement");
+    REQUIRE(env.store().create("Seed").ok());
+    REQUIRE(env.save(SaveKind::SaveAs, "First").ok());
+    const auto first = env.store().file();
+    REQUIRE(env.store().create("Second").ok());
+    bool blocked = false;
+    env.store().admitReplacement = [&]() -> core::Result<void>
+    {
+        if (blocked)
+            return core::Result<void>::failure("Save or unload the live take");
+        return {};
+    };
+
+    std::optional<core::Result<void>> result;
+    st::Progress progress;
+    env.store().open(first, progress, [&](auto outcome, auto) { result = std::move(outcome); });
+    blocked = true;
+    env.workers.drain();
+    REQUIRE(result.has_value());
+    REQUIRE_FALSE(result->ok());
+    CHECK(result->error().message == "Save or unload the live take");
+    CHECK(env.store().name() == "Second");
+    CHECK_FALSE(env.store().create("Third").ok());
+    blocked = false;
+    REQUIRE(env.open(first).ok());
+    CHECK(env.store().name() == "First");
+}
+
 TEST_CASE("project.lifecycle: edits made while the worker writes keep the project dirty", "[project]")
 {
     Env env("dirty");

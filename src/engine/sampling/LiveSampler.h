@@ -68,12 +68,13 @@ public:
     void setLengthIndex(int index) noexcept;   // live.length 0–5
     void setLoopAfterRec(bool on) noexcept { loopAfterRec_ = on; }
     // Arm `track` (scene for the take buffer slot); lengthFrames ≤ 0 = from live.length at the start tempo.
-    void arm(int scene, int track, std::int64_t lengthFrames, bool loopAfterRec) noexcept;
+    void arm(int scene, int track, std::int64_t lengthFrames, bool loopAfterRec, std::uint32_t request = 0) noexcept;
     void arm(int track, std::int64_t lengthFrames, bool loopAfterRec) noexcept { arm(scene_, track, lengthFrames, loopAfterRec); }
     void disarm() noexcept;                    // live.rec = 0: Armed → Idle; Recording → stops at once (shorter take)
     void stopPlayback() noexcept;              // restart a playing take on the next transport boundary
     void setNudge(std::int32_t frames) noexcept;
     void takeReady(int track, std::uint32_t seq) noexcept;
+    void unloadPlayback(int scene, int track) noexcept;
     void resolve(int token) noexcept; // saved take sequence (low 24 bits), or a negative reset token
 
     // ---- step 6 (before TriggerRouter::process) ----
@@ -97,7 +98,7 @@ private:
     double sampleRate_ = 44100.0;
     bool mode_ = false, loopAfterRec_ = false;
     bool unsaved_ = false;
-    std::uint32_t resetToken_ = 0;
+    std::uint32_t resetToken_ = 0, armRequest_ = 0;
     int lengthIndex_ = 2;
     LiveState state_ = LiveState::Idle;
     LiveTake take_ {};

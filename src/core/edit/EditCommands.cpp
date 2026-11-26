@@ -58,6 +58,24 @@ public:
             default: return "SWAP TRACK";
         }
     }
+    bool blockedTrackSwap(const TrackSwapGuard& blocked) const override
+    {
+        switch (familyOf(a_.kind))
+        {
+        case Family::Track:
+            return (a_.scene != b_.scene || a_.track != b_.track) &&
+                   (blocked(a_.scene, a_.track) || blocked(b_.scene, b_.track));
+        case Family::Scene:
+            if (a_.scene != b_.scene)
+                for (int track = 0; track < model::kTracks; ++track)
+                    if (blocked(a_.scene, track) || blocked(b_.scene, track))
+                        return true;
+            break;
+        default:
+            break;
+        }
+        return false;
+    }
     void apply(Project& p) override
     {
         switch (familyOf(a_.kind))
@@ -274,17 +292,21 @@ std::unique_ptr<Command> makeSwap(const EditRef& a, const EditRef& b)
             if ((a.scene & 15) == (b.scene & 15))
                 return std::make_unique<SwapTracksCommand>(a.scene, a.track, b.track, true); // EDT-002
             const int sa = a.scene & 15, sb = b.scene & 15, ta = a.track & 15, tb = b.track & 15;
-            return std::make_unique<EditCommand>("SWAP TRACK", [=](const Project& model, Subtrees& next) {
-                next.addTrack(sa, ta, std::make_unique<Track>(model.scenes[at(sb)].tracks[at(tb)]));
-                next.addTrack(sb, tb, std::make_unique<Track>(model.scenes[at(sa)].tracks[at(ta)]));
-                for (int q = 0; q < model::kPatterns; ++q)
+            return std::make_unique<EditCommand>(
+                "SWAP TRACK",
+                [=](const Project& model, Subtrees& next)
                 {
-                    const auto ca = extractCells(patternOf(model, sa, q), trackBit(ta), kAllSteps, true);
-                    const auto cb = extractCells(patternOf(model, sb, q), trackBit(tb), kAllSteps, true);
-                    editPattern(model, next, sa, q, [&](Pattern& np) { writeCells(np, cb, nullptr, ta); });
-                    editPattern(model, next, sb, q, [&](Pattern& np) { writeCells(np, ca, nullptr, tb); });
-                }
-            });
+                    next.addTrack(sa, ta, std::make_unique<Track>(model.scenes[at(sb)].tracks[at(tb)]));
+                    next.addTrack(sb, tb, std::make_unique<Track>(model.scenes[at(sa)].tracks[at(ta)]));
+                    for (int q = 0; q < model::kPatterns; ++q)
+                    {
+                        const auto ca = extractCells(patternOf(model, sa, q), trackBit(ta), kAllSteps, true);
+                        const auto cb = extractCells(patternOf(model, sb, q), trackBit(tb), kAllSteps, true);
+                        editPattern(model, next, sa, q, [&](Pattern& np) { writeCells(np, cb, nullptr, ta); });
+                        editPattern(model, next, sb, q, [&](Pattern& np) { writeCells(np, ca, nullptr, tb); });
+                    }
+                },
+                [=](const TrackSwapGuard& blocked) { return blocked(sa, ta) || blocked(sb, tb); });
         }
         case Family::Sequence:
         {

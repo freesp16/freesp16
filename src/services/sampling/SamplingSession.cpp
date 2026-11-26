@@ -97,7 +97,7 @@ bool SamplingSession::post(std::string_view id, std::uint16_t scope, float value
 bool SamplingSession::ensureCapture(double bpm)
 {
     const std::int64_t need = ringFramesFor(bpm, config_.sampleRate);
-    if (hub_ != nullptr && (hub_->ring.capacity() >= need || recording() || live_.dirty || hasPendingTake()))
+    if (hub_ != nullptr && (hub_->ring.capacity() >= need || recording() || live_.building || liveUnresolved()))
         return true;
     auto* h = new (std::nothrow) core::sampling::CaptureHub();
     if (h == nullptr)
@@ -164,21 +164,58 @@ void SamplingSession::dropRecord(int scene, int track)
 
 bool SamplingSession::liveArm(int scene, int track)
 {
-    return ! live_.dirty && ! resetPending_ && ! saveAckPending_ && ! hasPendingTake() &&
-           ensureCapture(bridge_.playhead().bpm) &&
-           post("live.rec", static_cast<std::uint16_t>((scene & 15) << 4 | (track & 15)), 1.0f);
+    if (live_.building || liveUnresolved() || resetPending_ || saveAckPending_ ||
+        ! ensureCapture(bridge_.playhead().bpm))
+        return false;
+    const std::uint32_t request = armRequest_ % 0xFFFFFEu + 1;
+    const auto scope = static_cast<std::uint16_t>((scene & 15) << 4 | (track & 15));
+    if (! post("live.rec", scope, static_cast<float>(1 + request)))
+        return false;
+    armRequest_ = request;
+    armScene_ = scene & 15;
+    armTrack_ = track & 15;
+    armPosted_ = true;
+    return true;
+}
+
+bool SamplingSession::armAwaitingEngine() const
+{
+    return armPosted_ && hub_ != nullptr && hub_->status.liveArmRequest.load(std::memory_order_acquire) != armRequest_;
 }
 
 bool SamplingSession::hasPendingTake() const
 {
     if (hub_ == nullptr)
         return false;
+    if (armAwaitingEngine())
+        return true;
     const auto& status = hub_->status;
     const auto state = static_cast<LiveState>(status.liveState.load(std::memory_order_acquire));
-    return live_.building ||
+    return (live_.building && live_.buffer == nullptr) ||
            (status.liveReset.load(std::memory_order_relaxed) == liveReset_ &&
             (state == LiveState::Armed || state == LiveState::Recording ||
              (state >= LiveState::Done && status.liveSeq.load(std::memory_order_relaxed) != live_.seq)));
+}
+
+bool SamplingSession::protectsLiveSlot(int scene, int track) const
+{
+    if (live_.dirty && live_.scene == scene && live_.track == track)
+        return true;
+    if (armAwaitingEngine())
+        return armScene_ == scene && armTrack_ == track;
+    if (! hasPendingTake() || hub_ == nullptr)
+        return false;
+    const auto& status = hub_->status;
+    return status.liveScene.load(std::memory_order_relaxed) == scene &&
+           status.liveTrack.load(std::memory_order_relaxed) == track;
+}
+
+void SamplingSession::liveDisplaced(const core::audio::SampleBuffer* buffer)
+{
+    if (buffer != live_.buffer)
+        return;
+    live_.attached = false;
+    live_.rebuildWanted = false;
 }
 
 bool SamplingSession::installLive(int scene, int track, const core::audio::SampleBuffer* buffer)
@@ -202,7 +239,10 @@ void SamplingSession::acknowledgeSave(std::uint32_t seq)
 
 bool SamplingSession::unloadLive()
 {
-    if (live_.buffer == nullptr || hasPendingTake() || ! installLive(live_.scene, live_.track, nullptr))
+    if (live_.buffer == nullptr || hasPendingTake())
+        return false;
+    if (live_.attached && ! (config_.removeLive ? config_.removeLive(live_.scene, live_.track, live_.buffer)
+                                                : installLive(live_.scene, live_.track, nullptr)))
         return false;
     resetLive();
     return true;
@@ -214,6 +254,7 @@ void SamplingSession::resetLive()
         return;
     core::audio::release(live_.buffer);
     live_ = {};
+    armPosted_ = false;
     saveAckPending_ = false;
     liveReset_ = liveReset_ % 0xFFFFFFu + 1;
     resetPending_ = ! post("live.resolve", 0, -static_cast<float>(liveReset_));
@@ -226,10 +267,11 @@ void SamplingSession::liveDisarm(int scene, int track)
 
 void SamplingSession::setNudge(std::int32_t frames)
 {
-    post("live.nudge", 0, static_cast<float>(frames));
+    if (live_.buffer == nullptr || live_.attached)
+        post("live.nudge", 0, static_cast<float>(frames));
     const std::int32_t m = live_.margin;
     live_.nudge = std::clamp(frames, -m, m);
-    if (live_.buffer != nullptr && live_.nudge > live_.postCaptured)
+    if (live_.attached && live_.nudge > live_.postCaptured)
         live_.rebuildWanted = true;
 }
 
@@ -244,6 +286,8 @@ void SamplingSession::frame()
     collect();
     if (hub_ == nullptr)
         return;
+    if (! armAwaitingEngine())
+        armPosted_ = false;
     if (resetPending_)
         resetPending_ = ! post("live.resolve", 0, -static_cast<float>(liveReset_));
     if (saveAckPending_)
@@ -258,6 +302,7 @@ void SamplingSession::frame()
         core::audio::release(live_.buffer); // the old playback slot keeps its own reference
         live_.buffer = nullptr;
         live_.dirty = false;
+        live_.attached = false;
         live_.seq = seq;
         live_.start = s.liveStart.load(std::memory_order_relaxed);
         live_.length = s.liveLength.load(std::memory_order_relaxed);
@@ -309,6 +354,8 @@ void SamplingSession::buildLive(bool /*full: the ring now holds the trailing mar
             if (! *alive || reset != liveReset_ || seq != live_.seq)
                 return; // the project or take changed; `out` frees the buffer
             live_.building = false;
+            if (live_.buffer != nullptr && ! live_.attached)
+                return; // a track edit has already replaced the take in the playback slot
             if (! out->take || ! out->take->buffer || ! installLive(live_.scene, live_.track, out->take->buffer.get()))
             {
                 if (live_.buffer == nullptr)
@@ -320,14 +367,17 @@ void SamplingSession::buildLive(bool /*full: the ring now holds the trailing mar
             auto* b = out->take->buffer.release();
             owned_.push_back(b);
             core::audio::retain(b); // ours (live_.buffer)
-            if (live_.buffer == nullptr)
+            const bool newTake = live_.buffer == nullptr;
+            if (newTake)
                 live_.dirty = true; // a nudge rebuild keeps the existing save state
             core::audio::release(live_.buffer);
             live_.buffer = b;
+            live_.attached = true;
             live_.postCaptured = out->take->postCaptured;
+            live_.rebuildWanted = live_.postCaptured < live_.margin;
             post("live.takeReady", static_cast<std::uint16_t>(live_.scene << 4 | live_.track),
                  static_cast<float>(seq & 0xFFFFFFu));
-            if (log)
+            if (log && newTake)
                 log("LIVE take seq=" + std::to_string(seq) + " track=" + std::to_string(live_.track + 1) +
                     " frames=" + std::to_string(live_.length) + " margin=" + std::to_string(live_.margin));
             if (onLiveTake)
@@ -337,17 +387,19 @@ void SamplingSession::buildLive(bool /*full: the ring now holds the trailing mar
 
 void SamplingSession::saveLive(const juce::File& target, std::function<void(core::Result<juce::File>)> done)
 {
-    if (hub_ == nullptr || live_.buffer == nullptr || live_.length <= 0 || hasPendingTake())
+    if (saving_ || live_.buffer == nullptr || live_.length <= 0)
     {
         if (done)
-            done(core::Result<juce::File>::failure("No live take to save", "saveLive"));
+            done(core::Result<juce::File>::failure(saving_ ? "A live take is already saving" : "No live take to save",
+                                                   "saveLive"));
         return;
     }
-    const auto* hub = hub_;
-    hub->retain();
-    const std::int64_t from = live_.start + live_.nudge, frames = live_.length;
-    const int ch = live_.channels;
-    const double rate = config_.sampleRate;
+
+    saving_ = true;
+    const auto* buffer = live_.buffer;
+    core::audio::retain(buffer);
+    const auto nudge = live_.nudge;
+    const std::int64_t from = static_cast<std::int64_t>(live_.margin) + nudge, to = from + live_.length;
     core::model::SampleMetadata md {};
     md.bpm = live_.bpm;
     md.bars = live_.bars;
@@ -356,16 +408,17 @@ void SamplingSession::saveLive(const juce::File& target, std::function<void(core
     const auto seq = live_.seq;
     const auto reset = liveReset_;
     workers_.run(
-        [hub, from, frames, ch, rate, target, md, result]
+        [buffer, from, to, target, md, result]
         {
-            result->emplace(saveRing(hub->ring, from, frames, ch, rate, target, md));
-            hub->release();
+            result->emplace(saveBuffer(*buffer, from, to, target, md));
+            core::audio::release(buffer);
         },
-        [this, alive, result, done = std::move(done), seq, reset]
+        [this, alive, result, done = std::move(done), seq, reset, nudge]
         {
             if (! *alive || ! *result)
                 return;
-            if ((**result).ok() && reset == liveReset_ && seq == live_.seq)
+            saving_ = false;
+            if ((**result).ok() && reset == liveReset_ && seq == live_.seq && nudge == live_.nudge)
             {
                 live_.dirty = false;
                 acknowledgeSave(seq);

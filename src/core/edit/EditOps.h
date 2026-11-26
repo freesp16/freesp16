@@ -117,7 +117,9 @@ class EditCommand final : public Command
 {
 public:
     using Build = std::function<void(const model::Project&, Subtrees& next)>;
-    EditCommand(std::string_view label, Build build);
+    using SwapCheck = std::function<bool(const TrackSwapGuard&)>;
+    EditCommand(std::string_view label, Build build, SwapCheck check = {});
+    bool blockedTrackSwap(const TrackSwapGuard& blocked) const override { return check_ && check_(blocked); }
 
     std::string_view label() const override { return label_; }
     void apply(model::Project&) override;
@@ -128,6 +130,7 @@ public:
 private:
     std::string_view label_;
     Build build_;
+    SwapCheck check_;
     std::shared_ptr<Subtrees> holder_;
 };
 
@@ -140,6 +143,10 @@ public:
     {
     }
     std::string_view label() const override { return "SWAP TRACK"; }
+    bool blockedTrackSwap(const TrackSwapGuard& blocked) const override
+    {
+        return a_ != b_ && (blocked(scene_, a_) || blocked(scene_, b_));
+    }
     void apply(model::Project&) override;
     std::unique_ptr<Command> inverse(const model::Project&) const override
     {

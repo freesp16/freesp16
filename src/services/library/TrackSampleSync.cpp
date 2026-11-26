@@ -31,45 +31,47 @@ TrackSampleSync::~TrackSampleSync()
 
 void TrackSampleSync::onChange(const core::ChangeSet& changes, const core::model::Project& project)
 {
-    if (changes.touches("sampleRefs"))
-    {
-        syncAll(project); // a relink may move any slot's file
-        return;
-    }
     for (const auto& p : changes.paths())
     {
         int s = 0, t = 0;
         if (parseSamplePath(p, s, t))
-            sync(s, t, project);
+            sync(s, t, project, /*forceReload=*/slot(s, t).live);
     }
+    if (changes.touches("sampleRefs"))
+        syncAll(project); // a relink may move any other slot's file
 }
 
 void TrackSampleSync::syncAll(const core::model::Project& project, bool replacingProject)
 {
     for (int s = 0; s < kScenes; ++s)
         for (int t = 0; t < kTracks; ++t)
-            sync(s, t, project, replacingProject);
+            sync(s, t, project, replacingProject && slot(s, t).live);
 }
 
-void TrackSampleSync::sync(int scene, int track, const core::model::Project& project, bool replacingProject)
+bool TrackSampleSync::sync(int scene, int track, const core::model::Project& project, bool forceReload)
 {
     Slot& sl = slot(scene, track);
     const auto& key =
         project.scenes[static_cast<std::size_t>(scene)].tracks[static_cast<std::size_t>(track)].playback.sample;
     const core::model::SampleRef* ref = key.empty() ? nullptr : project.sampleRefs.find(key);
     const std::string path = ref != nullptr ? ref->path : std::string();
-    if (sl.key == key.id && sl.path == path && ! (replacingProject && sl.live))
-        return;
-    if (sl.live && ! install(scene, track, nullptr))
-        return;
+    if (sl.key == key.id && sl.path == path && ! forceReload)
+        return true;
+    if (sl.live)
+    {
+        const auto* displaced = sl.buffer;
+        if (! install(scene, track, nullptr, /*requireEngine=*/true))
+            return false;
+        if (onLiveDisplaced)
+            onLiveDisplaced(displaced);
+    }
     sl.key = key.id;
     sl.path = path;
     const std::uint32_t generation = ++sl.generation;
     if (key.empty())
     {
         sl.loading = false;
-        install(scene, track, nullptr);
-        return;
+        return install(scene, track, nullptr);
     }
     if (ref == nullptr)
     {
@@ -77,7 +79,7 @@ void TrackSampleSync::sync(int scene, int track, const core::model::Project& pro
         install(scene, track, nullptr);
         if (onError)
             onError(scene, track, core::Error{"Sample missing from the project's pool", key.id});
-        return;
+        return true;
     }
     sl.loading = true;
     std::weak_ptr<bool> alive = alive_;
@@ -99,11 +101,12 @@ void TrackSampleSync::sync(int scene, int track, const core::model::Project& pro
                       }
                       install(scene, track, r.value());
                   });
+    return true;
 }
 
 bool TrackSampleSync::installLive(int scene, int track, Handle buffer)
 {
-    if (! install(scene, track, buffer))
+    if (! install(scene, track, buffer, /*requireEngine=*/true))
         return false;
     auto& sl = slot(scene, track);
     sl.live = buffer != nullptr;
@@ -115,7 +118,13 @@ bool TrackSampleSync::installLive(int scene, int track, Handle buffer)
     return true;
 }
 
-bool TrackSampleSync::install(int scene, int track, Handle buffer)
+bool TrackSampleSync::removeLive(int scene, int track, Handle expected, const core::model::Project& project)
+{
+    const auto& sl = slot(scene, track);
+    return ! sl.live || sl.buffer != expected || sync(scene, track, project, /*forceReload=*/true);
+}
+
+bool TrackSampleSync::install(int scene, int track, Handle buffer, bool requireEngine)
 {
     Slot& sl = slot(scene, track);
     if (sl.buffer == buffer)
@@ -127,7 +136,8 @@ bool TrackSampleSync::install(int scene, int track, Handle buffer)
     if (! bridge_.post(swap))
     {
         core::audio::release(buffer);
-        return false;
+        if (requireEngine)
+            return false; // keep the active live buffer and its ownership until a clear can be posted
     }
     core::audio::retain(buffer); // the document's use
     core::audio::release(sl.buffer);

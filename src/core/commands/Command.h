@@ -74,6 +74,8 @@ private:
     std::function<void()> cancel_;
 };
 
+using TrackSwapGuard = std::function<bool(int scene, int track)>;
+
 class Command
 {
 public:
@@ -82,6 +84,7 @@ public:
     virtual void apply(model::Project&) = 0;                // message thread only
     virtual std::unique_ptr<Command> inverse(const model::Project& before) const = 0;
     virtual bool undoable() const { return true; }
+    virtual bool blockedTrackSwap(const TrackSwapGuard&) const { return false; }
     // Coalescing (EDT-U2): a SetParam on the same path within 1 s merges into this command.
     virtual bool mergeWith(const Command&, double nowMs) { (void) nowMs; return false; }
     virtual void collectChanges(ChangeSet&) const = 0;      // paths touched → observers + EngineBridge
@@ -97,7 +100,7 @@ public:
     CommandBus(const CommandBus&) = delete;
     CommandBus& operator= (const CommandBus&) = delete;
 
-    void execute(std::unique_ptr<Command>);                 // apply, record (UndoStack), notify, bridge
+    bool execute(std::unique_ptr<Command>); // false when there is no model or the owner refused the command
     bool undo();  bool redo();
     void checkpoint();                                      // on save (dirty tracking)
     Subscription observe(std::string_view pathPrefix, std::function<void(const ChangeSet&)>);

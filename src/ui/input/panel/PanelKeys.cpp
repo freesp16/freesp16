@@ -92,10 +92,15 @@ bool PanelKeys::handle(const io::ControlEvent& e, bool shift)
             trace("EDIT %s refused: a recording pass is open", undo ? "undo" : "redo");
             return true;
         }
-        const auto label = undo ? cmd::history(bus_).undoLabel() : std::string_view{};
-        const bool ok = undo ? bus_.undo() : bus_.redo();
-        trace("EDIT %s %s%s%.*s", undo ? "undo" : "redo", ok ? "ok" : "nothing to ",
-              ok ? (label.empty() ? "" : " ") : (undo ? "undo" : "redo"), static_cast<int>(label.size()), label.data());
+        const auto& history = cmd::history(bus_);
+        const std::string label(undo ? history.undoLabel() : history.redoLabel());
+        const char* action = undo ? "undo" : "redo";
+        if (undo ? bus_.undo() : bus_.redo())
+            trace("EDIT %s ok%s%s", action, label.empty() ? "" : " ", label.c_str());
+        else if (! label.empty())
+            trace("EDIT %s refused %s", action, label.c_str());
+        else
+            trace("EDIT %s nothing to %s", action, action);
         return true;
     }
     case io::Control::ExtClear:

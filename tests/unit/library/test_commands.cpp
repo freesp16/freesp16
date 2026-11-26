@@ -3,6 +3,7 @@
 // browse.* ParamSpecs are registered.
 #include "LibTestSupport.h"
 
+#include "core/audio/SampleBufferStorage.h"
 #include "core/commands/CommandBusAccess.h"
 #include "core/commands/UndoStack.h"
 #include "core/commands/library/LibraryCommands.h"
@@ -185,6 +186,46 @@ TEST_CASE("lib.load: load to track decodes, executes one step, the engine follow
     f.workers.drain();
     CHECK(failed);
     CHECK(track(bus, 0, 6).playback.sample.empty());
+    core::commands::setBridge(bus, {});
+}
+
+TEST_CASE("lib.load: unloading a live take preserves the underlying and replacement samples", "[library]")
+{
+    libtest::Fixture f;
+    const auto kick = libtest::writeSample(f.samples().getChildFile("kick.wav"), 4410, 100);
+    const auto snare = libtest::writeSample(f.samples().getChildFile("snare.wav"), 2205, 300);
+    std::unique_ptr<core::audio::SampleBuffer, core::audio::SampleBufferDeleter> live(
+        core::audio::allocateSampleBuffer(128, 1, 44100.0));
+    REQUIRE(live);
+    libtest::SwapEngine engine;
+    core::CommandBus bus;
+    core::commands::replaceProject(bus, core::model::newDefaultProject());
+    TrackSampleSync sync(f.pool, engine);
+    core::commands::setBridge(bus, [&](const auto& c, const auto& p) { sync.onChange(c, p); });
+    TrackLoader loader(f.library, f.pool, bus);
+    loader.load(0, 5, kick);
+    f.workers.drain();
+    REQUIRE(engine.track(0, 5));
+    REQUIRE(sync.installLive(0, 5, live.get()));
+    REQUIRE(engine.track(0, 5) == live.get());
+    SECTION("unload restores the underlying file")
+    {
+        REQUIRE(sync.removeLive(0, 5, live.get(), core::commands::project(bus)));
+        f.workers.drain();
+        REQUIRE(engine.track(0, 5));
+        CHECK(engine.track(0, 5)->frames == 4410);
+    }
+    SECTION("unload leaves a replacement file in place")
+    {
+        loader.load(0, 5, snare);
+        f.workers.drain();
+        const auto* replacement = engine.track(0, 5);
+        REQUIRE(replacement);
+        REQUIRE(replacement->frames == 2205);
+        REQUIRE(sync.removeLive(0, 5, live.get(), core::commands::project(bus)));
+        CHECK(engine.track(0, 5) == replacement);
+    }
+    CHECK_FALSE(track(bus, 0, 5).playback.sample.empty());
     core::commands::setBridge(bus, {});
 }
 

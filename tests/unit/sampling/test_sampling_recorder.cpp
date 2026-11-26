@@ -394,6 +394,9 @@ TEST_CASE("sampling.session: resolve the live take before accepting another", "[
     REQUIRE(param(*e, "live.mode", 1.0f));
     REQUIRE(param(*e, "live.length", 0.0f));
     REQUIRE(s.liveArm(0, 1));
+    CHECK(s.liveUnresolved());
+    CHECK(s.protectsLiveSlot(0, 1));
+    CHECK_FALSE(s.protectsLiveSlot(1, 1));
     Driver d;
     d.run(*e, 8192, ramp());
     REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
@@ -423,11 +426,20 @@ TEST_CASE("sampling.session: resolve the live take before accepting another", "[
     CHECK(s.liveUnsaved());
     CHECK(s.liveTrack() == 1);
     CHECK_FALSE(s.liveArm(0, 5));
-    SECTION("save releases the next capture")
+    SECTION("save still writes the original audio after the capture ring wraps")
     {
-        bool saved = false;
-        s.saveLive(t.dir.getChildFile("saved.wav"), [&](core::Result<juce::File> result) { saved = result.ok(); });
-        REQUIRE(waitFor(workers, [&] { return saved; }));
+        const auto* audio = s.liveBuffer();
+        const auto sample = audio->ch[0][s.liveMargin() + 121];
+        d.run(*e, 31 * 44100, ramp());
+        REQUIRE(s.hub()->ring.oldest() > s.hub()->status.liveStart.load());
+        std::optional<core::Result<juce::File>> saved;
+        const auto file = t.dir.getChildFile("saved.wav");
+        s.saveLive(file, [&](core::Result<juce::File> result) { saved = std::move(result); });
+        REQUIRE(waitFor(workers, [&] { return saved.has_value(); }));
+        REQUIRE(saved->ok());
+        const auto wav = readWav(file);
+        REQUIRE(wav.l.size() == 22050);
+        CHECK(std::abs(wav.l[121] - sample) <= 2.0f / 8388608.0f);
         CHECK_FALSE(s.liveUnsaved());
     }
     SECTION("unload releases the next capture")

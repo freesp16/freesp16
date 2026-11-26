@@ -190,6 +190,7 @@ public:
     }
     std::vector<ui::m2::ProjectEntry> list(ui::m2::ProjectSort s) override { return inner_.list(s); }
     const std::string& currentName() const override { return inner_.currentName(); }
+    std::string replacementError() const override { return inner_.replacementError(); }
     bool dirty() const override { return inner_.dirty(); }
     bool hasFile() const override { return inner_.hasFile(); }
     bool exists(std::string_view name) override { return inner_.exists(name); }
@@ -296,6 +297,26 @@ struct Document::Impl
                                       if (extensions)
                                           extensions->onChange(changes, p); // nothing while ext.* is off
                                   });
+        core::commands::setTrackSwapGuard(bus,
+                                          [this](int scene, int track)
+                                          {
+                                              if (! samplingHost ||
+                                                  (! samplingHost->unsaved(scene, track) &&
+                                                   (! sampling || ! sampling->protectsLiveSlot(scene, track))))
+                                                  return false;
+                                              if (selection.shell)
+                                                  selection.shell->showMessage({
+                                                      .title = "LIVE TAKE",
+                                                      .lines = {"Save the take before swapping tracks."},
+                                                      .buttons = {{"OK", ui::ButtonStyle::Primary}},
+                                                  });
+                                              return true;
+                                          });
+        sync.onLiveDisplaced = [this](auto* buffer)
+        {
+            if (sampling)
+                sampling->liveDisplaced(buffer);
+        };
         sync.onInstalled = [this](int s, int t, lib::TrackSampleSync::Handle sample) // re-slice it
         {
             if (core::commands::hasProject(bus))
@@ -392,6 +413,12 @@ struct Document::Impl
         watchPreferences(); // RESUME / AUTOSAVE / library locations follow their preferences
         // Our choice: the user's copy of the reference lock-ordinal map (OQ-01) lives in the data folder's System/.
         services::interop::sp16::setUserMapFile(dataDir.getChildFile("System/interop/sp16-param-index-map.json"));
+        session->store().admitReplacement = [this]() -> core::Result<void>
+        {
+            if (sampling && sampling->liveUnresolved())
+                return core::Result<void>::failure("Save or unload the live take before changing projects");
+            return {};
+        };
         session->onProjectReplaced = [this](const core::model::Project& p, const store::LoadReport& report)
         {
             if (sampling)
@@ -431,7 +458,11 @@ struct Document::Impl
                              dataDir.getChildFile("Recordings"), config.sampleRate, [](std::string_view id)
                              { return core::builtinParams().idOf(id).value_or(core::ParamId{}); },
                              [this](int s, int t, const core::audio::SampleBuffer* buffer)
-                             { return sync.installLive(s, t, buffer); }});
+                             { return sync.installLive(s, t, buffer); },
+                             [this](int s, int t, const core::audio::SampleBuffer* buffer) {
+                                 return core::commands::hasProject(bus) &&
+                                        sync.removeLive(s, t, buffer, core::commands::project(bus));
+                             }});
         sampling->log = [this](const std::string& line) { log("%s", line.c_str()); };
         sampling->onTake = [this](const services::sampling::TakeInfo& t)
         {

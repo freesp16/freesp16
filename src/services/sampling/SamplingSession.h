@@ -49,6 +49,7 @@ struct SessionConfig
     double sampleRate = 44100.0;
     std::function<core::ParamId(std::string_view)> resolveParam; // ParamSpec id → ParamId (the engine's bindings)
     std::function<bool(int scene, int track, const core::audio::SampleBuffer*)> installLive = {};
+    std::function<bool(int scene, int track, const core::audio::SampleBuffer*)> removeLive = {};
 };
 
 class SamplingSession
@@ -80,6 +81,9 @@ public:
     // ---- live sampling (SMP-020…027) ----
     bool liveArm(int scene, int track); // live.rec = 1 (live.mode must be on)
     bool liveUnsaved() const noexcept { return live_.dirty; }
+    bool liveUnresolved() const { return live_.dirty || hasPendingTake(); }
+    bool protectsLiveSlot(int scene, int track) const;
+    void liveDisplaced(const core::audio::SampleBuffer*);
     int liveScene() const noexcept { return live_.scene; }
     int liveTrack() const noexcept { return live_.buffer != nullptr ? live_.track : -1; }
     bool unloadLive();
@@ -103,6 +107,7 @@ private:
     bool installLive(int scene, int track, const core::audio::SampleBuffer*);
     void acknowledgeSave(std::uint32_t seq);
     bool hasPendingTake() const;
+    bool armAwaitingEngine() const;
     void collect();
 
     engine::EngineBridge& bridge_;
@@ -120,12 +125,14 @@ private:
         std::int64_t postCaptured = 0;
         int scene = 0, track = 0, channels = 2;
         float bpm = 120, bars = 1;
-        bool building = false, rebuildWanted = false, dirty = false;
+        bool building = false, rebuildWanted = false, dirty = false, attached = false;
         const core::audio::SampleBuffer* buffer = nullptr; // our reference to the installed take
     } live_;
-    std::uint32_t liveReset_ = 0;
+    std::uint32_t liveReset_ = 0, armRequest_ = 0;
+    int armScene_ = 0, armTrack_ = 0;
+    bool armPosted_ = false;
     bool resetPending_ = false;
-    bool saveAckPending_ = false;
+    bool saveAckPending_ = false, saving_ = false;
     std::vector<core::audio::SampleBuffer*> owned_; // take buffers we allocated (freed when refs reach 0)
     std::vector<std::string> salvaged_;             // WavWriter::salvage's lines, logged by the first frame()
 };
