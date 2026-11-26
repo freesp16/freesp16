@@ -124,6 +124,30 @@ TEST_CASE("A full engine bridge retries the latest project FX and a fresh projec
     enginetest::render(*engine, 256);
 }
 
+TEST_CASE("CLAP host shutdown releases queued and installed instruments and effects after the engine stops", "[plugin]")
+{
+    auto engine = std::make_unique<engine::Engine>(enginetest::fullSetup());
+    engine->prepare(44100, 256);
+    services::plugin::ClapHostService host(engine->bridge(), CLAP_FIXTURE_DIR, 44100);
+    REQUIRE(host.mount(0, 0, {.path = "clap_effect_fixture.clap", .pluginId = "test.instrument"}));
+    REQUIRE(host.mountEffect(0, 32, {.path = "clap_effect_fixture.clap", .pluginId = "test.stereo"}));
+
+    SECTION("mounts still queued") {}
+    SECTION("mounted nodes with a full command queue")
+    {
+        enginetest::render(*engine, 256);
+        const engine::ParamChange fill{*core::builtinParams().idOf("track.mode"), 0, 0.0f, 0};
+        while (engine->bridge().post(fill))
+        {
+        }
+    }
+    host.detachFromEngine();
+    engine.reset();
+    host.unmountAll();
+    CHECK(host.mounted(0, 0) == nullptr);
+    CHECK_FALSE(host.hasEffect(0, 32));
+}
+
 TEST_CASE("Track and FX plugin presets follow the data drive across projects", "[plugin][presets][store]")
 {
     using namespace core::model;

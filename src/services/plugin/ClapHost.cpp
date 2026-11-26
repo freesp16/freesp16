@@ -1137,7 +1137,7 @@ void ClapAudioNode::pollMainThread() noexcept
 
 ClapHostService::ClapHostService(engine::EngineBridge& bridge, std::string pluginsDir, double sampleRate,
                                  std::function<void(const std::string&)> log)
-    : bridge_(bridge), pluginsDir_(std::move(pluginsDir)), sampleRate_(sampleRate), log_(std::move(log))
+    : bridge_(&bridge), pluginsDir_(std::move(pluginsDir)), sampleRate_(sampleRate), log_(std::move(log))
 {
 }
 
@@ -1301,7 +1301,7 @@ bool ClapHostService::postMount(Slot& slot, engine::SwapSlot swapSlot, PendingMo
 {
     auto* node = prepared.node.get();
     node->retain(); // the swap table owns this reference once post succeeds
-    if (! bridge_.post(engine::ObjectSwap{swapSlot, node}))
+    if (bridge_ == nullptr || ! bridge_->post(engine::ObjectSwap{swapSlot, node}))
     {
         node->release();
         return false;
@@ -1347,7 +1347,7 @@ void ClapHostService::clearSlot(Slot& slot, engine::SwapSlot swapSlot)
     slot.pending.reset();
     if (slot.node == nullptr && slot.spec.path.empty() && slot.spec.pluginId.empty())
         return;
-    if (! bridge_.post(engine::ObjectSwap{swapSlot, nullptr}))
+    if (bridge_ != nullptr && ! bridge_->post(engine::ObjectSwap{swapSlot, nullptr}))
     {
         slot.pendingClear = true;
         return;

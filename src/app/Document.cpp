@@ -831,6 +831,11 @@ Document::Document(engine::EngineBridge& bridge, DocumentConfig config)
 {
 }
 
+void Document::detachPluginHost()
+{
+    impl_->plugins->detachFromEngine();
+}
+
 Document::~Document()
 {
     // The session goes before the pool and the library it points to (members are destroyed in reverse order, and

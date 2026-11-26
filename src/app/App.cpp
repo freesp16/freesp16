@@ -897,6 +897,7 @@ int run()
     audioDevices.clear();
     renderer.reset();
     root.reset();
+    document->detachPluginHost();
     engine.reset();   // its destroy functions give back the buffer references first …
     document.reset(); // … so the pool frees every buffer
     juce::DeletedAtShutdown::deleteAll(); // JUCE singletons (font cache, message manager) before static destruction

@@ -272,6 +272,8 @@ public:
     bool recallPreset(int scene0, int track0, std::optional<int> effectSlot, const core::model::PluginTrack& spec);
     void unmount(int scene0, int track0);
     void unmountAll();
+    // Once audio stops, the engine drains its own queued and installed references on destruction.
+    void detachFromEngine() noexcept { bridge_ = nullptr; }
 
     ClapAudioNode* mounted(int scene0, int track0) const noexcept;
     const core::model::PluginTrack& mountedSpec(int scene0, int track0,
@@ -310,7 +312,7 @@ private:
     void syncEffect(const core::model::Project&, int scene, int slot, bool fresh = false);
     std::string resolvePath(const std::string& path) const;
 
-    engine::EngineBridge& bridge_;
+    engine::EngineBridge* bridge_;
     std::string pluginsDir_;
     double sampleRate_ = 44100.0;
     std::function<void(const std::string&)> log_;

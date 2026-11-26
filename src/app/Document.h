@@ -51,6 +51,7 @@ class Document
 public:
     Document(engine::EngineBridge&, DocumentConfig);
     ~Document();
+    void detachPluginHost(); // called after audio stops and before the engine is destroyed
     Document(const Document&) = delete;
     Document& operator=(const Document&) = delete;
 
