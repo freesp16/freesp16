@@ -104,6 +104,7 @@ public:
     void process(const BlockContext& ctx, const stages::BlockBuffers::Timing& timing,
                  trigger::TriggerRouter& router) noexcept;
     void afterRouter(const trigger::TriggerRouter& router) noexcept;
+    void swapTracks(int scene, int a, int b) noexcept;
 
     template <class Matrix>
         requires TransposeMatrix<Matrix>

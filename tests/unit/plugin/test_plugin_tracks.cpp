@@ -12,10 +12,14 @@
 #include "core/params/ParamRegistry.h"
 #include "engine/Engine.h"
 #include "services/plugin/ClapHost.h"
+#include "services/render/QueuedBridge.h"
 #include "services/store/NativeCodec.h"
 #include "tests/unit/engine/EngineTestUtil.h"
+#include "tests/unit/midi/MidiTestUtil.h"
+#include "tests/unit/sequencer/SeqRig.h"
 #include "tests/unit/store/StoreTestSupport.h"
 #include "tests/unit/trigger/TriggerRig.h"
+#include "ui/input/steps/PatternSync.h"
 #include "ui/render/Damage.h"
 #include "ui/render/DrawList.h"
 #include "ui/render/GlyphAtlas.h"
@@ -88,6 +92,18 @@ public:
 private:
     std::atomic<int>* destroyed_;
 };
+
+MockPluginNode& installPlugin(engine::Engine& e, std::uint8_t track)
+{
+    auto plugin = std::make_unique<MockPluginNode>(nullptr);
+    REQUIRE(e.bridge().post(engine::ObjectSwap{{engine::SwapSlot::TrackPlugin, 0, track}, plugin.get()}));
+    return *plugin.release();
+}
+
+void postTrackParam(engine::EngineBridge& bridge, std::string_view id, std::uint16_t track, float value)
+{
+    REQUIRE(bridge.post(engine::ParamChange{miditest::id(id), track, value, 0}));
+}
 
 class MockCustomScreenAccess final : public ui::plugin::PluginAccess
 {
@@ -326,6 +342,185 @@ TEST_CASE("plugin: DrawCmd::Op::Blit renders 1:1 in SoftRasterizer and tracks Fr
     dl2.fill({0, 0, 1280, 768}, 0xFF000000u);
     dl2.blit({16, 152, 1248, 456}, src.data(), 780, 285, 780, 2);
     CHECK(damage.compute(dl2, 800, 480) == ui::FrameDamage::Kind::Partial);
+}
+
+TEST_CASE("plugin: a pending ratchet and its locks follow the playing instrument across a track swap",
+          "[plugin][track-swap]")
+{
+    seqtest::Rig rig;
+    auto& original = installPlugin(*rig.e, 0);
+    auto& other = installPlugin(*rig.e, 1);
+    REQUIRE(rig.param("track.mode", 4, 0));
+    REQUIRE(rig.param("track.mode", 4, 1));
+    REQUIRE(rig.param("seq.retrigCount", 2, 0));
+    REQUIRE(rig.param("seq.retrigSpeed", 5, 0));
+    auto before = seqtest::pattern();
+    seqtest::put(*before, 0, 0);
+    seqtest::lock(*before, 0, 0, 4, 3.0f, core::model::LockChange::Hold);
+    REQUIRE(rig.install(*before));
+    REQUIRE(rig.play());
+    rig.block();
+    REQUIRE(original.noteOns == 1);
+    REQUIRE(rig.e->perf().retrig.remaining(0) == 1);
+
+    auto after = core::model::newDefaultProject();
+    after->scenes[0].patterns[0].length = before->length;
+    seqtest::put(after->scenes[0].patterns[0], 0, 1);
+    seqtest::lock(after->scenes[0].patterns[0], 0, 1, 4, -5.0f);
+    services::render::QueuedBridge queued(rig.e->bridge());
+    queued.stageTrackSwap({0, 0, 1, true});
+    REQUIRE(ui::input::steps::postPattern(queued, *after, 0, 0));
+    postTrackParam(queued, "seq.retrigCount", 0, 1);
+    postTrackParam(queued, "seq.retrigCount", 1, 2);
+    postTrackParam(queued, "seq.retrigSpeed", 1, 5);
+    queued.finishTrackSwaps();
+
+    rig.until(std::lround(seqtest::stepFrames()));
+    REQUIRE(rig.e->installed({engine::SwapSlot::TrackPlugin, 0, 1}) == &original);
+    CHECK(original.noteOns == 2);
+    CHECK(other.noteOns == 0);
+    const auto events = rig.e->triggerRouter().blockEvents();
+    REQUIRE(events.size() == 1);
+    const auto& repeat = events.front();
+    REQUIRE(repeat.source == seqtest::TriggerSource::Retrigger);
+    CHECK(repeat.track == 1);
+    REQUIRE(repeat.locks);
+    float pitchLock = 0.0f;
+    REQUIRE(repeat.locks->get(4, pitchLock));
+    CHECK(pitchLock == 3.0f);
+    REQUIRE(repeat.locks->change);
+    CHECK(repeat.locks->change[4] == static_cast<std::uint8_t>(core::model::LockChange::Hold));
+}
+
+TEST_CASE("plugin: a MIDI release after the swap sends the pitch from note-on", "[plugin][track-swap]")
+{
+    auto e = miditest::make();
+    auto& plugin = installPlugin(*e, 0);
+    miditest::Driver driver(*e, engine::kBlockFrames);
+    driver.param("track.mode", 0, 4);
+    driver.param("playback.timeStretch", 0, 2);
+    REQUIRE(e->midi().hub().pushIn(0, miditest::msg(0x90, 72, 100, miditest::hostNs(driver.frame()))));
+    driver.blocks(4);
+    REQUIRE(plugin.lastNote == 72);
+
+    services::render::QueuedBridge queued(e->bridge());
+    queued.stageTrackSwap({0, 0, 1, true});
+    postTrackParam(queued, "track.mode", 0, 0);
+    postTrackParam(queued, "track.mode", 1, 4);
+    postTrackParam(queued, "playback.timeStretch", 0, 0);
+    postTrackParam(queued, "playback.timeStretch", 1, 2);
+    queued.finishTrackSwaps();
+    driver.blocks(2);
+    REQUIRE(e->installed({engine::SwapSlot::TrackPlugin, 0, 1}) == &plugin);
+    REQUIRE(plugin.sounding);
+
+    driver.param("playback.timeStretch", 1, 0);
+    REQUIRE(e->midi().hub().pushIn(0, miditest::msg(0x80, 72, 0, miditest::hostNs(driver.frame()))));
+    driver.blocks(4);
+    CHECK(plugin.lastOffNote == plugin.lastNote);
+    CHECK_FALSE(plugin.sounding);
+}
+
+TEST_CASE("plugin: MIDI All Notes Off still reaches the original channel's held note after a swap",
+          "[plugin][track-swap]")
+{
+    auto e = miditest::make();
+    auto& channelOne = installPlugin(*e, 0);
+    auto& channelTwo = installPlugin(*e, 1);
+    miditest::Driver driver(*e, engine::kBlockFrames);
+    driver.param("track.mode", 0, 4);
+    driver.param("track.mode", 1, 4);
+    const auto send = [&](std::uint8_t status, std::uint8_t data1, std::uint8_t data2)
+    {
+        REQUIRE(e->midi().hub().pushIn(0, miditest::msg(status, data1, data2, miditest::hostNs(driver.frame()))));
+        driver.blocks(4);
+    };
+    send(0x90, 48, 100);
+    send(0x91, 60, 100);
+    REQUIRE(channelOne.sounding);
+    REQUIRE(channelTwo.sounding);
+
+    services::render::QueuedBridge queued(e->bridge());
+    queued.stageTrackSwap({0, 0, 1, true});
+    queued.finishTrackSwaps();
+    driver.blocks(1);
+    REQUIRE(e->installed({engine::SwapSlot::TrackPlugin, 0, 1}) == &channelOne);
+    send(0xB0, 123, 0);
+    CHECK_FALSE(channelOne.sounding);
+    CHECK(channelTwo.sounding);
+    send(0xB1, 123, 0);
+    CHECK_FALSE(channelTwo.sounding);
+}
+
+TEST_CASE("plugin: a running volume LFO stays sample-exact through a track swap", "[plugin][track-swap]")
+{
+    auto control = enginetest::make(false);
+    auto moved = enginetest::make(false);
+    const auto lfo = [](engine::EngineBridge& bridge, std::uint16_t track)
+    {
+        postTrackParam(bridge, "lfo.shape", track, static_cast<int>(engine::modulation::LfoShape::Sine));
+        postTrackParam(bridge, "lfo.speed", track, 100);
+        postTrackParam(bridge, "lfo.depth", track, 100);
+        postTrackParam(bridge, "lfo.triggerMode", track, 1);
+        postTrackParam(bridge, "lfo.destination", track, static_cast<float>(miditest::id("track.volume").value));
+    };
+    const auto configure = [&](engine::Engine& e)
+    {
+        installPlugin(e, 0);
+        postTrackParam(e.bridge(), "track.mode", 0, 4);
+        lfo(e.bridge(), 0);
+        REQUIRE(e.bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+        enginetest::render(e, 4096);
+        REQUIRE(e.bridge().post(engine::TriggerNow{0, 127, 60, 0}));
+        return enginetest::render(e, 1024);
+    };
+    const auto before = configure(*control);
+    REQUIRE(configure(*moved).l == before.l);
+
+    services::render::QueuedBridge queued(moved->bridge());
+    queued.stageTrackSwap({0, 0, 1, true});
+    postTrackParam(queued, "track.mode", 0, 0);
+    postTrackParam(queued, "track.mode", 1, 4);
+    lfo(queued, 1);
+    postTrackParam(queued, "lfo.destination", 0, -1);
+    queued.finishTrackSwaps();
+
+    const auto reference = enginetest::render(*control, 256);
+    const auto candidate = enginetest::render(*moved, 256);
+    CHECK(candidate.l == reference.l);
+    CHECK(candidate.r == reference.r);
+    CHECK(moved->lfo().lfo(1).elapsed() == control->lfo().lfo(0).elapsed());
+}
+
+TEST_CASE("plugin: touch-strip repeats and pad pressure follow a held note across a track swap", "[plugin][track-swap]")
+{
+    auto e = enginetest::make(false);
+    auto& original = installPlugin(*e, 0);
+    auto& other = installPlugin(*e, 1);
+    postTrackParam(e->bridge(), "track.mode", 0, 4);
+    postTrackParam(e->bridge(), "track.mode", 1, 4);
+    postTrackParam(e->bridge(), "ribbon.mode", 0, static_cast<int>(core::ribbon::Mode::Repeat));
+    REQUIRE(e->bridge().post(engine::TriggerNow{0, 127, 1, core::ribbon::kStripPad}));
+    REQUIRE(e->bridge().post(engine::TriggerNow{0, 100, 60, 0}));
+    enginetest::render(*e, 2 * engine::kBlockFrames);
+    REQUIRE(original.noteOns == 1);
+    REQUIRE(e->ribbon().repeating());
+
+    services::render::QueuedBridge queued(e->bridge());
+    queued.stageTrackSwap({0, 0, 1, true});
+    queued.finishTrackSwaps();
+    REQUIRE(queued.post(engine::TriggerNow{0, 64, 0, core::ribbon::kPressurePad}));
+    enginetest::render(*e, 4096);
+    CHECK(original.noteOns == 2);
+    CHECK(other.noteOns == 0);
+    CHECK(original.lastVel == 64.0f * (1.0f / 127.0f));
+
+    REQUIRE(queued.post(engine::TriggerNow{0, 0, 60, 0}));
+    enginetest::render(*e, 4096);
+    CHECK(original.noteOffs == 1);
+    CHECK(original.noteOns == 2);
+    CHECK_FALSE(original.sounding);
+    CHECK_FALSE(e->ribbon().repeating());
 }
 
 TEST_CASE("plugin: Engine SwapSlot::TrackPlugin renders audio on triggers and retires cleanly", "[plugin][engine]")

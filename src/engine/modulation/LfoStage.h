@@ -109,6 +109,7 @@ public:
     // ---- audio thread ----
     // A ParamChange of an lfo.* id (scope = (scene << 4) | track); takes effect at this block's process().
     void setParam(LfoField field, std::uint16_t scope, float value) noexcept;
+    void swapTracks(int scene, int a, int b) noexcept;
     // Restarts, locks, one value per LFO → the matrix (see the file comment).
     void process(const BlockContext& ctx, int scene, std::span<const trigger::TriggerEvent> events,
                  ModMatrix& matrix) noexcept;
@@ -164,6 +165,7 @@ public:
     }
     bool modulate(int track, core::ParamId dest, const ModValue& v) noexcept override;
     void release(int track, core::ParamId dest) noexcept override;
+    void clearVoiceModulation(int track) noexcept;
 
 private:
     bool apply(int track, core::ParamId dest, const ModValue* v) noexcept; // null = release

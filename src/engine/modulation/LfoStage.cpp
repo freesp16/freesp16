@@ -5,6 +5,8 @@
 #include "engine/trigger/SourceSet.h"
 #include "engine/voice/TrackVoice.h"
 
+#include <utility>
+
 namespace engine::modulation
 {
 namespace
@@ -93,6 +95,21 @@ void LfoStage::setParam(LfoField field, std::uint16_t scope, float value) noexce
     const int scene = scope >> 4, track = scope & 15;
     if (applyLfoParam(params_[scene][track], field, value) && scene == scene_)
         dirty_ = static_cast<std::uint16_t>(dirty_ | (1u << track));
+}
+
+void LfoStage::swapTracks(int scene, int a, int b) noexcept
+{
+    std::swap(params_[scene][a], params_[scene][b]);
+    if (scene != scene_)
+        return;
+
+    std::swap(lfo_[a], lfo_[b]);
+    std::swap(locks_[a], locks_[b]);
+    std::swap(applied_[a], applied_[b]);
+    std::swap(amount_[a], amount_[b]);
+    std::swap(speedSet_[a], speedSet_[b]);
+    const auto dirtyDifference = ((dirty_ >> a) ^ (dirty_ >> b)) & 1u;
+    dirty_ ^= static_cast<std::uint16_t>((dirtyDifference << a) | (dirtyDifference << b));
 }
 
 void LfoStage::configure(int track, const LfoParams& p) noexcept
@@ -216,6 +233,13 @@ void LfoStage::process(const BlockContext& ctx, int scene, std::span<const trigg
 bool TrackModSink::modulate(int track, core::ParamId dest, const ModValue& v) noexcept { return apply(track, dest, &v); }
 
 void TrackModSink::release(int track, core::ParamId dest) noexcept { apply(track, dest, nullptr); }
+
+void TrackModSink::clearVoiceModulation(int track) noexcept
+{
+    sources_->sources[track].voice().setModCents(static_cast<int>(voice::ModSource::Lfo), 0.0f);
+    for (int field = 0; field <= static_cast<int>(AmpEnvField::Release); ++field)
+        sources_->env.setModulation(track, static_cast<AmpEnvField>(field), nullptr);
+}
 
 bool TrackModSink::apply(int track, core::ParamId dest, const ModValue* v) noexcept
 {

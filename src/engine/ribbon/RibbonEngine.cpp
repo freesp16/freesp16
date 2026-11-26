@@ -1,6 +1,7 @@
 #include "engine/ribbon/RibbonEngine.h"
 
 #include <cmath>
+#include <utility>
 
 namespace engine::ribbon
 {
@@ -87,7 +88,7 @@ bool RibbonEngine::onParam(const ParamChange& c) noexcept
     return true;
 }
 
-bool RibbonEngine::onLive(const TriggerNow& t, const trigger::PadState& pads) noexcept
+bool RibbonEngine::onLive(const TriggerNow& t, const trigger::PadState& pads, int heldTrack) noexcept
 {
     if (t.pad == core::ribbon::kStripPad)
     {
@@ -101,10 +102,15 @@ bool RibbonEngine::onLive(const TriggerNow& t, const trigger::PadState& pads) no
         const int pad = t.track & 15;
         switch (pads.mode)
         {
-            case trigger::PadMode::Play: onPressure(pad, t.velocity); break;
-            case trigger::PadMode::Slice:
-            case trigger::PadMode::Scale: onPressure(pads.selected & 15, t.velocity); break;
-            default: break;
+        case trigger::PadMode::Play:
+            onPressure(heldTrack >= 0 ? heldTrack : pad, t.velocity);
+            break;
+        case trigger::PadMode::Slice:
+        case trigger::PadMode::Scale:
+            onPressure(heldTrack >= 0 ? heldTrack : pads.selected & 15, t.velocity);
+            break;
+        default:
+            break;
         }
         return true;
     }
@@ -241,6 +247,34 @@ void RibbonEngine::stopRepeats() noexcept
         stoppedRepeats_ = held_;
         repeatActive_ = false;
     }
+}
+
+void RibbonEngine::swapTracks(int a, int b) noexcept
+{
+    const auto swapBits = [a, b](std::uint16_t& mask)
+    {
+        const auto difference = ((mask >> a) ^ (mask >> b)) & 1u;
+        mask ^= static_cast<std::uint16_t>((difference << a) | (difference << b));
+    };
+    std::swap(heldCount_[a], heldCount_[b]);
+    std::swap(velocity_[a], velocity_[b]);
+    std::swap(semitones_[a], semitones_[b]);
+    std::swap(pressure_[a], pressure_[b]);
+    std::swap(sincePress_[a], sincePress_[b]);
+    swapBits(held_);
+    swapBits(sticky_);
+    swapBits(targets_);
+    swapBits(stoppedRepeats_);
+
+    // The ModMatrix rows move with their producers' cached contributions.
+    std::swap(pub_[a], pub_[b]);
+    std::swap(pubCount_[a], pubCount_[b]);
+    std::swap(bend_[a], bend_[b]);
+    std::swap(bendPub_[a], bendPub_[b]);
+    swapBits(pubMask_);
+    swapBits(retry_);
+    swapBits(bendMask_);
+    swapBits(bendPubMask_);
 }
 
 int RibbonEngine::collectHits(const BlockContext& ctx, std::span<trigger::TriggerEvent, kMaxHits> out) noexcept

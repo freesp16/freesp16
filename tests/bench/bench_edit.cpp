@@ -229,6 +229,12 @@ BENCH(bench_edit_swap_playing_tracks, 200000)
 {
     EngineRig e;
     REQUIRE(e.swapEdits.size() > e.paste.size());
+    std::array<float, engine::sequencer::perf::kLockSlots> values{};
+    const engine::trigger::LockSet locks{1, values.data(), nullptr};
+    engine::trigger::TriggerEvent step{};
+    step.track = 3;
+    step.kind = engine::trigger::TriggerKind::Full;
+    step.locks = &locks;
     const auto postSwap = [&]
     {
         auto batch = std::make_unique<engine::TrackSwapBatch>(nullptr);
@@ -240,6 +246,7 @@ BENCH(bench_edit_swap_playing_tracks, 200000)
     state.run(
         [&]
         {
+            e.engine->perf().retrig.onStep(step, {2, 5}, 5512.5);
             postSwap();
             e.block();
             e.engine->bridge().retirePending();

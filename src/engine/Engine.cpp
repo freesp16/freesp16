@@ -635,6 +635,8 @@ void Engine::moveTrackPlugins(const TrackSwapBatch::Swap& swap) noexcept
         }
     }
     mixer_.swapStrips(s, a, b, swap.withSequences);
+    lfo_.swapTracks(s, a, b);
+    perf_.swapTracks(s, a, b);
     router_.swapAssignments(s, a, b);
     toggle_.swapTracks(s, a, b, triggerRouter_);
     if (s != triggerRouter_.scene())
@@ -646,13 +648,19 @@ void Engine::moveTrackPlugins(const TrackSwapBatch::Swap& swap) noexcept
     sources_[b].detachPluginForMove();
     triggerRouter_.moveHeldTracks(a, b);
     midi_.moveHeldTracks(a, b);
+    ribbon_.swapTracks(a, b);
+    modMatrix_.swapTracks(a, b);
+    // The sample voice and amp envelope stay in their lanes. Clear their old offsets before the matrix reapplies.
+    modSink_.clearVoiceModulation(a);
+    modSink_.clearVoiceModulation(b);
     fxBank_.swapInserts(a, b);
     thruBypassForce_ = true;
 }
 
 bool Engine::addLiveTrigger(const TriggerNow& t, BlockContext& ctx) noexcept
 {
-    if (ribbon_.onLive(t, triggerRouter_.padState())) // the strip stream (core/util/ribbon/Ribbon.h pad codes)
+    const int heldTrack = t.pad == core::ribbon::kPressurePad ? triggerRouter_.heldTrackForPad(t.track) : -1;
+    if (ribbon_.onLive(t, triggerRouter_.padState(), heldTrack)) // strip and pressure events
         return true;
     if (t.track >= kTracks)
         return true;

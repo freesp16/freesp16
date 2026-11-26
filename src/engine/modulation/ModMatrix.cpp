@@ -2,6 +2,8 @@
 
 #include "engine/fx/FxSlotBank.h"
 
+#include <utility>
+
 namespace engine::modulation
 {
 namespace
@@ -117,6 +119,13 @@ void ModMatrix::touchAll() noexcept
 {
     for (int t = 0; t < numTracks_; ++t)
         touch(t);
+}
+
+void ModMatrix::swapTracks(int a, int b) noexcept
+{
+    std::swap(tracks_[a], tracks_[b]);
+    touch(a);
+    touch(b);
 }
 
 ModValue ModMatrix::sum(const Slot& slot) noexcept

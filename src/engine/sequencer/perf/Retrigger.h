@@ -90,6 +90,7 @@ public:
 
     void cancel(int track) noexcept { active_ = static_cast<std::uint16_t>(active_ & ~(1u << (track & 15))); }
     void cancelAll() noexcept { active_ = 0; }
+    void swapTracks(int a, int b) noexcept;
 
     // Pushes the repeats of `track` due before `frameEnd` (0–64) of the current block into `sink` (any type with
     // `bool push(const trigger::TriggerEvent&)`, e.g. the TriggerRouter; a refused push drops that repeat). Returns

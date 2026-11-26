@@ -1,5 +1,8 @@
 #include "engine/sequencer/perf/Retrigger.h"
 
+#include <cstring>
+#include <utility>
+
 namespace engine::sequencer::perf
 {
 void RetriggerScheduler::onStep(const trigger::TriggerEvent& step, RetrigSpec spec, double stepSamples) noexcept
@@ -41,5 +44,29 @@ void RetriggerScheduler::onStep(const trigger::TriggerEvent& step, RetrigSpec sp
         p.hasLocks = true;
     }
     active_ = static_cast<std::uint16_t>(active_ | (1u << t));
+}
+
+void RetriggerScheduler::swapTracks(int a, int b) noexcept
+{
+    if (a == b || (! pending(a) && ! pending(b)))
+        return;
+
+    std::swap(pending_[a], pending_[b]);
+    const auto activeDifference = ((active_ >> a) ^ (active_ >> b)) & 1u;
+    active_ ^= static_cast<std::uint16_t>((activeDifference << a) | (activeDifference << b));
+
+    if (pending_[a].hasLocks || pending_[b].hasLocks)
+    {
+        // Copy the storage as bytes because the unused values have never been written.
+        Locks saved;
+        std::memcpy(&saved, &locks_[a], sizeof saved);
+        std::memcpy(&locks_[a], &locks_[b], sizeof saved);
+        std::memcpy(&locks_[b], &saved, sizeof saved);
+        for (auto* locks : {&locks_[a], &locks_[b]})
+        {
+            locks->set.values = locks->values.data();
+            locks->set.change = locks->change.data();
+        }
+    }
 }
 } // namespace engine::sequencer::perf

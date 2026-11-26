@@ -243,7 +243,12 @@ private:
     std::int64_t blockStart_ = 0;
     std::uint16_t midiMask_ = 0;
     std::array<std::uint32_t, core::midi::kMaxPorts> generation_ {};
-    std::array<std::int16_t, 16> heldNote_{}; // per track: port << 11 | channel << 7 | note that started it, −1 none
+    struct HeldNote
+    {
+        std::int16_t key = -1;     // port << 11 | channel << 7 | incoming note
+        std::int8_t semitones = 0; // pitch delivered to the track, including any clamp
+    };
+    std::array<HeldNote, kTracks> heldNote_{};
     int remoteScene_ = -1;                    // a CC 0's scene 0–15 waiting for its CC 32, −1 = none
     std::int64_t remoteSceneAt_ = 0;          // the CC 0's engine frame
     double shownTempo_ = 0.0;
