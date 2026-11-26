@@ -10,6 +10,7 @@
 #include "services/store/NativeCodec.h"
 #include "tests/fakes/FakeEngineBridge.h"
 #include "tests/snapshot/m4/M4Fixture.h"
+#include "tests/snapshot/m5/FakeSamplingHost.h"
 #include "tests/unit/store/StoreTestSupport.h"
 #include "ui/screens/sequence/M2Session.h"
 #include "ui/shell/Layout.h"
@@ -198,4 +199,65 @@ TEST_CASE("ui.m1.trackSetting: tap two tracks to exchange them and tap TRACKS to
     REQUIRE(state.undo());
     CHECK(firstScene.tracks[0].name == "Kick");
     CHECK(firstScene.patterns[0].steps[2][0].trigger == 90);
+}
+
+TEST_CASE("ui.m1.trackSetting: a live take protects its slot until saved", "[snapshot][m1]")
+{
+    snapshot::Session isolated;
+    m1test::M1Fixture ui;
+    m5test::FakeSamplingHost sampling(64);
+    auto& session = ui::m2::Session::instance();
+    auto& tracks = core::commands::project(session.bus()).scenes.front().tracks;
+    tracks[0].name = "Kick";
+    tracks[5].name = "Bass";
+    REQUIRE(ui.shell->open("trackSetting"));
+    ui.settle();
+    const auto tapTrack = [&](int track)
+    {
+        const auto tile = ui::layout::trackTile(track);
+        ui.tap(tile.x + tile.w / 2, tile.y + tile.h / 2);
+        ui.settle();
+    };
+
+    bool blocked = true;
+    sampling.liveTake = 0;
+    SECTION("dirty source") {}
+    SECTION("dirty destination")
+    {
+        sampling.liveTake = 5;
+    }
+    SECTION("take belongs to another scene")
+    {
+        sampling.liveTakeScene = 1;
+        blocked = false;
+    }
+    SECTION("take belongs to a third track")
+    {
+        sampling.liveTake = 2;
+        blocked = false;
+    }
+    SECTION("take has been saved")
+    {
+        sampling.liveDirty = false;
+        blocked = false;
+    }
+    SECTION("take has been unloaded")
+    {
+        sampling.liveTake = -1;
+        blocked = false;
+    }
+
+    SECTION("ordinary temporary take")
+    {
+        sampling.liveTake = -1;
+        sampling.unsavedTrack = 5;
+    }
+    auto& state = ui.shell->state();
+    for (int track = 0; track < 16; ++track)
+        state.tracks[track].unsavedTake = sampling.hasUnsavedTake(state.scene - 1, track);
+    tapTrack(1);
+    tapTrack(6);
+    CHECK(tracks[0].name == (blocked ? "Kick" : "Bass"));
+    CHECK(tracks[5].name == (blocked ? "Bass" : "Kick"));
+    CHECK(session.undo() == ! blocked);
 }

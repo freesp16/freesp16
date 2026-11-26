@@ -133,7 +133,7 @@ void TrackGrid::swapSelection(int picked)
         state_->tracks[static_cast<std::size_t>(destination)].unsavedTake)
     {
         ToastRequest notice;
-        notice.text = "Save the temporary take before swapping tracks";
+        notice.text = "Save the take before swapping tracks";
         shell_->showToast(std::move(notice));
         return;
     }

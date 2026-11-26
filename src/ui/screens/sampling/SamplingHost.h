@@ -51,7 +51,12 @@ public:
     virtual void liveDisarm(int scene, int track) = 0;
     virtual void setNudge(std::int32_t frames) = 0;
     virtual bool liveUnsaved() const = 0; // a live take on a track, not saved yet (UNSAVED TAKE badge, UID-789)
+    virtual int liveScene() const = 0;    // scene owning the live take (0-based)
     virtual int liveTrack() const = 0;    // its track (0-based), −1 = none
+    bool hasUnsavedTake(int scene, int track) const
+    {
+        return unsaved(scene, track) || (liveUnsaved() && liveScene() == scene && liveTrack() == track);
+    }
     virtual void saveLive(int saveTo, HostDone done) = 0;
     virtual void unloadLive(int scene, int track) = 0; // SMP-025 UNLOAD: the take leaves the track (undoable)
 

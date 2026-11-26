@@ -366,6 +366,7 @@ public:
     void liveDisarm(int scene, int track) override { session_.liveDisarm(scene, track); }
     void setNudge(std::int32_t frames) override { session_.setNudge(frames); }
     bool liveUnsaved() const override { return liveTrack_ >= 0 && liveDirty_; }
+    int liveScene() const override { return liveScene_; }
     int liveTrack() const override { return liveTrack_; }
     void saveLive(int, ui::m5::HostDone done) override
     {

@@ -837,9 +837,9 @@ std::function<void(ui::UiState&, double)> Document::summaries()
         st.scene = (p.settings.currentScene & 15) + 1;
         st.pattern = (p.settings.currentPattern & 15) + 1;
         st.dirty = d.bus.dirty();
-        for (int t = 0; t < 16; ++t) // the tiles' UNSAVED TAKE badge (a take played as RECORDED TEMP.)
+        for (int t = 0; t < 16; ++t) // the tiles' UNSAVED TAKE badge and track-swap guard
             st.tracks[static_cast<std::size_t>(t)].unsavedTake =
-                d.samplingHost != nullptr && d.samplingHost->unsaved(p.settings.currentScene & 15, t);
+                d.samplingHost != nullptr && d.samplingHost->hasUnsavedTake(st.scene - 1, t);
         auto& t1 = st.tracks[0];
         if (d.config.testTone && ! t1.hasContent && p.scenes[0].tracks[0].mode == core::model::TrackMode::Sample)
         {
