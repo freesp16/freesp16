@@ -11,7 +11,8 @@
 // SPSC queue (reader → UI thread) that poll() drains; between frames it sends the TX frame the LampBus says is due
 // (on change, heartbeat ≤ 4 Hz). The POWER/STANDBY key (RX 5.4) is no control event: its press is
 // io::requestStandby(), and after the app's enterStandby() the frames it sends carry the standby flag (PanelLamps.h).
-// Only one process may own the link: this replaces the stock application.
+// Only one process may own the link: this replaces the stock application. On the DJS-1000 a link left running as
+// wanted is taken over and left running at the end (PanelMap::takeOver): a pause in the exchange may mute its outputs.
 #pragma once
 
 #include "core/util/SpscQueue.h"
@@ -37,22 +38,29 @@ struct PanelStats
 class PanelLink final : public io::ControlSource
 {
 public:
-    // `powerActiveLow`: the power key's bit reads 0 when pressed (the hardware; false for the emulator).
-    PanelLink(engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace, bool powerActiveLow = true);
+    // `unit`: whose panel (PanelRoles.h). `powerActiveLow`: the power key's bit reads 0 when pressed (the hardware;
+    // false for the emulator).
+    PanelLink(panel::Unit unit, engine::TriggerSink* triggers, std::shared_ptr<panel::LampBus> lamps, bool trace,
+              bool powerActiveLow = true);
     ~PanelLink() override;
     std::string_view id() const override { return "panel"; }
     bool start(std::string& info) override; // opens and configures the link, starts the reader thread
     void stop() override;
     void poll(std::vector<io::ControlEvent>& out) override; // UI thread, wait-free
     PanelStats stats() const;
+    // DJS-1000: each PHONES LEVEL value, as a gain 0…1 (an audio taper, the square of the knob), goes here.
+    void setPhonesLevel(std::shared_ptr<std::atomic<float>> level) { phonesLevel_ = std::move(level); }
 
 private:
     void run();
     void sendDue(double nowMs, double& waitMs);
     static void wake(void* self);
 
+    const panel::PanelMap& map_;
     engine::TriggerSink* triggers_;
+    bool takenOver_ = false;
     std::shared_ptr<panel::LampBus> lamps_;
+    std::shared_ptr<std::atomic<float>> phonesLevel_;
     bool trace_;
     panel::PanelDecoder decoder_;
     io::PadCalibration padBase_ {}; // the calibration UTILITY's pad preferences apply over (PanelPads.h)

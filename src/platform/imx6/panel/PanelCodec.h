@@ -1,6 +1,6 @@
-// The imx6 panel link's frames, device-independent: the 128-byte RX frame → logical ControlEvents (buttons by role,
-// pads through the velocity curve, encoders and selector, analog pots, LCD touch) and the 128-byte TX lamp frame.
-// Layout: PanelRoles.h / resources/controllers/panel.json, from the sp16-emulator's documentation.
+// The imx6 panel link's frames (SP-16 or DJS-1000), device-independent: the 128-byte RX frame → logical ControlEvents
+// (buttons by role, pads through the velocity curve, encoders and selector, analog pots, LCD touch) and the 128-byte
+// TX lamp frame. Layout: each unit's PanelMap in PanelRoles.h (the SP-16's also resources/controllers/panel.json).
 //
 // Cost (budget ≤ 1 % of a core at the panel frame rate): decode() touches 128 bytes, walks only the changed
 // button bits, and never allocates; tests/bench/bench_panel.cpp measures it.
@@ -33,6 +33,7 @@ struct EventBatch
 
 struct DecoderConfig
 {
+    Unit unit = Unit::Sp16; // whose panel (PanelRoles.h)
     io::PadCalibration pads {};
     io::PadResponse response {};
     TouchCalibration touch {};
@@ -81,11 +82,12 @@ private:
     void decodeTouch(const std::uint8_t* f, double timeMs, EventBatch& out) noexcept;
 
     DecoderConfig config_;
+    const PanelMap* map_ = &kSp16Map;
     io::PadCurve curve_;
     engine::TriggerSink* triggers_ = nullptr;
     bool haveFrame_ = false;
     std::array<std::uint16_t, 7> counters_ {};
-    std::array<std::uint8_t, 6> buttons_ {};
+    std::array<std::uint8_t, 7> buttons_ {};
     int powerLevel_ = -1;       // the bit's raw level
     double powerSinceMs_ = 0;   // when powerLevel_ last changed
     bool powerUpSeen_ = false, powerRequest_ = false;
@@ -98,18 +100,24 @@ private:
     std::int16_t touchX_ = 0, touchY_ = 0;
 };
 
-// TX lamp frame (E4/E7): header 2, RGB channels, mono bits with dim flags, brightness level, marker 0xaa at 0x77,
-// CRC-16/X-25 at 0x7c (as the RX frame).
+// TX lamp frame (E4/E7): header 2, RGB channels, the other lamps (SP-16: one bit and a dim flag; DJS-1000: two bits
+// each), the standby and mute flags, brightness level, the SP-16's marker 0xaa at 0x77, CRC-16/X-25 at 0x7c (as RX).
 class TxFrame
 {
 public:
-    TxFrame() { clear(); }
+    explicit TxFrame(Unit unit = Unit::Sp16) : map_(&panelMap(unit)) { clear(); }
     void clear() noexcept;
     void setRgb(int channel, std::uint8_t r, std::uint8_t g, std::uint8_t b) noexcept; // 0…kRgbFullScale each
     void setMono(int channel, bool lit, bool dim) noexcept;
-    void setStandby(bool on) noexcept; // TX 0x67 bit 0: the power MCU cuts the power (LampBus::enterStandby only)
-    void setHardMute(bool on) noexcept; // TX 0x66 bit 0: the analog outputs muted (LampBus::hardMute only)
-    bool standby() const noexcept { return (bytes_[kTxStandbyOffset] & 1) != 0; }
+    // SP-16 TX 0x67 bit 0, DJS-1000 0x6c bit 1: the power MCU cuts the power (LampBus::enterStandby only).
+    void setStandby(bool on) noexcept;
+    // SP-16 TX 0x66 bit 0, DJS-1000 0x6c bit 0: the analog outputs muted (LampBus).
+    void setHardMute(bool on) noexcept;
+    // DJS-1000 TX 0x6c bit 2: set until the panel has answered (LampBus). No such bit on the SP-16.
+    void setStartup(bool on) noexcept;
+    bool standby() const noexcept { return (bytes_[map_->standby.byte] & map_->standby.mask) != 0; }
+    bool hardMute() const noexcept { return (bytes_[map_->hardMute.byte] & map_->hardMute.mask) != 0; }
+    Unit unit() const noexcept { return map_->unit; }
     // A logical lamp (LampSink::setLamp semantics: rgb colour, level 0 = off … 255 = full). Mono lamps light for any
     // non-zero colour and level; level < kMonoDimBelow sets the dim flag where the channel has one.
     bool setLamp(io::Control, std::uint32_t rgb, std::uint8_t level) noexcept; // false: the panel has no such lamp
@@ -120,6 +128,9 @@ public:
     static constexpr std::uint8_t kMonoDimBelow = 160;
 
 private:
+    void setBit(TxBit b, bool on) noexcept;
+
+    const PanelMap* map_;
     std::array<std::uint8_t, kFrameBytes> bytes_ {};
 };
 } // namespace platform::imx6::panel

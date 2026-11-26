@@ -44,6 +44,7 @@
 #include "services/settings/Preferences.h"
 #include "services/settings/ProjectSettings.h"
 #include "io/controllers/PanelPads.h"
+#include "ui/input/deck/DeckKeys.h"
 #include "ui/input/ext/striprecord/StripRecorder.h"
 #include "ui/input/pads/PadController.h"
 #include "ui/input/pads/PadLamps.h"
@@ -666,6 +667,21 @@ struct Document::Impl
     // SHIFT + SCENE, SHIFT + lit SCALE, ext.undo / ext.redo, ext.clear + held step (NFR-040); the pad
     // controller's lamps (pad modes, mode keys) over the shell's lamp frame.
     ui::input::panel::PanelKeys panelKeys {bus, pads, steps};
+    // The DJS-1000's DJ section: TEMPO, SYNC, MASTER, FX, LIVE SAMPLING (ui/input/deck/DeckKeys.h).
+    ui::input::deck::DeckKeys deckKeys{
+        values, fxSlots,
+        ui::input::deck::DeckKeys::Hooks{
+            [this](double bpm) { queued.post(engine::TransportCmd {engine::TransportCmd::SetTempo, bpm}); },
+            [this](std::string_view id)
+            {
+                if (selection.shell != nullptr)
+                    selection.shell->open(id);
+            },
+            [this]
+            {
+                const bool open = core::commands::hasProject(bus);
+                return (open ? core::commands::project(bus).settings.currentScene & 15 : 0) + 1;
+            }}};
     ui::input::pads::PadLamps padLamps;
     std::optional<LoggingProjectSource> projectLog;
     io::StripRouter strip; // MODE / HOLD, the strip and pad pressure → engine, the strip lamps
@@ -837,6 +853,7 @@ std::function<void(ui::UiState&, double)> Document::summaries()
         st.scene = (p.settings.currentScene & 15) + 1;
         st.pattern = (p.settings.currentPattern & 15) + 1;
         st.dirty = d.bus.dirty();
+        st.liveBpm = d.deckKeys.liveTempo(); // the DJS-1000's TEMPO fader (TransportController::publish shows it)
         for (int t = 0; t < 16; ++t) // the tiles' UNSAVED TAKE badge (a take played as RECORDED TEMP.)
             st.tracks[static_cast<std::size_t>(t)].unsavedTake =
                 d.samplingHost != nullptr && d.samplingHost->unsaved(p.settings.currentScene & 15, t);
@@ -901,6 +918,8 @@ bool Document::handle(const io::ControlEvent& e)
         d.stripHeld.onPad(io::indexOf(e.control) - 1, press, static_cast<int>(d.pads.effectiveMode()), d.shift,
                           d.selection.selected());
     if (d.afsControl(e)) // the panel's ANALOG FILTER controls
+        return true;
+    if (d.deckKeys.handle(e)) // the DJS-1000's DJ section
         return true;
     if (d.panelKeys.handle(e, d.shift)) // before the SCENE / PATTERN keys and the pad modes
         return true;
@@ -995,6 +1014,7 @@ void Document::frame(double nowMs)
                                                                                                     : View::None;
     }
     d.syncSequencer(nowMs);
+    d.deckKeys.frame(d.bridge.playhead());
     d.recordStrip();
     d.frameMs = nowMs;
     auto& live = ui::m4::stripLive(); // TOUCH STRIP SETTING's StripPreview
@@ -1058,6 +1078,7 @@ void Document::lamps(io::LampFrame& frame) const
     d.pads.paintLamps(d.padLamps, d.frameMs, d.bridge.meters());
     d.padLamps.overlay(frame);
     d.strip.lamps(frame);
+    d.deckKeys.lamps(frame);
     // UI-156/158: ANALOG FILTER ACTIVE (red) from afs.active; OVER (amber) while the drive output passed +5.1 dBFS
     // (AFS-011, the slot's own detector, held 0.5 s there), latched 2 s like the meters. As on the reference this is
     // the only source: the main DAC pair has a fixed −6 dB (F111), so the DAC's full scale is +6 dBFS in the engine and

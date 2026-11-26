@@ -40,6 +40,11 @@ constexpr Named singles[] = {
     {Control::ExtBrowse, "ext.browse", "ExtBrowse"}, {Control::ExtUtility, "ext.utility", "ExtUtility"},
     {Control::ExtProject, "ext.project", "ExtProject"}, {Control::Strip, "strip", "Strip"},
     {Control::Screen, "screen", "Screen"},
+    {Control::PadModeHotSlice, "padmode.hotslice", "PadModeHotSlice"}, {Control::TempoFader, "tempo", "TempoFader"},
+    {Control::TempoReset, "tempo.reset", "TempoReset"}, {Control::TempoRange, "tempo.range", "TempoRange"},
+    {Control::Sync, "sync", "Sync"}, {Control::Master, "master", "Master"}, {Control::FxOn, "fx.on", "FxOn"},
+    {Control::FxLevel, "fx.level", "FxLevel"}, {Control::PhonesLevel, "phones.level", "PhonesLevel"},
+    {Control::LiveSampling, "livesampling", "LiveSampling"}, {Control::FxSelect, "fx", "FxSelect"},
     // aliases accepted on input only (nameOf never returns them)
     {Control::Selector, "selector", "Sel"}, {Control::SelectorPush, "selector.push", "SelPush"},
 };

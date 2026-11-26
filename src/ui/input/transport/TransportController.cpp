@@ -189,7 +189,7 @@ void TransportController::publish(UiState& s, double patternStartPpq) const
 {
     s.playing = state_ == State::Playing || state_ == State::PreCount;
     s.recArmed = recArmed_;
-    s.bpm.format("%.1f", tempo());
+    s.bpm.format("%.1f", s.liveBpm > 0 ? s.liveBpm : tempo());
     s.syncBadge = external_ ? std::string_view("MIDI") : std::string_view {}; // the status row, BPM/QUANTIZE
     s.syncLost = external_ && clockLost_;
     char text[16];
