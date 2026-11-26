@@ -804,7 +804,8 @@ void Shell::contextAction(ContextBar::Item item)
     case ContextBar::Menu3:
     {
         const auto target = kMenuTargets[item - ContextBar::Menu0];
-        if (item == ContextBar::Menu0 && target == router_.current().id)
+        // TRACKS is a Home shortcut everywhere except on Home, where it opens Track Setting.
+        if (item == ContextBar::Menu0 && router_.current().id != "home")
             home();
         else if (target != router_.current().id)
             open(target);
