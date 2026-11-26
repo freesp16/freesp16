@@ -305,11 +305,13 @@ struct Document::Impl
                                                    (! sampling || ! sampling->protectsLiveSlot(scene, track))))
                                                   return false;
                                               if (selection.shell)
-                                                  selection.shell->showMessage({
-                                                      .title = "LIVE TAKE",
-                                                      .lines = {"Save the take before swapping tracks."},
-                                                      .buttons = {{"OK", ui::ButtonStyle::Primary}},
-                                                  });
+                                              {
+                                                  ui::MessageRequest notice;
+                                                  notice.title = "LIVE TAKE";
+                                                  notice.lines = {"Save the take before swapping tracks."};
+                                                  notice.buttons = {{"OK", ui::ButtonStyle::Primary}};
+                                                  selection.shell->showMessage(std::move(notice));
+                                              }
                                               return true;
                                           });
         sync.onLiveDisplaced = [this](auto* buffer)

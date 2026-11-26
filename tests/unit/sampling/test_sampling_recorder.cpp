@@ -442,6 +442,31 @@ TEST_CASE("sampling.session: resolve the live take before accepting another", "[
         CHECK(std::abs(wav.l[121] - sample) <= 2.0f / 8388608.0f);
         CHECK_FALSE(s.liveUnsaved());
     }
+    SECTION("save rejects uncaptured nudge margins and retries once the trailing audio is ready")
+    {
+        const auto file = t.dir.getChildFile("nudged.wav");
+        std::optional<core::Result<juce::File>> saved;
+        const auto done = [&](core::Result<juce::File> result) { saved = std::move(result); };
+        for (const auto nudge : {-22050, 22050})
+        {
+            s.setNudge(nudge);
+            s.saveLive(file, done);
+            REQUIRE(saved.has_value());
+            CHECK_FALSE(saved->ok());
+            CHECK_FALSE(file.exists());
+            CHECK(s.liveUnsaved());
+            saved.reset();
+        }
+
+        d.run(*e, 22050 + 256, ramp());
+        s.frame();
+        workers.drain();
+        s.saveLive(file, done);
+        REQUIRE(waitFor(workers, [&] { return saved.has_value(); }));
+        REQUIRE(saved->ok());
+        CHECK(readWav(file).info.frames == 22050);
+        CHECK_FALSE(s.liveUnsaved());
+    }
     SECTION("unload releases the next capture")
     {
         REQUIRE(s.unloadLive());

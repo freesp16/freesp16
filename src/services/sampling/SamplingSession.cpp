@@ -373,6 +373,7 @@ void SamplingSession::buildLive(bool /*full: the ring now holds the trailing mar
             core::audio::release(live_.buffer);
             live_.buffer = b;
             live_.attached = true;
+            live_.preCaptured = out->take->preCaptured;
             live_.postCaptured = out->take->postCaptured;
             live_.rebuildWanted = live_.postCaptured < live_.margin;
             post("live.takeReady", static_cast<std::uint16_t>(live_.scene << 4 | live_.track),
@@ -395,10 +396,22 @@ void SamplingSession::saveLive(const juce::File& target, std::function<void(core
         return;
     }
 
+    const auto nudge = live_.nudge;
+    if (nudge < -live_.preCaptured || nudge > live_.postCaptured)
+    {
+        if (done)
+        {
+            const char* reason = nudge < -live_.preCaptured || ! live_.attached
+                                     ? "Reduce the nudge to the captured audio before saving"
+                                     : "Wait for the nudged audio to be captured, or reduce the nudge";
+            done(core::Result<juce::File>::failure(reason, "saveLive"));
+        }
+        return;
+    }
+
     saving_ = true;
     const auto* buffer = live_.buffer;
     core::audio::retain(buffer);
-    const auto nudge = live_.nudge;
     const std::int64_t from = static_cast<std::int64_t>(live_.margin) + nudge, to = from + live_.length;
     core::model::SampleMetadata md {};
     md.bpm = live_.bpm;

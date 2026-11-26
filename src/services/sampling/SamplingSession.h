@@ -122,7 +122,7 @@ private:
         std::uint32_t seq = 0;      // the take handled last (CaptureStatus::liveSeq)
         std::int64_t start = 0, length = 0;
         std::int32_t margin = 0, nudge = 0;
-        std::int64_t postCaptured = 0;
+        std::int64_t preCaptured = 0, postCaptured = 0;
         int scene = 0, track = 0, channels = 2;
         float bpm = 120, bars = 1;
         bool building = false, rebuildWanted = false, dirty = false, attached = false;
