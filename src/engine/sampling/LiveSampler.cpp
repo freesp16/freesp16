@@ -97,6 +97,7 @@ void LiveSampler::prepare(double sampleRate) noexcept
 void LiveSampler::reset() noexcept
 {
     state_ = LiveState::Idle;
+    unsaved_ = false;
     take_ = {};
     loopFrame_ = -1;
     statusDirty_ = true;
@@ -117,10 +118,16 @@ void LiveSampler::setLengthIndex(int index) noexcept
     lengthIndex_ = index < 0 ? 0 : (index > 5 ? 5 : index);
 }
 
-void LiveSampler::arm(int scene, int track, std::int64_t lengthFrames, bool loopAfterRec) noexcept
+void LiveSampler::arm(int scene, int track, std::int64_t lengthFrames, bool loopAfterRec,
+                      std::uint32_t request) noexcept
 {
-    if (state_ == LiveState::Recording)
-        return; // one take at a time (the running one completes first)
+    if (request != 0)
+    {
+        armRequest_ = request;
+        statusDirty_ = true;
+    }
+    if (state_ == LiveState::Recording || unsaved_)
+        return; // keep the current take available for Save or Unload
     scene_ = scene & 15;
     take_.track = static_cast<std::uint8_t>(track & 15);
     armedLength_ = lengthFrames;
@@ -172,15 +179,25 @@ void LiveSampler::takeReady(int track, std::uint32_t seq) noexcept
     }
 }
 
-void LiveSampler::unload(int track) noexcept
+void LiveSampler::unloadPlayback(int scene, int track) noexcept
 {
-    if ((track & 15) != take_.track)
-        return;
-    if (state_ == LiveState::LoopPending || state_ == LiveState::Looping)
+    if (scene_ == scene && take_.track == track && (state_ == LiveState::LoopPending || state_ == LiveState::Looping))
     {
         state_ = LiveState::Done;
+        take_.loopAfterRec = false;
         statusDirty_ = true;
     }
+}
+
+void LiveSampler::resolve(int token) noexcept
+{
+    if (token < 0)
+    {
+        resetToken_ = static_cast<std::uint32_t>(-token);
+        reset();
+    }
+    else if (static_cast<std::uint32_t>(token) == (seq_ & 0xFFFFFFu))
+        unsaved_ = false;
 }
 
 void LiveSampler::schedule(const BlockContext& ctx, int frame, std::int64_t head, int latency,
@@ -246,6 +263,7 @@ void LiveSampler::afterWrite(std::int64_t head, CaptureStatus* status) noexcept
     if (head >= take_.start + take_.length)
     {
         state_ = LiveState::Done;
+        unsaved_ = true;
         publish(status);
     }
 }
@@ -265,6 +283,8 @@ void LiveSampler::publish(CaptureStatus* s) const noexcept
     s->liveBars.store(bars_, rx);
     s->loopStartFrame.store(loopFrame_, rx);
     s->liveSeq.store(seq_, rx);
+    s->liveReset.store(resetToken_, rx);
     s->liveState.store(static_cast<std::int32_t>(state_), std::memory_order_release);
+    s->liveArmRequest.store(armRequest_, std::memory_order_release);
 }
 } // namespace engine::sampling

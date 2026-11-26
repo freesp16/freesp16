@@ -561,6 +561,8 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
             return true;
         if (old != nullptr && ! bridge_.retire(old, s->slot.kind, ctx.blockIndex))
             return false; // retire queue full: keep the old object installed, retry next block
+        if (s->slot.kind == SwapSlot::TrackSample && s->object == nullptr)
+            sampling_.unloadLivePlayback(s->slot.scene, s->slot.index);
         swaps_.exchange(s->slot, s->object);
         return true;
     }

@@ -667,7 +667,8 @@ private:
         case Clipboard::Kind::Scene:
             if (state_->shift && clip.scene != focusScene_ - 1) // SHIFT + PASTE swaps (EDT-002; our choice)
             {
-                editor().swap(ed::sceneRef(clip.scene), ed::sceneRef(focusScene_ - 1));
+                if (! editor().swap(ed::sceneRef(clip.scene), ed::sceneRef(focusScene_ - 1)))
+                    return;
                 settle();
                 std::snprintf(text, sizeof text, "Scene %d swapped with scene %d", clip.scene + 1, focusScene_);
                 break;

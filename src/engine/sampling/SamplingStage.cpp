@@ -68,7 +68,8 @@ bool SamplingStage::set(SamplingParam p, std::uint16_t scope, float value) noexc
         case SamplingParam::LiveRec:
             if (value >= 0.5f)
             {
-                live_.arm(scope >> 4 & 15, scope & 15, 0, liveLoop_); // the hub may arrive in this block's drain
+                // The host encodes a request token as 1 + token. The untagged control still uses 1.
+                live_.arm(scope >> 4 & 15, scope & 15, 0, liveLoop_, static_cast<std::uint32_t>(v - 1));
             }
             else
                 live_.disarm();
@@ -76,6 +77,9 @@ bool SamplingStage::set(SamplingParam p, std::uint16_t scope, float value) noexc
         case SamplingParam::LiveNudge: live_.setNudge(v); return true;
         case SamplingParam::LiveTakeReady:
             live_.takeReady(scope & 15, static_cast<std::uint32_t>(v < 0 ? 0 : v));
+            return true;
+        case SamplingParam::LiveResolve:
+            live_.resolve(v);
             return true;
         case SamplingParam::InputLatency: inputLatency_ = clampi(v, 0, 8192); return true;
         case SamplingParam::Quantize: quantize_ = clampi(v, 0, 5); return true; // the take keeps its copy

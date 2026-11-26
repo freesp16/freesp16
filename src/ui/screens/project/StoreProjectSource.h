@@ -31,6 +31,7 @@ public:
 
     std::vector<ProjectEntry> list(ProjectSort) override;
     const std::string& currentName() const override;
+    std::string replacementError() const override;
     bool dirty() const override;
     bool hasFile() const override;
     bool exists(std::string_view name) override;

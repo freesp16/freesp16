@@ -40,6 +40,8 @@ std::unique_ptr<model::Project> replaceProject(CommandBus&, std::unique_ptr<mode
 // engine/, hence a function. Empty = no engine (tests, headless tools).
 using BridgeHook = std::function<void(const ChangeSet&, const model::Project&)>;
 void setBridge(CommandBus&, BridgeHook);
+// Called before track swaps, including history replay. Return true to refuse a swap involving this slot.
+void setTrackSwapGuard(CommandBus&, TrackSwapGuard);
 
 // The coalescing clock (EDT-U2). Not owned; nullptr restores the bus's SteadyClock.
 void setClock(CommandBus&, const Clock*);

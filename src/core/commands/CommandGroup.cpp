@@ -50,6 +50,14 @@ bool CommandGroup::undoable() const
     return false;
 }
 
+bool CommandGroup::blockedTrackSwap(const TrackSwapGuard& blocked) const
+{
+    for (const auto& child : children_)
+        if (child->blockedTrackSwap(blocked))
+            return true;
+    return false;
+}
+
 void CommandGroup::collectChanges(ChangeSet& changes) const
 {
     for (const auto& child : children_)

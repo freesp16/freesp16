@@ -97,6 +97,17 @@ void addSamplingParams(ParamRegistry& r)
            .scope = ParamScope::Track, .storage = {.key = "session.live.takeReady"}});
     // SMP-027: the device's input latency (frames), subtracted from LINE IN takes (+ the engine's own 64-frame input
     // block). A device preference; the platform layer reports none yet, so it is set per unit.
+    // Message-thread command: acknowledge a saved sequence, or clear the capture with a negative reset token.
+    r.add({.id = "live.resolve",
+           .label = "RESOLVE LIVE TAKE",
+           .shortLabel = "RESOLVE",
+           .group = "LIVE SAMPLING",
+           .type = ParamType::Integer,
+           .minValue = -16777215,
+           .maxValue = 16777215,
+           .defaultValue = 0,
+           .scope = ParamScope::Global,
+           .storage = {.key = "session.live.resolve"}});
     r.add({.id = "live.inputLatency", .label = "INPUT LATENCY", .shortLabel = "IN LAT", .group = "LIVE SAMPLING",
            .type = ParamType::Integer, .minValue = 0, .maxValue = 8192, .defaultValue = 0, .coarseStep = 1,
            .fineStep = 1, .unit = "smp", .scope = ParamScope::Global, .storage = {.key = "audio.inputLatency"}});

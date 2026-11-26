@@ -161,7 +161,10 @@ struct CommandBus::Impl
     UndoStack history;
     SteadyClock steady;
     const Clock* clock = &steady;
+    bool blocked(const Command* cmd) const { return cmd && trackSwapGuard && cmd->blockedTrackSwap(trackSwapGuard); }
+
     commands::BridgeHook bridge;
+    TrackSwapGuard trackSwapGuard;
     commands::NotifyScheduler scheduler;
     std::vector<std::unique_ptr<Observer>> observers; // stable addresses while a callback subscribes
     std::uint64_t nextObserver = 1;
@@ -186,11 +189,12 @@ CommandBus::CommandBus() : impl_(std::make_unique<Impl>()) {}
 
 CommandBus::~CommandBus() = default;
 
-void CommandBus::execute(std::unique_ptr<Command> cmd)
+bool CommandBus::execute(std::unique_ptr<Command> cmd)
 {
-    if (! cmd || ! impl_->model)
-        return;
+    if (! cmd || ! impl_->model || impl_->blocked(cmd.get()))
+        return false;
     impl_->record(impl_->run(*cmd));
+    return true;
 }
 
 bool CommandBus::undo()
@@ -198,6 +202,8 @@ bool CommandBus::undo()
     if (! impl_->model)
         return false;
     impl_->closeGroup(); // undo ends an open recording pass, then undoes it as one step
+    if (impl_->blocked(impl_->history.nextUndo()))
+        return false;
     return impl_->history.undo([this](Command& c) { return impl_->run(c); });
 }
 
@@ -206,6 +212,8 @@ bool CommandBus::redo()
     if (! impl_->model)
         return false;
     impl_->closeGroup();
+    if (impl_->blocked(impl_->history.nextRedo()))
+        return false;
     return impl_->history.redo([this](Command& c) { return impl_->run(c); });
 }
 
@@ -263,6 +271,11 @@ std::unique_ptr<model::Project> replaceProject(CommandBus& bus, std::unique_ptr<
 void setBridge(CommandBus& bus, BridgeHook hook)
 {
     impl(bus).bridge = std::move(hook);
+}
+
+void setTrackSwapGuard(CommandBus& bus, TrackSwapGuard guard)
+{
+    impl(bus).trackSwapGuard = std::move(guard);
 }
 
 void setClock(CommandBus& bus, const Clock* clock)

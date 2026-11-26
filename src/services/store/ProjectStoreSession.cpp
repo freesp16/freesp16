@@ -210,6 +210,9 @@ void ProjectSession::restoreAutosave(const juce::File& file, std::function<void(
             for (const auto& e : job->project->sampleRefs.entries)
                 if (e.missing)
                     job->report.missing.push_back(e);
+            if (store_.admitReplacement)
+                if (auto accepted = store_.admitReplacement(); ! accepted)
+                    return done(std::move(accepted));
             bus_.execute(std::make_unique<ReplaceProject>(job->project));
             if (onProjectReplaced)
                 onProjectReplaced(core::commands::project(bus_), job->report);

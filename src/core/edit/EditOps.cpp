@@ -369,12 +369,16 @@ namespace
 class ExchangeBack final : public Command
 {
 public:
-    ExchangeBack(std::string_view label, std::shared_ptr<Subtrees> holder) : label_(label), holder_(std::move(holder)) {}
+    ExchangeBack(std::string_view label, std::shared_ptr<Subtrees> holder, EditCommand::SwapCheck check)
+        : label_(label), holder_(std::move(holder)), check_(std::move(check))
+    {
+    }
+    bool blockedTrackSwap(const TrackSwapGuard& blocked) const override { return check_ && check_(blocked); }
     std::string_view label() const override { return label_; }
     void apply(Project& p) override { holder_->exchange(p); }
     std::unique_ptr<Command> inverse(const Project&) const override
     {
-        return std::make_unique<ExchangeBack>(label_, holder_);
+        return std::make_unique<ExchangeBack>(label_, holder_, check_);
     }
     void collectChanges(ChangeSet& c) const override { holder_->collect(c); }
     std::size_t sizeBytes() const override { return sizeof(*this) + holder_->bytes(); }
@@ -382,11 +386,12 @@ public:
 private:
     std::string_view label_;
     std::shared_ptr<Subtrees> holder_;
+    EditCommand::SwapCheck check_;
 };
 } // namespace
 
-EditCommand::EditCommand(std::string_view label, Build build)
-    : label_(label), build_(std::move(build)), holder_(std::make_shared<Subtrees>())
+EditCommand::EditCommand(std::string_view label, Build build, SwapCheck check)
+    : label_(label), build_(std::move(build)), check_(std::move(check)), holder_(std::make_shared<Subtrees>())
 {
 }
 
@@ -402,7 +407,7 @@ void EditCommand::apply(Project& p)
 
 std::unique_ptr<Command> EditCommand::inverse(const Project&) const
 {
-    return std::make_unique<ExchangeBack>(label_, holder_);
+    return std::make_unique<ExchangeBack>(label_, holder_, check_);
 }
 
 void SwapTracksCommand::apply(Project& p)

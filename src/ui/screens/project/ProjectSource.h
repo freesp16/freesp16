@@ -46,6 +46,7 @@ public:
     virtual ~ProjectSource() = default;
     virtual std::vector<ProjectEntry> list(ProjectSort) = 0;
     virtual const std::string& currentName() const = 0; // a reference: the title band reads it every frame
+    virtual std::string replacementError() const { return {}; }
     virtual bool dirty() const = 0;                     // unsaved changes (CommandBus checkpoint)
     virtual bool hasFile() const = 0;                   // saved at least once (else SAVE asks for a name)
     virtual bool exists(std::string_view name) = 0;

@@ -68,15 +68,17 @@ enum class SamplingParam : std::uint8_t
     LiveRec,
     LiveNudge,
     LiveTakeReady,
+    LiveResolve,
     InputLatency,
     Quantize,
     Drop,
     Count
 };
 inline constexpr std::string_view kSamplingParamIds[] = {
-    "sampling.source",  "sampling.threshold", "sampling.length", "sampling.rec",       "sampling.preRoll",
-    "sampling.screenOpen", "live.mode",       "live.length",     "live.loopAfterRec", "live.rec",
-    "live.nudge",       "live.takeReady",     "live.inputLatency", "sampling.quantize", "sampling.drop"};
+    "sampling.source",     "sampling.threshold", "sampling.length", "sampling.rec",      "sampling.preRoll",
+    "sampling.screenOpen", "live.mode",          "live.length",     "live.loopAfterRec", "live.rec",
+    "live.nudge",          "live.takeReady",     "live.resolve",    "live.inputLatency", "sampling.quantize",
+    "sampling.drop"};
 static_assert(std::size(kSamplingParamIds) == static_cast<std::size_t>(SamplingParam::Count));
 
 enum class Source : std::uint8_t { LineIn, LineInL, LineInR, Resample }; // sampling.source order (SMP-001)
@@ -97,6 +99,7 @@ public:
     // true = a sampling.* / live.* parameter (consumed). mixer.softLimiter is observed (the input stage) and not
     // consumed: the mixer keeps its copy.
     bool onParam(const ParamChange&) noexcept;
+    void unloadLivePlayback(int scene, int track) noexcept { live_.unloadPlayback(scene, track); }
     bool set(SamplingParam, std::uint16_t scope, float value) noexcept; // the same without a ParamId (tests, bench)
     void setLimiter(bool on) noexcept { input_.setLimiter(on); }
     // The hub installed in kCaptureHubSlot (null = none); a new hub resets the state machines. Block start.

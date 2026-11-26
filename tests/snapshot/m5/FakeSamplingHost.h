@@ -130,6 +130,7 @@ public:
         hub_->status.liveNudge = frames;
     }
     bool liveUnsaved() const override { return liveTake >= 0 && liveDirty; }
+    int liveScene() const override { return liveTakeScene; }
     int liveTrack() const override { return liveTake; }
     void saveLive(int to, ui::m5::HostDone done) override
     {
@@ -138,10 +139,11 @@ public:
         if (done)
             done(true, {});
     }
-    void unloadLive(int, int track) override
+    bool unloadLive() override
     {
-        calls.push_back("unload " + std::to_string(track));
+        calls.push_back("unload " + std::to_string(liveTake));
         liveTake = -1;
+        return true;
     }
     std::uint32_t revision() const override { return rev; }
 
@@ -154,7 +156,7 @@ public:
     }
 
     std::vector<std::string> calls;
-    int unsavedTrack = -1, liveTake = -1;
+    int unsavedTrack = -1, liveTake = -1, liveTakeScene = 0;
     bool liveDirty = true, withRing = true;
     double tempoBars = 2, tempoBpm = 120;
     std::int32_t nudge = 0;

@@ -255,6 +255,46 @@ TEST_CASE("edit.roundtrip: generic swap of scenes, patterns, tracks across scene
     CHECK_FALSE(r.editor.swap(ce::pageRef(0, 0, 0, 0), ce::pageRef(0, 0, 0, 1)));
 }
 
+TEST_CASE("edit.roundtrip: a protected slot prevents swapping and preserves undo and redo", "[edit]")
+{
+    Rig r;
+    ce::EditRef a = ce::trackRef(0, 3, true), b = ce::trackRef(0, 8, true);
+    SECTION("two tracks in one scene") {}
+    SECTION("tracks across scenes")
+    {
+        b = ce::trackRef(1, 8, true);
+    }
+    SECTION("whole scenes")
+    {
+        a = ce::sceneRef(0);
+        b = ce::sceneRef(1);
+    }
+    bool protectedSlot = true;
+    core::commands::setTrackSwapGuard(r.b.bus,
+                                      [&](int scene, int track) { return protectedSlot && scene == 0 && track == 3; });
+    const auto before = edittest::hash(r.b.project());
+    CHECK_FALSE(r.editor.swap(a, b));
+    CHECK(r.b.undoDepth() == 0);
+    CHECK(edittest::hash(r.b.project()) == before);
+    protectedSlot = false;
+    REQUIRE(r.editor.swap(a, b));
+    const auto after = edittest::hash(r.b.project());
+    REQUIRE(after != before);
+    protectedSlot = true;
+    CHECK_FALSE(r.b.bus.undo());
+    CHECK(edittest::hash(r.b.project()) == after);
+    CHECK(r.b.undoDepth() == 1);
+    protectedSlot = false;
+    REQUIRE(r.b.bus.undo());
+    protectedSlot = true;
+    CHECK_FALSE(r.b.bus.redo());
+    CHECK(edittest::hash(r.b.project()) == before);
+    CHECK(core::commands::history(r.b.bus).redoDepth() == 1);
+    protectedSlot = false;
+    REQUIRE(r.b.bus.redo());
+    CHECK(edittest::hash(r.b.project()) == after);
+}
+
 TEST_CASE("edit.roundtrip: the undo cap charges the inverse's deep size (EDT-U1)", "[edit]")
 {
     Rig r;

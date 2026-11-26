@@ -534,6 +534,9 @@ void ProjectStore::createUntitled()
 
 Result<void> ProjectStore::create(const juce::String& name)
 {
+    if (admitReplacement)
+        if (auto accepted = admitReplacement(); ! accepted)
+            return accepted;
     if (busy_)
         return busyError();
     if (const auto bad = validateProjectName(name))
@@ -569,6 +572,12 @@ void ProjectStore::startOpen(const juce::File& source, const juce::File& identit
         done(busyError(), LoadReport {});
         return;
     }
+    if (admitReplacement)
+        if (auto accepted = admitReplacement(); ! accepted)
+        {
+            done(std::move(accepted), LoadReport{});
+            return;
+        }
     busy_ = true;
     progress.fraction.store(0.0f, std::memory_order_relaxed);
     stopTransport();
@@ -690,13 +699,15 @@ void ProjectStore::finishOpen(std::shared_ptr<OpenJob> job)
                     core::audio::release(h);
             });
     };
-    if (job->cancelled()) // PRJ-051: cancellable until the swap; the open project is untouched
+    auto accepted = admitReplacement ? admitReplacement() : Result<void>{};
+    if (job->cancelled() || ! accepted) // PRJ-051: the open project is untouched until the swap
     {
         releaseHeld();
         if (job->written) // the import's fresh bundle (importForeign picked a free name): nothing was opened
             job->identity.deleteRecursively();
-        job->report.cancelled = true;
-        job->done(Result<void>::failure("Loading cancelled"), std::move(job->report));
+        job->report.cancelled = job->cancelled();
+        job->done(job->report.cancelled ? Result<void>::failure("Loading cancelled") : std::move(accepted),
+                  std::move(job->report));
         return;
     }
     for (const auto& e : job->project->sampleRefs.entries)

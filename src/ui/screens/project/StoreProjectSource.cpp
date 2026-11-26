@@ -104,6 +104,14 @@ const std::string& StoreProjectSource::currentName() const
     return name_;
 }
 
+std::string StoreProjectSource::replacementError() const
+{
+    if (store_.admitReplacement)
+        if (auto accepted = store_.admitReplacement(); ! accepted)
+            return accepted.error().message;
+    return {};
+}
+
 bool StoreProjectSource::dirty() const
 {
     return store_.dirty();

@@ -5,7 +5,6 @@
 #include "services/sampling/WavWriter.h"
 
 #include <algorithm>
-#include <vector>
 
 namespace services::sampling
 {
@@ -82,29 +81,4 @@ core::Result<juce::File> saveBuffer(const core::audio::SampleBuffer& b, std::int
     return finish(w, target, md);
 }
 
-core::Result<juce::File> saveRing(const core::sampling::CaptureRing& ring, std::int64_t from, std::int64_t frames,
-                                  int channels, double sampleRate, const juce::File& target,
-                                  const core::model::SampleMetadata& md)
-{
-    if (frames <= 0)
-        return core::Result<juce::File>::failure("The take is empty", "frames <= 0");
-    WavWriter w;
-    if (auto ok = w.open(target, sampleRate, channels); ! ok)
-        return ok.error();
-    constexpr std::int64_t kChunk = 16384;
-    std::vector<float> l(kChunk), r(kChunk);
-    for (std::int64_t done = 0; done < frames;)
-    {
-        const int n = static_cast<int>(std::min(kChunk, frames - done));
-        if (! ring.read(from + done, n, l.data(), r.data()))
-        {
-            w.abandon();
-            return core::Result<juce::File>::failure("The take is no longer in the capture ring", "saveRing");
-        }
-        if (auto ok = w.write(l.data(), r.data(), n); ! ok)
-            return ok.error();
-        done += n;
-    }
-    return finish(w, target, md);
-}
 } // namespace services::sampling

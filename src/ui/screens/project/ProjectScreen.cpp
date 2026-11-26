@@ -197,6 +197,11 @@ void createNew(ShellApi& shell)
                    });
     };
     auto& src = ProjectSource::current();
+    if (auto why = src.replacementError(); ! why.empty())
+    {
+        error(shell, std::move(why));
+        return;
+    }
     if (! src.dirty())
     {
         ask();
@@ -530,6 +535,11 @@ private:
     {
         auto& shell = *shell_;
         auto& src = ProjectSource::current();
+        if (auto why = src.replacementError(); ! why.empty())
+        {
+            error(shell, std::move(why));
+            return;
+        }
         std::vector<std::string> lines{entry.foreign ? "Import " + entry.name + " from " + entry.location
                                                            + " as a new project?"
                                                      : "Open " + entry.name + "?"};

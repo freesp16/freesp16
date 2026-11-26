@@ -50,7 +50,4 @@ juce::File proposeName(const juce::File& folder, const juce::String& base = "REC
 
 core::Result<juce::File> saveBuffer(const core::audio::SampleBuffer&, std::int64_t from, std::int64_t to,
                                     const juce::File& target, const core::model::SampleMetadata&);
-core::Result<juce::File> saveRing(const core::sampling::CaptureRing&, std::int64_t from, std::int64_t frames,
-                                  int channels, double sampleRate, const juce::File& target,
-                                  const core::model::SampleMetadata&);
 } // namespace services::sampling

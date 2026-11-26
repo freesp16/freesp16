@@ -151,6 +151,8 @@ struct CaptureStatus
     std::atomic<std::int32_t> takeQuantize {0};      // REC QUANTIZE of the take in beats (0 = OFF)
     std::atomic<float> startInBeats {-1.0f};         // standby with REC QUANTIZE: beats to the start (−1 = stopped)
     // ---- live sampling (SMP-020…027) ----
+    std::atomic<std::uint32_t> liveArmRequest{0};    // last message-thread REC request consumed by the engine
+    std::atomic<std::uint32_t> liveReset{0};         // token of the last live-take reset applied by the engine
     std::atomic<std::uint32_t> liveSeq {0};          // +1 at every take that starts recording
     std::atomic<std::int32_t> liveState {0};         // LiveState
     std::atomic<std::int64_t> liveStart {-1};        // ring frame of the take window (latency compensated, no nudge)

@@ -132,11 +132,7 @@ void SceneEditor::swapTracks(int scene, int a, int b, bool withSequences)
 
 bool SceneEditor::swap(const EditRef& a, const EditRef& b)
 {
-    auto cmd = makeSwap(a, b);
-    if (! cmd)
-        return false;
-    bus_.execute(std::move(cmd));
-    return true;
+    return bus_.execute(makeSwap(a, b));
 }
 
 void SceneEditor::reset(const EditRef& target)

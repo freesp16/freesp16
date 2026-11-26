@@ -190,6 +190,7 @@ public:
     }
     std::vector<ui::m2::ProjectEntry> list(ui::m2::ProjectSort s) override { return inner_.list(s); }
     const std::string& currentName() const override { return inner_.currentName(); }
+    std::string replacementError() const override { return inner_.replacementError(); }
     bool dirty() const override { return inner_.dirty(); }
     bool hasFile() const override { return inner_.hasFile(); }
     bool exists(std::string_view name) override { return inner_.exists(name); }
@@ -296,6 +297,28 @@ struct Document::Impl
                                       if (extensions)
                                           extensions->onChange(changes, p); // nothing while ext.* is off
                                   });
+        core::commands::setTrackSwapGuard(bus,
+                                          [this](int scene, int track)
+                                          {
+                                              if (! samplingHost ||
+                                                  (! samplingHost->unsaved(scene, track) &&
+                                                   (! sampling || ! sampling->protectsLiveSlot(scene, track))))
+                                                  return false;
+                                              if (selection.shell)
+                                              {
+                                                  ui::MessageRequest notice;
+                                                  notice.title = "LIVE TAKE";
+                                                  notice.lines = {"Save the take before swapping tracks."};
+                                                  notice.buttons = {{"OK", ui::ButtonStyle::Primary}};
+                                                  selection.shell->showMessage(std::move(notice));
+                                              }
+                                              return true;
+                                          });
+        sync.onLiveDisplaced = [this](auto* buffer)
+        {
+            if (sampling)
+                sampling->liveDisplaced(buffer);
+        };
         sync.onInstalled = [this](int s, int t, lib::TrackSampleSync::Handle sample) // re-slice it
         {
             if (core::commands::hasProject(bus))
@@ -392,9 +415,17 @@ struct Document::Impl
         watchPreferences(); // RESUME / AUTOSAVE / library locations follow their preferences
         // Our choice: the user's copy of the reference lock-ordinal map (OQ-01) lives in the data folder's System/.
         services::interop::sp16::setUserMapFile(dataDir.getChildFile("System/interop/sp16-param-index-map.json"));
+        session->store().admitReplacement = [this]() -> core::Result<void>
+        {
+            if (sampling && sampling->liveUnresolved())
+                return core::Result<void>::failure("Save or unload the live take before changing projects");
+            return {};
+        };
         session->onProjectReplaced = [this](const core::model::Project& p, const store::LoadReport& report)
         {
-            sync.syncAll(p);
+            if (sampling)
+                sampling->resetLive();
+            sync.syncAll(p, /*replacingProject=*/true);
             slices.syncAll(p); // the samples still loading post theirs when installed
             if (chain)
                 postChain(core::edit::PatternChainBuilder::clear()); // a chain belongs to the project it was built in
@@ -425,9 +456,15 @@ struct Document::Impl
 
         // Takes go to <library>/Recordings (SMP-007); the ring is allocated on first use.
         sampling.emplace(bridge, workers,
-                         services::sampling::SessionConfig {
-                             dataDir.getChildFile("Recordings"), config.sampleRate,
-                             [](std::string_view id) { return core::builtinParams().idOf(id).value_or(core::ParamId {}); }});
+                         services::sampling::SessionConfig{
+                             dataDir.getChildFile("Recordings"), config.sampleRate, [](std::string_view id)
+                             { return core::builtinParams().idOf(id).value_or(core::ParamId{}); },
+                             [this](int s, int t, const core::audio::SampleBuffer* buffer)
+                             { return sync.installLive(s, t, buffer); },
+                             [this](int s, int t, const core::audio::SampleBuffer* buffer) {
+                                 return core::commands::hasProject(bus) &&
+                                        sync.removeLive(s, t, buffer, core::commands::project(bus));
+                             }});
         sampling->log = [this](const std::string& line) { log("%s", line.c_str()); };
         sampling->onTake = [this](const services::sampling::TakeInfo& t)
         {
@@ -837,9 +874,9 @@ std::function<void(ui::UiState&, double)> Document::summaries()
         st.scene = (p.settings.currentScene & 15) + 1;
         st.pattern = (p.settings.currentPattern & 15) + 1;
         st.dirty = d.bus.dirty();
-        for (int t = 0; t < 16; ++t) // the tiles' UNSAVED TAKE badge (a take played as RECORDED TEMP.)
+        for (int t = 0; t < 16; ++t) // the tiles' UNSAVED TAKE badge and track-swap guard
             st.tracks[static_cast<std::size_t>(t)].unsavedTake =
-                d.samplingHost != nullptr && d.samplingHost->unsaved(p.settings.currentScene & 15, t);
+                d.samplingHost != nullptr && d.samplingHost->hasUnsavedTake(st.scene - 1, t);
         auto& t1 = st.tracks[0];
         if (d.config.testTone && ! t1.hasContent && p.scenes[0].tracks[0].mode == core::model::TrackMode::Sample)
         {
@@ -2053,15 +2090,17 @@ void Document::Impl::samplingCommand(const std::string& cmd, std::istringstream&
     if (cmd == "sample-rec" || cmd == "live-arm")
     {
         in >> track >> channels;
+        if (cmd == "live-arm")
+        {
+            if (sampling->liveArm(scene, (track - 1) & 15))
+                log("LIVE ARM track=%d", track);
+            else
+                log("LIVE ARM refused track=%d", track);
+            return;
+        }
         if (! sampling->ensureCapture(ph.bpm > 0 ? ph.bpm : 120.0))
         {
             log("%s", "SAMPLING REC refused: no memory for the capture ring");
-            return;
-        }
-        if (cmd == "live-arm")
-        {
-            sampling->liveArm(scene, (track - 1) & 15);
-            log("LIVE ARM track=%d", track);
             return;
         }
         auto r = sampling->record(scene, (track - 1) & 15, channels == 1 ? 1 : 2);
