@@ -98,6 +98,19 @@ void FxSlotBank::build(const EffectRegistry& registry, std::span<const std::stri
     routes_.build(insertTypes_, sendTypes_, masterTypes_, paramIds, internalIndex);
 }
 
+void FxSlotBank::swapInserts(int a, int b) noexcept
+{
+    for (int unit = 0; unit < 2; ++unit)
+    {
+        const int first = insertSlot(a, unit), second = insertSlot(b, unit);
+        slots_[first].swap(slots_[second]);
+        std::swap(state_[first], state_[second]);
+        std::swap(plugins_[first], plugins_[second]);
+        slots_[first]->setMetered(first == metered_);
+        slots_[second]->setMetered(second == metered_);
+    }
+}
+
 void FxSlotBank::setPlugin(int slot, core::audio::PluginAudioNode* node) noexcept
 {
     if (slot >= 0 && slot < kFxSlots && plugins_[slot])

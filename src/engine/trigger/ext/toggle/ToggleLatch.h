@@ -50,6 +50,7 @@ public:
     // ext.toggle.track (consumed), or track.triggerMode of a Toggle track (consumed: the router stays GATE); false =
     // not ours (the engine's own path applies it).
     bool onParam(const ParamChange&, TriggerRouter&) noexcept;
+    void swapTracks(int scene, int a, int b, TriggerRouter&) noexcept;
     // A live hit before TriggerRouter::pushLive; false = drop it. `hit` may be rewritten (a second press becomes the
     // release of the latching pad). Call only when the router can take the hit this block (pushLive would succeed).
     bool filter(TriggerNow& hit, const TriggerRouter&, std::uint64_t block) noexcept;

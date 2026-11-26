@@ -293,6 +293,10 @@ struct Document::Impl
         core::commands::setBridge(bus,
                                   [this](const core::ChangeSet& changes, const core::model::Project& p)
                                   {
+                                      for (const auto& swap : changes.trackSwaps())
+                                          if (plugins && plugins->moveTrackPlugins(swap))
+                                              queued.stageTrackSwap(
+                                                  {swap.scene, swap.first, swap.second, swap.withSequences});
                                       ui::input::pads::forwardTrackChanges(changes, p, bridge);
                                       ui::forwardModelChanges(changes, p, bridge);
                                       ui::fx::forwardFxChanges(changes, p, bridge);
@@ -307,6 +311,7 @@ struct Document::Impl
                                       services::settings::forwardSettingsChanges(changes, p, bridge);
                                       if (extensions)
                                           extensions->onChange(changes, p); // nothing while ext.* is off
+                                      queued.finishTrackSwaps();
                                   });
         sync.onInstalled = [this](int s, int t, lib::TrackSampleSync::Handle sample) // re-slice it
         {

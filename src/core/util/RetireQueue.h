@@ -29,6 +29,8 @@ class RetireQueue
 public:
     static constexpr std::uint64_t kGraceBlocks = 2; // threading.md: ">= 2 blocks"
 
+    bool canRetire(std::size_t count) noexcept { return queue_.canPush(count); }
+
     // Audio thread. False when the queue is full: the caller keeps the object installed and retries next block.
     bool retire(const void* object, void (*destroy)(const void*) noexcept, std::uint64_t blockIndex) noexcept
     {

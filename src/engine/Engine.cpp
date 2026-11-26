@@ -130,6 +130,8 @@ Engine::Engine(const EngineSetup& setup, const EngineOptions& options) : options
     voice::acceptSliceSwaps(*this); // SwapSlot::SliceMap (the app posts one table per edit)
     for (auto kind : {SwapSlot::InsertPlugin1, SwapSlot::InsertPlugin2, SwapSlot::BusPlugin})
         acceptSwaps(kind, &core::audio::releasePluginNode);
+    acceptSwaps(SwapSlot::TrackSwapBatch, [](const void* batch) noexcept
+                { delete static_cast<const TrackSwapBatch*>(batch); });  // rt-ok: collector
     acceptSwaps(SwapSlot::TrackPlugin, &core::audio::releasePluginNode); // SwapSlot::TrackPlugin (hosted CLAP)
     for (int t = 0; t < kTracks; ++t)
         sources_[static_cast<std::size_t>(t)].attach(&env_, t);
@@ -445,20 +447,34 @@ void Engine::renderBlock() noexcept
 
 void Engine::drainMessages(BlockContext& ctx) noexcept
 {
+    const auto cost = [](const EngineMessage& m)
+    {
+        const auto* swap = std::get_if<ObjectSwap>(&m);
+        return swap && swap->slot.kind == SwapSlot::TrackSwapBatch
+                   ? 1 + static_cast<int>(static_cast<const TrackSwapBatch*>(swap->object)->edits.size())
+                   : 1;
+    };
+    int budget = options_.maxMessagesPerBlock;
     if (hasCarry_)
     {
+        const int carriedCost = cost(carry_);
         if (! apply(carry_, ctx))
             return; // still blocked: keep the order, try again next block
+        budget -= carriedCost;
         hasCarry_ = false;
     }
     EngineMessage m;
-    for (int budget = options_.maxMessagesPerBlock; budget > 0 && bridge_.pop(m); --budget)
-        if (! apply(m, ctx))
+    while (budget > 0 && bridge_.pop(m))
+    {
+        const int needed = cost(m);
+        if ((needed > budget && budget != options_.maxMessagesPerBlock) || ! apply(m, ctx))
         {
             carry_ = m;
             hasCarry_ = true;
             return;
         }
+        budget -= needed;
+    }
     TriggerNow t;
     while (triggerRouter_.pending() < trigger::TriggerRouter::kMaxLiveEvents && triggers_.pop(t))
         addLiveTrigger(t, ctx);
@@ -559,6 +575,8 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
     }
     if (const auto* s = std::get_if<ObjectSwap>(&m))
     {
+        if (s->slot.kind == SwapSlot::TrackSwapBatch)
+            return applyTrackSwaps(*static_cast<const TrackSwapBatch*>(s->object), ctx);
         // Install at block start; the replaced object is retired, never freed here (threading.md steps 3–4).
         const void* old = swaps_.get(s->slot);
         if (old == s->object)
@@ -574,6 +592,62 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
     if (const auto* t = std::get_if<TriggerNow>(&m))
         return addLiveTrigger(*t, ctx);
     return true;
+}
+
+bool Engine::applyTrackSwaps(const TrackSwapBatch& batch, BlockContext& ctx) noexcept
+{
+    // Reserve for every replacement before changing any track. A full retire queue delays the entire edit.
+    if (! bridge_.canRetire(batch.retireSlots))
+        return false;
+    for (const auto& swap : batch.swaps)
+        moveTrackPlugins(swap);
+    for (const auto& edit : batch.edits)
+        if (const auto* param = std::get_if<ParamChange>(&edit))
+        {
+            if (params_.find(param->param) != T::None)
+                apply(*param, ctx);
+        }
+        else
+            apply(std::get<ObjectSwap>(edit), ctx);
+    batch.installed = true; // the swap table now owns any installed objects
+    return bridge_.retire(&batch, SwapSlot::TrackSwapBatch, ctx.blockIndex);
+}
+
+void Engine::moveTrackPlugins(const TrackSwapBatch::Swap& swap) noexcept
+{
+    const auto s = static_cast<std::uint8_t>(swap.scene);
+    const auto a = static_cast<std::uint8_t>(swap.first), b = static_cast<std::uint8_t>(swap.second);
+    for (auto kind : {SwapSlot::TrackPlugin, SwapSlot::InsertPlugin1, SwapSlot::InsertPlugin2})
+    {
+        const SwapSlot first{kind, s, a}, second{kind, s, b};
+        const auto* moved = swaps_.exchange(first, swaps_.get(second));
+        swaps_.exchange(second, moved);
+    }
+    for (int unit = 0; unit < 2; ++unit)
+    {
+        const int first = fx::insertSlot(a, unit), second = fx::insertSlot(b, unit);
+        auto& slots = fxScenes_.scene[s].slot;
+        std::swap(slots[first], slots[second]);
+        for (int type = 0; type < fxScenes_.types; ++type)
+        {
+            auto* values = fxScenes_.at(s, first, type);
+            std::swap_ranges(values, values + 6, fxScenes_.at(s, second, type));
+        }
+    }
+    mixer_.swapStrips(s, a, b, swap.withSequences);
+    router_.swapAssignments(s, a, b);
+    toggle_.swapTracks(s, a, b, triggerRouter_);
+    if (s != triggerRouter_.scene())
+        return;
+
+    // The model diff can change either source's mode. Detach the instruments before applying it so setMode
+    // cannot end their notes. installSwaps binds both sources at their new addresses at the end of the drain.
+    sources_[a].detachPluginForMove();
+    sources_[b].detachPluginForMove();
+    triggerRouter_.moveHeldTracks(a, b);
+    midi_.moveHeldTracks(a, b);
+    fxBank_.swapInserts(a, b);
+    thruBypassForce_ = true;
 }
 
 bool Engine::addLiveTrigger(const TriggerNow& t, BlockContext& ctx) noexcept

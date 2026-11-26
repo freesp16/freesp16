@@ -1403,6 +1403,24 @@ void ClapHostService::syncEffect(const core::model::Project& project, int scene,
     clearSlot(current, engine::pluginFxSwap(scene, slot));
 }
 
+bool ClapHostService::moveTrackPlugins(const core::TrackSwap& swap)
+{
+    const auto slotsFor = [this, scene = swap.scene](int track)
+    {
+        const int insert = scene * engine::kPluginFxSlots + 2 * track;
+        return std::array{&slots_[idx(scene, track)], &effects_[insert], &effects_[insert + 1]};
+    };
+    const auto first = slotsFor(swap.first);
+    const auto second = slotsFor(swap.second);
+    const auto hasPlugin = [](const Slot* slot) { return slot->node || slot->pending; };
+    if (! std::any_of(first.begin(), first.end(), hasPlugin) && ! std::any_of(second.begin(), second.end(), hasPlugin))
+        return false;
+    for (std::size_t i = 0; i < first.size(); ++i)
+        std::swap(*first[i], *second[i]);
+    ++changes_;
+    return true;
+}
+
 void ClapHostService::syncFromProject(const core::model::Project& project)
 {
     for (int s = 0; s < 16; ++s)
@@ -1421,6 +1439,8 @@ void ClapHostService::syncTrack(const core::model::Project& project, int s, int 
     if (tr.mode == core::model::TrackMode::Plugin && (! tr.plugin.path.empty() || ! tr.plugin.pluginId.empty()))
     {
         auto& slot = slots_[idx(s, t)];
+        if (! fresh && ! slot.pending && ! slot.pendingClear && slot.node && slot.spec == tr.plugin)
+            return;
         engine::SwapSlot swap{engine::SwapSlot::TrackPlugin, static_cast<std::uint8_t>(s),
                               static_cast<std::uint8_t>(t)};
         if (! mountSlot(slot, swap, tr.plugin, true, fresh))

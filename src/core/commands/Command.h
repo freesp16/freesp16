@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -22,6 +23,13 @@ struct Project;
 
 namespace core
 {
+// Track moves carry their source and destination to the engine before forwarding the resulting model values.
+struct TrackSwap
+{
+    std::uint8_t scene, first, second;
+    bool withSequences;
+};
+
 // The model paths one command touched (data-model.md paths, e.g. "scene[0].track[3].volume"). Observers subscribe by
 // prefix; the EngineBridge turns the set into engine messages. Message thread only.
 class ChangeSet
@@ -29,7 +37,13 @@ class ChangeSet
 public:
     void add(std::string path) { paths_.push_back(std::move(path)); }
     void merge(const ChangeSet& other) { paths_.insert(paths_.end(), other.paths_.begin(), other.paths_.end()); }
-    void clear() noexcept { paths_.clear(); }
+    void clear() noexcept
+    {
+        paths_.clear();
+        trackSwaps_.clear();
+    }
+    void addTrackSwap(TrackSwap swap) { trackSwaps_.push_back(swap); }
+    const std::vector<TrackSwap>& trackSwaps() const noexcept { return trackSwaps_; }
     bool empty() const noexcept { return paths_.empty(); }
     std::size_t size() const noexcept { return paths_.size(); }
     const std::vector<std::string>& paths() const noexcept { return paths_; }
@@ -42,6 +56,7 @@ public:
 
 private:
     std::vector<std::string> paths_;
+    std::vector<TrackSwap> trackSwaps_;
 };
 
 // RAII handle of an observer registration: destroying (or reset()) unsubscribes. Move-only.

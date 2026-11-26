@@ -53,6 +53,7 @@ public:
     void setInputSource(InputSource s) noexcept { input_ = s; }
     void setSample(const voice::SampleBuffer* b) noexcept { voice_.setSample(b); }
     void setPlugin(core::audio::PluginAudioNode* p) noexcept;
+    void detachPluginForMove() noexcept { plugin_ = nullptr; }
     void setPlayback(const voice::PlaybackParams& p) noexcept; // the track's current playback parameters
     // The track's installed slice table (null = the default 16-slice grid). A Full trigger with a slice
     // lock (ParamIndex 22: SLICE pad mode, a sequencer step) plays [start, next start) of that slice with the track's

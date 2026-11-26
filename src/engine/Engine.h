@@ -151,6 +151,8 @@ private:
     void renderBlock() noexcept;
     void drainMessages(BlockContext& ctx) noexcept;
     bool apply(const EngineMessage& m, BlockContext& ctx) noexcept; // false = cannot be applied this block (carried)
+    bool applyTrackSwaps(const TrackSwapBatch&, BlockContext&) noexcept;
+    void moveTrackPlugins(const TrackSwapBatch::Swap&) noexcept;
     bool addLiveTrigger(const TriggerNow& t, BlockContext& ctx) noexcept;
     void mixTracks(BlockContext& ctx) noexcept;
     void applyStrip(bridge::ParamTarget target, const ParamChange& c) noexcept;

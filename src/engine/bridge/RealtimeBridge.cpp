@@ -16,8 +16,8 @@ bool RealtimeBridge::post(const EngineMessage& message)
     }
     else if (const auto* s = std::get_if<ObjectSwap>(&message))
     {
-        if (! swaps_.valid(s->slot))
-            return false; // no consumer for this slot kind: the sender keeps ownership
+        if (! swaps_.valid(s->slot) || (s->slot.kind == SwapSlot::TrackSwapBatch && s->object == nullptr))
+            return false; // no consumer for this slot kind or no batch to apply
     }
     else if (const auto* t = std::get_if<TriggerNow>(&message))
     {

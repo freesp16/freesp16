@@ -269,10 +269,10 @@ std::unique_ptr<Command> makeSwap(const EditRef& a, const EditRef& b)
         {
             const bool withSequences =
                 a.kind == ObjectKind::TrackWithSequences || b.kind == ObjectKind::TrackWithSequences;
+            if ((a.scene & 15) == (b.scene & 15))
+                return std::make_unique<SwapTracksCommand>(a.scene, a.track, b.track, withSequences); // EDT-002
             if (! withSequences)
                 return std::make_unique<SwapSlotsCommand>(a, b);
-            if ((a.scene & 15) == (b.scene & 15))
-                return std::make_unique<SwapTracksCommand>(a.scene, a.track, b.track, true); // EDT-002
             const int sa = a.scene & 15, sb = b.scene & 15, ta = a.track & 15, tb = b.track & 15;
             return std::make_unique<EditCommand>("SWAP TRACK", [=](const Project& model, Subtrees& next) {
                 next.addTrack(sa, ta, std::make_unique<Track>(model.scenes[at(sb)].tracks[at(tb)]));

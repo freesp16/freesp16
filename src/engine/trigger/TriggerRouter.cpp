@@ -102,6 +102,17 @@ bool TriggerRouter::pushLive(const TriggerNow& t) noexcept
     return push(e);
 }
 
+void TriggerRouter::moveHeldTracks(int a, int b) noexcept
+{
+    const auto remap = [a, b](int t) { return t == a ? b : (t == b ? a : t); };
+    for (auto& track : heldTrack_)
+        track = static_cast<std::int8_t>(remap(track));
+    for (int i = 0; i < numEvents_; ++i)
+        events_[i].track = static_cast<std::uint8_t>(remap(events_[i].track));
+    const auto x = ((mixerLocked_ >> a) ^ (mixerLocked_ >> b)) & 1u;
+    mixerLocked_ ^= (x << a) | (x << b);
+}
+
 void TriggerRouter::setChoke(int scene, int track, std::uint8_t group) noexcept
 {
     const int s = scene & 15, t = track & 15;

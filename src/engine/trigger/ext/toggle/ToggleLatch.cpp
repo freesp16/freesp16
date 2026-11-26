@@ -40,6 +40,27 @@ bool ToggleLatch::onParam(const ParamChange& c, TriggerRouter& router) noexcept
     return false;
 }
 
+void ToggleLatch::swapTracks(int scene, int a, int b, TriggerRouter& router) noexcept
+{
+    const auto swapBits = [a, b](std::uint16_t& mask)
+    {
+        const auto x = ((mask >> a) ^ (mask >> b)) & 1u;
+        mask ^= static_cast<std::uint16_t>((x << a) | (x << b));
+    };
+    swapBits(toggle_[scene]);
+    std::swap(mode_[scene][a], mode_[scene][b]);
+    for (const int t : {a, b})
+        router.setTrackParam(scene, t, TrackField::TriggerMode, enabled(scene, t) ? 1.0f : mode_[scene][t]);
+    if (scene == scene_)
+    {
+        swapBits(latched_);
+        swapBits(pendingRelease_);
+        std::swap(latchPad_[a], latchPad_[b]);
+        std::swap(latchNote_[a], latchNote_[b]);
+        std::swap(latchBlock_[a], latchBlock_[b]);
+    }
+}
+
 int ToggleLatch::trackOf(const TriggerNow& hit, const TriggerRouter& r) const noexcept
 {
     if (hit.pad < 0 || hit.pad >= kTracks)

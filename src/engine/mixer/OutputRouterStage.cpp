@@ -121,6 +121,13 @@ bool OutputRouterStage::set(RoutingParam p, std::uint16_t scope, float value) no
     return false;
 }
 
+void OutputRouterStage::swapAssignments(int scene, int a, int b) noexcept
+{
+    std::swap(assign_[scene][a], assign_[scene][b]);
+    if (scene == scene_)
+        router_.swapAssignments(a, b);
+}
+
 void OutputRouterStage::applyTrackAssign(int track) noexcept
 {
     router_.setAssign(track, outAssignFromIndex(assign_[static_cast<std::size_t>(scene_)][static_cast<std::size_t>(track)]));

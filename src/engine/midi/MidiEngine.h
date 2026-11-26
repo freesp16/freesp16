@@ -177,6 +177,7 @@ public:
     // ---- audio thread ----
     void beginPeriod(std::int64_t firstFrame, std::int64_t hostNs, int frames) noexcept;
     bool onParam(const ParamChange&) noexcept; // a midi.* message (consumed) or false
+    void moveHeldTracks(int a, int b) noexcept;
     void processIn(BlockContext& ctx) noexcept;                                   // step 2
     void processOut(const BlockContext& ctx, const stages::BlockBuffers& b) noexcept; // step 7
     // The tempo the playhead shows: the follower's display tempo while following an external clock, else `bpm`.

@@ -94,6 +94,7 @@ public:
                slots_[static_cast<std::size_t>(2 * track + 1)]->idle();
     }
     bool sendIdle() const noexcept { return slots_[kSendSlot]->idle(); }
+    void swapInserts(int a, int b) noexcept;
     void setPlugin(int slot, core::audio::PluginAudioNode* node) noexcept;
     void processInsert(int track, float* l, float* r, const ProcessContext& ctx) noexcept
     {

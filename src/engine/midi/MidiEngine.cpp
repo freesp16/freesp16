@@ -363,6 +363,11 @@ void MidiEngine::controlChange(int ch, int cc, int value, int frame) noexcept
     }
 }
 
+void MidiEngine::moveHeldTracks(int a, int b) noexcept
+{
+    std::swap(heldNote_[a], heldNote_[b]);
+}
+
 void MidiEngine::channelMessage(const MidiEvent& e, int frame) noexcept
 {
     if (! inEnable_[2]) // IN NOTE/CC (MID-012)
@@ -395,7 +400,9 @@ void MidiEngine::channelMessage(const MidiEvent& e, int frame) noexcept
             for (int t = 0; t < kTracks; ++t)
                 if (heldNote_[static_cast<std::size_t>(t)] == key)
                 {
-                    w_.router->push(hit(t, 0, 0, trigger::TriggerKind::Release, frame));
+                    const int semis =
+                        d1 >= 24 && trackIs(t, static_cast<int>(trigger::TrackMode::Plugin)) ? d1 - 48 : 0;
+                    w_.router->push(hit(t, 0, semis, trigger::TriggerKind::Release, frame));
                     heldNote_[static_cast<std::size_t>(t)] = -1;
                 }
             return;

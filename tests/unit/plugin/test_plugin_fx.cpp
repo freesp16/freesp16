@@ -1,10 +1,16 @@
 #include "app/PluginAdapter.h"
 #include "core/commands/CommandBusAccess.h"
 #include "core/commands/fx/FxCommands.h"
+#include "core/edit/EditCommands.h"
 #include "services/plugin/ClapHost.h"
+#include "services/render/QueuedBridge.h"
 #include "tests/unit/engine/EngineTestUtil.h"
 #include "tests/unit/store/StoreTestSupport.h"
+#include "ui/input/pads/PadController.h"
+#include "ui/input/scenes/SceneSync.h"
+#include "ui/input/steps/PatternSync.h"
 #include "ui/screens/effects/ModelFxSlots.h"
+#include "ui/shell/ModelParamAccess.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -54,6 +60,135 @@ TEST_CASE("CLAP instrument audio uses its declared input count and duplicates mo
     REQUIRE(node->process({}, left.data(), right.data()));
     CHECK(left.front() == 0.25f);
     CHECK(right == left);
+}
+
+TEST_CASE("TRACK SETTING moves sounding CLAP tracks with sample-exact audio through swap, undo and redo",
+          "[plugin][track-swap]")
+{
+    using namespace core::model;
+    auto engine = std::make_unique<engine::Engine>(enginetest::fullSetup(), engine::EngineOptions{.testTone = false});
+    services::render::QueuedBridge queued(engine->bridge());
+    services::plugin::ClapHostService host(queued, CLAP_FIXTURE_DIR, 44100);
+    ui::input::scenes::SceneSync scenes(core::builtinParams(), queued);
+    core::CommandBus bus;
+    auto project = newDefaultProject();
+    auto& scene = project->scenes[0];
+    auto& first = scene.tracks[0];
+    auto& second = scene.tracks[1];
+    first.mode = TrackMode::Plugin;
+    first.plugin = {.path = "clap_effect_fixture.clap", .pluginId = "test.instrument"};
+    first.triggerMode = TriggerMode::Gate;
+    first.routing.output = OutputAssign::Out34;
+    first.insertFx[0].type = EffectType::Plugin;
+    first.insertFx[0].plugin = {.path = "clap_effect_fixture.clap", .pluginId = "test.stereo", .stateBase64 = "Mg=="};
+    second.volume = 50;
+    second.pan = 32;
+
+    bool twoPlugins = false;
+    SECTION("Move over a muted sample slot")
+    {
+        scene.patterns[0].trackMutes[1] = true;
+    }
+    SECTION("Swap two instances of the same instrument while the engine FIFO is full")
+    {
+        second.mode = TrackMode::Plugin;
+        second.plugin = first.plugin;
+        second.triggerMode = TriggerMode::Gate;
+        twoPlugins = true;
+    }
+
+    const auto forward = [&](const core::ChangeSet& changes, const Project& model)
+    {
+        for (const auto& swap : changes.trackSwaps())
+            if (host.moveTrackPlugins(swap))
+                queued.stageTrackSwap({swap.scene, swap.first, swap.second, swap.withSequences});
+        ui::input::pads::forwardTrackChanges(changes, model, queued);
+        ui::forwardModelChanges(changes, model, queued);
+        ui::fx::forwardFxChanges(changes, model, queued);
+        ui::input::steps::forwardPatternChanges(changes, model, queued);
+        scenes.onChange(changes, model);
+        host.syncChanges(changes, model);
+        queued.finishTrackSwaps();
+    };
+    host.syncFromProject(*project);
+    core::ChangeSet initial;
+    core::edit::addTrackPaths(initial, 0, 0);
+    core::edit::addTrackPaths(initial, 0, 1);
+    core::edit::addPatternPath(initial, 0, 0);
+    forward(initial, *project);
+    core::commands::replaceProject(bus, std::move(project));
+    core::commands::setBridge(bus, forward);
+
+    auto* const instrument = host.mounted(0, 0);
+    auto* const other = host.mounted(0, 1);
+    auto* const insert = host.mountedEffect(0, 0);
+    REQUIRE(instrument);
+    REQUIRE(insert);
+    REQUIRE(static_cast<bool>(other) == twoPlugins);
+    REQUIRE(queued.post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    REQUIRE(queued.post(engine::TriggerNow{0, 127, 60, 0}));
+    if (twoPlugins)
+        REQUIRE(queued.post(engine::TriggerNow{1, 127, 67, 1}));
+    const auto render = [&](int frames)
+    {
+        std::array<std::vector<float>, 4> audio;
+        std::array<float*, 4> channels;
+        for (std::size_t ch = 0; ch < channels.size(); ++ch)
+        {
+            audio[ch].resize(static_cast<std::size_t>(frames));
+            channels[ch] = audio[ch].data();
+        }
+        engine::OfflineDriver{}.run(*engine, frames, channels);
+        return audio;
+    };
+    render(512);
+    const auto before = render(engine::kBlockFrames);
+    REQUIRE(engine->bridge().playhead().playing);
+    REQUIRE(enginetest::peak(before[0]) > 0.01f);
+    REQUIRE(enginetest::peak(before[2]) > 0.01f); // direct Out 3–4 must keep feeding the same port
+
+    if (twoPlugins)
+    {
+        const engine::ParamChange filler{enginetest::volumeId(), 1, 50.0f, 0};
+        for (std::size_t i = 0; i < engine::kMessageQueueSize; ++i)
+            REQUIRE(engine->bridge().post(filler));
+    }
+    auto swap = core::edit::makeSwap(core::edit::trackRef(0, 0, true), core::edit::trackRef(0, 1, true));
+    REQUIRE(swap);
+    bus.execute(std::move(swap));
+    CHECK(host.mounted(0, 1) == instrument);
+    CHECK(host.mounted(0, 0) == other);
+    CHECK(host.mountedEffect(0, 2) == insert);
+    if (twoPlugins)
+    {
+        CHECK_FALSE(queued.flush());
+        for (std::size_t i = 0; i < engine::kMessageQueueSize / 512; ++i)
+        {
+            CHECK(render(engine::kBlockFrames) == before);
+        }
+        REQUIRE(queued.flush());
+    }
+    const auto checkAudio = [&](std::uint8_t track)
+    {
+        CHECK(render(engine::kBlockFrames) == before);
+        CHECK(engine->installed({engine::SwapSlot::TrackPlugin, 0, track}) == instrument);
+        CHECK(engine->installed(engine::pluginFxSwap(0, 2 * track)) == insert);
+        CHECK(engine->bridge().playhead().playing);
+    };
+    checkAudio(1);
+    REQUIRE(bus.undo());
+    checkAudio(0);
+    REQUIRE(bus.redo());
+    checkAudio(1);
+
+    // The original physical pad still releases its note after the instrument moved to a different pad.
+    REQUIRE(queued.post(engine::TriggerNow{0, 0, 60, 0}));
+    const auto released = render(engine::kBlockFrames);
+    CHECK((enginetest::peak(released[0]) > 0.0f) == twoPlugins);
+    CHECK(enginetest::peak(released[2]) == 0.0f);
+    REQUIRE(queued.post(engine::TriggerNow{1, 127, 60, 1}));
+    checkAudio(1);
+    engine->bridge().retirePending();
 }
 
 TEST_CASE("FX slots restore the exact descriptor on undo and native project load", "[plugin][fx][store]")

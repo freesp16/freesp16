@@ -31,6 +31,7 @@ struct clap_plugin_preset_load;
 namespace core
 {
 class ChangeSet;
+struct TrackSwap;
 namespace model
 {
 struct Project;
@@ -279,6 +280,8 @@ public:
     const core::model::PluginTrack& mountedSpec(int scene0, int track0,
                                                 std::optional<int> effectSlot = {}) const noexcept;
 
+    // Move the host's ownership records along with a model track swap. The engine moves its own references.
+    bool moveTrackPlugins(const core::TrackSwap&);
     void syncFromProject(const core::model::Project& project);
     void syncChanges(const core::ChangeSet& changes, const core::model::Project& project);
     void snapshotStates(core::model::Project& project) const;
