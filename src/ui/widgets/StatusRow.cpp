@@ -104,17 +104,43 @@ void StatusRow::build(DrawList& dl, const UiContext& ctx) const
         dl.text(ix, cy, Align::Right, TextStyleId::Caption, model_.syncLost ? p.warn : p.text2, model_.syncBadge);
         ix -= layout::indicatorPitch;
     }
-    // CPU: the value left-aligned in a fixed "100%" field ending at the slot, so the label does not move as the digits
-    // change.
     const auto width = [&ctx](std::string_view s)
     { return ctx.measure ? ctx.measure(TextStyleId::Caption, s) : 8.0f * static_cast<float>(s.size()); };
-    if (! model_.cpu.empty())
+    const auto drawProcessor =
+        [&](std::string_view label, std::string_view load, bool highLoad, bool showTemp, std::optional<int> degrees)
     {
-        const float field = width("100%");
-        dl.text(ix - field, cy, Align::Left, TextStyleId::Caption, model_.cpuHigh ? p.warn : p.text2, model_.cpu);
-        dl.text(ix - field - kCpuGap, cy, Align::Right, TextStyleId::Caption, p.text3, "CPU");
-        ix -= field + kCpuGap + width("CPU") + tk::space[5];
-    }
+        if (load.empty() && ! showTemp)
+            return;
+
+        // Reserve only the enabled fields. Keep the label steady as digits change, but space the
+        // visible values by their actual text widths.
+        const bool bothReadings = ! load.empty() && showTemp;
+        const float valueWidth =
+            (load.empty() ? 0.0f : width("100%")) + (showTemp ? width("100°C") : 0.0f) + (bothReadings ? kGap : 0.0f);
+        float x = ix - valueWidth;
+        const float labelRight = x - kCpuGap;
+        const float labelInset = bothReadings ? kCpuGap / 2 : 0.0f;
+        dl.text(labelRight + labelInset, cy, Align::Right, TextStyleId::Caption, p.text3, label);
+        if (! load.empty())
+        {
+            dl.text(x, cy, Align::Left, TextStyleId::Caption, highLoad ? p.warn : p.text2, load);
+            x += width(load) + kGap;
+        }
+        if (showTemp)
+        {
+            FixedText<16> temp;
+            if (degrees)
+                temp.format("%d°C", *degrees);
+            else
+                temp.set("N/A");
+            dl.text(x, cy, Align::Left, TextStyleId::Caption, p.text2, temp.view());
+        }
+        ix = labelRight - width(label) - tk::space[4];
+    };
+    const auto show = model_.showTemp;
+    const auto& t = model_.temperatures;
+    drawProcessor("GPU", {}, false, show.gpu, t.gpu);
+    drawProcessor("CPU", model_.cpu, model_.cpuHigh, show.cpu || show.soc, show.cpu ? t.cpu : t.soc);
     // MUTE / SOLO: a filled badge, right-aligned before the indicators, the MUTE MODE detail after it.
     if (model_.padMute != UiState::PadMuteView::None)
     {

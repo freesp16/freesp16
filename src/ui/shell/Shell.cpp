@@ -1,5 +1,6 @@
 #include "ui/shell/Shell.h"
 
+#include "ui/screens/utility/UtilityEnv.h"
 #include "ui/shell/ColumnRules.h"
 #include "ui/shell/Layout.h"
 #include "ui/shell/PopupFactory.h"
@@ -73,6 +74,9 @@ Shell::Shell(ShellConfig cfg)
     feeds_.attach(cfg.bridge);
     padColourSpec_ = params_.find("track.padColor");
     showCpuSpec_ = params_.find("ui.showCpu");
+    showCpuTempSpec_ = params_.find("ui.showCpuTemp");
+    showGpuTempSpec_ = params_.find("ui.showGpuTemp");
+    showSocTempSpec_ = params_.find("ui.showSocTemp");
     muteModeSpec_ = params_.find("track.muteMode");
     rail_.reserve(L::railCompactMax);
     slideList_.reserve(2048, 16384);
@@ -406,6 +410,14 @@ std::string_view Shell::muteModeSummary()
     return muteModeText_.view();
 }
 
+services::system::TemperatureSelection Shell::shownTemperatures() const
+{
+    const auto available = utility::utilityEnv().temperatureSensors;
+    const auto on = [this](const core::ParamSpec* s) { return s && values_->get(*s, 0) >= 0.5f; };
+    return {available.cpu && on(showCpuTempSpec_), available.gpu && on(showGpuTempSpec_),
+            available.soc && on(showSocTempSpec_)};
+}
+
 void Shell::updateFrameModels(double nowMs)
 {
     const auto& s = router_.current();
@@ -424,10 +436,13 @@ void Shell::updateFrameModels(double nowMs)
         else
             cpuText_.set("--");
     }
+    const auto wanted = shownTemperatures();
+    const auto& poll = utility::utilityEnv().temperatures;
+    const auto temps = poll ? poll(wanted, nowMs) : services::system::Temperatures{};
     statusRow_.set({router_.breadcrumb(), state_.playing, state_.recArmed || state_.samplerRec, state_.midiInAtMs,
                     state_.midiOutAtMs, state_.syncBadge, state_.syncLost,
                     showCpu ? cpuText_.view() : std::string_view{}, showCpu && cpu_.percent() >= kCpuHighPercent,
-                    state_.padMuteView, muteModeSummary()});
+                    state_.padMuteView, muteModeSummary(), wanted, temps});
     drawnPadMuteView_ = state_.padMuteView;
     ContextBarModel cb = contextBar_.model();
     cb.kind = s.contextBar;
@@ -657,6 +672,8 @@ bool Shell::dirty(double nowMs) const
         return true;
     if (showCpuSpec_ != nullptr && values_->get(*showCpuSpec_, 0) >= 0.5f && nowMs - cpuSampledMs_ >= kCpuIntervalMs)
         return true; // the CPU readout is due
+    if (nowMs - frameMs_ >= kCpuIntervalMs && shownTemperatures().any())
+        return true;
     if ((body_ && body_->dirty(nowMs)) || (meter_ && meter_->dirty(nowMs)) || (toast_ && ! toast_->closed))
         return true;
     for (const auto& p : popups_)

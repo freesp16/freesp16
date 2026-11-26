@@ -7,6 +7,7 @@
 // "SOUND 12 · STEPS 4"); while the MUTE key is held, a SOLO badge (warn, the MIXER's SOLO colour).
 #pragma once
 
+#include "services/system/Temperatures.h"
 #include "ui/shell/UiState.h"
 #include "ui/widgets/Widget.h"
 
@@ -27,6 +28,8 @@ struct StatusRowModel
     bool cpuHigh = false;   // drawn in `warn`
     UiState::PadMuteView padMute = UiState::PadMuteView::None;
     std::string_view muteMode{}; // the MUTE badge's detail (the tracks' MUTE MODE), empty = none
+    services::system::TemperatureSelection showTemp{};
+    services::system::Temperatures temperatures{};
 };
 
 class StatusRow final : public Widget

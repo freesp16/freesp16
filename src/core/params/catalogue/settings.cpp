@@ -71,6 +71,9 @@ void addSettingsParams(ParamRegistry& r)
     r.add(pref("ui.envAutoZoom", "AMP ENV AUTO ZOOM", "AUTOZOOM", "DISPLAY", offOnLabels, 0));
     // The whole machine's CPU usage in the status row of every screen (ui::StatusRow), refreshed once a second.
     r.add(pref("ui.showCpu", "CPU USAGE", "CPU", "DISPLAY", offOnLabels, 0));
+    r.add(pref("ui.showSocTemp", "CPU TEMP", "CPU TEMP", "DISPLAY", offOnLabels, 0));
+    r.add(pref("ui.showCpuTemp", "CPU TEMP", "CPU TEMP", "DISPLAY", offOnLabels, 0));
+    r.add(pref("ui.showGpuTemp", "GPU TEMP", "GPU TEMP", "DISPLAY", offOnLabels, 0));
     r.add({.id = "ui.scale", .label = "UI SCALE", .shortLabel = "SCALE", .group = "DISPLAY", .type = ParamType::Integer,
            .minValue = 100, .maxValue = 200, .defaultValue = 100, .coarseStep = 25, .fineStep = 5,
            .format = formatPercent, .scope = ParamScope::Global});

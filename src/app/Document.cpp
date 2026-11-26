@@ -639,6 +639,7 @@ struct Document::Impl
     void logState();
     void render(const std::string& file, double seconds, bool withChain = false, bool song = false);
     lib::Workers workers{2};
+    services::system::TemperatureMonitor temperatureMonitor{workers};
     core::edit::WorkerPoolAdapter<lib::Workers> editWorkers{workers}; // the SceneEditor's (EDT-004)
     std::optional<core::chain::ChainPlan> chain; // the chain last posted (SCN-030)
     core::commands::arrangement::RowClipboard rowClipboard; // ARR-012 (the ARRANGER screen's)
@@ -2140,6 +2141,9 @@ void Document::Impl::loadPreferences(const juce::File& dataDir)
     // UTILITY's providers (ui/screens/utility/UtilityEnv.h).
     auto& env = ui::utility::utilityEnv();
     env.version = [] { return std::string(identity::version); };
+    env.temperatureSensors = temperatureMonitor.available();
+    env.temperatures = [this](services::system::TemperatureSelection wanted, double nowMs)
+    { return temperatureMonitor.poll(wanted, nowMs); };
     env.diskSpace = [this](std::function<void(double)> done)
     {
         auto bytes = std::make_shared<double>(-1.0);
