@@ -481,7 +481,7 @@ TEST_CASE("migration v2 → v3: unit cases on the migration root", "[interop][mi
     }
 }
 
-TEST_CASE("migration: v1 bundles chain through v2 and v3 to v4; a newer bundle opens read-only", "[interop][migration]")
+TEST_CASE("migration: v1 bundles chain through v2, v3 and v4 to v5; a newer bundle opens read-only", "[interop][migration]")
 {
     for (const char* name : {"default.sixteen", "beat.sixteen", "random-42.sixteen"})
     {
@@ -491,14 +491,22 @@ TEST_CASE("migration: v1 bundles chain through v2 and v3 to v4; a newer bundle o
         for (const auto& w : o.report.warnings)
             if (w.rfind("converted from an older format: ", 0) == 0)
                 converted.push_back(w);
-        REQUIRE(converted.size() >= 3);
-        CHECK(converted[converted.size() - 2].find("project origin recorded") != std::string::npos); // 2 → 3
-        CHECK(converted.back().find("MIDI NOTE2-4") != std::string::npos);                         // 3 → 4 last
+        auto at = [&](const char* what)
+        {
+            for (std::size_t i = 0; i < converted.size(); ++i)
+                if (converted[i].find(what) != std::string::npos)
+                    return static_cast<int>(i);
+            return -1;
+        };
+        const int origin = at("project origin recorded"), notes = at("MIDI NOTE2-4"), scale = at("SET SCALE");
+        CHECK(origin >= 0);            // 2 → 3
+        CHECK(notes > origin);         // 3 → 4
+        CHECK(scale > notes);          // 4 → 5
         CHECK_FALSE(o.report.readOnly);
     }
 
     // A bundle of a future schema: read-only, never migrated down, never rewritten.
-    const auto src = nativeFixture("v4", "beat.sixteen");
+    const auto src = nativeFixture("v5", "beat.sixteen");
     const auto dir = interop_test::temp().dir().getChildFile("future.sixteen");
     dir.deleteRecursively();
     REQUIRE(src.copyDirectoryTo(dir));
