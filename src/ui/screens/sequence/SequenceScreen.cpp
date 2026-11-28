@@ -103,7 +103,7 @@ public:
         if (bar_ > bars)
             bar_ = bars;
         m.bar = bar_;
-        m.colour = theme::trackColour(m1::padColour(*shell_, t));
+        m.colour = m1::padInk(*shell_, t);
         m.muted = state_->tracks[static_cast<std::size_t>((t - 1) & 15)].muted;
         for (int n = 1; n <= 16; ++n)
             m.cells[static_cast<std::size_t>(n - 1)] = s.cell(scene, pattern, t - 1, firstStep() + n - 1);

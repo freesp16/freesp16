@@ -32,17 +32,6 @@ struct FrameTiming
     long damagedPixels = -1; // surface pixels redrawn this frame (0 = nothing changed, -1 = backend does not say)
 };
 
-// Canvas (1280 x 768 lpx) -> surface pixels: uniform scale, centred, letterbox filled by the caller's bg.
-struct CanvasTransform
-{
-    float scale = 1, offsetX = 0, offsetY = 0;
-    static CanvasTransform fit(int surfaceW, int surfaceH, int canvasW = 1280, int canvasH = 768) noexcept
-    {
-        const float s = std::min(static_cast<float>(surfaceW) / canvasW, static_cast<float>(surfaceH) / canvasH);
-        return {s, (surfaceW - canvasW * s) * 0.5f, (surfaceH - canvasH * s) * 0.5f};
-    }
-};
-
 class Renderer
 {
 public:

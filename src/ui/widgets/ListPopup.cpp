@@ -24,7 +24,7 @@ void drawChip(DrawList& dl, const UiContext& ctx, float x, float y, const ListCh
 {
     const auto& p = ctx.palette;
     const int colour = c.colour > 0 ? c.colour : c.track;
-    dl.fill({x, y, 32, 24}, theme::trackColour(colour, c.dim), tk::radiusXs);
+    dl.fill({x, y, 32, 24}, theme::trackColour(p, colour, c.dim), tk::radiusXs);
     static constexpr const char* numbers[] = {"1", "2",  "3",  "4",  "5",  "6",  "7",  "8",
                                               "9", "10", "11", "12", "13", "14", "15", "16"};
     dl.text(x + 16, y + 13, Align::Centre, TextStyleId::BodyStrong, c.dim ? p.text1 : p.onAccent,

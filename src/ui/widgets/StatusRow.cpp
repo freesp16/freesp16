@@ -14,17 +14,17 @@ constexpr std::string_view kEllipsis = "\xE2\x80\xA6"; // …
 constexpr float kGap = tk::space[2];
 constexpr float kCpuGap = tk::space[1]; // between the CPU label and its value
 
-float chevronW(const TextMeasure& m)
+float chevronW(const TextMeasure& m, TextStyleId style)
 {
-    return m ? m(TextStyleId::Label, kChevron) : 5.0f;
+    return m ? m(style, kChevron) : 5.0f;
 }
 
-float widthOf(std::span<const std::string_view> crumbs, const int* idx, int n, const TextMeasure& m)
+float widthOf(std::span<const std::string_view> crumbs, const int* idx, int n, const TextMeasure& m, TextStyleId style)
 {
     float w = 0;
     for (int i = 0; i < n; ++i)
-        w += m(TextStyleId::Label, idx[i] < 0 ? kEllipsis : crumbs[static_cast<std::size_t>(idx[i])]);
-    return w + static_cast<float>(n - 1) * (kGap + chevronW(m) + kGap);
+        w += m(style, idx[i] < 0 ? kEllipsis : crumbs[static_cast<std::size_t>(idx[i])]);
+    return w + static_cast<float>(n - 1) * (kGap + chevronW(m, style) + kGap);
 }
 } // namespace
 
@@ -34,12 +34,12 @@ RectF StatusRow::bounds() const noexcept
 }
 
 int StatusRow::layout(std::span<const std::string_view> crumbs, const TextMeasure& m,
-                      std::array<int, kMaxSegments>& out)
+                      std::array<int, kMaxSegments>& out, TextStyleId style)
 {
     const int n = static_cast<int>(std::min(crumbs.size(), kMaxSegments));
     for (int i = 0; i < n; ++i)
         out[static_cast<std::size_t>(i)] = i;
-    if (n <= 2 || ! m || widthOf(crumbs, out.data(), n, m) <= layout::breadcrumbMaxW)
+    if (n <= 2 || ! m || widthOf(crumbs, out.data(), n, m, style) <= layout::breadcrumbMaxW)
         return n;
     // HOME › … › tail segments: keep as many trailing segments as fit.
     int keep = n - 1;
@@ -50,7 +50,7 @@ int StatusRow::layout(std::span<const std::string_view> crumbs, const TextMeasur
         t[1] = -1;
         for (int k = 0; k < keep; ++k)
             t[static_cast<std::size_t>(2 + k)] = n - keep + k;
-        if (keep < n - 1 && widthOf(crumbs, t.data(), keep + 2, m) <= layout::breadcrumbMaxW)
+        if (keep < n - 1 && widthOf(crumbs, t.data(), keep + 2, m, style) <= layout::breadcrumbMaxW)
         {
             out = t;
             return keep + 2;
@@ -68,20 +68,23 @@ void StatusRow::build(DrawList& dl, const UiContext& ctx) const
     const auto& p = ctx.palette;
     const float cy = layout::statusCentreY;
     std::array<int, kMaxSegments> idx{};
-    const int n = layout(model_.breadcrumb, ctx.measure, idx);
-    float x = layout::breadcrumbX;
+    const auto style = p.classic ? TextStyleId::ValueS : TextStyleId::Label;
+    const int n = layout(model_.breadcrumb, ctx.measure, idx, style);
+    if (p.classic)
+        dl.fill(layout::statusRow, p.surface1);
+    float x = p.classic ? 29.0f : layout::breadcrumbX;
     for (int i = 0; i < n; ++i)
     {
         const bool last = i == n - 1;
         const auto text = idx[static_cast<std::size_t>(i)] < 0
                               ? kEllipsis
                               : model_.breadcrumb[static_cast<std::size_t>(idx[static_cast<std::size_t>(i)])];
-        dl.text(x, cy, Align::Left, TextStyleId::Label, last ? p.text1 : p.text2, text);
+        dl.text(x, cy, Align::Left, style, last ? p.text1 : p.text2, text);
         if (last)
             break;
-        x += (ctx.measure ? ctx.measure(TextStyleId::Label, text) : 0) + kGap;
-        dl.text(x, cy, Align::Left, TextStyleId::Label, p.text3, kChevron);
-        x += chevronW(ctx.measure) + kGap;
+        x += (ctx.measure ? ctx.measure(style, text) : 0) + kGap;
+        dl.text(x, cy, Align::Left, style, p.text3, kChevron);
+        x += chevronW(ctx.measure, style) + kGap;
     }
 
     // Indicators, right to left: PLAY, REC, OUT, IN, then SYNC.

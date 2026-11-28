@@ -527,7 +527,7 @@ void Shell::frame(DrawList& dl, double nowMs)
     pollFeeds(nowMs);
     updateFrameModels(nowMs);
 
-    const auto& base = theme::palette(state_.dark);
+    const auto& base = theme::palette(state_.skin);
     auto ctx = context(base, nowMs);
     dl.fill(L::canvas, base.bg);
 
@@ -572,7 +572,7 @@ void Shell::frame(DrawList& dl, double nowMs)
     statusRow_.build(dl, ctx);
     contextBar_.build(dl, ctx);
     const bool covered = std::any_of(popups_.begin(), popups_.end(), [](const auto& p) { return p->coversStrip(); });
-    if (! covered)
+    if (! covered && ! (base.classic && current().id == "utility"))
         strip_.build(dl, ctx);
 
     // Popups: a scrim under each modal level (a nested popup dims its parent with a second scrim, UID-914).
@@ -867,7 +867,7 @@ void Shell::handleTouch(const io::ControlEvent& e, UiContext& ctx)
         showCautions();
         return;
     }
-    if (y >= L::stripY)
+    if (y >= L::stripY && ! (ctx.palette.classic && current().id == "utility"))
     {
         const int column = strip_.columnAt(x, y);
         touchOwner_ = TouchOwner::Strip;
@@ -877,7 +877,7 @@ void Shell::handleTouch(const io::ControlEvent& e, UiContext& ctx)
     }
     if (y >= L::contextY && y < L::bodyY)
     {
-        contextAction(contextBar_.hit(x, y));
+        contextAction(contextBar_.hit(x, y, ctx.palette.classic));
         return;
     }
     for (int i = 0; i < static_cast<int>(rail_.size()); ++i)
@@ -949,7 +949,7 @@ void Shell::dispatch(const io::ControlEvent& e)
     changedSinceFrame_ = true;
     interruptAnimations();
     eraseClosedPopups();
-    auto ctx = context(theme::palette(state_.dark), nowMs_);
+    auto ctx = context(theme::palette(state_.skin), nowMs_);
 
     // State every layer needs first.
     if (e.control == io::Control::Shift && (e.kind == Kind::Press || e.kind == Kind::Release))

@@ -478,7 +478,7 @@ TEST_CASE("shell: navigation and input are logged for traces", "[ui][shell]")
 TEST_CASE("shell: the light palette is generated from the same tokens (UID-051)", "[ui][shell]")
 {
     Harness h;
-    h.shell->state().dark = false;
+    h.shell->state().skin = ui::theme::Skin::Light;
     const auto& dl = h.frame();
     REQUIRE(! dl.commands().empty());
     CHECK(dl.commands()[0].argb == ui::theme::palette(false).bg);

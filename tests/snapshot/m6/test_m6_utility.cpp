@@ -361,9 +361,26 @@ TEST_CASE("m6.utility: a preference change reaches preferences.json within 1 s",
     t.focusRow("THEME");
     t.push();
     t.turn(1);
-    CHECK_FALSE(t.shell().state().dark);
+    CHECK(t.shell().state().skin == ui::theme::Skin::Light);
     t.push();
     CHECK(t.prefs.get("ui.theme") == 1.0f);
+    t.push();
+    t.turn(1);
+    CHECK(t.value(t.focus()) == "SP-16 CLASSIC");
+    CHECK(t.shell().state().skin == ui::theme::Skin::Classic);
+    t.back();
+    CHECK(t.shell().state().skin == ui::theme::Skin::Light);
+    t.push();
+    t.turn(1);
+    t.push();
+    t.prefs.flush();
+    st::Preferences restarted;
+    REQUIRE(restarted.load(dir.getChildFile("preferences.json")));
+    CHECK(ui::theme::skinFromPreference(restarted.get("ui.theme")) == ui::theme::Skin::Classic);
+    t.push();
+    t.turn(-2);
+    t.push();
+    CHECK(t.shell().state().skin == ui::theme::Skin::Dark);
     dir.deleteRecursively();
 }
 

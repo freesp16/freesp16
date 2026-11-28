@@ -49,7 +49,7 @@ public:
         auto& sh = *shell_;
         const int t = state_->selectedTrack;
         m = shapeOf([&](const char* id, float fallback) { return m1::trackParam(sh, id, t, fallback); });
-        m.colour = theme::trackColour(m1::padColour(sh, t));
+        m.colour = m1::padInk(sh, t);
         m.gate = m1::trackFlag(sh, "track.triggerMode", t);
         m.activeHandle = active_;
         m.bpm = static_cast<float>(std::max(20.0, std::strtod(state_->bpm.text, nullptr)));

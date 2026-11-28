@@ -13,7 +13,7 @@ void Button::draw(DrawList& dl, const UiContext& ctx, RectF r, const ButtonModel
     const auto& p = ctx.palette;
     const bool primary = m.style == ButtonStyle::Primary && ! m.disabled;
     const auto fill = m.disabled ? p.surface1 : (primary ? p.accent : (m.pressed ? p.surface3 : p.surface2));
-    dl.fill(r, fill, tk::radiusS);
+    draw::controlFace(dl, p, r, fill, tk::radiusS);
     const auto ink =
         m.disabled ? p.text3 : (primary ? p.onAccent : (m.style == ButtonStyle::Destructive ? p.rec : p.text1));
     const float cx = r.x + r.w / 2, cy = r.y + r.h / 2 + 1;

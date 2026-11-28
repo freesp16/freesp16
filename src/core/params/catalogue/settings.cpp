@@ -8,7 +8,7 @@
 //   pads.modeSelectResponse                PAD-007 / SET-016 IMMEDIATELY / OVER 1sec (the pad-mode logic)
 //   lamps.brightness                       PAD/BUTTON BRIGHTNESS → io::LampBrightness (app/App.cpp io::apply)
 //   settings.autosave                      AUTOSAVE OFF / 1 min / 5 min (PRJ-030) → ProjectSession autosave
-//   ui.theme / ui.scale                    THEME (UID-051) → UiState::dark; UI SCALE (UID-253, host windows only)
+//   ui.theme / ui.scale                    THEME (UID-051) → UiState::skin; UI SCALE (UID-253, host windows only)
 //   ui.showCpu                             CPU USAGE OFF / ON → the status row's CPU readout (ui/shell/Shell.cpp)
 //   settings.linkStartStop                 LINK SETTING START/STOP SYNC (SYN-014, P2; disabled until Link exists)
 //   audio.stretchBackend                   MASTER TEMPO backend (wsola: provisional default) → StretcherBank
@@ -27,7 +27,7 @@ namespace
 constexpr std::string_view responseLabels[] = {"IMMEDIATELY", "OVER 1sec"};             // SET-016 (M p.42)
 constexpr std::string_view brightnessLabels[] = {"NORMAL", "DIMMED 1", "DIMMED 2", "DIMMED 3"}; // UI-159
 constexpr std::string_view autosaveLabels[] = {"OFF", "1 min", "5 min"};                // PRJ-030
-constexpr std::string_view themeLabels[] = {"DARK", "LIGHT"};                           // UID-051
+constexpr std::string_view themeLabels[] = {"DARK", "LIGHT", "SP-16 CLASSIC"};                           // UID-051
 constexpr std::string_view linkLabels[] = {"START/STOP SYNC OFF", "START/STOP SYNC ON"}; // SYN-014
 constexpr std::string_view stretchLabels[] = {"WSOLA", "PVOC", "NONE"};                 // wsola first: default
 constexpr std::string_view bufferLabels[] = {"64", "128", "256", "512"};                // frames per period

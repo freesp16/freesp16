@@ -200,9 +200,9 @@ public:
             focus_ = chain().openFocus;
         }
         bindFocused();
-        const auto colour = theme::trackColour(m1::padColour(sh, t));
-        dl.fill({16, 152, 1248, 456}, p.surface1, tk::radiusM);
-        dl.stroke({16, 152, 1248, 456}, colour, tk::borderTrackFrame, tk::radiusM);
+        const auto colour = m1::padInk(sh, t);
+        dl.fill({16, 152, 1248, 456}, p.classic ? p.bg : p.surface1, p.classic ? 2 : tk::radiusM);
+        dl.stroke({16, 152, 1248, 456}, colour, tk::borderTrackFrame, p.classic ? 2 : tk::radiusM);
         draw::hline(dl, 32, 1248, 256, p.border);
         identity(dl, ctx, t, colour);
         const auto& c = chain();
@@ -562,7 +562,7 @@ private:
             dl.text(x + w / 2, 185, Align::Centre, TextStyleId::Caption, ink, text);
             return x + w + 6;
         };
-        dl.fill({32, 172, 32, 24}, s.hasContent ? colour : theme::trackColour(m1::padColour(*shell_, t), true),
+        dl.fill({32, 172, 32, 24}, s.hasContent ? colour : m1::padInk(*shell_, t, true),
                 tk::radiusXs);
         char number[4];
         std::snprintf(number, sizeof number, "%d", t);
@@ -630,7 +630,7 @@ private:
                 ModuleCard::cornerTriangle(dl, r, p.accent);
             return;
         case AK::Value:
-            dl.fill(r, p.surface2, tk::radiusM);
+            draw::controlFace(dl, p, r, p.surface2, tk::radiusM);
             dl.text(r.x + 80, 184, Align::Centre, TextStyleId::Caption, p.text2, a.label);
             dl.fill({r.x + 12, 198, 136, 32}, p.surface1, tk::radiusS);
             dl.text(r.x + 80, 214, Align::Centre, TextStyleId::ValueS, p.text1, valueOf(slot, a));
@@ -692,7 +692,7 @@ private:
             ModuleCard::dashedRect(dl, r, p.border);
             return;
         }
-        dl.fill(r, p.surface2, tk::radiusM);
+        draw::controlFace(dl, p, r, p.surface2, tk::radiusM);
         dl.text(r.x + r.w / 2, r.y + 14, Align::Centre, TextStyleId::Label, p.text1, "SEQUENCE");
         dl.fill({r.x + 16, r.y + 26, r.w - 32, 54}, p.surface1, tk::radiusS);
         const float ix = r.x + 32, iw = r.w - 64;
@@ -726,7 +726,7 @@ private:
             ModuleCard::dashedRect(dl, r, p.border);
             return;
         }
-        dl.fill(r, p.surface2, tk::radiusM);
+        draw::controlFace(dl, p, r, p.surface2, tk::radiusM);
         const float cy = r.y + r.h / 2;
         dl.text(r.x + 24, cy, Align::Left, TextStyleId::Label, p.text1, "MOTION");
         const auto* pat = motion::pattern(*shell_);

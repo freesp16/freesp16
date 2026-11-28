@@ -1,10 +1,12 @@
-// The active theme: generated token constants (tools/gen_theme.py <- resources/design/tokens.json) plus the dark/light
-// choice and the motion helpers. Components reference token names only (UID-050, UID-230); no colour, size or duration
-// is written in a component. Dark is the default palette, light is generated from the same file (UID-051, UID-017);
-// the choice reaches every widget through UiContext::palette.
+// The active theme: generated token constants (tools/gen_theme.py <- resources/design/tokens.json, and the Classic
+// palette from resources/design/app-tokens.json) plus the dark/light choice and the motion helpers. Components
+// reference token names only (UID-050, UID-230); no colour, size or duration is written in a component. Dark is the
+// default palette, light is generated from the same file (UID-051, UID-017); the choice reaches every widget through
+// UiContext::palette.
 #pragma once
 
 #include "ui/ThemeTokens.h"
+#include "ui/theme/Skin.h"
 #include "ui/render/DrawList.h"
 
 #include <algorithm>
@@ -17,6 +19,11 @@ namespace tk = ::theme::tokens;
 inline const tk::Palette& palette(bool dark = true) noexcept
 {
     return dark ? tk::dark : tk::light;
+}
+
+inline const tk::Palette& palette(Skin skin) noexcept
+{
+    return skin == Skin::Classic ? tk::classic : palette(skin == Skin::Dark);
 }
 
 inline const tk::TextStyle& textStyle(TextStyleId id) noexcept
@@ -32,6 +39,18 @@ inline std::uint32_t trackColour(int track1Based, bool dim = false) noexcept
 {
     const auto& t = tk::track[(track1Based - 1) & 15];
     return dim ? t.dim : t.base;
+}
+
+// Saturated strips identify the same sixteen pad assignments on the Classic screen.
+inline std::uint32_t trackColour(const tk::Palette& p, int track1Based, bool dim = false) noexcept
+{
+    if (! p.classic)
+        return trackColour(track1Based, dim);
+    static constexpr std::uint32_t colours[] = {
+        0xf04a3a, 0xf2672b, 0xf5822a, 0xf8a82c, 0xf6cd36, 0xe8e64b, 0xaeed4a, 0x60e05a,
+        0x24db98, 0x22ced7, 0x329eef, 0x657bef, 0x9365eb, 0xce52eb, 0xf14baf, 0xf33e75};
+    const auto c = colours[(track1Based - 1) & 15];
+    return (p.bg & 0xff000000u) | (dim ? ((c >> 1) & 0x007f7f7fu) : c);
 }
 
 // The panel's RGB LEDs (requested: "different colors for each pad"): the 16 pastel track colours are 6–40° apart

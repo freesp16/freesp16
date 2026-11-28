@@ -29,6 +29,40 @@ float badge(DrawList& dl, const UiContext& ctx, float x, float y, std::string_vi
     dl.text(x + w / 2, y + 25, Align::Centre, TextStyleId::Caption, ink, text);
     return x + w + 6;
 }
+void classicHeader(DrawList& dl, const UiContext& ctx, RectF r, const TrackTileModel& m,
+                   const TrackSummary& s, std::uint32_t colour, std::string_view number)
+{
+    const auto& p = ctx.palette;
+    const auto strip = s.muted ? theme::withOpacity(colour, 0.50f) : colour;
+    float x = r.x + 12;
+    auto segment = [&](std::string_view label, float width, std::uint32_t fill)
+    {
+        dl.fill({x, r.y + 14, width, 28}, fill, 1);
+        dl.text(x + width / 2, r.y + 28, Align::Centre, TextStyleId::ValueS, p.onAccent, label);
+        x += width + 2;
+    };
+    segment(number, 30, strip);
+    if (m.variant == TrackTileModel::Variant::Setting)
+    {
+        segment(m.velBadge, 67, p.text2);
+        segment(m.chokeBadge, 81, p.text2);
+        segment(m.colourBadge, 50, strip);
+    }
+    else
+    {
+        segment(s.typeBadge, 69, strip);
+        if (s.typeBadge == "SMPL")
+        {
+            segment(s.stretchBadge, 69, p.text2);
+            segment(s.loopGlyph, 65, strip);
+        }
+        if (s.missing)
+            glyph::draw(dl, glyph::Kind::Caution, r.right() - 31, r.bottom() - 30, 18, p.warn);
+        const int level = TrackTile::levelSegments(m.levelDb);
+        for (int i = 0; i < level; ++i)
+            dl.fill({r.x + 12 + 13.0f * i, r.bottom() - 7, 11, 3}, strip);
+    }
+}
 } // namespace
 
 int TrackTile::levelSegments(float db) noexcept
@@ -68,42 +102,47 @@ void TrackTile::draw(DrawList& dl, const UiContext& ctx, RectF b, const TrackTil
     static const TrackSummary kEmpty{};
     const auto& s = m.summary != nullptr ? *m.summary : kEmpty;
     const int colourIndex = m.colour > 0 ? m.colour : m.track;
-    const auto colour = theme::trackColour(colourIndex);
+    const auto colour = theme::trackColour(p, colourIndex);
     const bool setting = m.variant == TrackTileModel::Variant::Setting;
 
-    dl.fill(b, s.muted ? theme::withOpacity(p.surface2, 0.4f) : p.surface2, tk::radiusM);
+    draw::controlFace(dl, p, b, s.muted ? theme::withOpacity(p.surface2, 0.4f) : p.surface2, tk::radiusM);
     if (m.flash > 0) // hit: fill flashes to the track colour at 30 % and decays (motion.pad-flash)
-        dl.fill(b, theme::withOpacity(colour, 0.3f * std::min(1.0f, m.flash)), tk::radiusM);
+        dl.fill(b, theme::withOpacity(colour, 0.3f * std::min(1.0f, m.flash)), p.classic ? 2 : tk::radiusM);
     if (s.soloed)
         dl.fill({b.x + 8, b.y, b.w - 16, 2}, p.warn, 1);
 
     char number[4];
     std::snprintf(number, sizeof number, "%d", m.track);
-    dl.fill({b.x + 12, b.y + 12, 32, 24}, s.hasContent ? colour : theme::trackColour(colourIndex, true), tk::radiusXs);
-    dl.text(b.x + 28, b.y + 25, Align::Centre, TextStyleId::Label, s.hasContent ? p.onAccent : p.text1, number);
-
-    if (setting)
-    {
-        const auto ink = s.hasContent ? p.text2 : p.text3;
-        float x = badge(dl, ctx, b.x + 52, b.y, m.velBadge, p.surface1, ink, 72);
-        x = badge(dl, ctx, x, b.y, m.chokeBadge, p.surface1, ink, 80);
-        badge(dl, ctx, x, b.y, m.colourBadge, colour, p.onAccent, 48);
-    }
-    else if (! s.hasContent)
-        badge(dl, ctx, b.x + 52, b.y, "SMPL", p.surface1, p.text3, 0);
+    if (p.classic)
+        classicHeader(dl, ctx, b, m, s, colour, number);
     else
     {
-        float x = badge(dl, ctx, b.x + 52, b.y, s.typeBadge, p.surface3, p.text1, 0);
-        if (s.typeBadge == "SMPL")
+        dl.fill({b.x + 12, b.y + 12, 32, 24}, s.hasContent ? colour : theme::trackColour(colourIndex, true), tk::radiusXs);
+        dl.text(b.x + 28, b.y + 25, Align::Centre, TextStyleId::Label, s.hasContent ? p.onAccent : p.text1, number);
+
+        if (setting)
         {
-            x = badge(dl, ctx, x, b.y, s.stretchBadge, p.surface1, p.text2, 0);
-            badge(dl, ctx, x, b.y, s.loopGlyph, p.surface1, colour, 32);
+            const auto ink = s.hasContent ? p.text2 : p.text3;
+            float x = badge(dl, ctx, b.x + 52, b.y, m.velBadge, p.surface1, ink, 72);
+            x = badge(dl, ctx, x, b.y, m.chokeBadge, p.surface1, ink, 80);
+            badge(dl, ctx, x, b.y, m.colourBadge, colour, p.onAccent, 48);
         }
-        if (s.missing) // UID-504
-            glyph::draw(dl, glyph::Kind::Caution, b.x + 206, b.y + 16, tk::sizeIconS, p.warn);
-        const int segs = levelSegments(m.levelDb);
-        for (int k = 0; k < 5; ++k)
-            dl.fill({b.x + 232 + 8.0f * static_cast<float>(k), b.y + 19, 5, 10}, k < segs ? colour : p.surface3, 1);
+        else if (! s.hasContent)
+            badge(dl, ctx, b.x + 52, b.y, "SMPL", p.surface1, p.text3, 0);
+        else
+        {
+            float x = badge(dl, ctx, b.x + 52, b.y, s.typeBadge, p.surface3, p.text1, 0);
+            if (s.typeBadge == "SMPL")
+            {
+                x = badge(dl, ctx, x, b.y, s.stretchBadge, p.surface1, p.text2, 0);
+                badge(dl, ctx, x, b.y, s.loopGlyph, p.surface1, colour, 32);
+            }
+            if (s.missing) // UID-504
+                glyph::draw(dl, glyph::Kind::Caution, b.x + 206, b.y + 16, tk::sizeIconS, p.warn);
+            const int segs = levelSegments(m.levelDb);
+            for (int k = 0; k < 5; ++k)
+                dl.fill({b.x + 232 + 8.0f * static_cast<float>(k), b.y + 19, 5, 10}, k < segs ? colour : p.surface3, 1);
+        }
     }
 
     if (m.loading >= 0) // UI-410: a 4 lpx accent progress bar instead of the name
@@ -115,7 +154,7 @@ void TrackTile::draw(DrawList& dl, const UiContext& ctx, RectF b, const TrackTil
     else if (s.hasContent && ! s.name.empty())
     {
         // sampling.md "Take ready (unsaved)": an UNSAVED TAKE badge at the right of the name row until it is saved.
-        float nameW = b.w - 32;
+        float nameW = b.w - 32 - (p.classic && s.missing ? 28 : 0);
         if (s.unsavedTake)
         {
             constexpr std::string_view kUnsaved = "UNSAVED TAKE";
@@ -130,7 +169,9 @@ void TrackTile::draw(DrawList& dl, const UiContext& ctx, RectF b, const TrackTil
 
     // One thin outline inside the tile (1 device px at x0.625, as on MIXER): the track colour when
     // selected, else the accent when the rotary's focus is on it — no second ring outside the tile.
-    if (m.selected || m.focused)
+    if (p.classic && (m.selected || m.focused))
+        draw::focusRing(dl, p, b, 2);
+    else if (m.selected || m.focused)
         dl.stroke({b.x + 0.8f, b.y + 0.8f, b.w - 1.6f, b.h - 1.6f}, m.selected ? colour : p.accent, 1.6f, tk::radiusM);
 }
 } // namespace ui

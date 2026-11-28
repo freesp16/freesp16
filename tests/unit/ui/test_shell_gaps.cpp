@@ -384,7 +384,7 @@ TEST_CASE("shell.gaps: GridPopup wraps around, SHIFT + turn jumps a row, the cel
     g.frame();
     CHECK(cells == std::vector<int>{0, 1, 2, 3, 4, 5, 6});
     CHECK(palettes.front() == ui::theme::palette(true).bg);
-    g.shell->state().dark = false;
+    g.shell->state().skin = ui::theme::Skin::Light;
     palettes.clear();
     g.frame();
     CHECK(palettes.front() == ui::theme::palette(false).bg); // the light palette reaches the hook

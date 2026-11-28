@@ -58,7 +58,7 @@ public:
         }
         auto& sh = *shell_;
         const int t = state_->selectedTrack;
-        const auto col = theme::trackColour(m1::padColour(sh, t));
+        const auto col = m1::padInk(sh, t);
         const int type = std::clamp(static_cast<int>(std::lround(m1::trackParam(sh, typeId(), t, midi_ ? 0 : 2))), 0,
                                     core::scales::kScales - 1);
         const std::uint16_t mask = core::scales::scaleMask(type);

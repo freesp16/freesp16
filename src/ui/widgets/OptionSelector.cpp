@@ -11,7 +11,7 @@ namespace tk = ::theme::tokens;
 void OptionSelector::draw(DrawList& dl, const UiContext& ctx, RectF r, const OptionSelectorModel& m)
 {
     const auto& p = ctx.palette;
-    dl.fill(r, m.pressed ? p.surface3 : p.surface2, tk::radiusM);
+    draw::controlFace(dl, p, r, m.pressed ? p.surface3 : p.surface2, tk::radiusM);
     dl.text(r.x + tk::space[4], r.y + 18, Align::Left, TextStyleId::Caption, m.disabled ? p.text3 : p.text2, m.caption);
     const RectF box{r.x + tk::space[3], r.y + r.h - 48, r.w - 2 * tk::space[3], 36};
     dl.fill(box, p.surface1, tk::radiusS);

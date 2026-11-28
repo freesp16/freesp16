@@ -5,6 +5,8 @@
 // allocates.
 #pragma once
 
+#include "ui/theme/Skin.h"
+
 #include <array>
 #include <cstdint>
 #include <cstdio>
@@ -69,7 +71,7 @@ struct UiState
     double masterPeakAtMs[2] = {0, 0};
     float masterGain = 1.0f;
     std::array<TrackSummary, 16> tracks{};
-    bool dark = true;          // UID-051 (SET preference), default dark
+    theme::Skin skin = theme::Skin::Dark;
     bool reduceMotion = false; // UID-066
     // The SCENE | PATTERN context item is greyed (UI-206): set by the body each frame while switching is
     // blocked (SAMPLING/EDIT open, SMP-008; the song plays, ARR-007); the shell clears it on every screen entry.

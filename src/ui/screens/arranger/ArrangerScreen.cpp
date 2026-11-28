@@ -146,7 +146,7 @@ public:
             DataTable::cell(dl, m, pal, rr, 1, t[1].view(), 0, strong);
             t[2].format("%03d.%02d", static_cast<int>(len / 16), static_cast<int>(len % 16));
             DataTable::cell(dl, m, pal, rr, 2, t[2].view(), 0, strong);
-            const auto colour = theme::sceneColour((sec.scene & 15) + 1);
+            const auto colour = theme::trackColour(ctx.palette, (sec.scene & 15) + 1);
             dl.fill({rr.x + 418, rr.y + 12, 20, 20}, colour, tk::radiusXs);
             t[3].format("%02d", (sec.scene & 15) + 1);
             DataTable::cell(dl, m, pal, rr, 3, t[3].view(), 0, strong, 76, Align::Left);
@@ -265,7 +265,7 @@ public:
         {
         case kRailPlay:
             st.on = s.project().settings.playArrangement;
-            st.onColour = theme::palette(state_ == nullptr || state_->dark).play; // UID-581
+            st.onColour = theme::palette(state_ ? state_->skin : theme::Skin::Dark).play; // UID-581
             break;
         case kRailCopy:
         case kRailDelete:

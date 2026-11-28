@@ -125,7 +125,8 @@ private:
         const int w = std::max(1, getWidth()), h = std::max(1, getHeight());
         if (shell_ != nullptr && w == image_.getWidth() && h == image_.getHeight())
             return;
-        const float scale = ui::CanvasTransform::fit(w, h).scale;
+        dl_.viewport = ui::CanvasTransform::fit(w, h);
+        const float scale = dl_.viewport.scale;
         std::string error;
         atlas_ = std::make_unique<ui::GlyphAtlas>();
         if (! atlas_->build(scale, error))

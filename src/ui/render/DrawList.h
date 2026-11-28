@@ -11,6 +11,7 @@
 // rects, or forces a full redraw); clear() drops it with the commands.
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <span>
 #include <string_view>
@@ -64,9 +65,22 @@ struct DrawCmd
     std::uint32_t textOffset = 0, textLength = 0;
 };
 
+// Canvas (1280 x 768 lpx) -> surface pixels: uniform scale, centred, letterbox filled by the caller's bg.
+struct CanvasTransform
+{
+    float scale = 1, offsetX = 0, offsetY = 0;
+    static CanvasTransform fit(int surfaceW, int surfaceH, int canvasW = 1280, int canvasH = 768) noexcept
+    {
+        const float s = std::min(static_cast<float>(surfaceW) / canvasW, static_cast<float>(surfaceH) / canvasH);
+        return {s, (surfaceW - canvasW * s) * 0.5f, (surfaceH - canvasH * s) * 0.5f};
+    }
+};
+
 class DrawList
 {
 public:
+    CanvasTransform viewport = CanvasTransform::fit(800, 480);
+
     void reserve(std::size_t commands, std::size_t textBytes)
     {
         cmds_.reserve(commands);

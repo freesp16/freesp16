@@ -39,7 +39,8 @@ public:
     bool dirty(double nowMs) const override; // REC pulse, MIDI activity
 
     // Which segments are drawn (index into the breadcrumb, -1 = the `…` placeholder) within 560 lpx (UID-300).
-    static int layout(std::span<const std::string_view> crumbs, const TextMeasure&, std::array<int, kMaxSegments>& out);
+    static int layout(std::span<const std::string_view> crumbs, const TextMeasure&, std::array<int, kMaxSegments>& out,
+                      TextStyleId style = TextStyleId::Label);
 
 private:
     StatusRowModel model_;

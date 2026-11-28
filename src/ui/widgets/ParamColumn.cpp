@@ -34,10 +34,11 @@ void ParamColumn::draw(DrawList& dl, const UiContext& ctx, int index0, const Par
     if (c.locked) // 1.5 lpx mod outline inset 4 lpx
         dl.stroke({x + 4, L::stripY + 28, L::columnW - 8, 108}, p.mod, 1.5f, tk::radiusS);
 
-    const float captionW = ctx.measure ? ctx.measure(TextStyleId::Caption, s.label) : 0;
-    if (s.lockable) // 6 lpx mod dot before the caption (UID-014, UID-165)
+    const auto caption = p.classic ? TextStyleId::Body : TextStyleId::Caption;
+    const float captionW = ctx.measure ? ctx.measure(caption, s.label) : 0;
+    if (s.lockable && ! p.classic) // 6 lpx mod dot before the caption (UID-014, UID-165)
         dl.fill({cx - captionW / 2 - 13, L::columnCaptionY - 3, 6, 6}, p.mod, 3);
-    dl.text(cx, L::columnCaptionY, Align::Centre, TextStyleId::Caption, grey ? p.text3 : p.text2, s.label);
+    dl.text(cx, (p.classic ? 672 : L::columnCaptionY), Align::Centre, caption, grey ? p.text3 : (p.classic && s.lockable ? p.mod : p.text2), s.label);
     if (c.locked) // 12 lpx lock glyph after the caption
         glyph::draw(dl, glyph::Kind::Lock, cx + captionW / 2 + 10, L::columnCaptionY - 5.5f, 12, p.mod);
     if (c.fine && ! c.disabled)
@@ -47,7 +48,7 @@ void ParamColumn::draw(DrawList& dl, const UiContext& ctx, int index0, const Par
     const int len = c.valueText.empty()
                         ? std::clamp(s.formatValue(c.value, buf, sizeof buf), 0, static_cast<int>(sizeof buf) - 1)
                         : 0;
-    dl.text(cx, L::columnValueY, Align::Centre, TextStyleId::Value, c.locked ? p.mod : (grey ? p.text3 : p.text1),
+    dl.text(cx, L::columnValueY, Align::Centre, p.classic ? TextStyleId::ValueL : TextStyleId::Value, c.locked ? p.mod : (grey ? p.text3 : p.text1),
             c.valueText.empty() ? std::string_view(buf, static_cast<std::size_t>(len)) : c.valueText);
     if (c.touched)
         dl.fill({x + 64, L::columnUnderlineY, 80, 2}, p.accent, 1);
@@ -58,7 +59,7 @@ void ParamColumn::draw(DrawList& dl, const UiContext& ctx, int index0, const Par
 
     // Value track 128 × 2 at x + 40 … x + 168.
     const float tx = x + 40, tw = 128, ty = L::columnTrackY;
-    if (s.type == core::ParamType::Bool)
+    if (s.type == core::ParamType::Bool || (p.classic && (s.type == core::ParamType::Enum || c.stepped)))
         return;
     dl.fill({tx, ty, tw, 2}, p.borderStrong, 1);
     if (s.type == core::ParamType::Enum || c.stepped)

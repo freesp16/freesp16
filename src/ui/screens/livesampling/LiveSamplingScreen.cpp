@@ -106,7 +106,7 @@ public:
         }
         const int lengthIndex = std::clamp(static_cast<int>(std::lround(get("live.length"))), 0, 5);
         f.bars = kLiveBars[lengthIndex];
-        f.colour = theme::trackColour(m1::padColour(*shell_, target() + 1));
+        f.colour = m1::padInk(*shell_, target() + 1);
         ring_.setFeed(f);
         ring_.update();
         ring_.build(dl, ctx);
@@ -165,7 +165,7 @@ public:
     void railState(int index, const RailItemSpec&, RailItemState& st) const override
     {
         if (index == kRailLimiter)
-            st.onColour = theme::palette(state_ == nullptr || state_->dark).warn;
+            st.onColour = theme::palette(state_ ? state_->skin : theme::Skin::Dark).warn;
         else if (index == kRailUnload || index == kRailSave)
             st.disabled = ! hasTake();
     }
