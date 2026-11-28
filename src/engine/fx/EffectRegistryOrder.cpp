@@ -9,8 +9,9 @@ namespace engine::fx
 namespace
 {
 // FX-040 (effect-shell.md, research F016/F019): the processors' effect arrays, index = reference type index.
-constexpr std::string_view kInsertOrder[] = {"chorus", "flanger",    "eq2",        "filter", "delay",
-                                             "lofi",   "distortion", "compressor", "phaser", "ducker"};
+// "reverb" (ours, not in the reference arrays) is appended after the reference types, so their indices stay put.
+constexpr std::string_view kInsertOrder[] = {"chorus",     "flanger",    "eq2",    "filter", "delay", "lofi",
+                                             "distortion", "compressor", "phaser", "ducker", "reverb"};
 constexpr std::string_view kBusOrder[] = {"delayBus", "reverb", "chorus",     "flanger",    "eq2",
                                           "filter",   "lofi",   "compressor", "distortion", "phaser"};
 constexpr std::string_view kInsertPrefixes[] = {"fx1", "fx2"};

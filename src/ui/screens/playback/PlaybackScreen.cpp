@@ -20,6 +20,7 @@
 #include "ui/shell/Layout.h"
 #include "ui/shell/Popup.h"
 #include "ui/shell/RailOwner.h"
+#include "ui/shell/StripOwner.h"
 #include "ui/theme/Draw.h"
 #include "ui/widgets/Meter.h"
 #include "ui/widgets/WaveformEditor.h"
@@ -38,9 +39,21 @@ using Kind = io::ControlEvent::Kind;
 constexpr int kGridCount = 16; // SliceSettings.gridCount default (the slices of a track without a model)
 constexpr const char* kCursorIds[] = {"playback.start", "playback.loopStart", "playback.length"};
 
-class PlaybackBody final : public Widget, public RailOwner
+class PlaybackBody final : public Widget, public RailOwner, public StripOwner
 {
 public:
+    // START / LOOP START / LENGTH step 128 frames a detent (their ParamSpec spans 2^24 frames): the panel encoder's
+    // acceleration is capped by the selected track's sample instead.
+    long long stripSteps(int, const core::ParamSpec& spec, bool fine) const override
+    {
+        if (std::find(std::begin(kCursorIds), std::end(kCursorIds), spec.id) == std::end(kCursorIds))
+            return -1;
+        if (fine || state_ == nullptr || ! (spec.coarseStep > 0))
+            return 0;
+        const auto frames = m1::SampleViews::instance().of(state_->selectedTrack).frames;
+        return std::llround(static_cast<double>(frames) / static_cast<double>(spec.coarseStep));
+    }
+
     // The rail (SET SLICE · SET SCALE · REVERSE · GRID SNAP) is the shell's; the rotary zooms the waveform (UI-237), so
     // the rail gets the focus with SHIFT + push (Shell) and turning past GRID SNAP returns it here.
     bool railFocusEnter(int) override { return true; }

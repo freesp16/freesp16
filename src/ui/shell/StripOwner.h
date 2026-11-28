@@ -7,10 +7,12 @@
 //   - stripTurn: an encoder turn on a bound column before the shell's default set / lock write; returning true means
 //     the body applied it (a list walked entry by entry, a command such as core::perf::setStepsParam on the targets,
 //     a relative control). The shell then marks the column touched and logs the turn as usual.
-// Message thread; no allocation in either call.
+//   - stripSteps: how far a column's turn reaches, so a hardware encoder turned fast accelerates it (0 = never).
+// Message thread; no allocation in any of them.
 #pragma once
 
 #include "core/params/ParamSpec.h"
+#include "ui/input/panel/EncoderAccel.h"
 #include "ui/widgets/ParamColumn.h"
 
 namespace ui
@@ -27,6 +29,16 @@ public:
     {
         (void)column0, (void)spec, (void)detents, (void)fine;
         return false;
+    }
+    // The span, in detents at ×1, of this column's turn: it caps the panel encoder's acceleration
+    // (ui/input/panel/EncoderAccel.h, maxMultiplier) of the detents stripTurn receives, and of the shell's default
+    // write when stripTurn declines. 0 = never accelerated (lists, menus and relative commands move one entry per
+    // detent). -1 (the default) = not said: stripTurn gets the detents as turned, the default write is accelerated
+    // by the ParamSpec's own span (EncoderAccel::stepsOf).
+    virtual long long stripSteps(int column0, const core::ParamSpec& spec, bool fine) const
+    {
+        (void)column0, (void)spec, (void)fine;
+        return -1;
     }
 };
 } // namespace ui

@@ -180,6 +180,23 @@ public:
 
     std::unique_ptr<DisplayDevice> display(std::string& error) override { return makeDisplay(error); }
 
+    // The four Cortex-A9 cores, split so the display never takes time from audio and MIDI. Before the app starts the
+    // system sends every interrupt to core 0 and the audio DMA's to core 1 (/proc/irq/*/smp_affinity, the app's
+    // `DIAG irq` lines), and pins its running processes to core 0 — so without this map every thread of the app,
+    // started from one of them, would share core 0 with the interrupts (the `DIAG thread` lines show the result):
+    //   core 0  the UI / message thread, X, the GL driver, every other interrupt, the workers (with core 3, nice 10)
+    //   core 1  the audio thread alone, beside the audio DMA's interrupt
+    //   core 2  the small, urgent threads: MIDI clock, MIDI input, the panel link (pads), MIDI out, the touch strip
+    //   core 3  the recorder and the workers' second core (room for an engine helper later)
+    // The code is locked in RAM (the program runs from a USB stick), the governor held at performance (the engine's
+    // budgets assume the full clock), and the real-time limit back at the kernel's default: the system turns it off
+    // (−1) before the app starts, so a real-time thread that never sleeps would freeze its core's other threads.
+    Tuning tuning() const override
+    {
+        return {"audio:1,clock:2,midi_in:2,panel:2,midi_out:2,strip:2,recorder:3,ui:0,worker:0+3", true, "performance",
+                "950000"};
+    }
+
     void muteForStandby() override { lampBus_->hardMute(); } // TX 0x66 bit 0
 
     // The stock app's standby: the panel frame's standby flag (TX 0x67 bit 0) with HardMute, every lamp dark; M1 cuts

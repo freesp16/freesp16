@@ -33,7 +33,8 @@ namespace core::sampling
 inline constexpr std::uint8_t kHubScene = 15, kHubIndex = 15; // SwapSlot::LiveTake 15/15
 
 // Sampler states (SMP-002): Standby = REC flashing (waiting for the threshold / PLAY / boundary); Recording = REC lit;
-// Done = the take's end is known (the ring may still be filling up to it); Cancelled = REC left before the start.
+// Done = the take's end is known (the ring may still be filling up to it); Cancelled = REC left before the start, or
+// the take dropped (sampling.drop: a pad hit again during the take) — the recorder deletes its part file.
 enum class RecState : std::int32_t { Idle, Standby, Recording, Done, Cancelled };
 // Live sampling (SMP-020…023): Armed = waits for the next pattern-quantize boundary; Recording; Done = the window is
 // complete in the ring (end ≤ head); LoopPending = the take buffer is installed, waits for the next boundary; Looping.
@@ -147,6 +148,8 @@ struct CaptureStatus
     std::atomic<std::int32_t> takeScene {0};
     std::atomic<float> takeBpm {120.0f};             // the sequencer BPM at the start (sidecar bpm, SMP-007)
     std::atomic<std::int32_t> takeBars {0};          // REC LENGTH bars (0 = OFF: not synced)
+    std::atomic<std::int32_t> takeQuantize {0};      // REC QUANTIZE of the take in beats (0 = OFF)
+    std::atomic<float> startInBeats {-1.0f};         // standby with REC QUANTIZE: beats to the start (−1 = stopped)
     // ---- live sampling (SMP-020…027) ----
     std::atomic<std::uint32_t> liveSeq {0};          // +1 at every take that starts recording
     std::atomic<std::int32_t> liveState {0};         // LiveState

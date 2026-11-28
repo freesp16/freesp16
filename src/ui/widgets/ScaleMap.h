@@ -1,14 +1,15 @@
 // ScaleMap and PadMap (07-ui-design/screens/playback.md "SET SCALE"; UID-711…713; PAD-010…013, PAD-020).
 //   ScaleMap  the degree map panel 224, 152, 304 × 456 (surface-1, radius 8): 16 rows × 4 cells 64 × 24 (4 apart) from
 //             (240, 160), top row = highest degrees; in-scale degrees in the track colour at 35 %, octave roots at
-//             100 %, the root pad's degree (degree 0) text-1; the pads' 16-degree window framed 2 lpx text-1 (radius 6)
-//             on rows 9–12 — the degrees scroll under the fixed frame as AREA pages by 16 (PAD-012). A played degree
-//             flashes (pad-flash) when `flashDegree` ≥ 0.
+//             100 %, the root (degree 0) with an accent corner notch (the manual's dog-ear), the selected key
+//             (`selectedDegree`, the manual's 1.6: the key last played from a pad, the root until then) text-1; the
+//             pads' 16-degree window framed 2 lpx text-1 (radius 6) on rows 9–12 — the degrees scroll under the fixed
+//             frame as AREA pages by 16 (PAD-012). A played degree flashes (pad-flash) when `flashDegree` ≥ 0.
 //   PadMap    the 4 × 4 pad map 544, 152, 720 × 448 (cells 168 × 100, 16 apart) in pad order (pad 1 bottom-left,
 //             UID-005): label = the semitone offset from the root (`0`, `+2`, value style) or, on MIDI tracks, the
-//             note name (`C5`, UID-713); the root pad text-1 with the on-accent label, an accent corner notch and
-//             `ROOT · PAD 1`; octave pads in the track colour; others the track colour at 35 % over surface-2; a hit pad
-//             flashes (`flashPad`).
+//             note name (`C5`, UID-713); the selected key's pad text-1 with the on-accent label; the root pad an accent
+//             corner notch (dog-ear) and `ROOT · PAD 1`; octave pads (and the root when another key is selected) in
+//             the track colour; others the track colour at 35 % over surface-2; a hit pad flashes (`flashPad`).
 // Pure drawing from the engine's scale tables (core/util/scales); no allocation.
 #pragma once
 
@@ -25,6 +26,7 @@ struct ScaleMapModel
     std::uint32_t colour = 0;     // track colour
     int flashDegree = -1000;      // degree hit, flashing since flashSinceMs
     double flashSinceMs = -1e9;
+    int selectedDegree = 0;       // the selected key's degree (core::scales::degreeOf; kNoDegree = none shown)
 };
 
 struct PadMapModel
@@ -36,6 +38,7 @@ struct PadMapModel
     std::uint32_t colour = 0;
     int flashPad = -1;            // 0–15
     double flashSinceMs = -1e9;
+    int selectedDegree = 0;       // the selected key's degree (core::scales::degreeOf; kNoDegree = none shown)
 };
 
 class ScaleMap

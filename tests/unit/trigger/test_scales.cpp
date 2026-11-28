@@ -2,7 +2,9 @@
 // tests/unit/ribbon (ribbon.repeat).
 #include "TriggerRig.h"
 
+#include "core/model/enums/EnumStrings.h"
 #include "core/model/enums/ValueLists.h"
+#include "core/params/ParamRegistry.h"
 #include "core/util/scales/Scales.h"
 #include "ui/input/pads/VelocityCurve.h"
 
@@ -31,8 +33,10 @@ int reference(int scale, int pad, int keyShift, int window)
 }
 } // namespace
 
-TEST_CASE("trigger.scales: the 14 masks are the model's scale intervals, Chromatic first (PAD-010)", "[trigger]")
+TEST_CASE("trigger.scales: the 22 masks are the model's scale intervals, Chromatic first (PAD-010)", "[trigger]")
 {
+    REQUIRE(sc::kScales == 22);
+    REQUIRE(core::model::enumCount<core::model::ScaleType>() == 22);
     for (int s = 0; s < sc::kScales; ++s)
     {
         std::uint16_t mask = 0;
@@ -42,6 +46,65 @@ TEST_CASE("trigger.scales: the 14 masks are the model's scale intervals, Chromat
     }
     CHECK(sc::kScaleMasks[0] == 0xFFF);
     CHECK(sc::scaleMask(99) == 0xFFF);
+}
+
+TEST_CASE("trigger.scales: the manual's SET SCALE list, in its order, names and notes", "[trigger]")
+{
+    namespace m = core::model;
+    struct Want
+    {
+        const char* label;
+        std::vector<int> notes;
+    };
+    // Addendum "Selection of scale" No. 1–22; the notes are the usual ones (the manual names the scales only).
+    const Want want[] = {{"CHROMATIC", {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
+                         {"IONIAN", {0, 2, 4, 5, 7, 9, 11}},
+                         {"DORIAN", {0, 2, 3, 5, 7, 9, 10}},
+                         {"PHRYGIAN", {0, 1, 3, 5, 7, 8, 10}},
+                         {"LYDIAN", {0, 2, 4, 6, 7, 9, 11}},
+                         {"MIXOLYDIAN", {0, 2, 4, 5, 7, 9, 10}},
+                         {"AEOLIAN", {0, 2, 3, 5, 7, 8, 10}},
+                         {"LOCRIAN", {0, 1, 3, 5, 6, 8, 10}},
+                         {"MAJOR PENTATONIC", {0, 2, 4, 7, 9}},
+                         {"MINOR PENTATONIC", {0, 3, 5, 7, 10}},
+                         {"WHOLE TONE", {0, 2, 4, 6, 8, 10}},
+                         {"DIMINISH", {0, 2, 3, 5, 6, 8, 9, 11}},
+                         {"COMBINATION DIMINISH", {0, 1, 3, 4, 6, 7, 9, 10}},
+                         {"ALTERED", {0, 1, 3, 4, 6, 8, 10}},
+                         {"MAJOR BLUES", {0, 2, 3, 4, 7, 9}},
+                         {"MINOR BLUES", {0, 3, 5, 6, 7, 10}},
+                         {"RAGA BHAIRAV", {0, 1, 4, 5, 7, 8, 11}},
+                         {"RAGA GAMANASRAMA", {0, 1, 4, 6, 7, 9, 11}},
+                         {"RAGA TODI", {0, 1, 3, 6, 7, 8, 11}},
+                         {"HAWAIIAN", {0, 2, 3, 5, 7, 9, 11}},
+                         {"RYUKYU", {0, 4, 5, 7, 11}},
+                         {"JAPANESE MIYAKOBUSHI", {0, 1, 5, 7, 8}}};
+    REQUIRE(std::size(want) == static_cast<std::size_t>(sc::kScales));
+    const auto* type = core::builtinParams().find("scale.type");
+    const auto* midiType = core::builtinParams().find("scaleMidi.type");
+    REQUIRE(type != nullptr);
+    REQUIRE(midiType != nullptr);
+    REQUIRE(type->enumLabels.size() == std::size(want));
+    CHECK(type->maxValue == 21.0f);
+    CHECK(midiType->maxValue == 21.0f);
+    for (int i = 0; i < sc::kScales; ++i)
+    {
+        const auto& w = want[static_cast<std::size_t>(i)];
+        INFO(w.label);
+        const auto st = static_cast<m::ScaleType>(i);
+        CHECK(m::displayName(st) == w.label);
+        CHECK(type->enumLabels[static_cast<std::size_t>(i)] == w.label);
+        CHECK(midiType->enumLabels[static_cast<std::size_t>(i)] == w.label);
+        std::string stored(w.label); // stored name = the manual's name without spaces, e.g. "MajorPentatonic"
+        CHECK(m::enumFromStored<m::ScaleType>(m::storedName(st)) == st);
+        std::uint16_t mask = 0;
+        for (const int n : w.notes)
+            mask = static_cast<std::uint16_t>(mask | 1u << n);
+        CHECK(sc::scaleMask(i) == mask);
+    }
+    CHECK(m::storedName(m::ScaleType::MajorPentatonic) == "MajorPentatonic");
+    CHECK(m::storedName(m::ScaleType::JapaneseMiyakobushi) == "JapaneseMiyakobushi");
+    CHECK(m::enumFromStored<m::ScaleType>("CHROMA") == m::ScaleType::Chromatic); // the 1.60 spelling
 }
 
 TEST_CASE("trigger.scales: every scale x key shift x window matches the reference table (PAD-011…013)", "[trigger]")
@@ -63,7 +126,7 @@ TEST_CASE("trigger.scales: every scale x key shift x window matches the referenc
                     }
                 }
             }
-    CHECK(cases == 14 * 25 * 5 * 16);
+    CHECK(cases == 22 * 25 * 5 * 16);
     // Pad 1 (bottom-left) is the root = the sample's pitch; chromatic rises a semitone per pad (M p.13).
     for (int pad = 0; pad < 16; ++pad)
         CHECK(sc::padSemitones(pad, sc::kScaleMasks[0], 0, 0) == pad);
@@ -123,4 +186,19 @@ TEST_CASE("trigger.velocity: curves are monotonic, LINEAR is the identity, FIXED
     CHECK(applyVelocityCurve(5, VelocityCurve::Fixed, 100) == 100);
     CHECK(applyVelocityCurve(127, VelocityCurve::Fixed, 0) == 1);
     CHECK(applyVelocityCurve(0, VelocityCurve::Fixed, 100) == 0);
+}
+
+TEST_CASE("trigger.scales: degreeOf inverts degreeSemitones; a note outside the scale has no degree", "[trigger]")
+{
+    for (int s = 0; s < sc::kScales; ++s)
+    {
+        const auto mask = sc::scaleMask(s);
+        for (int d = -40; d <= 40; ++d)
+            CHECK(sc::degreeOf(sc::degreeSemitones(d, mask), mask) == d);
+        for (int semis = -30; semis <= 30; ++semis)
+        {
+            const int r = ((semis % 12) + 12) % 12;
+            CHECK((sc::degreeOf(semis, mask) == sc::kNoDegree) == (((mask >> r) & 1u) == 0));
+        }
+    }
 }

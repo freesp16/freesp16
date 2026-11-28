@@ -24,8 +24,8 @@ void Transport::prepare(double sampleRate) noexcept
     sampleRate_ = sampleRate > 0.0 ? sampleRate : 44100.0;
     state_ = State::Stopped;
     wasPlaying_ = false;
-    hardStopPending_ = locatedPending_ = false;
-    hardStopEdge_ = locatedEdge_ = preCountBlock_ = false;
+    stopPending_ = stopEdge_ = StopAction::None;
+    locatedPending_ = locatedEdge_ = preCountBlock_ = false;
     startFrame_ = 0;
     locate(0.0);
     updateRate();
@@ -86,13 +86,12 @@ void Transport::setNudge(int direction, float amount) noexcept
     updateRate();
 }
 
-void Transport::stopAtZero(bool hard) noexcept
+void Transport::stopAtZero() noexcept
 {
     if (! (anchorHi_ == 0.0 && anchorLo_ == 0.0 && frames_ == 0))
         locatedPending_ = true;
     locate(0.0);
     state_ = State::Stopped;
-    hardStopPending_ = hardStopPending_ || hard;
 }
 
 void Transport::command(const TransportCmd& c) noexcept
@@ -127,10 +126,16 @@ void Transport::command(const TransportCmd& c) noexcept
                     state_ = State::Paused;
                 }
                 else if (state_ == State::PreCount)
-                    stopAtZero(false);
+                    stopAtZero();
             }
             else
-                stopAtZero(kind == 2 || state_ == State::Stopped); // the second STOP is the hard stop (SYN-001)
+            {
+                if (kind == 2 || state_ == State::Stopped)
+                    stopPending_ = StopAction::All;
+                else if (stopPending_ == StopAction::None)
+                    stopPending_ = StopAction::Loops;
+                stopAtZero();
+            }
             break;
         }
         case TransportCmd::SetTempo: setTempo(v); break;
@@ -145,9 +150,10 @@ void Transport::command(const TransportCmd& c) noexcept
 
 void Transport::advance(BlockContext& ctx) noexcept
 {
-    hardStopEdge_ = hardStopPending_;
+    stopEdge_ = stopPending_;
+    stopPending_ = StopAction::None;
     locatedEdge_ = locatedPending_;
-    hardStopPending_ = locatedPending_ = false;
+    locatedPending_ = false;
     startFrame_ = 0;
     preCountBlock_ = false;
 

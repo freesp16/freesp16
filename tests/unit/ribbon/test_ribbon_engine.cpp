@@ -423,3 +423,26 @@ TEST_CASE("ribbon.live: the TriggerNow strip stream and pad pressure codes", "[r
     CHECK_FALSE(r.onLive({3, 100, 60, -1}, pads)); // a MIDI note too
     CHECK_FALSE(r.onParam(param("track.volume", 1)));
 }
+
+TEST_CASE("ribbon.repeat: STOP silences held repeats and a fresh pad can still repeat", "[ribbon][stop-audio]")
+{
+    auto r = makeRibbon();
+    REQUIRE(r.onParam(param("ribbon.mode", static_cast<float>(Mode::Repeat))));
+    r.onStrip(127, true);
+    press(r, 0, true);
+    Hits before;
+    for (int i = 0; i < 100; ++i)
+        r.collect(block(i, 120.0, true), before);
+    REQUIRE_FALSE(before.events.empty());
+    r.stopRepeats();
+    Hits after;
+    for (int i = 100; i < 200; ++i)
+        r.collect(block(i, 120.0, false), after);
+    REQUIRE(after.events.empty());
+    press(r, 1, true);
+    for (int i = 200; i < 300; ++i)
+        r.collect(block(i, 120.0, false), after);
+    REQUIRE_FALSE(after.events.empty());
+    for (const auto& event : after.events)
+        CHECK(event.track == 1);
+}

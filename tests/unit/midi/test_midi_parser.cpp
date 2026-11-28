@@ -39,6 +39,20 @@ TEST_CASE("midi.parser: running status, real time inside a message, SysEx skippe
     CHECK((v[9].bytes[0] == 0xF2 && v[9].bytes[1] == 0x10 && v[9].bytes[2] == 0x01)); // SPP; 0x33 has no status now
 }
 
+TEST_CASE("midi.parser: a stray EOX (F7) outside SysEx clears running status", "[midi]")
+{
+    // F7 is system common: the data bytes after it have no status (running status would make 62 101 a Note On).
+    const auto v = parse({0x90, 60, 100, 0xF7, 62, 101, 0x90, 64, 90, 0xF7, 0xF8, 65});
+    REQUIRE(v.size() == 3);
+    CHECK((v[0].bytes[0] == 0x90 && v[0].bytes[1] == 60));
+    CHECK((v[1].bytes[0] == 0x90 && v[1].bytes[1] == 64 && v[1].bytes[2] == 90));
+    CHECK((v[2].bytes[0] == 0xF8)); // real time still passes; 65 has no status
+    // A message cut short by F7 is dropped, not completed by later data.
+    const auto w = parse({0xB0, 7, 0xF7, 100, 0xB0, 10, 64});
+    REQUIRE(w.size() == 1);
+    CHECK((w[0].bytes[0] == 0xB0 && w[0].bytes[1] == 10 && w[0].bytes[2] == 64));
+}
+
 TEST_CASE("midi.cctable: the fixed map follows the registry (MID-030/031)", "[midi]")
 {
     const auto& t = miditest::table();
@@ -82,6 +96,45 @@ TEST_CASE("midi.cctable: the fixed map follows the registry (MID-030/031)", "[mi
     CHECK(core::midi::ccSelect(1) == 0);
     CHECK(core::midi::ccSelect(16) == 15);
     CHECK(core::midi::ccSelect(127) == 15);
+}
+
+TEST_CASE("midi.cctable: bipolar CCs are centred, 64 = 0 (PAN, PITCH, OFFSET)", "[midi]")
+{
+    const auto& t = miditest::table();
+    using K = core::midi::CcKind;
+    auto at = [&](int cc, std::initializer_list<int> ccs)
+    {
+        std::vector<float> v;
+        for (int c : ccs)
+            v.push_back(core::midi::ccLinear(t.cc[static_cast<std::size_t>(cc)], c));
+        return v;
+    };
+    REQUIRE((t.cc[10].kind == K::Linear && t.cc[10].bipolar)); // PAN −64…+64
+    CHECK(at(10, {0, 1, 63, 64, 65, 127}) == std::vector<float>{-64, -63, -1, 0, 1, 64});
+    REQUIRE((t.cc[20].kind == K::Linear && t.cc[20].bipolar)); // PITCH −24…+24 st, whole semitones
+    CHECK(at(20, {0, 63, 64, 127}) == std::vector<float>{-24, 0, 0, 24});
+    for (int cc = 0; cc < 128; ++cc)
+    {
+        const float st = core::midi::ccLinear(t.cc[20], cc);
+        CHECK(st == std::nearbyint(st));
+    }
+    REQUIRE((t.cc[54].kind == K::Linear && t.cc[54].bipolar)); // OFFSET −24…+24 (was centred already: 64 → 0.19 → 0)
+    CHECK(at(54, {0, 63, 64, 127}) == std::vector<float>{-24, 0, 0, 24});
+    // Every linear CC of the chart reaches both ends; a bipolar one its centre at 64 and is monotonic.
+    for (int cc = 1; cc < 128; ++cc)
+    {
+        const auto& e = t.cc[static_cast<std::size_t>(cc)];
+        if (e.kind != K::Linear)
+            continue;
+        CHECK(core::midi::ccLinear(e, 0) == e.lo);
+        CHECK(core::midi::ccLinear(e, 127) == e.hi);
+        const auto& spec = core::builtinParams()[e.param];
+        CHECK(e.bipolar == (spec.bipolar && spec.minValue < 0.0f && spec.maxValue > 0.0f));
+        if (e.bipolar)
+            CHECK(core::midi::ccLinear(e, 64) == 0.0f);
+        for (int c = 1; c < 128; ++c)
+            CHECK(core::midi::ccLinear(e, c) >= core::midi::ccLinear(e, c - 1));
+    }
 }
 
 TEST_CASE("midi.cctable: FX grids and the CC arithmetic equal core::fx (FX-086)", "[midi]")

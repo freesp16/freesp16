@@ -6,8 +6,11 @@
 // descriptors validate either way.
 //   - MIDI NOTE: the PianoKeyboard (two octaves in bands, the overview C0–B9 with the shown window framed, ‹ ›); NOTE
 //     in the track colour, NOTE2–4 at 60 % with their index. Knobs NOTE, VELOCITY, LENGTH, NOTE2, NOTE3, NOTE4 —
-//     NOTE2–4 shown and stepped as offsets from NOTE (`+7`; 0 = OFF, ±24; our choice). Rotary: the window by
-//     octaves; a tap on a key sets NOTE, SHIFT + tap puts the key on the first free chord note (NOTE2–4).
+//     NOTE2–4 are semitones from NOTE (`+7`; −127 ~ OFF ~ +127, the manual's MIDI NOTE settings), so a new NOTE
+//     moves the chord. Rotary: the window by octaves; a tap on a key sets NOTE, SHIFT + tap puts the key on the
+//     first free chord note (NOTE2–4). A TORAIZ AS-1 track has no chord ("you cannot set this for NOTE2, NOTE3 and
+//     NOTE4 because TORAIZ AS-1 does not play chords", manual p.41): knobs 4–6 blank, no chord keys, SHIFT + tap
+//     does nothing.
 //   - MIDI CC1 / CC2: six CcCards (CC1: Pitch Bend, After Touch, CC #7, #1, #2, #10 — numbers 3–6 programmable; CC2:
 //     #71…#76) with ACTIVE toggles; knobs = the six values (an inactive card's column `text-3`, still editable).
 //     Rotary: the card focus; push toggles ACTIVE; SHIFT + push (or a second tap) opens the CC NUMBER list; SHIFT +
@@ -44,6 +47,7 @@ using Kind = io::ControlEvent::Kind;
 
 constexpr StripSpec kNoteStrip {
     "NOTE", {"midi.note1", "midi.velocity", "midi.length", "midi.note2", "midi.note3", "midi.note4"}};
+constexpr StripSpec kAs1NoteStrip{"NOTE", {"midi.note1", "midi.velocity", "midi.length", "", "", ""}};
 constexpr StripSpec kCc1Strip {"CC1",
                                {"midi.pitchBend", "midi.aftertouch", "midi.cc1.value3", "midi.cc1.value4",
                                 "midi.cc1.value5", "midi.cc1.value6"}};
@@ -72,7 +76,7 @@ void setValue(ShellApi& sh, std::string_view id, float v)
 }
 
 // ---- MIDI NOTE ------------------------------------------------------------------------------------------------------
-class MidiNoteBody final : public Widget, public StripOwner
+class MidiNoteBody final : public Widget
 {
 public:
     explicit MidiNoteBody(const WidgetArgs& a) : shell_(a.shell), state_(a.state) {}
@@ -80,11 +84,15 @@ public:
 
     PianoKeyboardModel model() const
     {
-        PianoKeyboardModel m;
-        for (int k = 0; k < 4; ++k)
-            m.notes[static_cast<std::size_t>(k)] =
-                static_cast<int>(std::lround(value(*shell_, kNoteIds[k], k == 0 ? 60.0f : -1.0f)));
-        const int octave = m.notes[0] / 12 - 1;
+        PianoKeyboardModel m; // NOTE2–4 are offsets from NOTE (0 = OFF): the keyboard shows their keys
+        m.notes[0] = static_cast<int>(std::lround(value(*shell_, kNoteIds[0], 60.0f)));
+        for (int k = 1; k < 4 && ! as1(); ++k) // an AS-1 track plays no chord: NOTE alone (notes[1..3] stay −1)
+        {
+            const int offset = static_cast<int>(std::lround(value(*shell_, kNoteIds[k], 0.0f)));
+            const int note = m.notes[0] + offset;
+            m.notes[static_cast<std::size_t>(k)] = offset != 0 && note >= 0 && note <= 127 ? note : -1;
+        }
+        const int octave = m.notes[0] / 12; // C0 = 0
         if (window_ < 0 || octave < window_ || octave > window_ + 1) // the window follows NOTE
             window_ = std::clamp(octave - 1, 0, 8);
         m.firstOctave = window_;
@@ -96,10 +104,11 @@ public:
     {
         if (shell_ == nullptr || state_ == nullptr)
             return;
-        if (! bound_)
+        if (const bool as1Track = as1(); ! bound_ || as1Track != as1Bound_)
         {
-            shell_->bindStrip(&kNoteStrip);
+            shell_->bindStrip(as1Track ? &kAs1NoteStrip : &kNoteStrip);
             bound_ = true;
+            as1Bound_ = as1Track;
         }
         PianoKeyboard::draw(dl, ctx, model());
     }
@@ -123,48 +132,22 @@ public:
             return false;
         if (! state_->shift)
             setValue(*shell_, kNoteIds[0], static_cast<float>(note));
-        else // SHIFT + tap: the first free chord note (UID-802)
+        else if (note != m.notes[0] && ! as1()) // SHIFT + tap: the first free chord note (UID-802), its offset
             for (int k = 1; k < 4; ++k)
                 if (m.notes[static_cast<std::size_t>(k)] < 0)
                 {
-                    setValue(*shell_, kNoteIds[k], static_cast<float>(note));
+                    setValue(*shell_, kNoteIds[k], static_cast<float>(note - m.notes[0]));
                     break;
                 }
         return true;
     }
 
-    // NOTE2–4 as offsets from NOTE (our choice: the catalogue stores absolute notes, −1 = OFF).
-    void stripColumn(int column0, ParamColumnModel& c) const override
-    {
-        if (column0 < 3 || c.spec == nullptr)
-            return;
-        const int note = static_cast<int>(std::lround(value(*shell_, kNoteIds[0], 60))), v = static_cast<int>(std::lround(c.value));
-        auto& t = text_[static_cast<std::size_t>(column0 - 3)];
-        if (v < 0)
-            t.set("OFF");
-        else
-            t.format("%+d", v - note);
-        c.valueText = t.view();
-        c.stepped = true;
-    }
-    bool stripTurn(int column0, const core::ParamSpec& spec, int detents, bool) override
-    {
-        if (column0 < 3)
-            return false;
-        const int note = static_cast<int>(std::lround(value(*shell_, kNoteIds[0], 60)));
-        const int v = static_cast<int>(std::lround(value(*shell_, spec.id, -1)));
-        int offset = v < 0 ? 0 : v - note;
-        offset = std::clamp(offset + detents, -24, 24);
-        setValue(*shell_, spec.id, offset == 0 ? -1.0f : static_cast<float>(std::clamp(note + offset, 0, 127)));
-        return true;
-    }
-
 private:
+    bool as1() const { return m1::trackMode(*shell_, state_->selectedTrack) == 3; } // TrackMode::Instrument
     ShellApi* shell_;
     UiState* state_;
     mutable int window_ = -1;
-    mutable bool bound_ = false;
-    mutable std::array<FixedText<8>, 3> text_ {};
+    mutable bool bound_ = false, as1Bound_ = false;
 };
 
 // ---- MIDI CC1 / CC2 -------------------------------------------------------------------------------------------------
@@ -330,6 +313,7 @@ std::unique_ptr<PopupWidget> makeSelectCh(const PopupSpec&, ShellApi& sh)
     for (int c = 0; c < 16; ++c)
         req.items.push_back({kChannels[c], {}, {}, c + 1});
     // midi.out.channel is a project value per track (engine scope = the track, MID-011); default channel n = track n.
+    // The shell's values keep it in the project (UTILITY's CHANNEL MAPPING (MIDI OUT)): saved, undoable.
     const int ch = spec != nullptr ? static_cast<int>(std::lround(sh.values().get(*spec, track0))) : track0 + 1;
     req.current = std::clamp(ch, 1, 16) - 1;
     req.onChoose = [&sh, spec, track0](int, const ListItem& it)

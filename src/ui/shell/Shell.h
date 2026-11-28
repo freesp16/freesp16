@@ -19,6 +19,7 @@
 #include "core/params/ParamRegistry.h"
 #include "core/util/CpuUsage.h"
 #include "engine/EngineApi.h"
+#include "ui/input/panel/EncoderAccel.h"
 #include "ui/shell/FeatureFlags.h"
 #include "ui/shell/Feeds.h"
 #include "ui/shell/LampModel.h"
@@ -138,7 +139,8 @@ private:
     std::string_view muteModeSummary();
     void updateStripModel(double nowMs);
     void pollFeeds(double nowMs);
-    void turnEncoder(int n0, int detents, double nowMs);
+    // `accelerate`: a hardware panel encoder (ui/input/panel/EncoderAccel.h); keys, MIDI and drags never accelerate.
+    void turnEncoder(int n0, int detents, double nowMs, bool accelerate = false);
     void activateRail(int index, float x = -1, float y = -1);
     bool railFocusable(int index) const noexcept;
     RectF railRect(int index) const noexcept;
@@ -178,6 +180,9 @@ private:
     const StripSpec* stripOverride_ = nullptr;
     std::array<const core::ParamSpec*, 6> bound_{};
     std::array<double, 6> touchedMs_{};
+    EncoderAccel accel_;                               // the panel encoders' runs
+    std::array<const core::ParamSpec*, 6> accelSpec_{}; // a run ends when its column's parameter or SHIFT changes
+    std::array<bool, 6> accelFine_{};
     std::uint8_t groupMask_ = 0;
     FixedText<24> tab_, tabShown_;
     FixedText<4> sceneText_, patternText_;

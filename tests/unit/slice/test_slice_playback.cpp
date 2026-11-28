@@ -209,7 +209,7 @@ TEST_CASE("slice.playback: the live hit carries the slice lock the recorder sees
     {
         int hits = 0;
         float slice = -1.0f;
-        void onLiveHit(const TriggerEvent& e) noexcept override
+        void onLiveHit(const TriggerEvent& e, bool) noexcept override
         {
             ++hits;
             if (e.locks != nullptr)

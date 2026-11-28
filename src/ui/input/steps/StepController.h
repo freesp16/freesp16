@@ -74,7 +74,9 @@ public:
     bool copyGestureActive() const noexcept { return copyGesture_ && copyGesture_->active(); }
 
     // ---- input ----
-    void onStepKey(int step, bool pressed, double nowMs); // step 1–16 of the shown bar
+    // Step 1–16 of the shown bar. True when this release entered a trigger (toggled one on): not for a press, a
+    // release that removed one, a hold + turn or held-step edit (keepHeldStep), or a COPY / PASTE gesture.
+    bool onStepKey(int step, bool pressed, double nowMs);
     // ext.clear with a step held (UI-120: "Delete (with a step held: clear that step)", SEQ-012): the held
     // step's trigger and locks on the selected track go, one undo step; its release then toggles nothing. False when
     // no step is held (or the scene keys own the step keys).
@@ -99,6 +101,13 @@ public:
     void setLock(const core::ParamSpec&, int step, float value);
 
     int heldStep() const noexcept { return held_; } // 1–16, 0 = none
+    // Step `step1to16` (when it is the held one) was edited while held, as by hold + turn: its release toggles nothing.
+    void keepHeldStep(int step1to16) noexcept
+    {
+        if (step1to16 == held_ && held_ != 0)
+            turned_ = true;
+    }
+    core::model::TriggerType entryType() const noexcept { return entryType_; }
     int patternStep(int step1to16) const noexcept { return shownBar() * 16 + step1to16 - 1; }
     bool groupOpen() const noexcept { return groupOpen_; }
     int scene() const noexcept { return scene_; }

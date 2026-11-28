@@ -57,7 +57,7 @@ struct Rig
         for (int t = 0; t < 8; ++t) // tracks 1–8 MIDI, 2-note chords
         {
             router.setTrackParam(0, t, engine::trigger::TrackField::Mode, 1.0f);
-            midi.onParam({resolve("midi.note2"), static_cast<std::uint16_t>(t), 67.0f, 0});
+            midi.onParam({resolve("midi.note2"), static_cast<std::uint16_t>(t), 7.0f, 0}); // NOTE2 +7
         }
         midi.onParam({resolve("midi.out.clock"), 0, 1.0f, 0});
         midi.onParam({resolve("midi.out.startStop"), 0, 1.0f, 0});

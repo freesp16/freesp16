@@ -60,6 +60,10 @@ Expected (the block ends with `DIAG END`, before any project or kit is loaded):
 | `DIAG platform imx6 reason: imx6 selected (auto: detected …) \| i.MX6 board (/dev/subucom_spi0.1 present) …` | imx6 detected by the panel node |
 | `DIAG kernel Linux … armv7l` | the stock kernel |
 | `DIAG cpu online=4 … neon=yes freq_khz=… governor=…` | 4 cores, NEON; note the frequency and governor (benches assume 1 GHz) |
+| `DIAG threads map audio:1@70 clock:2@80 midi_in:2@75 panel:2@72 midi_out:2@65 strip:2@60 recorder:3@40 ui:0@nice0 worker:0+3@nice10 origin=platform ui_pinned=yes` | the thread roles' cores and priorities (setting `thread_map`, `none` = no pinning); `ui_pinned=yes`, no `IGNORED` |
+| `DIAG governor before=… wanted=performance now=performance …` | the CPU governor held at performance while the app runs (setting `cpu_governor=keep|<name>`; the old one comes back on exit) |
+| `DIAG rt_runtime_us before=-1 wanted=950000 now=950000` | the real-time limit back at the kernel default while the app runs (the system starts with −1; setting `rt_runtime_us=keep|<µs>`) |
+| `DIAG irq cpus 0=… 1=1 …`, `DIAG irq … sdma cpus=1` | interrupts on core 0, the audio DMA's on core 1 (the system's own placement); note them |
 | `DIAG libc glibc 2.13 (… built against 2.13)` | 2.13 |
 | `DIAG memory memtotal=… memfree=…` | note the numbers |
 | `DIAG data dir=/root/data/<name> writable … mount=/root/data vfat` | the stick (bind mount); free space noted |
@@ -71,8 +75,12 @@ Expected (the block ends with `DIAG END`, before any project or kit is loaded):
 | `DIAG audio device=alsa-direct ok rate=44100 period=256 … ports MAIN=12/14 OUT3-4=8/10 OUT5-6=4/6 OUT7-8=0/2 PHONES=0/1 FILTERSEND=absent` | the codec and the port map; PHONES `absent` = the headphone PCM did not open (the `DIAG audio info` line says why) |
 | `DIAG input panel ok …`, `DIAG input cdc-strip ok …` | both sources started (the EBUSY fix: no `FAILED … busy`) |
 | `DIAG interval=10 s`, `DIAG END` | |
+| `DIAG memlock code locked_kb=… mappings=… swap_kb=…` (after the project loads) | no `failed=`: the code is locked in RAM (setting `mem_lock=0` turns it off) |
+| `DIAG thread <name> tid=… policy=… prio=… nice=… cpus=…` (2 s into the run, again with every `diag`) | `freesp16` cpus=0, `audio` FIFO 70 cpus=1, `panel` FIFO 72 / `strip` FIFO 60 / `midi-out` FIFO 65 / `midi-in-N` FIFO 75 cpus=2, `recorder` FIFO 40 cpus=3, `worker` OTHER nice=10 cpus=0,3; every other thread (X, GL, JUCE) cpus=0 |
 
-Every 10 s: `FRAME run …`, `AUDIO … xruns=0`, `LOAD … xruns=0 VmRSS=…`. On exit (`ctl stop`): `DIAG STOP reason=signal
+Every 10 s: `FRAME run …`, `AUDIO … xruns=0`, `LOAD … xruns=0 VmRSS=…`. Under audio load (an xrun, an engine overrun, or
+LOAD p95 ≥ 80 % of the block) the display steps down to 30 Hz for at least 3 s: `UI throttle on: 30 Hz (<cause>)` …
+`UI throttle off after N s`; note them with the LOAD lines around them. On exit (`ctl stop`): `DIAG STOP reason=signal
 … xruns=… load_p95_max=… peak_rss_kB=…` and `STOP`.
 
 Listen: with no project yet, track 1's 440 Hz test tone at −12 dBFS on MAIN (OUT1-2) — only because `01-baseline`
@@ -96,6 +104,13 @@ and the main volume, the strip (touch, slide, lift; STRIP MODE, HOLD), the LCD (
 all`. Expected: one `INPUT panel <control> <kind> <value>` / `INPUT cdc-strip …` line per action, pad velocities that
 follow how hard you hit, encoder detents ±1 per click, no stuck lamps, `DIAG input panel ok` (the EBUSY fix:
 launcher's `runner: holders (… before launch): none`).
+
+Encoder acceleration (still `04-trace`, HOME, track 1): turn ENC1 (VOLUME) slowly, about one click every ¼ s — it moves
+±1 per click and no `accel` appears in the `INPUT knob1` lines. Spin it fast — the value jumps up to 4 per click and
+the lines end `accel -4` / `accel +4`. Spin fast, then without pausing slow down or turn back one click — that click
+is ±1 again. Hold SHIFT and spin ENC3 (PITCH) fast — every click is 0.1, never more. On PLAYBACK, a hard spin of START
+on a long sample crosses it in one or two turns of the encoder, then slow clicks are 1/128 of the sample each. Note
+any value that jumps when turned slowly, or that turning N clicks up and N clicks back slowly does not return to.
 
 `pc/hwt.sh use 09-lamps` (a script cycles the pad modes, SCENE / PATTERN / REC / HOLD / ACTIVE, sweeps the strip LEDs
 and the pad lamps; 40 s). **HUMAN:** watch each `MARK` phase light the right lamp; note any lamp that stays dark or
@@ -146,10 +161,23 @@ The model's own cost is `afs_model` in step 10 (budget 45 k cycles; may exceed i
 
 The MIDI source is a control source like the panel: `DIAG input midi ok …` names the ports it opened (alsa-rawmidi:
 the DIN port and, in USB MIDI gadget mode, the USB port; USB MIDI and USB storage are exclusive gadget modes), and
-`DIAG midi rawmidi=midiC…D…` lists the device nodes. Every 10 s a `MIDI stats in=… sent=… clocks=… late=… dropped=…
-jitter_p99=… tempo=…` line. **HUMAN:** connect a keyboard to MIDI IN (notes → `in=` grows, pads sound on MIDI tracks),
-a receiver to MIDI OUT (the clock: `clocks=` grows while playing, `late=0`), and check THRU. Send `report midi`
-with the port names, and say what played. `midi=0` in a variant turns MIDI off (to isolate it); the MIDI benches
+`DIAG midi rawmidi=midiC…D…` lists the device nodes. Expected: `in: 1=MIDI DIN 2=MIDI USB` (DIN is always port 1,
+USB port 2, also when the USB port shows up later or is away in storage mode) and `DIAG midi unit din_midi=present
+midi_through=present usb_gadget=midi`. Every 10 s a `MIDI stats in=… sent=… clocks=… late=… dropped=… jitter_p99=…
+tempo=…` line. **HUMAN:** connect a keyboard to MIDI IN (notes → `in=` grows, pads sound on MIDI tracks), a receiver to
+MIDI OUT (the clock: `clocks=` grows while playing, `late=0`; this works even if the official software was left on MIDI
+THRU), then set UTILITY › MACHINE SETTING › MIDI OUT MODE (DIN) to THRU (MIDI IN): what the keyboard plays must now
+come out of MIDI OUT unchanged (the socket is switched in hardware ~0.1 s later; SysEx passes too), and back on OUT the
+receiver gets the clock again. Hold a note from a MIDI track while switching OUT → THRU (MIDI IN): it must stop, not
+hang. MIDI OUT MODE (USB) offers OUT / OUT+MIDI IN only; SYNC SOURCE SELECT offers INTERNAL / DIN MIDI / USB MIDI also
+while USB-B is in storage mode.
+Send a song position + Continue from SET (locate, then play) and check the receiver resumes at the same bar. USB MIDI:
+leave the official software in its USB storage mode, then start this app from the boot menu: within ~5 s the log shows
+`MIDI USB gadget=storage switching to midi: /root/pdj/usb_gadget.sh midi probe` and `MIDI USB switch status=0
+gadget=midi ok`, the computer sees the TSP-16 MIDI device instead of the disk, port 2 = MIDI USB connects, and the
+library's INTERNAL location is back (`midi_usb=0` leaves the port as found). With a computer connected to USB-B that
+has the disk, the log shows `MIDI USB gadget=storage host=configured: left in storage mode` instead and the disk stays. Send `report midi` with the port names,
+and say what played. `midi=0` in a variant turns MIDI off (to isolate it); the MIDI benches
 (`bench_midi*`, step 10) carry the A9 numbers.
 
 ## 8. LINE IN sampling — `07-linein` (HUMAN: a signal into LINE IN)

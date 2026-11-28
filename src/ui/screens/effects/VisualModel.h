@@ -1,9 +1,9 @@
 // The display-only visual kinds of the EffectPanel's visual zone (screens/effects.md "Visual kinds", UID-834/835):
-// lfoCurve, eqCurve, filterCurve, delayTaps, decayCurve, meters, duckEnvelope. Each kind is a renderer widget
-// registered as "fxvisual.<kind>" (APP_REGISTER_WIDGET), drawn from a VisualModel in engineering units. An effect
-// supplies only a VisualAdapter (knob fractions → units, PanelHints::visual); without one the kind's default adapter
-// maps the spec's page order roughly. Renderers recompute curves only when the model changes (≤ 0.3 ms for 256 points
-// on the A9) and append cached spans afterwards; live parts (meters, the duck dot) are cheap.
+// lfoCurve, eqCurve, filterCurve, delayTaps, decayCurve, meters, duckEnvelope, pitchSplice. Each kind is a renderer
+// widget registered as "fxvisual.<kind>" (APP_REGISTER_WIDGET), drawn from a VisualModel in engineering units. An
+// effect supplies only a VisualAdapter (knob fractions → units, PanelHints::visual); without one the kind's default
+// adapter maps the spec's page order roughly. Renderers recompute curves only when the model changes (≤ 0.3 ms for 256
+// points on the A9) and append cached spans afterwards; live parts (meters, the duck dot) are cheap.
 #pragma once
 
 #include "ui/render/DrawList.h"
@@ -59,6 +59,11 @@ struct VisualModel
     float envelope = 0;
     double lastTriggerMs = -1e9;
     std::uint32_t sourceColour = 0; // the source track's colour (0 = the slot ink)
+
+    // pitchSplice (VINTAGE PITCH): the read clock's ratio (0.5 … 2) and its knob values, the added read delay, the
+    // feedback −1 … +1 (negative = inverted phase), AGE 0 … 1, and live: the A/D LIMIT activity 0 … 1
+    float pitchRatio = 1.4983071f, pitchDelayMs = 0, pitchFeedback = 0, pitchAge = 0.35f, limit = 0;
+    int pitchSemis = 7, pitchCents = 0;
 };
 
 // A visual renderer: a widget whose model the EffectPanel sets before each build.

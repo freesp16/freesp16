@@ -81,7 +81,12 @@ TEST_CASE("fx.commands: SelectFxType restores the type memory or the slot defaul
     CHECK(s.params[5] == 0.7);
     CHECK(s.typeMemory.size() == 1);
     CHECK(s.typeMemory[0].type == EffectType::InsertDelay);
-    SelectFxType(at, EffectType::Reverb).apply(*project); // not an insert type (FX-040): ignored
+    SelectFxType(at, EffectType::SendDelay).apply(*project); // not an insert type (FX-040): ignored
+    CHECK(s.type == EffectType::Chorus);
+    SelectFxType(at, EffectType::Reverb).apply(*project); // the Reverb is (ours): the insert defaults
+    CHECK(s.type == EffectType::Reverb);
+    CHECK(s.params[5] == static_cast<double>(0.3f));
+    SelectFxType(at, EffectType::Chorus).apply(*project);
     CHECK(s.type == EffectType::Chorus);
     // Send defaults differ (FX-093: Send Mix 1.0, Master 0.5)
     model::ParamPath send{};

@@ -12,7 +12,7 @@
 //
 // Removable volumes come from a LocationProvider: host = the mounted volumes (/Volumes on macOS, /media and /run/media
 // on Linux), device = /proc/mounts polled once per second on a worker (vfat/msdos/exfat mounts); a stick's
-// `TORAIZ/Samples` folder is used as its root when present (M p.41). Message thread API; work runs on Workers.
+// `TORAIZ/Samples` folder is used as its root when present and it has no PIONEER DJ SAMPLER folder (M p.41). Message thread API; work runs on Workers.
 #pragma once
 
 #include "core/util/Result.h"
@@ -83,6 +83,19 @@ struct InternalDisk
     static std::vector<juce::File> projects(const juce::File& mount); // its *.prj, no '.' names (P5), A→Z
 };
 
+// The sampler's sample folders among `locations`, in their order: what BROWSE shows on the device, as the stock
+// firmware does (addendum p.80 shows the top level as "Samples [INTERNAL]"; p.84: only a stick's PIONEER DJ SAMPLER/
+// Samples is read by BROWSE). Not the app's own library folders, a stick's whole tree or a system mount. The internal
+// disk's location (its root already is the stock Samples folder) and each removable location with a
+// PIONEER DJ SAMPLER/Samples folder; every other location is left out. Stats a few folders.
+struct SamplerFolder
+{
+    std::string aliasPath; // "$Ext:INTERNAL", "$Ext:sda1/PIONEER DJ SAMPLER/Samples"
+    std::string name;      // "Samples"; with two or more sticks each stick's is "Samples (<mount name>)"
+    bool internal = false;
+};
+std::vector<SamplerFolder> samplerFolders(std::span<const Location> locations);
+
 // Linux /proc/mounts: FAT/exFAT mounts become removable "$Ext:<mount name>" locations. On the
 // device every one is read-only (the stick also carries the app's data and its launcher; the app writes only to
 // $Lib), the internal disk's mount becomes "$Ext:INTERNAL" (InternalDisk), and mounts that are the data directory or
@@ -149,6 +162,9 @@ public:
     // Listing (worker) — `done` runs on the message thread.
     void list(const juce::String& aliasPath, SortOrder, std::function<void(std::vector<Entry>)> done);
     void search(const juce::String& text, std::function<void(std::vector<Entry>)> done); // LIB-014, all locations
+    // The same, only below `scopes` (alias paths of folders, "$Ext:INTERNAL" or "$Ext:sda1/PIONEER DJ SAMPLER/Samples").
+    void search(const juce::String& text, std::vector<juce::String> scopes,
+                std::function<void(std::vector<Entry>)> done);
     // The same work, synchronously (worker threads, tests, bench).
     std::vector<Entry> listNow(const juce::String& aliasPath, SortOrder) const;
     std::vector<Entry> searchNow(const juce::String& text, std::size_t maxResults = kMaxSearchResults) const;
@@ -179,6 +195,8 @@ public:
     // The worker side, over a snapshot of the locations.
     static std::vector<Entry> listIn(const std::vector<Location>&, const juce::String& aliasPath, SortOrder);
     static std::vector<Entry> searchIn(const std::vector<Location>&, const juce::String& text, std::size_t maxResults);
+    static std::vector<Entry> searchIn(const std::vector<Location>&, const std::vector<juce::String>& scopes,
+                                       const juce::String& text, std::size_t maxResults);
 
 private:
     Workers& workers_;

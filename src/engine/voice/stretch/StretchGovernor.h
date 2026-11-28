@@ -1,6 +1,7 @@
 // The MASTER TEMPO CPU governor. The FX-051 worst case (32 inserts on Distortion ≈ 448k + Reverb, Send Delay and a
-// Master Compressor ≈ 81k) leaves ≈ 170k cycles of the 700k block for voices, mixer and sequencer, so all 16 MASTER
-// TEMPO voices cannot run next to it. Once per block:
+// Master Compressor ≈ 40k) leaves ≈ 210k cycles of the 700k block for voices, mixer and sequencer, so all 16 MASTER
+// TEMPO voices cannot run next to it. A track Reverb counts as an active insert (it costs ≈ 1.35 × the Distortion: a
+// Reverb on all 16 tracks instead of 16 Distortions adds ≈ 80k). Once per block:
 //
 //   score   = 8 · reverb + active inserts + 2 · MASTER TEMPO players     (the reference heuristic, FX-864)
 //   tier    = 1 ("cheaper") when score ≥ 33, else 0
@@ -35,7 +36,7 @@ struct GovernorConfig
     double deadlineCycles = 700000.0;         // the engine's whole 64-frame block at 44.1 kHz
     double baseCycles = 120000.0;             // 16 plain voices, mixer, sequencer, meters
     double insertCycles = 14000.0;            // the dearest insert (Distortion, FX-051)
-    double reverbCycles = 60000.0;            // budget table
+    double reverbCycles = 19000.0;            // the FDN Reverb ≈ 1.35 × the Distortion (tests/bench/fx/reverb.cpp)
     double voiceCycles[2] = {16000.0, 12000.0}; // per MASTER TEMPO stereo voice: tier 0, tier 1 (target)
 };
 

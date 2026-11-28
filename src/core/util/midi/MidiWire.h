@@ -28,6 +28,23 @@ constexpr int kMaxPorts = 8;               // input ports and output ports, each
 constexpr std::size_t kInQueue = 512;      // per input port: ≥ 160 ms of a saturated 31.25 kbit/s DIN stream
 constexpr std::size_t kOutQueue = 2048;    // engine → sender (all ports)
 constexpr std::size_t kUiQueue = 1024;     // engine → message thread
+// ParamChange scope of the project-open marker (io::midi::postMidiSettings → engine::midi::MidiEngine): a MIDI track
+// value (midi.note1 … midi.mode) posted with it resets every scene's MIDI track values to their defaults (the
+// ParamSpec defaults), so only the new project's differences follow.
+constexpr std::uint16_t kProjectOpenScope = 0xFFFF;
+
+// Output port modes (MID-002; preference midi.portMode#p): 0 OUT, 1 OUT + MERGE A, 2 OUT + MERGE B, 3 THRU A, 4 THRU B,
+// A = input port 0 (the unit's DIN, "MIDI IN"), B = input port 1 (its USB-B, "USB IN"). The USB port (output 1) has
+// only OUT and OUT + MIDI IN (manual 1.60 p.12 "MIDI OUT MODE (USB)"); any other mode stored for it means the nearest
+// of the two: OUT + USB IN (its own input) → OUT, THRU (MIDI IN) → OUT + MIDI IN, THRU (USB IN) → OUT.
+constexpr int kUsbPort = 1;
+constexpr int legalPortMode(int port, int mode) noexcept
+{
+    mode = mode < 0 ? 0 : (mode > 4 ? 4 : mode);
+    if (port != kUsbPort)
+        return mode;
+    return mode == 1 || mode == 3 ? 1 : 0;
+}
 
 // One parsed channel / system message as it arrived (port thread: parse + timestamp only). size 1–3; SysEx is not
 // carried (no SysEx receive, research docs/midi-implementation.md "Remaining gaps").

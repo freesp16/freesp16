@@ -5,6 +5,7 @@
 #include "ui/screens/home/TrackGrid.h"
 
 #include "ui/screens/home/TrackInfo.h"
+#include "ui/screens/sequence/M2Commands.h"
 #include "ui/shell/Layout.h"
 #include "ui/shell/Popup.h"
 #include "ui/widgets/Meter.h"
@@ -117,6 +118,37 @@ bool TrackGrid::dirty(double nowMs) const
     return false;
 }
 
+void TrackGrid::swapSelection(int picked)
+{
+    const int sceneIndex = state_->scene - 1;
+    shell_->selectTrack(picked);
+    if (sourceTrack_ == 0 || sourceScene_ != sceneIndex)
+    {
+        sourceTrack_ = picked;
+        sourceScene_ = sceneIndex;
+        ToastRequest notice;
+        notice.text = "Tap the destination track";
+        shell_->showToast(std::move(notice));
+        return;
+    }
+
+    const int source = sourceTrack_ - 1;
+    const int destination = picked - 1;
+    sourceTrack_ = 0;
+    if (source == destination)
+        return;
+    if (state_->tracks[static_cast<std::size_t>(source)].unsavedTake ||
+        state_->tracks[static_cast<std::size_t>(destination)].unsavedTake)
+    {
+        ToastRequest notice;
+        notice.text = "Save the temporary take before swapping tracks";
+        shell_->showToast(std::move(notice));
+        return;
+    }
+
+    m2::cmd::exchangeTrackSlots(sceneIndex, source, destination);
+}
+
 bool TrackGrid::handle(const io::ControlEvent& e, UiContext& ctx)
 {
     if (shell_ == nullptr || state_ == nullptr)
@@ -134,13 +166,17 @@ bool TrackGrid::handle(const io::ControlEvent& e, UiContext& ctx)
         if (home)
             shell_->open(state_->shift && m1::trackMode(*shell_, state_->selectedTrack) == 0 ? "track.browse"
                                                                                            : "track.menu");
-        return true;                    // TRACK SETTING: a push does nothing (UID-530)
+        else
+            swapSelection(state_->selectedTrack);
+        return true;
     }
     if (touch::isTouch(e) && e.value == touch::kDown)
         for (int t = 1; t <= 16; ++t)
             if (contains(padRect(t, ctx.palette.classic), touch::x(e), touch::y(e)))
             {
-                if (t == state_->selectedTrack && home) // two-tap: a tap on the selected tile opens it (UID-155)
+                if (! home)
+                    swapSelection(t);
+                else if (state_->selectedTrack == t)
                     shell_->open("track.menu");
                 else
                     shell_->selectTrack(t);

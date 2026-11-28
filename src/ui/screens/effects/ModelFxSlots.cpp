@@ -309,6 +309,7 @@ void EngineFxMeters::convert(const engine::fx::FxMeterFeed& f, int slot, double 
     // visual reads the field of its effect.
     out.gainReduction = f.telemetry[0];
     out.duckEnvelope = f.telemetry[0];
+    out.telemetry = {f.telemetry[0], f.telemetry[1]};
     if (f.triggerFlash != 0) // any track's trigger: the feed does not name the Ducker's SOURCE track
         out.lastTriggerMs = nowMs;
 }

@@ -202,6 +202,30 @@ TEST_CASE("sampling.recorder: LINE IN L records a mono take; REC in standby canc
     CHECK_FALSE(services::sampling::WavWriter::partFor(f2.value()).exists());
 }
 
+TEST_CASE("sampling.recorder: a take dropped while recording deletes its part file (the pad again, SAMPLING/EDIT)",
+          "[sampling][recorder][quantize]")
+{
+    TempDir t;
+    auto e = make();
+    services::library::Workers workers(1);
+    services::sampling::SamplingSession s(e->bridge(), workers, {t.dir, 44100.0, resolver()});
+    REQUIRE(s.ensureCapture(120.0));
+    Driver d;
+    d.run(*e, 512, ramp());
+    std::optional<TakeInfo> got;
+    s.onTake = [&](const TakeInfo& i) { got = i; };
+    auto f = s.record(0, 3, 2);
+    REQUIRE(f.ok());
+    d.run(*e, 44100, ramp()); // a second of audio on its way to the disk
+    s.dropRecord(0, 3);
+    d.run(*e, 256, ramp());
+    REQUIRE(waitFor(workers, [&] { return got.has_value(); }));
+    CHECK(got->cancelled);
+    CHECK_FALSE(got->ok);
+    CHECK_FALSE(f.value().exists());
+    CHECK_FALSE(services::sampling::WavWriter::partFor(f.value()).exists());
+}
+
 TEST_CASE("sampling.recorder: a 10-minute recording keeps RAM flat (≤ 1 MB growth)", "[sampling][recorder][ram]")
 {
     TempDir t;
@@ -305,6 +329,15 @@ TEST_CASE("sampling.session: live take with LOOP AFTER REC — installed on the 
     CHECK((loop2 - loopDevice) % bar == 0);
     const std::int64_t onset2 = firstAbove(d.mainL.data(), static_cast<std::int64_t>(d.mainL.size()), 0.05f, loop2 + 400);
     CHECK(std::llabs(onset2 - (loop2 + 1000)) <= 2);
+
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 1.0}));
+    d.run(*e, bar, in);
+    CHECK(static_cast<LiveState>(hub->status.liveState.load()) == LiveState::LoopPending);
+    CHECK_FALSE(e->trackSource(5).voice().mainActive());
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    d.run(*e, 4096, in);
+    CHECK(static_cast<LiveState>(hub->status.liveState.load()) == LiveState::Looping);
+    CHECK(e->trackSource(5).voice().mainActive());
 }
 
 TEST_CASE("sampling.session: NUDGE ±1 frame … ±1 beat moves the saved window exactly (clamped to one beat)",

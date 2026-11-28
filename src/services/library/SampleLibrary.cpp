@@ -185,8 +185,10 @@ Location volumeLocation(const juce::File& mount, const juce::String& name)
 {
     Location l;
     l.alias = "$Ext:" + services::store::safeFileName(name.toStdString());
-    const juce::File toraiz = mount.getChildFile("TORAIZ").getChildFile("Samples"); // M p.41
-    l.root = toraiz.isDirectory() ? toraiz : mount;
+    // M p.41 (before firmware 1.6): a stick's TORAIZ/Samples is its root, unless it also has the 1.6 PIONEER DJ SAMPLER
+    // folder (addendum p.84), which BROWSE reads below the stick's root (samplerFolders).
+    const juce::File toraiz = mount.getChildFile("TORAIZ").getChildFile("Samples");
+    l.root = toraiz.isDirectory() && ! mount.getChildFile(InternalDisk::kStockFolder).isDirectory() ? toraiz : mount;
     l.removable = true;
     return l;
 }
@@ -248,6 +250,31 @@ std::vector<juce::File> InternalDisk::projects(const juce::File& mount)
             out.push_back(f);
     std::sort(out.begin(), out.end(),
               [](const juce::File& a, const juce::File& b) { return a.getFileName().compareNatural(b.getFileName()) < 0; });
+    return out;
+}
+
+std::vector<SamplerFolder> samplerFolders(std::span<const Location> locations)
+{
+    std::vector<SamplerFolder> out;
+    std::vector<std::string> stickNames;
+    const std::string stock = std::string(InternalDisk::kStockFolder) + "/Samples";
+    for (const auto& l : locations)
+    {
+        if (l.alias == InternalDisk::kAlias)
+        {
+            if (l.root.isDirectory())
+                out.push_back({l.alias, "Samples", true});
+        }
+        else if (l.removable && l.root.getChildFile(stock).isDirectory())
+        {
+            out.push_back({l.alias + "/" + stock, "Samples", false});
+            stickNames.push_back(displayName(l).toStdString());
+        }
+    }
+    if (stickNames.size() > 1) // more than one stick: "Samples (sda1)", "Samples (sdb1)"
+        for (std::size_t i = 0, stick = 0; i < out.size(); ++i)
+            if (! out[i].internal)
+                out[i].name += " (" + stickNames[stick++] + ")";
     return out;
 }
 
@@ -489,6 +516,29 @@ std::vector<Entry> SampleLibrary::searchIn(const std::vector<Location>& location
     return out;
 }
 
+std::vector<Entry> SampleLibrary::searchIn(const std::vector<Location>& locations,
+                                           const std::vector<juce::String>& scopes, const juce::String& text,
+                                           std::size_t maxResults)
+{
+    std::vector<Entry> out;
+    if (text.trim().isEmpty())
+        return out;
+    for (const auto& scope : scopes)
+    {
+        const auto split = splitAlias(scope);
+        if (! split)
+            continue;
+        const Location* l = findIn(locations, split->first);
+        if (l == nullptr)
+            continue;
+        const juce::File folder = split->second.isEmpty() ? l->root : l->root.getChildFile(split->second);
+        if (folder.isDirectory())
+            searchFolder(folder, scope, l->removable, text.trim(), out, maxResults, 0);
+    }
+    sortEntries(out, SortOrder::AToZ);
+    return out;
+}
+
 std::vector<Entry> SampleLibrary::listNow(const juce::String& aliasPath, SortOrder sort) const
 {
     return listIn(locations_, aliasPath, sort);
@@ -514,6 +564,19 @@ void SampleLibrary::search(const juce::String& text, std::function<void(std::vec
 {
     auto result = std::make_shared<std::vector<Entry>>();
     workers_.run([locations = locations_, text, result] { *result = searchIn(locations, text, kMaxSearchResults); },
+                 [done = std::move(done), result]
+                 {
+                     if (done)
+                         done(std::move(*result));
+                 });
+}
+
+void SampleLibrary::search(const juce::String& text, std::vector<juce::String> scopes,
+                           std::function<void(std::vector<Entry>)> done)
+{
+    auto result = std::make_shared<std::vector<Entry>>();
+    workers_.run([locations = locations_, scopes = std::move(scopes), text, result]
+                 { *result = searchIn(locations, scopes, text, kMaxSearchResults); },
                  [done = std::move(done), result]
                  {
                      if (done)

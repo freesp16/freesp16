@@ -12,6 +12,7 @@
 #include "tests/snapshot/m4/M4Fixture.h"
 #include "tests/unit/store/StoreTestSupport.h"
 #include "ui/screens/sequence/M2Session.h"
+#include "ui/shell/Layout.h"
 #include "ui/shell/ModelParamAccess.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -163,4 +164,38 @@ TEST_CASE("m4ui.sequence: targets turn through setStepsParam, SHIFT through perf
     CHECK(s.cell(0, 0, 0, 0).kind == ui::StepKind::Empty);
     CHECK(s.undo());
     CHECK(s.cell(0, 0, 0, 0).kind == ui::StepKind::Full);
+}
+
+TEST_CASE("ui.m1.trackSetting: tap two tracks to exchange them and tap TRACKS to return home", "[snapshot][m1]")
+{
+    snapshot::Session isolated;
+    m1test::M1Fixture ui;
+    auto& state = ui::m2::Session::instance();
+    auto& firstScene = core::commands::project(state.bus()).scenes.front();
+    firstScene.tracks[0].name = "Kick";
+    firstScene.tracks[5].name = "Bass";
+    firstScene.patterns[0].steps[2][0].trigger = 90;
+
+    const auto tapCentre = [&](const ui::RectF& box) { ui.tap(box.x + box.w / 2, box.y + box.h / 2); };
+    const auto trackButton = ui::layout::menuButton(0);
+    tapCentre(trackButton);
+    ui.settle();
+    REQUIRE(ui.shell->current().id == "trackSetting");
+
+    tapCentre(ui::layout::trackTile(1));
+    tapCentre(trackButton);
+    ui.settle();
+    REQUIRE(ui.shell->current().id == "home");
+    tapCentre(trackButton);
+    ui.settle();
+    tapCentre(ui::layout::trackTile(6));
+    CHECK(firstScene.tracks[0].name == "Kick"); // leaving cancels the selection of the first slot
+
+    tapCentre(ui::layout::trackTile(1));
+    CHECK(firstScene.tracks[0].name == "Bass");
+    CHECK(firstScene.tracks[5].name == "Kick");
+    CHECK(firstScene.patterns[0].steps[2][5].trigger == 90);
+    REQUIRE(state.undo());
+    CHECK(firstScene.tracks[0].name == "Kick");
+    CHECK(firstScene.patterns[0].steps[2][0].trigger == 90);
 }

@@ -22,6 +22,7 @@ public:
 
     // ---- audio thread, block start ----
     void install(const SampleBuffer*) noexcept;
+    void stop() noexcept { fadeHead(head_, fadeFrames_); } // keep the installed identity until a new preview
     void setGain(float) noexcept; // linear, ramped over the next block
     void render(float* auxL, float* auxR) noexcept; // adds 64 frames
     bool active() const noexcept { return head_.active || fading_.active; }

@@ -9,9 +9,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <random>
+#include <vector>
 
 namespace
 {
@@ -55,7 +57,8 @@ TEST_CASE("midi.engine: incoming notes 0-15 land at arrival + one block exactly 
         arrivals.push_back(static_cast<std::int64_t>(a));
         push(*e, static_cast<std::uint8_t>(0x90 | (i % 16)), static_cast<std::uint8_t>(i % 16), static_cast<std::uint8_t>(1 + i), a);
         d.blocks(1);
-        push(*e, 0x80, static_cast<std::uint8_t>(i % 16), 0, static_cast<double>(d.frame()) - 10); // Note Off
+        push(*e, static_cast<std::uint8_t>(0x80 | (i % 16)), static_cast<std::uint8_t>(i % 16), 0,
+             static_cast<double>(d.frame()) - 10); // Note Off (its note on's channel)
         d.blocks(3);
     }
     d.blocks(4);
@@ -105,6 +108,79 @@ TEST_CASE("midi.engine: notes 24-72 play the receive channel's tracks chromatica
     const std::vector<std::pair<int, int>> want {{0, -24}, {5, -12}, {0, -1}, {5, -1}, {0, 0}, {5, 0}, {0, 12},
                                                  {5, 12},  {0, 24}, {5, 12}};
     CHECK(got == want);
+}
+
+TEST_CASE("midi.engine: a note recorded while REC is armed keeps its semitones; a track note is pitched at 0",
+          "[midi][record]")
+{
+    auto e = miditest::make();
+    miditest::Driver d {*e, 64};
+    d.param("seq.record", 0, 1.0f);
+    e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+    d.blocks(4);
+    engine::EngineEvent ev;
+    while (e->bridge().popEvent(ev)) {}
+    std::vector<engine::EngineEvent> got;
+    auto drain = [&] {
+        while (e->bridge().popEvent(ev))
+            if (ev.kind == engine::EngineEvent::Kind::RecordedHit)
+                got.push_back(ev);
+    };
+    push(*e, 0x90, 55, 100, static_cast<double>(d.frame()) - 1); // G3 on channel 1: track 1, +7 st (MID-021)
+    d.blocks(3);
+    drain();
+    REQUIRE(got.size() == 1u);
+    CHECK(got[0].track == 0);
+    CHECK(got[0].value == 100);
+    CHECK(got[0].pitched);
+    CHECK(got[0].semitones == 55 - 48);
+    push(*e, 0x90, 3, 90, static_cast<double>(d.frame()) - 1); // note 3: track 4 at its own pitch (MID-020)
+    d.blocks(3);
+    drain();
+    REQUIRE(got.size() == 2u);
+    CHECK(got[1].track == 3);
+    CHECK(got[1].pitched);
+    CHECK(got[1].semitones == 0);
+}
+
+TEST_CASE("midi.engine: a Note Off releases only the note that started the track (port, channel, note)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    d.param("track.triggerMode", 0, 1.0f); // track 1 GATE
+    d.param("midi.in.channel", 5, 1.0f);   // track 6 shares channel 1
+    auto send = [&](std::uint8_t b0, int note, int vel, int port = 0)
+    {
+        push(*e, b0, static_cast<std::uint8_t>(note), static_cast<std::uint8_t>(vel),
+             static_cast<double>(d.frame()) - 1, port);
+        d.hits.clear();
+        d.blocks(2);
+        std::vector<std::pair<int, TriggerKind>> got;
+        for (const auto& h : d.hits)
+            got.emplace_back(h.track, h.kind);
+        return got;
+    };
+    using V = std::vector<std::pair<int, TriggerKind>>;
+    // Notes 24–72: 50 then 55 on channel 1 (tracks 1 and 6); letting go of 50 keeps 55 sounding.
+    CHECK(send(0x90, 50, 100) == V{{0, TriggerKind::Full}, {5, TriggerKind::Full}});
+    CHECK(send(0x90, 55, 100) == V{{0, TriggerKind::Full}, {5, TriggerKind::Full}});
+    CHECK(send(0x80, 50, 0).empty());
+    CHECK(send(0x90, 55, 0) == V{{0, TriggerKind::Release}, {5, TriggerKind::Release}}); // velocity 0 = Note Off
+    CHECK(send(0x80, 55, 0).empty());                                                    // released already
+    // The same note number on another channel or port is another note.
+    send(0x90, 60, 100);
+    CHECK(send(0x81, 60, 0).empty());
+    CHECK(send(0x80, 60, 0, 1).empty());
+    CHECK(send(0x80, 60, 0) == V{{0, TriggerKind::Release}, {5, TriggerKind::Release}});
+    // Notes 0–15 (any channel): the Note Off of the note on's channel releases it.
+    CHECK(send(0x94, 3, 90) == V{{3, TriggerKind::Full}});
+    CHECK(send(0x80, 3, 0).empty());
+    CHECK(send(0x84, 3, 0) == V{{3, TriggerKind::Release}});
+    // A later note on the track takes it over: the first note's Note Off no longer releases it.
+    send(0x90, 0, 100);
+    send(0x91, 0, 100);
+    CHECK(send(0x80, 0, 0).empty());
+    CHECK(send(0x81, 0, 0) == V{{0, TriggerKind::Release}});
 }
 
 TEST_CASE("midi.engine: CC 46 at 0/64/127 hits the start, middle (half-even) and end of the FX1 grid (FX-086)", "[midi]")
@@ -164,15 +240,23 @@ TEST_CASE("midi.engine: fixed CC map, scene/pattern select, all notes off (MID-0
     CHECK(ui[0].param == miditest::id("track.volume").value);
     CHECK(ui[0].scope == 2);
     CHECK(ui[0].value == 127.0f);
-    // CC 0 = 3 → scene 3 queued (keeps pattern 1); the switcher shows it pending.
+    // CC 0 = 3 alone switches nothing (manual p.88: the switch is fixed by the PATTERN, CC 32).
     push(*e, 0xB0, 0, 3, static_cast<double>(d.frame()) - 1);
     d.blocks(2);
-    const auto ph = e->bridge().playhead(); // stopped: the switch may land at once
+    auto ph = e->bridge().playhead();
+    CHECK((ph.scene == 0 && ph.pendingScene == -1));
+    for (const auto& u : drainUi(*e))
+        CHECK(u.kind != core::midi::UiEvent::Kind::SceneSelect);
+    // CC 32 = 1 (the current pattern number) then queues scene 3, pattern 1 (not the SCN-021 same-pattern cancel).
+    push(*e, 0xB0, 32, 1, static_cast<double>(d.frame()) - 1);
+    d.blocks(2);
+    ph = e->bridge().playhead(); // stopped: the switch may land at once
     CHECK((static_cast<int>(ph.pendingScene) == 2 || static_cast<int>(ph.scene) == 2));
     ui = drainUi(*e);
     CHECK(std::any_of(ui.begin(), ui.end(), [](const auto& u) { return u.kind == core::midi::UiEvent::Kind::SceneSelect && u.scope == 2 * 16; }));
     // SCN-051: blocked while SAMPLING/EDIT is open; 0 is ignored.
     d.param("midi.remoteSelectBlocked", 0, 1.0f);
+    push(*e, 0xB0, 0, 5, static_cast<double>(d.frame()) - 1);
     push(*e, 0xB0, 32, 5, static_cast<double>(d.frame()) - 1);
     d.blocks(2);
     d.param("midi.remoteSelectBlocked", 0, 0.0f);
@@ -192,6 +276,166 @@ TEST_CASE("midi.engine: fixed CC map, scene/pattern select, all notes off (MID-0
     CHECK(stopped == std::vector<int> {3, 9});
 }
 
+TEST_CASE("midi.engine: CC 123 ALL NOTE OFF stops at its own frame (MID-023)", "[midi]")
+{
+    miditest::Sample sample;
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    sample = miditest::installSample(*e, 0, 4 * 44100);
+    d.blocks(1);
+    // One block: track 1 at +10, ALL NOTE OFF on channel 1 at +20 (tracks 1 and 2: track 2 receives channel 1 too),
+    // track 1 again at +30.
+    d.param("midi.in.channel", 1, 1.0f);
+    const double block = static_cast<double>(d.frame()) - 64; // arrived during the previous period → this block
+    push(*e, 0x90, 0, 100, block + 10);                       // track 1, note on at +10
+    push(*e, 0xB0, 123, 0, block + 20);                       // ALL NOTE OFF at +20
+    push(*e, 0x90, 0, 100, block + 30);                       // track 1 again at +30: after the CC, it plays
+    d.hits.clear();
+    d.blocks(1);
+    REQUIRE(d.hits.size() == 4);
+    const std::int64_t start = d.frame() - 64;
+    CHECK((d.hits[0].kind == TriggerKind::Full && d.hits[0].frame == start + 10));
+    CHECK((d.hits[1].kind == TriggerKind::Stop && d.hits[1].frame == start + 20 && d.hits[1].track == 0));
+    CHECK((d.hits[2].kind == TriggerKind::Stop && d.hits[2].frame == start + 20 && d.hits[2].track == 1));
+    CHECK((d.hits[3].kind == TriggerKind::Full && d.hits[3].frame == start + 30));
+    d.blocks(8);
+    CHECK(e->trackSource(0).voice().mainActive()); // the note after the CC sounds
+    // A note before the CC in the same block is stopped (it never sounds past the 2 ms fade).
+    push(*e, 0xB0, 123, 0, static_cast<double>(d.frame()) - 64 + 1);
+    d.blocks(8);
+    CHECK_FALSE(e->trackSource(0).voice().mainActive());
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 64 + 10);
+    push(*e, 0xB0, 123, 0, static_cast<double>(d.frame()) - 64 + 20);
+    d.blocks(8);
+    CHECK_FALSE(e->trackSource(0).voice().mainActive());
+}
+
+TEST_CASE("midi.engine: PAN (CC 10) and PITCH (CC 20) reach their centre at 64 (MID-031)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    drainUi(*e);
+    auto applied = [&](int cc, int v)
+    {
+        push(*e, 0xB0, static_cast<std::uint8_t>(cc), static_cast<std::uint8_t>(v), static_cast<double>(d.frame()) - 1);
+        d.blocks(2);
+        float got = -1000.0f;
+        for (const auto& u : drainUi(*e))
+            if (u.kind == core::midi::UiEvent::Kind::Param && u.scope == 0)
+                got = u.value;
+        return got;
+    };
+    CHECK(applied(10, 0) == -64.0f);
+    CHECK(applied(10, 63) == -1.0f);
+    CHECK(applied(10, 64) == 0.0f);
+    CHECK(applied(10, 127) == 64.0f);
+    CHECK(applied(20, 0) == -24.0f);
+    CHECK(applied(20, 63) == 0.0f);
+    CHECK(applied(20, 64) == 0.0f);
+    CHECK(applied(20, 127) == 24.0f);
+    CHECK(applied(20, 96) == 12.0f); // whole semitones
+}
+
+TEST_CASE("midi.engine: PLAYBACK START / LOOP START / LENGTH (CC 21-23) span the track's sample", "[midi]")
+{
+    miditest::Sample longSample, shortSample;
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    drainUi(*e);
+    auto applied = [&](std::uint8_t status, int cc, int v)
+    {
+        push(*e, status, static_cast<std::uint8_t>(cc), static_cast<std::uint8_t>(v),
+             static_cast<double>(d.frame()) - 1);
+        d.blocks(2);
+        float got = -1.0f;
+        for (const auto& u : drainUi(*e))
+            if (u.kind == core::midi::UiEvent::Kind::Param)
+                got = u.value;
+        return got;
+    };
+    CHECK(applied(0xB0, 21, 64) == -1.0f);              // no sample yet: nothing to scale onto, ignored
+    longSample = miditest::installSample(*e, 0, 44100); // 1 s
+    shortSample = miditest::installSample(*e, 1, 1000);
+    d.blocks(1);
+    CHECK(applied(0xB0, 21, 0) == 0.0f);
+    CHECK(applied(0xB0, 21, 1) == 347.0f);     // 44100 / 127 = 347.2
+    CHECK(applied(0xB0, 21, 64) == 22224.0f);  // 64 · 44100 / 127 = 22223.6
+    CHECK(applied(0xB0, 22, 127) == 44100.0f); // LOOP START at the end
+    CHECK(applied(0xB0, 23, 127) == 44100.0f); // LENGTH: the whole sample
+    CHECK(applied(0xB1, 23, 1) == 8.0f);       // track 2: 1000 / 127 = 7.9
+    CHECK(applied(0xB1, 21, 127) == 1000.0f);
+    const auto& t = miditest::table();
+    for (int cc : {21, 22, 23})
+        CHECK(t.cc[static_cast<std::size_t>(cc)].kind == core::midi::CcKind::Frames);
+}
+
+TEST_CASE("midi.engine: CC 0 holds the scene, CC 32 switches; other messages wait (manual p.88, SCN-050)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d{*e, 64};
+    drainUi(*e);
+    auto cc = [&](int c, int v)
+    {
+        push(*e, 0xB0, static_cast<std::uint8_t>(c), static_cast<std::uint8_t>(v), static_cast<double>(d.frame()) - 1);
+        d.blocks(2);
+    };
+    auto selected = [&] { // the scene * 16 + pattern queued since the last call, −1 = none
+        int s = -1;
+        for (const auto& u : drainUi(*e))
+            if (u.kind == core::midi::UiEvent::Kind::SceneSelect)
+                s = u.scope;
+        return s;
+    };
+    // CC 0 = 3 then CC 32 = 5: scene 3, pattern 5 (was: scene 3 at once, then the playing scene with pattern 5).
+    cc(0, 3);
+    CHECK(selected() == -1);
+    cc(32, 5);
+    CHECK(selected() == 2 * 16 + 4);
+    d.blocks(2);
+    REQUIRE(e->bridge().playhead().scene == 2); // stopped: at once
+    // CC 32 alone: the pattern of the current scene.
+    cc(32, 7);
+    CHECK(selected() == 2 * 16 + 6);
+    // While a CC 0 waits for its CC 32 the other messages are ignored; a Note Off still ends its note.
+    push(*e, 0x90, 1, 100, static_cast<double>(d.frame()) - 1); // track 2 sounding
+    d.blocks(2);
+    cc(0, 9);
+    d.hits.clear();
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 1); // ignored
+    push(*e, 0x80, 1, 0, static_cast<double>(d.frame()) - 1);   // passes
+    d.blocks(2);
+    REQUIRE(d.hits.size() == 1);
+    CHECK((d.hits[0].track == 1 && d.hits[0].kind == TriggerKind::Release));
+    cc(7, 20); // ignored: no volume change
+    for (const auto& u : drainUi(*e))
+        CHECK((u.kind != core::midi::UiEvent::Kind::Param && u.kind != core::midi::UiEvent::Kind::SceneSelect));
+    cc(32, 1);
+    CHECK(selected() == 8 * 16);
+    d.hits.clear();
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 1); // after the CC 32: heard again
+    d.blocks(2);
+    CHECK(d.hits.size() == 1);
+    // A lone CC 0 waits 1 s at most (our choice): then notes play again and a CC 32 keeps the current scene.
+    d.blocks(4);
+    const int current = e->bridge().playhead().scene;
+    cc(0, 12);
+    d.blocks(44100 / 64);
+    d.hits.clear();
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 1);
+    d.blocks(2);
+    CHECK(d.hits.size() == 1);
+    cc(32, 2);
+    CHECK(selected() == current * 16 + 1);
+    // SAMPLING/EDIT opening drops a waiting CC 0.
+    cc(0, 4);
+    d.param("midi.remoteSelectBlocked", 0, 1.0f);
+    d.param("midi.remoteSelectBlocked", 0, 0.0f);
+    d.hits.clear();
+    push(*e, 0x90, 0, 100, static_cast<double>(d.frame()) - 1);
+    d.blocks(2);
+    CHECK(d.hits.size() == 1);
+}
+
 TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends them (MID-040/047/050)", "[midi]")
 {
     auto e = miditest::make();
@@ -200,7 +444,7 @@ TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends
     hub.setOutputConnected(0, true);
     d.param("track.mode", 0, 1.0f);         // track 1 → MIDI
     d.param("midi.out.channel", 0, 5.0f);   // sends on channel 5
-    d.param("midi.note2", 0, 64.0f);        // a chord: 60 + 64
+    d.param("midi.note2", 0, 4.0f);         // a chord: NOTE 60 and NOTE2 +4 = 64
     d.param("midi.velocity", 0, 0.0f);      // OFF: the pad's velocity
     d.param("midi.length", 0, 64.0f);       // long: still sounding when the guard runs
     d.param("seq.transpose", 0, 2.0f);      // performance transpose +2
@@ -240,7 +484,7 @@ TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends
     // A short note ends by itself after `length` (0.25 step at 120 BPM = 0.25 × 5512.5 = 1378.125 frames).
     d.param("track.mode", 0, 1.0f);
     d.param("midi.length", 0, 0.25f);
-    d.param("midi.note2", 0, -1.0f);
+    d.param("midi.note2", 0, 0.0f);         // NOTE2 OFF
     miditest::drainOut(*e);
     hit();
     d.blocks(60);
@@ -263,27 +507,203 @@ TEST_CASE("midi.engine: MIDI tracks send chords, and the hanging-note guard ends
     CHECK((out[2].bytes[0] == 0xC4 && out[2].bytes[1] == 5));
 }
 
-TEST_CASE("midi.engine: CC1 / CC2 values are sent when changed and Active (MID-041…044)", "[midi]")
+TEST_CASE("midi.engine: SCALE pads of a MIDI track send SET SCALE (MIDI)'s notes; a step's PITCH lock transposes",
+          "[midi][record]")
 {
     auto e = miditest::make();
     miditest::Driver d {*e, 64};
     e->midi().hub().setOutputConnected(0, true);
-    d.param("track.mode", 2, 1.0f);
+    d.param("track.mode", 2, 1.0f);       // track 3 → MIDI
+    d.param("midi.out.channel", 2, 1.0f);
+    d.param("midi.note1", 2, 57.0f);      // NOTE 1 = A4
+    d.param("midi.note2", 2, 4.0f);       // NOTE2 +4: a major third over NOTE
+    d.param("midi.velocity", 2, 100.0f);
+    d.param("scaleMidi.type", 2, 1.0f);   // IONIAN (major)
+    d.param("scaleMidi.root", 2, 62.0f);  // root D5
+    d.param("pads.selected", 0xFFFF, 2.0f);
+    d.param("pads.mode", 0xFFFF, 4.0f);   // SCALE
+    d.blocks(1);
     miditest::drainOut(*e);
-    d.param("midi.cc2.value1", 2, 33.0f); // not active: nothing
-    CHECK(miditest::drainOut(*e).empty());
-    d.param("midi.cc2.active1", 2, 1.0f); // activating sends the value
+    e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 = degree 2 = F#5 (66)
+    d.blocks(2);
+    auto out = miditest::drainOut(*e);
+    REQUIRE(out.size() == 2);
+    CHECK((out[0].bytes[0] == 0x90 && out[0].bytes[1] == 66)); // NOTE 1 plays the pad's note (PAD-020)
+    CHECK((out[1].bytes[0] == 0x90 && out[1].bytes[1] == 70)); // the harmony note keeps its interval
+    e->triggers().push(engine::TriggerNow {2, 0, 60, 2});
+    d.blocks(1);
+
+    // A recorded step: its PITCH lock (slot 4, semitones) transposes the track's notes.
+    std::array<float, 35> values {};
+    values[4] = 9.0f;
+    const engine::trigger::LockSet locks {1ull << 4, values.data(), nullptr};
+    engine::trigger::TriggerEvent step {};
+    step.track = 2;
+    step.velocity = 100;
+    step.kind = engine::trigger::TriggerKind::Full;
+    step.source = engine::trigger::TriggerSource::Sequencer;
+    step.locks = &locks;
+    miditest::drainOut(*e);
+    REQUIRE(e->triggerRouter().push(step));
+    d.blocks(1);
+    out = miditest::drainOut(*e);
+    std::vector<int> on;
+    for (const auto& o : out)
+        if (o.bytes[0] == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {57 + 9, 61 + 9});
+}
+
+TEST_CASE("midi.engine: a TORAIZ AS-1 track sends NOTE alone; its SCALE pads use SET SCALE (MIDI)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d {*e, 64};
+    e->midi().hub().setOutputConnected(0, true);
+    d.param("track.mode", 4, 3.0f);       // track 5 → TORAIZ AS-1
+    d.param("midi.note1", 4, 48.0f);      // C4
+    d.param("midi.note2", 4, 7.0f);       // a fifth: the AS-1 plays no chords
+    d.param("midi.velocity", 4, 100.0f);
+    d.blocks(1);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {4, 90, 60, 4}); // pad 5 (PLAY)
+    d.blocks(2);
+    auto out = miditest::drainOut(*e);
+    std::vector<int> on;
+    for (const auto& o : out)
+        if ((o.bytes[0] & 0xF0) == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {48}); // NOTE only, on the track's channel
+    CHECK((out.size() >= 1 && out[0].bytes[0] == 0x94)); // channel 5
+    e->triggers().push(engine::TriggerNow {4, 0, 60, 4});
+    d.blocks(1);
+
+    d.param("scaleMidi.root", 4, 50.0f);  // ROOT NOTE D4: the AS-1's SCALE pads play from it (the manual's 1.4)
+    d.param("pads.selected", 0xFFFF, 4.0f);
+    d.param("pads.mode", 0xFFFF, 4.0f);   // SCALE (CHROMATIC)
+    d.blocks(1);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 = root + 2 = E4
+    d.blocks(2);
+    on.clear();
+    for (const auto& o : miditest::drainOut(*e))
+        if ((o.bytes[0] & 0xF0) == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {52});
+}
+
+TEST_CASE("midi.engine: NOTE…NOTE4 on one note number send it once", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d {*e, 64};
+    e->midi().hub().setOutputConnected(0, true);
+    d.param("track.mode", 1, 1.0f);   // track 2 → MIDI
+    d.param("midi.note2", 1, 12.0f);
+    d.param("midi.note3", 1, 12.0f);  // the same as NOTE2
+    d.param("midi.note4", 1, 7.0f);
+    d.blocks(1);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {1, 90, 60, 1});
+    d.blocks(2);
+    std::vector<int> on;
+    for (const auto& o : miditest::drainOut(*e))
+        if ((o.bytes[0] & 0xF0) == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {60, 72, 67});
+    CHECK(e->midi().out().soundingCount() == 3);
+    // A stored NOTE bypass (an older project, an import) does not silence the track: NOTE is not bypassable.
+    d.param("midi.noteBypass", 1, 1.0f);
+    e->triggers().push(engine::TriggerNow {1, 0, 60, 1});
+    d.blocks(1);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {1, 90, 60, 1});
+    d.blocks(2);
+    on.clear();
+    for (const auto& o : miditest::drainOut(*e))
+        if ((o.bytes[0] & 0xF0) == 0x90)
+            on.push_back(o.bytes[1]);
+    CHECK(on == std::vector<int> {60, 72, 67});
+}
+
+TEST_CASE("midi.engine: Active CC1 / CC2 values go out just before each trigger's notes (the manual's 2.4)", "[midi]")
+{
+    auto e = miditest::make();
+    miditest::Driver d {*e, 64};
+    e->midi().hub().setOutputConnected(0, true);
+    d.param("track.mode", 2, 1.0f);       // track 3 → MIDI, channel 3
+    d.param("midi.velocity", 2, 100.0f);
+    d.param("midi.cc2.value1", 2, 33.0f); // CC2 PARAMETER 1 (CC 71), not Active yet
+    d.param("midi.cc1.value3", 2, 20.0f); // CC1 PARAMETER 3 (CC 7)
+    d.param("midi.cc1.active3", 2, 1.0f);
+    d.param("midi.cc2.active1", 2, 1.0f);
     d.param("midi.cc2.value1", 2, 34.0f);
     d.param("midi.pitchBendActive", 2, 1.0f);
     d.param("midi.pitchBend", 2, -8192.0f);
-    d.param("midi.cc2Bypass", 2, 1.0f);
-    d.param("midi.cc2.value1", 2, 35.0f); // bypassed
-    const auto out = miditest::drainOut(*e);
+    d.param("midi.aftertouch", 2, 90.0f); // aftertouch not Active: never sent
+    d.blocks(2);
+    CHECK(miditest::drainOut(*e).empty()); // a changed value alone sends nothing
+    auto hit = [&] {
+        e->triggers().push(engine::TriggerNow {2, 90, 60, 2}); // pad 3 (PLAY)
+        d.blocks(2);
+        e->triggers().push(engine::TriggerNow {2, 0, 60, 2});
+        d.blocks(1);
+        std::vector<std::vector<int>> v;
+        for (const auto& o : miditest::drainOut(*e))
+            if ((o.bytes[0] & 0xF0) != 0x80)
+                v.push_back({o.bytes[0], o.bytes[1], o.bytes[2], static_cast<int>(o.sampleTime)});
+        return v;
+    };
+    auto out = hit();
     REQUIRE(out.size() == 4);
-    CHECK((out[0].bytes[0] == 0xB2 && out[0].bytes[1] == 71 && out[0].bytes[2] == 33));
-    CHECK((out[1].bytes[0] == 0xB2 && out[1].bytes[1] == 71 && out[1].bytes[2] == 34));
-    CHECK((out[2].bytes[0] == 0xE2 && out[2].bytes[1] == 0 && out[2].bytes[2] == 64)); // centre on activation
-    CHECK((out[3].bytes[0] == 0xE2 && out[3].bytes[1] == 0 && out[3].bytes[2] == 0));
+    CHECK(out[0] == std::vector<int> {0xE2, 0, 0, out[3][3]});    // pitch bend −8192, at the note's frame
+    CHECK(out[1] == std::vector<int> {0xB2, 7, 20, out[3][3]});   // CC1 PARAMETER 3
+    CHECK(out[2] == std::vector<int> {0xB2, 71, 34, out[3][3]});  // CC2 PARAMETER 1
+    CHECK((out[3][0] == 0x92 && out[3][1] == 60 && out[3][2] == 100));
+    // Every trigger sends them again; a bypassed module does not.
+    d.param("midi.cc2Bypass", 2, 1.0f);
+    out = hit();
+    REQUIRE(out.size() == 3);
+    CHECK((out[0][0] == 0xE2 && out[1][1] == 7 && out[2][0] == 0x92));
+    d.param("midi.cc1Bypass", 2, 1.0f); // CC1 holds pitch bend and aftertouch too
+    out = hit();
+    REQUIRE(out.size() == 1);
+    CHECK(out[0][0] == 0x92);
+    d.param("midi.cc1Bypass", 2, 0.0f);
+    d.param("midi.cc2Bypass", 2, 0.0f);
+
+    // A sequence trigger: the values at the step's frame, before its notes.
+    engine::trigger::TriggerEvent step {};
+    step.track = 2;
+    step.velocity = 100;
+    step.frame = 17;
+    step.kind = engine::trigger::TriggerKind::Full;
+    step.source = engine::trigger::TriggerSource::Sequencer;
+    miditest::drainOut(*e);
+    REQUIRE(e->triggerRouter().push(step));
+    d.blocks(1);
+    auto seq = miditest::drainOut(*e);
+    std::erase_if(seq, [](const auto& o) { return (o.bytes[0] & 0xF0) == 0x80; }); // the pad's note ending
+    REQUIRE(seq.size() == 4);
+    CHECK((seq[0].bytes[0] == 0xE2 && seq[1].bytes[0] == 0xB2 && seq[2].bytes[0] == 0xB2 && seq[3].bytes[0] == 0x92));
+    CHECK((seq[0].sampleTime == seq[3].sampleTime && seq[2].sampleTime == seq[3].sampleTime));
+
+    // OUT NOTE/CC DISABLE: neither the values nor the notes.
+    d.param("midi.out.noteCc", 0, 0.0f);
+    CHECK(hit().empty());
+    d.param("midi.out.noteCc", 0, 1.0f);
+
+    // A TORAIZ AS-1 track sends them too, on its channel.
+    d.param("track.mode", 4, 3.0f);
+    d.param("midi.out.channel", 4, 9.0f);
+    d.param("midi.cc2.active2", 4, 1.0f);
+    d.param("midi.cc2.value2", 4, 5.0f);
+    miditest::drainOut(*e);
+    e->triggers().push(engine::TriggerNow {4, 90, 60, 4});
+    d.blocks(2);
+    auto as1 = miditest::drainOut(*e);
+    std::erase_if(as1, [](const auto& o) { return (o.bytes[0] & 0xF0) == 0x80; });
+    REQUIRE(as1.size() == 2);
+    CHECK((as1[0].bytes[0] == 0xB8 && as1[0].bytes[1] == 72 && as1[0].bytes[2] == 5));
+    CHECK(as1[1].bytes[0] == 0x98);
 }
 
 namespace
@@ -373,4 +793,105 @@ TEST_CASE("midi.engine: the transport phase-locks to an external clock (SYN-012:
     CHECK(drift <= 1.0);
     CHECK(jittered.maxErr <= 44.1); // the jitter itself, filtered: well inside 1 ms
     CHECK(jittered.shownBpm == 120.0);
+}
+
+namespace
+{
+// A clock at `clockBpm` into an engine whose own tempo is `internalBpm`: Start from the clock (or none: the unit's own
+// PLAY), then 8 bars of ticks; returns the playhead's quarters per minute over the last 4 bars and the shown BPM.
+struct FollowResult
+{
+    double ppqRateBpm = 0, shownBpm = 0, ppq = 0;
+    bool external = false, lostWhileRunning = true, lostAfter = false;
+    double shownAfterLoss = 0, rateAfterLoss = 0;
+};
+FollowResult followAt(double clockBpm, double internalBpm, bool clockStart, bool playFirst = false)
+{
+    auto e = miditest::make(kRate);
+    miditest::Driver d {*e, 64};
+    d.param("transport.tempo", 0, static_cast<float>(internalBpm));
+    d.param("midi.syncSource", 0, 1.0f);
+    if (playFirst)
+        e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+    d.blocks(4);
+    const double P = 60.0 * kRate / (24.0 * clockBpm);
+    const double t0 = static_cast<double>(d.frame()) + 2000.0;
+    const int ticks = 8 * 96;
+    int next = 0;
+    bool started = false;
+    double ppqA = -1, frameA = 0;
+    FollowResult r;
+    while (next < ticks)
+    {
+        const double now = static_cast<double>(d.frame());
+        if (! started && t0 - P / 2 < now)
+        {
+            if (clockStart)
+                push(*e, 0xFA, 0, 0, t0 - P / 2);
+            else if (! playFirst)
+                e->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
+            started = true;
+        }
+        while (next < ticks && t0 + next * P < now)
+            push(*e, 0xF8, 0, 0, t0 + (next++) * P);
+        d.blocks(1);
+        if (ppqA < 0 && next >= 4 * 96)
+        {
+            ppqA = e->bridge().playhead().ppq;
+            frameA = static_cast<double>(d.frame());
+        }
+    }
+    const double ppqB = e->bridge().playhead().ppq, frameB = static_cast<double>(d.frame());
+    r.ppqRateBpm = (ppqB - ppqA) / ((frameB - frameA) / kRate) * 60.0;
+    r.shownBpm = e->bridge().playhead().bpm;
+    r.ppq = ppqB;
+    r.external = e->bridge().playhead().externalClock;
+    r.lostWhileRunning = e->bridge().playhead().clockLost;
+    // The clock stops (the cable pulled): lost after 500 ms, the tempo kept (CLOCK LOSS = KEEP TEMPO, SYN-013).
+    d.blocks(static_cast<int>(0.6 * kRate / 64));
+    const double ppqC = e->bridge().playhead().ppq, frameC = static_cast<double>(d.frame());
+    d.blocks(static_cast<int>(1.0 * kRate / 64));
+    r.lostAfter = e->bridge().playhead().clockLost;
+    r.shownAfterLoss = e->bridge().playhead().bpm;
+    r.rateAfterLoss = (e->bridge().playhead().ppq - ppqC) / ((static_cast<double>(d.frame()) - frameC) / kRate) * 60.0;
+    return r;
+}
+} // namespace
+
+TEST_CASE("midi.engine: the transport takes the external clock's tempo, not the project's (SYN-012)", "[midi]")
+{
+    for (const double clock : {90.0, 140.0, 174.0})
+        for (const bool start : {true, false})
+            for (const bool playFirst : {false, true})
+            {
+                if (start && playFirst)
+                    continue;
+                const auto r = followAt(clock, 120.0, start, playFirst);
+                INFO("clock " << clock << " start " << start << " playFirst " << playFirst << ": playhead "
+                              << r.ppqRateBpm << " BPM, shown " << r.shownBpm << ", ppq " << r.ppq);
+                CHECK(std::fabs(r.ppqRateBpm - clock) < 0.5);
+                CHECK(std::fabs(r.shownBpm - clock) < 0.15);
+                CHECK(r.external); // the UI's MIDI badge and followed BPM
+                CHECK_FALSE(r.lostWhileRunning);
+                CHECK(r.lostAfter);
+                CHECK(std::fabs(r.shownAfterLoss - clock) < 0.15);
+                CHECK(std::fabs(r.rateAfterLoss - clock) < 0.5);
+            }
+}
+
+TEST_CASE("midi.engine: the USB port takes OUT or OUT + MIDI IN only (manual 1.60 p.12)", "[midi]")
+{
+    STATIC_REQUIRE(core::midi::legalPortMode(0, 3) == 3);
+    STATIC_REQUIRE(core::midi::legalPortMode(2, 4) == 4);
+    STATIC_REQUIRE(core::midi::legalPortMode(0, 9) == 4);
+    auto e = miditest::make(kRate);
+    miditest::Driver d{*e, 64};
+    const int want[5] = {0, 1, 0, 1, 0}; // OUT, OUT+MIDI IN, (USB IN) → OUT, THRU (MIDI IN) → OUT+MIDI IN, (USB) → OUT
+    for (int mode = 0; mode < 5; ++mode)
+    {
+        d.param("midi.portMode", 1, static_cast<float>(mode));
+        CHECK(e->midi().hub().portMode(1) == want[mode]);
+        d.param("midi.portMode", 0, static_cast<float>(mode)); // DIN: all five
+        CHECK(e->midi().hub().portMode(0) == mode);
+    }
 }

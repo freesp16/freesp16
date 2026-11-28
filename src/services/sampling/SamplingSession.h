@@ -11,6 +11,8 @@
 //                            then sampling.rec = 1 is posted; onTake(TakeInfo) arrives on the message thread when the
 //                            engine ended the take (REC LENGTH, stopRecord) and the WAV + sidecar are in place.
 //   stopRecord(scene, track) sampling.rec = 0 (REC again; in standby it cancels: onTake with cancelled = true).
+//   dropRecord(scene, track) sampling.drop = 1: the take is thrown away, standby or recording (onTake cancelled; the
+//                            part file is deleted). A take the engine already ended is kept.
 //   frame()                  once per UI frame: pumps nothing itself (the Workers' pump does), watches the live take:
 //                            a Done take is copied into a SampleBuffer on a worker (TakeBuilder) and installed on its
 //                            track — ObjectSwap{TrackSample, scene, track} + live.takeReady (loop-after-rec starts at
@@ -70,6 +72,7 @@ public:
     // ---- sampling (SMP-001…007) ----
     core::Result<juce::File> record(int scene, int track, int channels); // channels 1 = LINE IN L/R, 2 otherwise
     void stopRecord(int scene, int track);
+    void dropRecord(int scene, int track);
     bool recording() const noexcept { return recorder_ && recorder_->busy(); }
     std::function<void(const TakeInfo&)> onTake; // message thread
 

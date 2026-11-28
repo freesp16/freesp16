@@ -183,7 +183,7 @@ inline void randomTrack(Rng& r, m::Track& t, const m::SamplePool& pool, bool for
     t.slices.gridCount = r.range(1, m::kSteps);
     t.padScale.scaleType = r.range(0, static_cast<int>(m::enumCount<m::ScaleType>()) - 1);
     t.padScale.keyShift = r.range(-12, 12);
-    t.midiScale.rootNote = r.range(0, 127);
+    t.midiScale.rootNote = r.range(0, 119);
     randomSlot(r, t.insertFx[0], true);
     if (r.chance(0.5))
         randomSlot(r, t.insertFx[1], true);
@@ -193,7 +193,8 @@ inline void randomTrack(Rng& r, m::Track& t, const m::SamplePool& pool, bool for
     t.lfo.destination = r.chance(0.5) ? r.range(100, 155) : r.range(0, 22);
     t.lfo.shape = r.pick<m::LfoShape>();
     t.lfo.triggerOn = r.pick<m::LfoTriggerOn>();
-    t.midi.notes = {r.range(0, 127), r.chance(0.5) ? r.range(0, 127) : -1, -1, r.chance(0.2) ? 64 : -1};
+    // NOTE, then NOTE2–4 as semitones from it (0 = OFF)
+    t.midi.notes = {r.range(0, 119), r.chance(0.5) ? r.range(-24, 24) : 0, 0, r.chance(0.2) ? 7 : 0};
     t.midi.velocity = r.range(0, 127);
     t.midi.length = r.real(0.25, 64);
     t.midi.cc1[2] = {r.range(0, 127), r.range(0, 127), r.chance(0.5)};

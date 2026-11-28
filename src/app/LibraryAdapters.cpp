@@ -12,13 +12,20 @@ namespace
 {
 namespace lib = services::library;
 
+// The internal disk is a "removable" location only because USB storage mode unmounts it; its samples get no USB mark.
+bool onInternalDisk(std::string_view path)
+{
+    const std::string_view alias = lib::InternalDisk::kAlias;
+    return path.substr(0, alias.size()) == alias && (path.size() == alias.size() || path[alias.size()] == '/');
+}
+
 ui::m1::BrowseEntry toBrowse(const lib::Entry& e)
 {
     ui::m1::BrowseEntry b;
     b.name = e.name.toStdString();
     b.path = e.aliasPath.toStdString();
     b.folder = e.folder;
-    b.removable = e.removable;
+    b.removable = e.removable && ! onInternalDisk(b.path);
     b.frames = e.frames;
     b.rate = e.rate;
     b.bpm = e.bpm;
@@ -44,8 +51,8 @@ std::string aliasName(std::string_view alias)
 } // namespace
 
 LibraryBrowseSource::LibraryBrowseSource(lib::SampleLibrary& library, lib::TrackLoader& loader,
-                                         lib::PreviewService& preview, core::CommandBus& bus)
-    : library_(library), loader_(loader), preview_(preview), bus_(bus)
+                                         lib::PreviewService& preview, core::CommandBus& bus, bool samplerFoldersOnly)
+    : library_(library), loader_(loader), preview_(preview), bus_(bus), samplerFoldersOnly_(samplerFoldersOnly)
 {
     for (auto& s : assigned_)
         s.reserve(256);
@@ -58,8 +65,22 @@ int LibraryBrowseSource::scene() const noexcept
     return core::commands::hasProject(bus_) ? core::commands::project(bus_).settings.currentScene & 15 : 0;
 }
 
+std::vector<ui::m1::BrowseEntry> LibraryBrowseSource::samplerRoots() const
+{
+    std::vector<ui::m1::BrowseEntry> out;
+    for (auto& f : lib::samplerFolders(library_.locations()))
+        out.push_back({.name = std::move(f.name),
+                       .path = std::move(f.aliasPath),
+                       .folder = true,
+                       .removable = ! f.internal,
+                       .badge = f.internal ? "INTERNAL" : "USB"});
+    return out;
+}
+
 std::vector<ui::m1::BrowseEntry> LibraryBrowseSource::roots()
 {
+    if (samplerFoldersOnly_)
+        return samplerRoots();
     std::vector<ui::m1::BrowseEntry> out;
     for (const auto& l : library_.locations())
     {
@@ -87,6 +108,15 @@ void LibraryBrowseSource::list(const std::string& path, ui::m1::BrowseSort sort,
 
 void LibraryBrowseSource::search(const std::string& text, std::function<void(std::vector<ui::m1::BrowseEntry>)> done)
 {
+    if (samplerFoldersOnly_) // TEXT search below the shown roots only
+    {
+        std::vector<juce::String> scopes;
+        for (const auto& r : samplerRoots())
+            scopes.push_back(juce::String::fromUTF8(r.path.c_str()));
+        library_.search(juce::String(text), std::move(scopes),
+                        [done = std::move(done)](std::vector<lib::Entry> entries) { done(toBrowse(entries)); });
+        return;
+    }
     library_.search(juce::String(text),
                     [done = std::move(done)](std::vector<lib::Entry> entries) { done(toBrowse(entries)); });
 }

@@ -92,6 +92,58 @@ TEST_CASE("trigger.pads: mode keys are one-hot, the lit key turns its mode off (
     CHECK(p.mode() == PadMode::Scale);
 }
 
+TEST_CASE("trigger.pads: SLICE mode cannot be used on a MIDI or AS-1 track", "[trigger]")
+{
+    World w;
+    auto& p = *w.pads;
+    w.selection.select(2);
+    cmd::project(w.bus).scenes[0].tracks[2].mode = core::model::TrackMode::Midi;
+    p.onModeKey(PadMode::Slice);
+    CHECK(p.mode() == PadMode::Play); // refused: the key stays dark
+    cmd::project(w.bus).scenes[0].tracks[2].mode = core::model::TrackMode::Instrument;
+    p.onModeKey(PadMode::Slice);
+    CHECK(p.mode() == PadMode::Play);
+    p.onModeKey(PadMode::Scale); // SCALE is theirs (SET SCALE (MIDI))
+    CHECK(p.mode() == PadMode::Scale);
+    cmd::project(w.bus).scenes[0].tracks[2].mode = core::model::TrackMode::Sample;
+    p.onModeKey(PadMode::Slice);
+    CHECK(p.mode() == PadMode::Slice);
+}
+
+TEST_CASE("trigger.pads: selecting a MIDI or AS-1 track ends SLICE mode, as its key refuses it there", "[trigger]")
+{
+    World w;
+    auto& p = *w.pads;
+    cmd::project(w.bus).scenes[0].tracks[4].mode = core::model::TrackMode::Midi;
+    cmd::project(w.bus).scenes[0].tracks[5].mode = core::model::TrackMode::Instrument;
+    w.selection.select(2);
+    p.onModeKey(PadMode::Slice);
+    REQUIRE(p.mode() == PadMode::Slice);
+    p.onPad(4, 100, true, true, 0, false); // SHIFT + pad 5 selects the MIDI track
+    CHECK(w.selection.selected() == 4);
+    CHECK(p.mode() == PadMode::Play);
+    CHECK(w.lastParam("pads.mode") == static_cast<float>(PadMode::Play));
+    CHECK(w.triggers().empty()); // no slice played meanwhile
+
+    w.selection.select(2);
+    p.onModeKey(PadMode::Slice);
+    REQUIRE(p.mode() == PadMode::Slice);
+    w.selection.select(5); // the rotary / HOME: the frame's sync sees an AS-1 track
+    p.sync();
+    CHECK(p.mode() == PadMode::Play);
+
+    w.selection.select(2);
+    p.onModeKey(PadMode::Slice);
+    cmd::project(w.bus).scenes[0].tracks[2].mode = core::model::TrackMode::Midi; // the selected track made MIDI
+    p.sync();
+    CHECK(p.mode() == PadMode::Play);
+
+    cmd::project(w.bus).scenes[0].tracks[2].mode = core::model::TrackMode::Sample;
+    p.onModeKey(PadMode::Slice);
+    p.onPad(3, 100, true, true, 0, false); // SHIFT + pad 4: a Sample track keeps SLICE mode
+    CHECK(p.mode() == PadMode::Slice);
+}
+
 TEST_CASE("trigger.pads: PAD MODE SELECT RESPONSE OVER 1sec switches only after a 1 s hold (PAD-007)", "[trigger]")
 {
     World w;

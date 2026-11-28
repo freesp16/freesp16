@@ -36,6 +36,17 @@ bool applyTrackParam(TrackSettings& s, TrackField field, float value) noexcept
         case TrackField::ScaleArea:
             scale = store(s.window, roundIndex(value, core::scales::kMinWindow, core::scales::kMaxWindow));
             break;
+        case TrackField::MidiScaleType:
+            if (! store(s.midiScaleType, roundIndex(value, 0, core::scales::kScales - 1)))
+                return false;
+            s.midiPadSemitones = core::scales::padTable(core::scales::scaleMask(s.midiScaleType), 0, s.midiWindow);
+            return true;
+        case TrackField::MidiScaleRoot: return store(s.midiRoot, roundIndex(value, 0, 119)); // C0…B9
+        case TrackField::MidiScaleArea:
+            if (! store(s.midiWindow, roundIndex(value, core::scales::kMinWindow, core::scales::kMaxWindow)))
+                return false;
+            s.midiPadSemitones = core::scales::padTable(core::scales::scaleMask(s.midiScaleType), 0, s.midiWindow);
+            return true;
         case TrackField::Count: return false;
     }
     if (scale)

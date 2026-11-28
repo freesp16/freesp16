@@ -206,7 +206,7 @@ void Engine::prepare(double sampleRate, int maxDeviceFrames)
         auto& src = sources_[static_cast<std::size_t>(t)];
         src.prepare(sampleRate_, kBlockFrames);
         src.setPlayback(m1_.playback.at(scene, t));
-        env_.setParams(t, m1_.envParams[scene][t], transport_.bpm());
+        env_.setParams(t, m1_.envParams[scene][t], transport_.effectiveBpm());
     }
     triggerRouter_.prepare(sampleRate_, kBlockFrames);
     ribbon_.prepare(sampleRate_);
@@ -322,6 +322,8 @@ void Engine::process(const AudioIO& io) noexcept
     p.ppq = transport_.ppq();
     p.bpm = midi_.displayTempo(transport_.bpm()); // the followed clock's tempo (SYN-012 display)
     p.playing = transport_.playing();
+    p.externalClock = midi_.following();
+    p.clockLost = midi_.clockLost();
     sceneSwitch_.publish(p, transport_.ppq()); // scene, pattern, step, pending scene/pattern
     p.preCount = transport_.preCount();
     for (int t = 0; t < kTracks; ++t) // PLY-045: play position 0–1, negative = idle; the hits for the pad flashes
@@ -353,6 +355,16 @@ void Engine::renderBlock() noexcept
     sampling_.input(buffers_);        //    input stage: soft limiter + meter → the post-limiter input
     midi_.processIn(ctx);             // 2  MIDI in
     transport_.process(ctx, buffers_); // 3
+    const auto stop = transport_.transport().stopAction();
+    if (stop != transport::StopAction::None)
+    {
+        for (auto& source : sources_)
+            source.stopPlayback(stop == transport::StopAction::Loops);
+        sampling_.live().stopPlayback();
+        ribbon_.stopRepeats();
+        if (stop == transport::StopAction::All)
+            preview_.stop();
+    }
     sync_.process(ctx, buffers_);     // 4
     chain_.setSuspended(arrangement_.suspendsChain()); // 5: song mode is on, the chain waits
     chain_.process(ctx, buffers_.timing, sceneSwitch_.switcher, swaps_.as<scene::ChainPlan>(scene::kChainSlot)); // 5
@@ -534,6 +546,10 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
     }
     if (const auto* t = std::get_if<TransportCmd>(&m))
     {
+        // Earlier pad hits in this FIFO must reach the voices before the stop takes effect.
+        if (triggerRouter_.pending() != 0 &&
+            (t->kind == TransportCmd::HardStop || (t->kind == TransportCmd::Stop && t->value >= 0.5)))
+            return false;
         transport_.command(*t);
         return true;
     }
@@ -587,7 +603,7 @@ void Engine::applyTrackSourceParam(bridge::ParamTarget target, const ParamChange
     {
         const auto f = static_cast<modulation::AmpEnvField>(fieldOf(target, T::EnvFirst));
         if (trackScope && modulation::applyParam(m1_.envParams[scene][track], f, c.value) && current)
-            env_.setParams(track, m1_.envParams[scene][track], transport_.bpm());
+            env_.setParams(track, m1_.envParams[scene][track], transport_.effectiveBpm());
     }
     else if (target >= T::TrackFirst && target < T::PadFirst)
     {
@@ -669,7 +685,7 @@ void Engine::switchScene(int scene) noexcept
     {
         auto& src = sources_[static_cast<std::size_t>(t)];
         src.setPlayback(m1_.playback.at(scene, t));
-        env_.setParams(t, m1_.envParams[scene][t], transport_.bpm());
+        env_.setParams(t, m1_.envParams[scene][t], transport_.effectiveBpm());
         src.setSample(voice::asSampleBuffer(swaps_.get(voice::trackSampleSlot(scene, t))));
     }
     if (fxScenes_.types == 0)
@@ -891,6 +907,13 @@ bool Engine::MidiHooks::insertSync(int track, int unit, int type) const noexcept
     const auto& slot = engine->fxScenes_.scene[static_cast<std::size_t>(engine->triggerRouter_.scene() & 15)]
                            .slot[static_cast<std::size_t>(fx::insertSlot(track & 15, unit & 1))];
     return (slot.optionMask >> i & 1u) != 0 && slot.options[i] != 0;
+}
+
+std::int64_t Engine::MidiHooks::sampleFrames(int track) const noexcept
+{
+    const auto* b =
+        engine != nullptr ? engine->sources_[static_cast<std::size_t>(track & 15)].voice().sample() : nullptr;
+    return b != nullptr ? b->frames : 0; // the current scene's sample of the track (switchScene installs it)
 }
 
 void Engine::MidiHooks::applyParam(const ParamChange& c) noexcept

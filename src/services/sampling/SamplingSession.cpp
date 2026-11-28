@@ -157,6 +157,11 @@ void SamplingSession::stopRecord(int scene, int track)
     post("sampling.rec", static_cast<std::uint16_t>((scene & 15) << 4 | (track & 15)), 0.0f);
 }
 
+void SamplingSession::dropRecord(int scene, int track)
+{
+    post("sampling.drop", static_cast<std::uint16_t>((scene & 15) << 4 | (track & 15)), 1.0f);
+}
+
 void SamplingSession::liveArm(int scene, int track)
 {
     post("live.rec", static_cast<std::uint16_t>((scene & 15) << 4 | (track & 15)), 1.0f);

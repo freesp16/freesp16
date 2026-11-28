@@ -420,6 +420,12 @@ public:
             c.valueText = std::string_view(columnText_[column], static_cast<std::size_t>(std::max(0, len)));
         }
     }
+    long long stripSteps(int column, const core::ParamSpec& spec, bool fine) const override
+    {
+        if (column <= 2)
+            return EncoderAccel::stepsOf(spec, fine);
+        return column == 3 && shiftSpec_ != nullptr ? 0 : -1; // SHIFT moves the steps one place per detent
+    }
     bool stripTurn(int column, const core::ParamSpec& spec, int detents, bool fine) override
     {
         if (shell_ == nullptr || state_ == nullptr || state_->stepHeld > 0)

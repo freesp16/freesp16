@@ -118,6 +118,8 @@ TEST_CASE("m6.utility: every row of utility.md §Rows is present in 1.60 order w
         {"CHANNEL MAPPING", nullptr, K::Action},
         {"MACHINE SETTING", nullptr, K::Header},
         {"SYNC SOURCE SELECT", sync.c_str(), K::Value},
+        {"MIDI OUT MODE (DIN)", "OUT", K::Value}, // manual 1.60 p.12
+        {"MIDI OUT MODE (USB)", "OUT", K::Value},
         {"MIDI PORTS", nullptr, K::Action},
         {"LINK SETTING", "START/STOP SYNC OFF", K::Value},
         {"PAD VELOCITY", "OFF", K::Value}, // requested default: strength → volume off
@@ -413,16 +415,116 @@ TEST_CASE("m6.utility: information rows and the providers (UI-328, UID-887)", "[
     REQUIRE(t.m.open("utility.library"));
     CHECK(t.rows().front().label == "LIBRARY ROOT");
     CHECK(t.rows().back().label == "ADD LOCATION\xE2\x80\xA6");
-    // SYNC SOURCE offers the ports (a ListPopup only beyond eight values).
+    // SYNC SOURCE: the manual's values (a ListPopup only beyond eight values).
     if (midiMerged())
     {
         REQUIRE(t.m.open("utility"));
         t.focusRow("SYNC SOURCE SELECT");
         t.push();
         t.turn(2);
-        CHECK(t.value(t.focus()) == "MIDI CLOCK (USB)");
+        CHECK(t.value(t.focus()) == "USB MIDI");
         t.push();
     }
+}
+
+TEST_CASE("m6.utility: MIDI OUT MODE (DIN) / (USB) and SYNC SOURCE SELECT as the manual has them (1.60 p.12-13)",
+          "[m6]")
+{
+    if (! midiMerged())
+        return;
+    M6Fixture t;
+    auto& env = ui::utility::utilityEnv();
+    // The unit in USB storage mode: the USB port is absent (its slot keeps its name), a USB-host device on port 3.
+    env.midiPorts = [] { return std::vector<std::string>{"MIDI DIN", "MIDI USB", "KEYS"}; };
+    REQUIRE(t.m.open("utility"));
+    // MIDI OUT MODE (DIN): five values on midi.portMode#0.
+    t.focusRow("MIDI OUT MODE (DIN)");
+    t.push();
+    std::vector<std::string> seen{t.value(t.focus())};
+    for (int i = 0; i < 5; ++i)
+    {
+        t.turn(1);
+        seen.push_back(t.value(t.focus()));
+    }
+    CHECK(seen == std::vector<std::string>{"OUT", "OUT+MIDI IN", "OUT+USB IN", "THRU (MIDI IN)", "THRU (USB IN)",
+                                           "THRU (USB IN)"});
+    t.turn(-1);
+    t.push();
+    CHECK(t.prefs.get("midi.portMode") == 3.0f); // THRU (MIDI IN) = THRU A, the DIN input
+    // MIDI OUT MODE (USB): OUT / OUT+MIDI IN only, on midi.portMode#1.
+    t.focusRow("MIDI OUT MODE (USB)");
+    t.push();
+    t.turn(5);
+    CHECK(t.value(t.focus()) == "OUT+MIDI IN");
+    t.push();
+    CHECK(t.prefs.get("midi.portMode#1") == 1.0f); // OUT + MERGE A = the DIN input
+    CHECK(t.prefs.get("midi.portMode") == 3.0f);   // DIN's value stays its own
+    CHECK(t.value(t.rowOf("MIDI OUT MODE (DIN)")) == "THRU (MIDI IN)");
+    // A value the USB port cannot take shows as what it means.
+    t.prefs.set("midi.portMode#1", 3); // THRU A (the DIN input) → OUT+MIDI IN
+    CHECK(t.value(t.rowOf("MIDI OUT MODE (USB)")) == "OUT+MIDI IN");
+    t.prefs.set("midi.portMode#1", 4); // THRU B (its own input) → OUT
+    CHECK(t.value(t.rowOf("MIDI OUT MODE (USB)")) == "OUT");
+
+    // SYNC SOURCE SELECT: INTERNAL / DIN MIDI / USB MIDI (SYNC PORT 1 / 2), then the further port by name.
+    const auto* port = core::builtinParams().find("midi.syncPort");
+    const auto* source = core::builtinParams().find("midi.syncSource");
+    t.focusRow("SYNC SOURCE SELECT");
+    t.push();
+    seen = {t.value(t.focus())};
+    for (int i = 0; i < 4; ++i)
+    {
+        t.turn(1);
+        seen.push_back(t.value(t.focus()));
+    }
+    CHECK(seen ==
+          std::vector<std::string>{"INTERNAL", "DIN MIDI", "USB MIDI", "MIDI CLOCK (KEYS)", "MIDI CLOCK (KEYS)"});
+    t.turn(-1); // USB MIDI
+    t.push();
+    CHECK(t.shell().values().get(*source, 0) == 1.0f);
+    CHECK(t.shell().values().get(*port, 0) == 2.0f);
+    t.push();
+    t.turn(1); // MIDI CLOCK (KEYS) = port 3
+    t.push();
+    CHECK(t.shell().values().get(*port, 0) == 3.0f);
+    t.push();
+    t.turn(-2); // DIN MIDI
+    t.push();
+    CHECK(t.shell().values().get(*port, 0) == 1.0f);
+    CHECK(t.prefs.get("midi.syncPort") == 1.0f);
+
+    // No port at all (a desktop without MIDI): the same three values; a SYNC PORT saved for an absent port still shows.
+    env.midiPorts = [] { return std::vector<std::string>{}; };
+    t.shell().values().set(*port, 0, 5.0f);
+    REQUIRE(t.m.open("utility.midiPorts")); // the values are read on entry
+    REQUIRE(t.m.open("utility"));
+    CHECK(t.value(t.rowOf("SYNC SOURCE SELECT")) == "MIDI CLOCK (PORT 5)");
+    t.focusRow("SYNC SOURCE SELECT");
+    t.push();
+    t.turn(-10);
+    seen = {t.value(t.focus())};
+    for (int i = 0; i < 3; ++i)
+    {
+        t.turn(1);
+        seen.push_back(t.value(t.focus()));
+    }
+    CHECK(seen == std::vector<std::string>{"INTERNAL", "DIN MIDI", "USB MIDI", "MIDI CLOCK (PORT 5)"});
+    t.back();
+
+    // MIDI PORTS: DIN and USB offer the manual's values there too; a further port every mode.
+    env.midiPorts = [] { return std::vector<std::string>{"MIDI DIN", "MIDI USB", "KEYS"}; };
+    REQUIRE(t.m.open("utility.midiPorts"));
+    t.focusRow("OUT MODE", 1);
+    t.push();
+    t.turn(5);
+    CHECK(t.value(t.focus()) == "OUT+MIDI IN");
+    t.back();
+    t.focusRow("OUT MODE", 2);
+    t.push();
+    t.turn(5);
+    CHECK(t.value(t.focus()) == "THRU B");
+    t.back();
+    env.midiPorts = nullptr;
 }
 
 TEST_CASE("m6.utility: touch — tap focuses, a tap on the focused row edits, ‹ › step", "[m6]")

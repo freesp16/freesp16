@@ -49,4 +49,6 @@ std::unique_ptr<core::Command> setPatternLength(const Project&, int scene, int p
 std::unique_ptr<core::Command> replaceTrack(const Project&, int scene, int track, const core::model::Track& source,
                                             const core::model::Scene* sequenceFrom, int sourceTrack);
 std::unique_ptr<core::Command> resetTrack(const Project&, int scene, int track, bool withSequence);
+// TRACK SETTING exchanges both tracks and their columns in every pattern of the scene.
+void exchangeTrackSlots(int scene, int source, int destination);
 } // namespace ui::m2::cmd

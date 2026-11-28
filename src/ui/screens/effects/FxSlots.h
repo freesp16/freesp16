@@ -126,9 +126,10 @@ private:
 struct FxMeterView
 {
     std::array<float, 2> in{}, out{};
-    float gainReduction = 0;     // Compressor GR, 0 = none … 1 = full scale of the GR bar
-    float duckEnvelope = 0;      // Ducker gain reduction now, 0 … 1 (= DEPTH at full duck)
-    double lastTriggerMs = -1e9; // Ducker: the last source trigger (chip flash)
+    float gainReduction = 0;          // Compressor GR, 0 = none … 1 = full scale of the GR bar
+    float duckEnvelope = 0;           // Ducker gain reduction now, 0 … 1 (= DEPTH at full duck)
+    double lastTriggerMs = -1e9;      // Ducker: the last source trigger (chip flash)
+    std::array<float, 2> telemetry{}; // the effect's own telemetry(0), telemetry(1) (each visual knows its effect's)
 };
 using FxMeterSource = const FxMeterView* (*)(Slot, int track, void* user);
 

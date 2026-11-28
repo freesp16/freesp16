@@ -176,6 +176,13 @@ public:
             default: break;
         }
     }
+    long long stripSteps(int column, const core::ParamSpec&, bool fine) const override
+    {
+        if (column != 1 || fine)
+            return 0; // SLICE No. and AREA walk entry by entry
+        const auto v = view();
+        return v.frames > 0 ? v.frames / core::playback::coarseStep(v.frames) : 0; // POSITION: frames / 128 a detent
+    }
     bool stripTurn(int column, const core::ParamSpec&, int detents, bool fine) override
     {
         if (shell_ == nullptr || state_ == nullptr)

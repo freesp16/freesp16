@@ -17,7 +17,7 @@ namespace ui
 {
 struct PianoKeyboardModel
 {
-    int firstOctave = 4;              // the left band's octave (C4 = MIDI 60 with C-1 = 0, as the catalogue formats)
+    int firstOctave = 4;              // the left band's octave (C0 = MIDI 0, C5 = 60, as the catalogue formats)
     std::array<int, 4> notes {60, -1, -1, -1}; // NOTE, NOTE2–4 (absolute MIDI notes, −1 = OFF)
     int focusedNote = -1;             // the key with the focus ring (−1 = none)
     std::uint32_t colour = 0;         // the track colour

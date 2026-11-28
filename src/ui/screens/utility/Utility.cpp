@@ -4,8 +4,9 @@
 // keep their order keys: TOUCH STRIP SETTING (USER1) / (USER2) are ui/screens/touchstrip's (order 10 / 20
 // of projectCommon). Order keys step by 10 so a later package can place a row between two (never moving a reference
 // row). Dropped reference rows (SET-017: LCD BRIGHTNESS, SCREEN SAVER, AUTO STANDBY, TOUCH PANEL CALIBRATION,
-// CHARACTER PRIORITY, USB MASS STORAGE MODE, MIDI OUT MODE (DIN) / (USB), PRO DJ LINK SYNC SETTING) are simply not
-// registered: no gap.
+// CHARACTER PRIORITY, USB MASS STORAGE MODE, PRO DJ LINK SYNC SETTING) are simply not registered: no gap. MIDI OUT
+// MODE (DIN) / (USB) are back (manual 1.60 p.12, since the unit's DIN and USB ports have fixed slots): after SYNC
+// SOURCE SELECT (our order; the manual names the category, not the place).
 //
 // Value rows bind (SettingsList.h): project fields (services/settings/ProjectSettings.h), the composite
 // "settings.syncSource", ParamSpecs (preferences of core/params/catalogue/*.cpp, midi.* included) and
@@ -73,6 +74,10 @@ APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "midiOut", 60, // MID-011, a
 // ---- MACHINE SETTING ----
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 10,
                                          {kValue, "SYNC SOURCE SELECT", "settings.syncSource"}}))
+APP_REGISTER_SETTINGS((SettingsRowEntry{
+    "utility", "machine", 12, {kValue, "MIDI OUT MODE (DIN)", "settings.midiOutModeDin"}}))
+APP_REGISTER_SETTINGS((SettingsRowEntry{
+    "utility", "machine", 14, {kValue, "MIDI OUT MODE (USB)", "settings.midiOutModeUsb"}}))
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 20,
                                          {kAction, "MIDI PORTS", {}, "utility.midiPorts", "midi.count"}}))
 APP_REGISTER_SETTINGS((SettingsRowEntry {"utility", "machine", 30,

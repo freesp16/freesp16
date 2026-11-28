@@ -1,107 +1,83 @@
-// Reverb — see Reverb.h. The slot numbers in comments are the reference's (research docs/effects/send-reverb.md "1.60
-// code map"): slot 32 parameter update, slot 17 (= SendFxReverb slot 33) comb coefficients, slot 7/6 room glide, slot 8
-// chunk loop, slot 9 one chunk, slot 16 init. Float steps one C++ float operation each, never fused (APP_FX_NOFUSE).
+// Reverb — see Reverb.h.
 #include "engine/fx/effects/Reverb.h"
 
 #include "engine/fx/EffectRegistryOrder.h"
 #include "engine/fx/FxShell.h"
 
-#include <bit>
 #include <cmath>
 
 namespace engine::fx
 {
 namespace
 {
-using dsp::delay::f32;
-using dsp::delay::truncS32;
-using dsp::delay::truncU32;
+constexpr int kN = kBlockFrames;
+static_assert(kN <= dsp::reverb::kMaxN);
 
-const float kTwoThirds = std::bit_cast<float>(0x3f2aaaabu); // 0.6666667 (glide-time step, slot 35)
-const float kChunk40ms = std::bit_cast<float>(0x3d23d70bu); // 0.04
-constexpr float kApGain = 0.7f;
+// Line lengths at room 100 (ms). Lines 0–3 feed the left output, 4–7 the right; the two groups have about the same
+// total length so neither side answers first. Lines 1–3 take the left input, 5–7 the right.
+constexpr float kBaseMs[Reverb::kLines] = {48.7f, 29.7f, 65.9f, 43.9f, 54.1f, 34.3f, 59.3f, 39.1f};
+constexpr float kDiffMsL[Reverb::kDiffusers] = {3.41f, 4.57f, 8.83f, 11.69f};
+constexpr float kDiffMsR[Reverb::kDiffusers] = {3.73f, 4.21f, 9.47f, 12.31f};
+constexpr float kDiffG[Reverb::kDiffusers] = {0.75f, 0.75f, 0.625f, 0.625f};
+constexpr float kModMs = 0.25f;                                         // ± line modulation
+constexpr double kModHz[Reverb::kLines / 2] = {0.53, 0.71, 0.89, 1.07}; // lines 1, 3, 5, 7
+constexpr float kRoomGlide = 0.03f; // samples per sample on the line that moves furthest (≈ 3 % pitch while gliding)
+constexpr float kPreGlide = 0.15f;  // pre-delay glide, samples per sample
+constexpr float kCoefSmooth = 0.3f; // per block toward the coefficient targets (≈ 5 ms)
+constexpr float kInvSqrt8 = 0.35355339f;
+// Levels (wet at the reference send defaults about the level of the earlier reverb).
+constexpr float kInCal = 1.0f;
+constexpr float kOut = 1.45f;
+constexpr float kEarly = 0.35f;
+constexpr float kT60v[5] = {0.0f, 0.09f, 0.3f, 49.0f / 99.0f, 1.0f};
+constexpr float kT60s[5] = {0.10f, 0.87f, 3.55f, 8.70f, 100.6f};
 
-// slot 35 0x111780: the glide time moves ⅔ ms toward 40 − ⅔·|cur − tgt| (floor 20)
-float glideTime(int cur, int tgt, float prev) noexcept
+float clamp01(float v) noexcept
 {
-    APP_FX_NOFUSE
-    const int d = cur > tgt ? cur - tgt : tgt - cur;
-    float tt = 40.0f - static_cast<float>(d) * kTwoThirds;
-    if (tt <= 20.0f)
-        tt = 20.0f;
-    float p = prev;
-    if (p < tt)
-        p = p + kTwoThirds;
-    else if (p > tt)
-        p = p - kTwoThirds;
-    return p <= 20.0f ? 20.0f : p;
+    return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
 }
-
-#if APP_TEST_HOOKS
-float clampMs(float ms) noexcept // overrideConstants only (test hooks; unused in the device build)
+float oddRound(float x) noexcept // the nearest odd integer
 {
-    return ms < 0.1f ? 0.1f : (ms > 100.0f ? 100.0f : ms);
+    return 2.0f * std::floor(x * 0.5f) + 1.0f;
 }
-#endif
+float peak(const float* l, const float* r, int n) noexcept
+{
+    const float a = dsp::vec::peakAbs(l, n), b = dsp::vec::peakAbs(r, n);
+    return a > b ? a : b;
+}
 } // namespace
 
 // ---------------------------------------------------------------------------------------------------- laws
 
-float Reverb::t60(const ReverbConstants& k, float v) noexcept // FX-822: log T60 linear in v between the anchors
+float Reverb::t60(float v) noexcept // log T60 linear in v between the anchors
 {
     const double x = v < 0.0f ? 0.0 : (v > 1.0f ? 1.0 : static_cast<double>(v));
     int i = 0;
-    while (i < 3 && x > static_cast<double>(k.t60v[static_cast<std::size_t>(i + 1)]))
+    while (i < 3 && x > static_cast<double>(kT60v[i + 1]))
         ++i;
-    const double v0 = static_cast<double>(k.t60v[static_cast<std::size_t>(i)]);
-    const double v1 = static_cast<double>(k.t60v[static_cast<std::size_t>(i + 1)]);
-    const double l0 = std::log(static_cast<double>(k.t60s[static_cast<std::size_t>(i)]));
-    const double l1 = std::log(static_cast<double>(k.t60s[static_cast<std::size_t>(i + 1)]));
+    const double v0 = static_cast<double>(kT60v[i]), v1 = static_cast<double>(kT60v[i + 1]);
+    const double l0 = std::log(static_cast<double>(kT60s[i])), l1 = std::log(static_cast<double>(kT60s[i + 1]));
     const double u = v1 > v0 ? (x - v0) / (v1 - v0) : 0.0;
     return static_cast<float>(std::exp(l0 + u * (l1 - l0)));
 }
 
-float Reverb::roomScale(int room) noexcept // s = 0.2 + 0.171·(1.01 + 0.02306·room)²
+float Reverb::roomScale(int room) noexcept // 0.2·5^((room − 1)/99)
 {
-    APP_FX_NOFUSE
-    const float f = f32(1.01) + static_cast<float>(room) * f32(0.02306);
-    return f32(0.2) + (f * f) * f32(0.171);
+    const int r = room < 1 ? 1 : (room > 100 ? 100 : room);
+    return static_cast<float>(0.2 * std::pow(5.0, static_cast<double>(r - 1) / 99.0));
 }
 
-float Reverb::inputGain(float v) noexcept // 0.2, then 0.2 − 0.1·2.0564518·(v − 0.5137255); 0 outside [0, 1]
+float Reverb::inputGain(float v) noexcept // 0.2, then 0.2 − 0.1·2.0564518·(v − 0.5137255): long decays build up less
 {
     APP_FX_NOFUSE
-    if (v < 0.0f || v > 1.0f)
-        return 0.0f;
-    const float k = f32(0.5137255);
-    if (v <= k)
-        return std::bit_cast<float>(0x3e4ccccdu);
-    return f32(0.2) + ((v - k) * f32(2.0564518)) * f32(-0.1);
+    const float x = clamp01(v);
+    const float k = 0.5137255f;
+    if (x <= k)
+        return 0.2f;
+    return 0.2f + ((x - k) * 2.0564518f) * -0.1f;
 }
 
-void Reverb::spreadGains(float s, float (&a)[kCombs], float (&b)[kCombs]) noexcept // FX-826 (send_reverb.py)
-{
-    APP_FX_NOFUSE
-    const float one = 1.0f, z = 0.0f, five = 5.0f;
-    auto up = [&](double t) { return (s - f32(t)) * five; };
-    auto dn = [&](double t) { return one - (s - f32(t)) * five; };
-    auto put = [&](float a0, float b0, float a1, float b1, float a2, float b2, float a3, float b3, float a4, float b4)
-    {
-        a[0] = a0, b[0] = b0, a[1] = a1, b[1] = b1, a[2] = a2, b[2] = b2, a[3] = a3, b[3] = b3, a[4] = a4, b[4] = b4;
-    };
-    if (s < f32(0.2))
-        put(one - s * five, z, one, z, one, z, one, z, z, s * five);
-    else if (s < f32(0.4))
-        put(z, up(0.2), dn(0.2), z, one, z, one, z, z, one);
-    else if (s < f32(0.6))
-        put(z, one, z, up(0.4), dn(0.4), z, one, z, z, one);
-    else if (s < f32(0.8))
-        put(z, one, z, one, z, up(0.6), dn(0.6), z, z, one);
-    else
-        put(z, one, z, one, z, one, z, up(0.8), z, one);
-}
-
-float Reverb::dampingMaxHz(double fs) noexcept // FX-824 (our choice): 18 kHz at 44.1 kHz, min(18 kHz, 0.4·fs) elsewhere
+float Reverb::dampingMaxHz(double fs) noexcept
 {
     if (fs == 44100.0)
         return 18000.0f;
@@ -109,81 +85,77 @@ float Reverb::dampingMaxHz(double fs) noexcept // FX-824 (our choice): 18 kHz at
     return static_cast<float>(m < 18000.0 ? m : 18000.0);
 }
 
+float Reverb::dampingHz(float v, double fs) noexcept // step = trunc(1 + 99(1 − v)) → 2000·9^((step − 1)/99)
+{
+    const float x = 1.0f + (1.0f - clamp01(v)) * 99.0f;
+    int step = static_cast<int>(x);
+    step = step < 1 ? 1 : (step > 100 ? 100 : step);
+    const float hz = static_cast<float>(2000.0 * std::pow(9.0, static_cast<double>(step - 1) / 99.0));
+    const float mx = dampingMaxHz(fs);
+    return hz < mx ? hz : mx;
+}
+
+float Reverb::baseDelayMs(int line) noexcept
+{
+    return line >= 0 && line < kLines ? kBaseMs[line] : 0.0f;
+}
+
 // ---------------------------------------------------------------------------------------------------- set-up
 
 void Reverb::prepare(double sampleRate, int)
 {
     fs_ = sampleRate;
-    const float spm = static_cast<float>(sampleRate) / 1000.0f;
-    // Comb rings: the longest comb at room 100 plus 15 % (FX-821), at least the reference's 101 ms (the comb clamp is
-    // 100 ms, so every overridden constant fits; the Reference profile's warm-up threshold is this length).
-    float longest = 0.0f;
-    for (int i = 0; i < kCombs; ++i)
+    spm_ = static_cast<float>(sampleRate / 1000.0);
+    depth_ = kModMs * spm_;
+    bytes_ = 0;
+    const int pdLen = static_cast<int>(100.0f * spm_) + kN + 4;
+    bytes_ += pdL_.prepare(pdLen) + pdR_.prepare(pdLen);
+    for (int j = 0; j < kDiffusers; ++j)
     {
-        longest = k_.combL[static_cast<std::size_t>(i)] > longest ? k_.combL[static_cast<std::size_t>(i)] : longest;
-        longest = k_.combR[static_cast<std::size_t>(i)] > longest ? k_.combR[static_cast<std::size_t>(i)] : longest;
+        bytes_ += apL_[j].prepare(static_cast<int>(kDiffMsL[j] * spm_ + 0.5f), kDiffG[j]);
+        bytes_ += apR_[j].prepare(static_cast<int>(kDiffMsR[j] * spm_ + 0.5f), kDiffG[j]);
     }
-    const double longestMs = static_cast<double>(longest) * static_cast<double>(roomScale(100)) * 1.15;
-    const int sized = static_cast<int>(longestMs * sampleRate / 1000.0) + 2;
-    const int ref = static_cast<int>(spm * 101.0f);
-    combLen_ = sized > ref ? sized : ref;
-    bytes_ = pd_.prepare(sampleRate);
-    const float dmax = dampingMaxHz(sampleRate);
-    for (auto& c : combs_)
-        bytes_ += c.prepare(sampleRate, combLen_, dmax);
-    for (auto& a : aps_)
-        bytes_ += a.prepare(sampleRate);
-    lpf_.prepare(dsp::delay::SteppedIir1::Kind::LowPass, sampleRate, 2, 14000.0, 14000.0);
-    hpf_.prepare(dsp::delay::SteppedIir1::Kind::HighPass, sampleRate, 2, 80.0, 80.0);
-    init();
+    for (int i = 0; i < kLines; ++i)
+        dMax_[i] = oddRound(kBaseMs[i] * spm_) + depth_ + 2.0f;
+    bytes_ += fdn_.prepare(dMax_);
+    const float in[kLines] = {0.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f}; // 1–3 left, 5–7 right
+    fdn_.setInputGains(in);
+    hpA_ = static_cast<float>(1.0 / (1.0 + 2.0 * dsp::delay::kPi * 80.0 / sampleRate));
+    lpC_ = static_cast<float>(1.0 - std::exp(-2.0 * dsp::delay::kPi * 12000.0 / sampleRate));
+    for (int i = 0; i < kLines / 2; ++i)
+        lfo_[i].setRate(kModHz[i], sampleRate, kN);
+    for (auto& v : lastP_)
+        v = -1.0f;
+    reset();
 }
 
-void Reverb::init() noexcept // the constructor 0x1123d0 / 0x10f644
+void Reverb::clearState() noexcept
 {
-    constexpr float kCtor[6] = {0.5f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f};
-    for (int k = 0; k < 6; ++k)
-        p_[k] = kCtor[k];
-    roomCur_ = roomSet_ = roomTgt_ = 50;
-    glideT_ = 40.0f;
-    chunkN_ = truncS32(static_cast<float>(fs_) * kChunk40ms);
-    chunkRem_ = 0;
-    idle_ = true;
-    inGain_ = 0.0f;
-    lpfStep_ = 0;
-    pd_.init();
-    for (auto& c : combs_)
-        c.init();
-    for (auto& a : aps_)
-        a.init();
-    lpf_.init();
-    hpf_.init();
-    initFixed();
-    lastT_ = lastSpread_ = -1.0f;
-    lastRoom_ = -1;
-    lastStep_ = 0xffffffffu;
-}
-
-#if APP_TEST_HOOKS
-void Reverb::overrideConstants(const ReverbConstants& k) noexcept
-{
-    k_ = k;
-    for (auto& v : k_.apL)
-        v = clampMs(v);
-    for (auto& v : k_.apR)
-        v = clampMs(v);
-    lastT_ = -1.0f; // the next slot 17 recomputes every comb
-}
-#endif
-
-void Reverb::initFixed() noexcept // slot 16 0x10eae0 (the fixed filters are set up in prepare)
-{
-    for (int i = 0; i < 2; ++i)
+    pdL_.clear();
+    pdR_.clear();
+    for (int j = 0; j < kDiffusers; ++j)
     {
-        aps_[i].setDelay(k_.apL[static_cast<std::size_t>(i)], 0);
-        aps_[i].setDelay(k_.apR[static_cast<std::size_t>(i)], 1);
-        aps_[i].setGain(kApGain, 0);
-        aps_[i].setGain(kApGain, 1);
+        apL_[j].clear();
+        apR_[j].clear();
     }
+    fdn_.clear();
+    for (int c = 0; c < 2; ++c)
+        hpX_[c] = hpY_[c] = lpY_[c] = 0.0f;
+}
+
+void Reverb::reset() noexcept // FX-862: the stored values at once; rings cleared; the LFOs restart
+{
+    for (auto& v : lastP_)
+        v = -1.0f;
+    targets(true);
+    clearState();
+    for (int i = 0; i < kLines / 2; ++i)
+    {
+        lfo_[i].setPhase(0.25 * static_cast<double>(i));
+        mod_[2 * i + 1] = depth_ * lfo_[i].s;
+    }
+    quiet_ = 0;
+    sleeping_ = false;
 }
 
 void Reverb::setParam(int index, float value01) noexcept
@@ -195,165 +167,252 @@ void Reverb::setParam(int index, float value01) noexcept
 void Reverb::setOption(int which, int value) noexcept
 {
     if (which == kClearState && value != 0)
-        init();
+        clearState();
 }
 
 // ---------------------------------------------------------------------------------------------------- control
 
-void Reverb::slot32() noexcept // 0x1120c4 (the mix law is the shell's)
+void Reverb::targets(bool snap) noexcept
 {
-    APP_FX_NOFUSE
-    roomSet_ = truncS32(1.0f + 99.0f * p_[1]);
-    lpfStep_ = truncU32(1.0f + (1.0f - p_[3]) * 99.0f);
-}
-
-void Reverb::slot17(bool force) noexcept // SendFxReverb slot 33 0x11185c
-{
-    APP_FX_NOFUSE
-    const bool shared = (active_ & kReverbQuirkSharedRamp) != 0;
-    const float T = t60(k_, p_[2]);
-    if (force || T != lastT_ || roomCur_ != lastRoom_)
-    {
-        lastT_ = T;
-        lastRoom_ = roomCur_;
-        const float s = roomScale(roomCur_);
-        for (int i = 0; i < kCombs; ++i)
-        {
-            const float dl = s * k_.combL[static_cast<std::size_t>(i)];
-            const float dr = s * k_.combR[static_cast<std::size_t>(i)];
-            const float el = ((dl * -3.0f) * dsp::delay::kMilli) / T; // FX-823: g = 10^(−3·d/(1000·T60))
-            const float er = ((dr * -3.0f) * dsp::delay::kMilli) / T;
-            const float gl = static_cast<float>(std::pow(10.0, static_cast<double>(el)));
-            const float gr = static_cast<float>(std::pow(10.0, static_cast<double>(er)));
-            combs_[i].setDelay(dl, 0, shared);
-            combs_[i].setDelay(dr, 1, shared);
-            combs_[i].setGain(gl, 0, shared);
-            combs_[i].setGain(gr, 1, shared);
-        }
-    }
-    if (force || lpfStep_ != lastStep_)
-    {
-        lastStep_ = lpfStep_;
-        for (auto& c : combs_)
-            c.setDampStep(lpfStep_);
-    }
-    if (force || p_[4] != lastSpread_)
-    {
-        lastSpread_ = p_[4];
-        float a[kCombs], b[kCombs];
-        spreadGains(p_[4], a, b);
-        for (int i = 0; i < kCombs; ++i)
-        {
-            combs_[i].setSpread(a[i], 0, shared);
-            combs_[i].setSpread(b[i], 1, shared);
-        }
-    }
-    inGain_ = inputGain(p_[2]);
-}
-
-void Reverb::slot7() noexcept // 0x10e540: new glide time and chunk length, comb coefficients
-{
-    APP_FX_NOFUSE
-    const float prev = ! idle_ ? glideT_ : 40.0f;
-    const float t = glideTime(roomCur_, roomTgt_, prev);
-    glideT_ = t;
-    chunkN_ = chunkRem_ = truncS32((t * dsp::delay::kMilli) * static_cast<float>(fs_));
-    for (auto& c : combs_)
-        c.setGlide(t);
-    slot17(false);
-}
-
-void Reverb::slot6() noexcept // 0x10e4d8: one room step toward the target
-{
-    if (roomCur_ == roomTgt_)
-    {
-        idle_ = true;
+    const bool roomChanged = p_[1] != lastP_[1];
+    const bool decayChanged = roomChanged || p_[2] != lastP_[2] || p_[3] != lastP_[3];
+    const bool preChanged = p_[0] != lastP_[0];
+    if (! preChanged && ! decayChanged && p_[4] == lastP_[4])
         return;
+    if (preChanged) // pre-delay
+    {
+        lastP_[0] = p_[0];
+        const float ms = 100.0f * clamp01(p_[0]);
+        const float t = std::round((ms < 0.1f ? 0.1f : ms) * spm_);
+        if (t != pdTgt_ || snap)
+        {
+            pdTgt_ = t;
+            pdStart_ = pdCur_;
+            const float dist = std::fabs(pdTgt_ - pdCur_);
+            pdProg_ = snap || dist == 0.0f ? 1.0f : 0.0f;
+            pdStep_ = dist > 0.0f ? kPreGlide * static_cast<float>(kN) / dist : 1.0f;
+            if (snap)
+                pdCur_ = pdStart_ = pdTgt_;
+        }
     }
-    roomCur_ += roomCur_ < roomTgt_ ? 1 : -1;
-    slot7();
+    if (roomChanged)
+    {
+        lastP_[1] = p_[1];
+        const float x = 1.0f + 99.0f * clamp01(p_[1]);
+        room_ = static_cast<int>(x);
+        room_ = room_ < 1 ? 1 : (room_ > 100 ? 100 : room_);
+        const float s = roomScale(room_);
+        const float minD = static_cast<float>(kN) + depth_ + 4.0f;
+        float far = 0.0f;
+        for (int i = 0; i < kLines; ++i)
+        {
+            float t = oddRound(kBaseMs[i] * s * spm_);
+            t = t < minD ? oddRound(minD) + 2.0f : t;
+            t = t > dMax_[i] - depth_ - 2.0f ? dMax_[i] - depth_ - 2.0f : t;
+            dTgt_[i] = t;
+            dStart_[i] = dCur_[i];
+            const float d = std::fabs(t - dCur_[i]);
+            far = d > far ? d : far;
+        }
+        glide_ = snap || far == 0.0f ? 1.0f : 0.0f;
+        glideStep_ = far > 0.0f ? kRoomGlide * static_cast<float>(kN) / far : 1.0f;
+        if (snap)
+            for (int i = 0; i < kLines; ++i)
+                dCur_[i] = dStart_[i] = dTgt_[i];
+    }
+    if (decayChanged)
+    {
+        lastP_[2] = p_[2];
+        lastP_[3] = p_[3];
+        const double T = static_cast<double>(t60(p_[2]));
+        const double fd = static_cast<double>(dampingHz(p_[3], fs_));
+        for (int i = 0; i < kLines; ++i)
+        {
+            float a = 0.0f, b = 0.0f;
+            dsp::reverb::absorbent(static_cast<double>(dTgt_[i]), fs_, T, fd, static_cast<double>(kDampRatio), a, b);
+            aTgt_[i] = a;
+            bTgt_[i] = b * kInvSqrt8;
+        }
+        inGain_ = inputGain(p_[2]) * kInCal;
+        coefMoving_ = true;
+    }
+    if (p_[4] != lastP_[4])
+    {
+        lastP_[4] = p_[4];
+        width_ = 1.0f + clamp01(p_[4]);
+    }
+    outGain_ = kOut;
+    earlyGain_ = kEarly;
+    // blocks of silence before the network may have received everything: pre-delay + diffusion + longest line
+    float span = pdTgt_ + depth_;
+    for (int j = 0; j < kDiffusers; ++j)
+        span += static_cast<float>(apL_[j].delay() > apR_[j].delay() ? apL_[j].delay() : apR_[j].delay());
+    float longest = 0.0f;
+    for (int i = 0; i < kLines; ++i)
+        longest = dTgt_[i] > longest ? dTgt_[i] : longest;
+    quietNeeded_ = static_cast<int>((span + longest) / static_cast<float>(kN)) + 2;
+    if (snap)
+        coefficients(true);
 }
 
-void Reverb::reset() noexcept // slot 27 0x11208c: slot 32, core reset 0x10fae0, pre-delay reset 0x1112b8
+void Reverb::coefficients(bool snap) noexcept
 {
-    active_ = quirks_;
-    const bool warmUp = (active_ & kReverbQuirkWarmUp) != 0;
-    const bool stale = (active_ & kReverbQuirkStaleRing) != 0;
-    slot32();
-    const bool glideIn = (active_ & kReverbQuirkGlideIn) != 0;
-    if (! glideIn) // Sixteen: the stored room and pre-delay at once (FX-056)
+    if (! coefMoving_ && ! snap)
+        return;
+    bool moving = false;
+    for (int i = 0; i < kLines; ++i)
     {
-        roomTgt_ = roomSet_;
-        roomCur_ = roomSet_;
-        pd_.set(p_[0]);
+        float a = aTgt_[i], b = bTgt_[i];
+        if (! snap)
+        {
+            const float da = aTgt_[i] - aCur_[i], db = bTgt_[i] - bCur_[i];
+            if (std::fabs(da) > 1.0e-6f || std::fabs(db) > 1.0e-7f)
+            {
+                a = aCur_[i] + da * kCoefSmooth;
+                b = bCur_[i] + db * kCoefSmooth;
+                moving = true;
+            }
+        }
+        aCur_[i] = a;
+        bCur_[i] = b;
+        fdn_.setFilter(i, a, b);
     }
-    if ((active_ & kReverbQuirkGlide100) == 0) // FX-886 fix: the combs glide over the current t (40 ms here)
-        for (auto& c : combs_)
-            c.setGlide(40.0f);
-    initFixed();
-    slot17(true);
-    lpf_.zeroState();
-    hpf_.zeroState();
-    for (auto& c : combs_)
-        c.reset(stale, warmUp);
-    for (auto& a : aps_)
-        a.reset(stale, warmUp);
-    roomCur_ = roomTgt_;
-    glideT_ = glideTime(roomTgt_, roomTgt_, 40.0f);
-    chunkN_ = chunkRem_ = 0;
-    idle_ = true;
-    pd_.reset(stale, warmUp);
+    coefMoving_ = moving;
 }
 
 // ---------------------------------------------------------------------------------------------------- audio
 
-template <bool Neon> void Reverb::chunk(float* l, float* r, int n) noexcept // slot 9 0x10e418, in place
+template <bool Neon> void Reverb::run(float* l, float* r) noexcept
 {
-    pd_.set(p_[0]); // slot 34
-    pd_.process(l, r, n);
-    dsp::delay::mul<Neon>(l, inGain_, n); // slot 11 (always multiplied)
-    dsp::delay::mul<Neon>(r, inGain_, n);
-    lpf_.process<Neon>(l, r, n);
-    hpf_.process<Neon>(l, r, n);
-    dsp::delay::zero(accL_, n); // slot 12: five parallel combs, summed in order
-    dsp::delay::zero(accR_, n);
-    for (auto& c : combs_)
+    APP_FX_NOFUSE
+    const bool silent = peak(l, r, kN) <= kWakeLevel;
+    if (silent)
     {
-        c.process<Neon>(l, r, oL_, oR_, n);
-        dsp::delay::add<Neon>(accL_, oL_, n);
-        dsp::delay::add<Neon>(accR_, oR_, n);
-    }
-    dsp::delay::copy<Neon>(l, accL_, n);
-    dsp::delay::copy<Neon>(r, accR_, n);
-    for (auto& a : aps_) // slot 13
-        a.process<Neon>(l, r, n);
-}
-
-template <bool Neon> void Reverb::run(float* l, float* r) noexcept // slot 25 0x111730
-{
-    slot32();
-    if (roomSet_ != roomTgt_) // core slot 18 0x10e2e0
-    {
-        roomTgt_ = roomSet_;
-        idle_ = false;
-        slot7();
-    }
-    slot17(false);
-    int n = kBlockFrames, pos = 0; // slot 8 0x10e34c: chunks end at room steps
-    while (n > 0)
-    {
-        if (idle_ || chunkRem_ > n)
+        if (quiet_ < (1 << 30))
+            ++quiet_;
+        if (sleeping_)
         {
-            chunk<Neon>(l + pos, r + pos, n);
-            if (! idle_)
-                chunkRem_ -= n;
+            dsp::delay::zero(l, kN);
+            dsp::delay::zero(r, kN);
             return;
         }
-        const int c = chunkRem_;
-        chunk<Neon>(l + pos, r + pos, c);
-        n -= c;
-        pos += c;
-        slot6();
+    }
+    else
+    {
+        quiet_ = 0;
+        if (sleeping_) // wake from cleared rings with the current knobs, no glides
+        {
+            sleeping_ = false;
+            for (auto& v : lastP_)
+                v = -1.0f;
+            targets(true);
+        }
+    }
+    targets(false);
+    coefficients(false);
+
+    // pre-delay (write first: any delay >= 0 reads ages n + D − k >= 1)
+    dsp::delay::mul<Neon>(l, inGain_, kN);
+    dsp::delay::mul<Neon>(r, inGain_, kN);
+    pdL_.write(l, kN);
+    pdR_.write(r, kN);
+    const float pd0 = pdCur_;
+    if (pdProg_ < 1.0f)
+    {
+        pdProg_ = pdProg_ + pdStep_ >= 1.0f ? 1.0f : pdProg_ + pdStep_;
+        pdCur_ = pdProg_ >= 1.0f ? pdTgt_ : pdStart_ + (pdTgt_ - pdStart_) * pdProg_;
+    }
+    alignas(16) float xl[kN], xr[kN];
+    if (pd0 == pdCur_)
+    {
+        const int a = kN + static_cast<int>(pdCur_);
+        pdL_.readInt(a, xl, kN);
+        pdR_.readInt(a, xr, kN);
+    }
+    else
+    {
+        const float a0 = static_cast<float>(kN) + pd0, da = (pdCur_ - pd0) / static_cast<float>(kN);
+        pdL_.readLerp<Neon>(a0, da, xl, kN);
+        pdR_.readLerp<Neon>(a0, da, xr, kN);
+    }
+
+    // input band: one-pole HPF 80 Hz y = a·y1 + a·(x − x1), one-pole LPF 12 kHz z = (1 − c)·z1 + c·y (both channels
+    // in one loop: four short independent recursions)
+    {
+        float hxl = hpX_[0], hyl = hpY_[0], lyl = lpY_[0], hxr = hpX_[1], hyr = hpY_[1], lyr = lpY_[1];
+        const float a = hpA_, c = lpC_, c1 = 1.0f - lpC_;
+        for (int k = 0; k < kN; ++k)
+        {
+            const float il = xl[k], ir = xr[k];
+            hyl = hyl * a + (il - hxl) * a;
+            hyr = hyr * a + (ir - hxr) * a;
+            hxl = il;
+            hxr = ir;
+            lyl = lyl * c1 + hyl * c;
+            lyr = lyr * c1 + hyr * c;
+            xl[k] = lyl;
+            xr[k] = lyr;
+        }
+        hpX_[0] = hxl;
+        hpY_[0] = hyl;
+        lpY_[0] = lyl;
+        hpX_[1] = hxr;
+        hpY_[1] = hyr;
+        lpY_[1] = lyr;
+    }
+
+    // input diffusion
+    for (int j = 0; j < kDiffusers; ++j)
+    {
+        apL_[j].process<Neon>(xl, kN);
+        apR_[j].process<Neon>(xr, kN);
+    }
+
+    // late field: room glide + line modulation
+    float d0[kLines], d1[kLines];
+    if (glide_ < 1.0f)
+        glide_ = glide_ + glideStep_ >= 1.0f ? 1.0f : glide_ + glideStep_;
+    for (int i = 0; i < kLines; ++i)
+    {
+        d0[i] = dCur_[i] + mod_[i];
+        dCur_[i] = glide_ >= 1.0f ? dTgt_[i] : dStart_[i] + (dTgt_[i] - dStart_[i]) * glide_;
+        if ((i & 1) != 0)
+            mod_[i] = depth_ * lfo_[i >> 1].advance();
+        d1[i] = dCur_[i] + mod_[i];
+    }
+    alignas(16) float fl[kN], fr[kN];
+    fdn_.process<Neon>(xl, xr, fl, fr, d0, d1, kN);
+
+    // wet = late + early (the diffused input), then the width
+    dsp::delay::mul<Neon>(fl, outGain_, kN);
+    dsp::delay::mul<Neon>(fr, outGain_, kN);
+    dsp::delay::mul<Neon>(xl, earlyGain_, kN);
+    dsp::delay::mul<Neon>(xr, earlyGain_, kN);
+    dsp::delay::add<Neon>(fl, xl, kN);
+    dsp::delay::add<Neon>(fr, xr, kN);
+    if (width_ != 1.0f)
+    {
+        const float w = 0.5f * width_;
+        for (int k = 0; k < kN; ++k)
+        {
+            const float m = (fl[k] + fr[k]) * 0.5f, s = (fl[k] - fr[k]) * w;
+            l[k] = m + s;
+            r[k] = m - s;
+        }
+    }
+    else
+    {
+        dsp::delay::copy<Neon>(l, fl, kN);
+        dsp::delay::copy<Neon>(r, fr, kN);
+    }
+
+    // sleep once the tail is gone
+    if (silent && quiet_ >= quietNeeded_ && peak(l, r, kN) < kSleepLevel)
+    {
+        sleeping_ = true;
+        clearState();
+        dsp::delay::zero(l, kN);
+        dsp::delay::zero(r, kN);
     }
 }
 
@@ -379,12 +438,12 @@ void Reverb::process(float* l, float* r, const ProcessContext&) noexcept
 }
 } // namespace engine::fx
 
-// Registration: Send and Master (index 1 of both lists), gate mode 1 (FX-860), no wet high-pass
-// (F141), the reverb mix law (the delays' piecewise law, wet × 0.70795, FX-828). No options.
+// Registration: the track inserts (FX1/FX2), Send and Master; gate mode 1, no wet high-pass, the reverb mix law
+// (the delays' piecewise law, wet × 0.70795). No options.
 APP_REGISTER_EFFECT((engine::fx::EffectDescriptor{
     .id = "reverb",
     .name = "REVERB",
-    .slots = static_cast<std::uint8_t>(engine::fx::SlotKind::Send | engine::fx::SlotKind::Master),
+    .slots = engine::fx::kAllSlotKinds,
     .params = {"fx.reverb.preDelay", "fx.reverb.room", "fx.reverb.time", "fx.reverb.damping", "fx.reverb.spread",
                "fx.reverb.mix"},
     .options = {},

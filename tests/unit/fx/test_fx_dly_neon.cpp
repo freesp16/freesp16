@@ -145,7 +145,7 @@ TEST_CASE("fx.dly: neon_vs_scalar_reverb — processNeon equals processScalar bi
 #endif
 }
 
-TEST_CASE("fx.dly: neon_vs_scalar kernels — stepped filter, comb, all-pass", "[fx][delay][simd]")
+TEST_CASE("fx.dly: neon_vs_scalar kernels — stepped filter, all-pass, FDN", "[fx][delay][reverb][simd]")
 {
 #if ! APP_FX_HAVE_NEON
     SKIP("no NEON on this host");
@@ -180,56 +180,56 @@ TEST_CASE("fx.dly: neon_vs_scalar kernels — stepped filter, comb, all-pass", "
             REQUIRE(same(r1, r2, n));
         }
     }
-    for (bool quirk : {false, true}) // Sixteen (independent ramps, ungated) and Reference (shared counters, warm-up fades)
+    // The reverb kernels: the diffusion all-pass and the 8-line FDN (fixed lines: block copies; gliding lines: the
+    // interpolated read), at full and partial block sizes.
     {
-        auto ca = std::make_unique<rv::Comb>(), cb = std::make_unique<rv::Comb>();
         auto pa = std::make_unique<rv::AllPass>(), pb = std::make_unique<rv::AllPass>();
-        for (auto* c : {ca.get(), cb.get()})
-        {
-            c->prepare(44100.0, 4454, 18000.0f);
-            c->reset(false, quirk);
-        }
+        auto fa = std::make_unique<rv::Fdn8>(), fb = std::make_unique<rv::Fdn8>();
+        const float maxDelay[rv::Fdn8::kLines] = {2200, 1400, 2950, 2000, 2450, 1600, 2650, 1800};
+        const float gains[rv::Fdn8::kLines] = {0.0f, 0.5f, 0.5f, 0.5f, 0.0f, 0.5f, 0.5f, 0.5f};
         for (auto* p : {pa.get(), pb.get()})
+            p->prepare(301, 0.7f);
+        for (auto* f : {fa.get(), fb.get()})
         {
-            p->prepare(44100.0);
-            p->setDelay(7.03f, 0);
-            p->setDelay(8.19f, 1);
-            p->setGain(0.7f, 0);
-            p->setGain(0.7f, 1);
-            p->reset(false, quirk);
+            f->prepare(maxDelay);
+            f->setInputGains(gains);
+            for (int i = 0; i < rv::Fdn8::kLines; ++i)
+                f->setFilter(i, 0.3f, 0.34f);
         }
+        float d0[rv::Fdn8::kLines], d1[rv::Fdn8::kLines];
+        for (int i = 0; i < rv::Fdn8::kLines; ++i)
+            d0[i] = d1[i] = static_cast<float>(static_cast<int>(0.5f * maxDelay[i]));
         for (int blk = 0; blk < 1200; ++blk)
         {
-            if (blk % 41 == 0)
-            {
-                const float dl = 10.0f + 80.0f * rng.unit(), dr = 10.0f + 80.0f * rng.unit();
-                const float gl = rng.unit(), gr = rng.unit(), sa = rng.unit(), sb = rng.unit();
-                const auto step = static_cast<std::uint32_t>(1 + (rng.bits() % 100u));
-                for (auto* c : {ca.get(), cb.get()})
-                {
-                    c->setGlide(20.0f + 20.0f * static_cast<float>(blk % 3));
-                    c->setDelay(dl, 0, quirk);
-                    c->setDelay(dr, 1, quirk);
-                    c->setGain(gl, 0, quirk);
-                    c->setGain(gr, 1, quirk);
-                    c->setSpread(sa, 0, quirk);
-                    c->setSpread(sb, 1, quirk);
-                    c->setDampStep(step);
-                }
-            }
             const int n = blk % 5 == 0 ? 1 + static_cast<int>(rng.bits() % 64u) : N;
-            alignas(16) float xl[N], xr[N], ol1[N], or1[N], ol2[N], or2[N];
+            for (int i = 0; i < rv::Fdn8::kLines; ++i)
+            {
+                d0[i] = d1[i];
+                if (i % 2 == 1 || blk % 97 < 20) // odd lines always move (modulated), even ones glide now and then
+                    d1[i] = d0[i] + (rng.unit() - 0.5f) * 0.02f * static_cast<float>(n);
+                if (d1[i] < 100.0f || d1[i] > maxDelay[i] - 2.0f)
+                    d1[i] = 0.5f * maxDelay[i];
+            }
+            if (blk % 41 == 0)
+                for (int i = 0; i < rv::Fdn8::kLines; ++i)
+                {
+                    const float a = 0.8f * rng.unit(), b = 0.35f * (1.0f - a);
+                    fa->setFilter(i, a, b);
+                    fb->setFilter(i, a, b);
+                }
+            alignas(16) float xr[N], l1[N], l2[N], ol1[N], or1[N], ol2[N], or2[N];
+            const float amp = blk % 300 < 150 ? 0.5f : 0.0f;
             for (int i = 0; i < n; ++i)
             {
-                xl[i] = rng.next(0.5f);
-                xr[i] = rng.next(0.5f);
+                l1[i] = l2[i] = rng.next(amp);
+                xr[i] = rng.next(amp);
             }
-            ca->process<false>(xl, xr, ol1, or1, n);
-            cb->process<true>(xl, xr, ol2, or2, n);
-            REQUIRE(same(ol1, ol2, n));
-            REQUIRE(same(or1, or2, n));
-            pa->process<false>(ol1, or1, n);
-            pb->process<true>(ol2, or2, n);
+            pa->process<false>(l1, n);
+            pb->process<true>(l2, n);
+            REQUIRE(same(l1, l2, n));
+            fa->process<false>(l1, xr, ol1, or1, d0, d1, n);
+            fb->process<true>(l2, xr, ol2, or2, d0, d1, n);
+            INFO("block " << blk << " n " << n);
             REQUIRE(same(ol1, ol2, n));
             REQUIRE(same(or1, or2, n));
         }

@@ -24,6 +24,10 @@ struct TrackSummary
     bool muted = false, soloed = false, missing = false;
     bool unsavedTake = false; // plays a recorded take not saved yet: the tile's UNSAVED TAKE badge (sampling.md W3)
     double lastHitMs = -1e9; // trigger flash start (pad hit or meter feed)
+    // SET SCALE's selected key (the manual's 1.6: the key last selected by pressing a pad, drawn white): the pitch that
+    // pad played, as semitones over the track's PITCH (SAMPLE) or the MIDI note (MIDI / AS-1); kNoKey = none yet.
+    static constexpr int kNoKey = -10000;
+    int scaleKey = kNoKey;
     float levelDb = -120.0f; // mini level
 };
 

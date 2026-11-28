@@ -172,6 +172,7 @@ private:
         void attach(Engine& e) noexcept;
         int insertType(int track, int unit) const noexcept override;
         bool insertSync(int track, int unit, int type) const noexcept override;
+        std::int64_t sampleFrames(int track) const noexcept override;
         void applyParam(const ParamChange& c) noexcept override;
         static bool pitchPreserving(const void* engine, int track) noexcept;
     } midiHooks_;

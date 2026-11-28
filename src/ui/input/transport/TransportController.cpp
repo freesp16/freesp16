@@ -51,6 +51,8 @@ int TransportController::preCountBars() const
 
 double TransportController::tempo() const
 {
+    if (external_)
+        return feedBpm_; // SYN-012: the followed clock's tempo, not the project's
     if (values_ != nullptr && tempo_ != nullptr)
         return mt::clampBpm(static_cast<double>(values_->get(*tempo_, 0)));
     return feedBpm_;
@@ -84,7 +86,7 @@ void TransportController::onPlay()
 
 void TransportController::onStop()
 {
-    // STOP: back to step 1, tails ring; a second STOP (already stopped) silences everything (SYN-001).
+    // STOP returns to step 1 and cuts loops. Pressing it again cuts the remaining voices and FX tails.
     post({TransportCmd::Stop, state_ == State::Stopped ? 2.0 : 1.0});
     state_ = State::Stopped;
 }
@@ -102,6 +104,8 @@ void TransportController::onRec()
 
 void TransportController::onTap(double nowMs)
 {
+    if (external_)
+        return; // the clock sets the tempo (bpm-quantize.md: TAP is disabled under an external clock)
     const auto bpm = tap_.tap(nowMs);
     if (! bpm)
         return;
@@ -115,6 +119,8 @@ void TransportController::onTap(double nowMs)
 void TransportController::onNudge(int direction, bool held)
 {
     const int dir = direction > 0 ? 1 : (direction < 0 ? -1 : 0);
+    if (external_ && held)
+        return; // disabled under an external clock (a release still ends a nudge held before)
     int next = nudge_;
     if (held)
         next = dir;
@@ -162,6 +168,8 @@ void TransportController::sync(const engine::PlayheadFeed& feed)
     feedBlock_ = feed.blockIndex;
     feedPpq_ = feed.ppq;
     feedBpm_ = feed.bpm;
+    external_ = feed.externalClock;
+    clockLost_ = feed.clockLost;
     if (feed.blockIndex == 0)
         return; // the engine is not running yet
     if (posted_ && feed.blockIndex < postedAt_ + kSettleBlocks)
@@ -182,6 +190,8 @@ void TransportController::publish(UiState& s, double patternStartPpq) const
     s.playing = state_ == State::Playing || state_ == State::PreCount;
     s.recArmed = recArmed_;
     s.bpm.format("%.1f", tempo());
+    s.syncBadge = external_ ? std::string_view("MIDI") : std::string_view {}; // the status row, BPM/QUANTIZE
+    s.syncLost = external_ && clockLost_;
     char text[16];
     const auto p = state_ == State::Stopped ? mt::Position {1, 1, 1}
                                             : mt::toPosition(feedPpq_ - (feedPpq_ < 0.0 ? 0.0 : patternStartPpq));

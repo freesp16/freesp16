@@ -44,6 +44,12 @@ namespace engine::sampling
 // start when p0 is exactly there).
 int boundaryFrame(const BlockContext& ctx, const stages::BlockBuffers::Timing& timing, scene::SwitchUnit unit,
                   int patternSteps) noexcept;
+// REC QUANTIZE (SAMPLING/EDIT): the frame (0–63) of the first multiple of `beats` quarter notes from the pass start
+// in this block, capped at the pass end (a 16-beat wait on a 2-bar pattern is the next pattern start), −1 when none.
+// A queued pattern switch landing here is one too. beatsLeft = quarter notes from this block's start to that boundary
+// (0 … beats), −1 when stopped or in the pre-count (the take then waits for PLAY).
+int gridFrame(const BlockContext& ctx, const stages::BlockBuffers::Timing& timing, double beats, int patternSteps,
+              double& beatsLeft) noexcept;
 
 // Record lengths of live.length (SMP-021): 1/4, 1/2, 1, 2, 4, 8 bars.
 constexpr float kLiveBars[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f, 8.0f};
@@ -65,6 +71,7 @@ public:
     void arm(int scene, int track, std::int64_t lengthFrames, bool loopAfterRec) noexcept;
     void arm(int track, std::int64_t lengthFrames, bool loopAfterRec) noexcept { arm(scene_, track, lengthFrames, loopAfterRec); }
     void disarm() noexcept;                    // live.rec = 0: Armed → Idle; Recording → stops at once (shorter take)
+    void stopPlayback() noexcept;              // restart a playing take on the next transport boundary
     void setNudge(std::int32_t frames) noexcept;
     void takeReady(int track, std::uint32_t seq) noexcept;
     void unload(int track) noexcept;           // the take's track was unloaded / replaced: no more loop triggers

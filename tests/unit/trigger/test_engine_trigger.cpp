@@ -87,7 +87,8 @@ TEST_CASE("trigger.engine: playback, envelope, track, scale and pad parameters a
                           "playback.timeStretch", "playback.reverse", "playback.bypass", "env.velocity", "env.attack",
                           "env.hold", "env.release", "env.sync", "env.attackCurve", "env.releaseCurve",
                           "env.retrigger", "env.bypass", "track.padVelocity", "track.mode", "track.triggerMode",
-                          "track.chokeGroup", "track.inputSource", "scale.type", "scale.keyShift", "scale.area"})
+                          "track.chokeGroup", "track.inputSource", "scale.type", "scale.keyShift", "scale.area",
+                          "scaleMidi.type", "scaleMidi.root", "scaleMidi.area"})
     {
         INFO(p);
         CHECK(e->bridge().post(engine::ParamChange {id(p), 0x21, 1.0f, 0}));
@@ -95,7 +96,7 @@ TEST_CASE("trigger.engine: playback, envelope, track, scale and pad parameters a
     for (const char* p : {"pads.mode", "pads.selected", "pads.shift"})
         CHECK(e->bridge().post(engine::ParamChange {id(p), 0xFFFF, 0.0f, 0}));
     // Message-thread-only ids are refused (the engine does not implement them).
-    for (const char* p : {"track.padColor", "pads.velocityCurve", "pads.fixedVelocity", "scaleMidi.root"})
+    for (const char* p : {"track.padColor", "pads.velocityCurve", "pads.fixedVelocity"})
         CHECK_FALSE(e->bridge().post(engine::ParamChange {id(p), 0, 1.0f, 0}));
     enginetest::render(*e, 1024, 256);
     const auto& r = e->triggerRouter();
@@ -182,9 +183,9 @@ TEST_CASE("trigger.params: track.cpp's ids, ranges, defaults, CC and lock flags"
         {"track.chokeGroup", 0, 8, 0, -1, false, S::Track},     {"track.padColor", 0, 15, 0, -1, false, S::Track},
         {"track.padVelocity", 0, 1, 1, -1, false, S::Track},    {"track.inputSource", 0, 3, 0, -1, false, S::Track},
         {"pads.velocityCurve", 0, 7, 3, -1, false, S::Global},  {"pads.fixedVelocity", 1, 127, 100, -1, false, S::Global},
-        {"scale.type", 0, 13, 0, -1, false, S::Track},          {"scale.keyShift", -12, 12, 0, -1, false, S::Track},
-        {"scale.area", -2, 2, 0, -1, false, S::Track},          {"scaleMidi.type", 0, 13, 0, -1, false, S::Track},
-        {"scaleMidi.root", 0, 127, 60, -1, false, S::Track},    {"scaleMidi.area", -2, 2, 0, -1, false, S::Track},
+        {"scale.type", 0, 21, 0, -1, false, S::Track},          {"scale.keyShift", -12, 12, 0, -1, false, S::Track},
+        {"scale.area", -2, 2, 0, -1, false, S::Track},          {"scaleMidi.type", 0, 21, 0, -1, false, S::Track},
+        {"scaleMidi.root", 0, 119, 60, -1, false, S::Track},    {"scaleMidi.area", -2, 2, 0, -1, false, S::Track},
         {"pads.mode", 0, 4, 0, -1, false, S::Global},           {"pads.selected", 0, 15, 0, -1, false, S::Global},
         {"pads.shift", 0, 1, 0, -1, false, S::Global},
     };
@@ -209,7 +210,17 @@ TEST_CASE("trigger.params: track.cpp's ids, ranges, defaults, CC and lock flags"
     CHECK(fmt("track.chokeGroup", 3) == "3");
     CHECK(fmt("scale.type", 0) == "CHROMATIC");
     CHECK(fmt("scale.keyShift", 5) == "+5");
-    CHECK(fmt("scaleMidi.root", 60) == "C5");
+    CHECK(fmt("scaleMidi.root", 60) == "C5"); // the manual's C0…B9: 0 = C0, 119 = B9
+    CHECK(fmt("scaleMidi.root", 0) == "C0");
+    CHECK(fmt("scaleMidi.root", 119) == "B9");
+    if (const auto* note = r.find("midi.note1")) // NOTE names its notes the same way (the MIDI catalogue)
+    {
+        CHECK(note->maxValue == 119);
+        CHECK(fmt("midi.note1", 0) == "C0");
+        CHECK(fmt("midi.note1", 60) == "C5");
+        CHECK(fmt("midi.note1", 119) == "B9");
+        CHECK(fmt("midi.note1", 61) == "C#5");
+    }
     CHECK(fmt("pads.selected", 0) == "1");
     CHECK(fmt("pads.velocityCurve", 3) == "LINEAR");
 }
@@ -226,4 +237,20 @@ TEST_CASE("trigger.engine: a pad hit on track 1 without a sample does not interr
         minPeak = std::min(minPeak, enginetest::peak(out.l, b, b + 64));
     CHECK(minPeak > 0.15f); // a 64-frame window of the 440 Hz tone peaks ≥ 0.18; a dropout block would be 0
     CHECK(enginetest::maxStep(out.l) < 0.2f);
+}
+
+TEST_CASE("trigger.engine: a browser audition rings through STOP and stays silent after hard STOP",
+          "[trigger][engine][stop-audio]")
+{
+    voicetest::TestBuffer buffer(std::vector<float>(44100, 0.25f));
+    auto e = enginetest::make(false);
+    auto level = [&] { return enginetest::peak(enginetest::render(*e, 1024).l, 512); };
+    REQUIRE(install(*e, buffer, engine::voice::previewSlot()));
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Play, 0.0}));
+    REQUIRE(level() > 0.0f);
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 1.0}));
+    CHECK(level() > 0.0f);
+    REQUIRE(e->bridge().post(engine::TransportCmd{engine::TransportCmd::Stop, 2.0}));
+    CHECK(level() == 0.0f);
+    CHECK(level() == 0.0f);
 }

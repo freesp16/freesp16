@@ -422,11 +422,15 @@ std::unique_ptr<core::Command> removeLock(int scene, int pattern, int track, int
     }, std::move(a));
 }
 
-std::unique_ptr<core::Command> recordHit(int scene, int pattern, int track, int step, int velocity, int offset24)
+std::unique_ptr<core::Command> recordHit(int scene, int pattern, int track, int step, int velocity, int offset24,
+                                         int pitchSlot, float pitch)
 {
     auto a = one(track, step);
     a.a = velocity;
     a.b = std::clamp(offset24, -24, 24);
+    a.f = validSlot(pitchSlot) ? 1.0f : 0.0f; // pitched
+    a.slot = static_cast<LockSlot>(validSlot(pitchSlot) ? pitchSlot : 0);
+    a.values.push_back(pitch);
     return edit(scene, pattern, "RECORD", [](Pattern& p, const EditArgs& x) {
         if (! validStep(x.steps[0]))
             return;
@@ -436,6 +440,12 @@ std::unique_ptr<core::Command> recordHit(int scene, int pattern, int track, int 
             putLock(p, c, kSlotOffset, static_cast<float>(x.b));
         else
             dropLock(p, c, kSlotOffset);
+        if (x.f == 0.0f)
+            return;
+        if (std::isnan(x.values[0]))
+            dropLock(p, c, x.slot);
+        else
+            putLock(p, c, x.slot, x.values[0]);
     }, std::move(a), kKeyRecord);
 }
 

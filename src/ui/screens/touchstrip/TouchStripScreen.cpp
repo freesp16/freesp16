@@ -224,6 +224,13 @@ public:
         c.locked = false;
         c.disabled = false;
     }
+    long long stripSteps(int column, const core::ParamSpec&, bool fine) const override
+    {
+        if (column > 1)
+            return -1;
+        const auto* spec = targetOf(place_);
+        return spec != nullptr ? EncoderAccel::stepsOf(*spec, fine) : 0; // BOTTOM / TOP step in the target's steps
+    }
     bool stripTurn(int column, const core::ParamSpec&, int detents, bool fine) override
     {
         if (column > 1)
