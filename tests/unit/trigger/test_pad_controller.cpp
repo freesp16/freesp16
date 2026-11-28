@@ -323,7 +323,7 @@ TEST_CASE("trigger.commands: track commands are undoable SetParams that reach th
     CHECK(w.lastParam("track.mode", (2 << 4) | 5) == 0.0f);
 }
 
-TEST_CASE("trigger.pads: lamps show colour, flash, mute dimming and mode keys at most 60 times a second (PAD-003)",
+TEST_CASE("trigger.pads: lamps show colour, flash, muted pads off and mode keys at most 60 times a second (PAD-003)",
           "[trigger]")
 {
     World w;
@@ -332,7 +332,8 @@ TEST_CASE("trigger.pads: lamps show colour, flash, mute dimming and mode keys at
     const engine::MeterFeed meters {};
     p.paintLamps(lamps, 0.0, meters);
     REQUIRE(lamps.flushes == 1);
-    CHECK(lamps.lamps[io::pad(1)].second == 0); // empty tracks are dark (UI-151)
+    CHECK(lamps.lamps[io::pad(1)].second == 255); // empty tracks light too: track 1 is selected, full (UI-151)
+    CHECK(lamps.lamps[io::pad(2)].second == io::kDimLevel); // an empty, unselected track dims
     CHECK(lamps.lamps[io::Control::PadModeTrack].second == 0);
 
     cmd::project(w.bus).scenes[0].tracks[0].playback.sample.id = "abc"; // track 1 has a sample
@@ -351,7 +352,8 @@ TEST_CASE("trigger.pads: lamps show colour, flash, mute dimming and mode keys at
     p.onPad(1, 100, false, true, 2000.0); // mute track 2
     p.paintLamps(lamps, 3500.0, meters);
     CHECK(lamps.lamps[io::Control::PadModeMute].second == 255);
-    CHECK(lamps.lamps[io::pad(2)].second < lamps.lamps[io::pad(1)].second); // muted = dimmed
+    CHECK(lamps.lamps[io::pad(2)].second == 0); // muted = switched off (track 2's pad dark)
+    CHECK(lamps.lamps[io::pad(1)].second > 0);
 }
 
 TEST_CASE("trigger.pads: MUTE held + pad toggles SOLO, SHIFT mutes the others, the release restores the mode",
@@ -421,7 +423,8 @@ TEST_CASE("trigger.pads: MUTE held + pad toggles SOLO, SHIFT mutes the others, t
 }
 
 // The engine's hits flash the pads (observeHits): a sequencer step on track n flashes pad n in PLAY / TRACK / MUTE,
-// the first observation only takes the counts, and a silent (muted) track's pad stays at the minimum.
+// the first observation only takes the counts, a muted track's pad stays off, and an empty track's pad stays lit
+// without flashing.
 TEST_CASE("trigger.pads: the engine's hits (sequencer steps) flash the pads like a press (UI-151)", "[trigger]")
 {
     World w;
@@ -451,10 +454,12 @@ TEST_CASE("trigger.pads: the engine's hits (sequencer steps) flash the pads like
     ph.trackHits[3] = 44;
     p.observeHits(ph, 2000.0);
     p.paintLamps(lamps, 2000.0, {});
-    CHECK(lamps.lamps[io::pad(4)].second <= io::kFaintLevel);
-    CHECK(lamps.lamps[io::pad(4)].second > 0);
+    CHECK(lamps.lamps[io::pad(4)].second == 0);          // the muted track's pad: off, no flash
     p.hasContent = [](int track) { return track != 4; }; // the app's content answer (the shell's track summary)
+    ph.trackHits[4] = 1;                                 // a hit reported on the empty track 5 …
+    ph.trackHits[5] = 1;                                 // … and on track 6, which has content
+    p.observeHits(ph, 2100.0);
     p.paintLamps(lamps, 2100.0, {});
-    CHECK(lamps.lamps[io::pad(5)].second == 0);
-    CHECK(lamps.lamps[io::pad(6)].second > 0);
+    CHECK((lamps.lamps[io::pad(5)].first != 0xFFFFFF && lamps.lamps[io::pad(5)].second == io::kDimLevel));
+    CHECK((lamps.lamps[io::pad(6)].first == 0xFFFFFF && lamps.lamps[io::pad(6)].second == 255));
 }

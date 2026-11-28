@@ -442,7 +442,7 @@ TEST_CASE("shell.gaps: the lamp model lights what the screen shows (UI-150, UID-
     auto lamps = [&](io::Control c) { return g.shell->lamps()[c]; };
     CHECK(lamps(io::pad(5)).mode == io::LampMode::Dim); // not the selected track (io::padLamp's ladder)
     CHECK(lamps(io::pad(5)).rgb == ui::theme::kLedColours[4]); // the LED colour (a flash blends in it)
-    CHECK(lamps(io::pad(6)).mode == io::LampMode::Off); // an empty track is dark
+    CHECK(lamps(io::pad(6)).mode == io::LampMode::Dim);        // an empty track lights like the others
     g.send(Kind::Press, io::pad(5), 100);
     g.frame(16);
     CHECK(lamps(io::pad(5)).mode == io::LampMode::Flash); // a hit flashes white and fades back (UI-151)

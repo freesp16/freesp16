@@ -154,14 +154,17 @@ void stripLamps(int position, bool contact, bool hold, StripMode mode, LampFrame
 
 LampState padLamp(PadMode mode, const PadLamp& p) noexcept
 {
-    // Nothing to play: an empty track; SLICE: a pad without a slice (the slice map decides, an empty track shows
-    // the default grid); SCALE shows the layout of the selected track whatever it holds.
-    if ((! p.hasContent && mode != PadMode::Slice && mode != PadMode::Scale)
-        || (mode == PadMode::Slice && ! p.inSlices))
+    // SLICE: a pad without a slice is dark (the slice map decides, an empty track shows the default grid); SCALE
+    // shows the layout of the selected track whatever it holds. An empty track lights like any other, so its mute
+    // shows on the pad too.
+    if (mode == PadMode::Slice && ! p.inSlices)
         return {};
     // Silent: muted, or another track holds the solo (the engine's audible = unmuted and, when any solo is set,
-    // soloed). The smallest light, and no hit flash: the pad does not sound.
-    if (p.muted || (p.anySolo && ! p.soloed))
+    // soloed). No hit flash: the pad does not sound. A muted pad is switched off, soloed or not; a pad silenced only
+    // by another track's solo keeps the smallest light.
+    if (p.muted)
+        return {};
+    if (p.anySolo && ! p.soloed) // silenced by a solo elsewhere: faint
         return faint(p.rgb);
     LampState base;
     switch (mode)
@@ -177,7 +180,9 @@ LampState padLamp(PadMode mode, const PadLamp& p) noexcept
     const bool tracks = mode != PadMode::Slice && mode != PadMode::Scale;
     if (tracks && p.soloed) // breathes from its own level (a selected pad stays near full) up to full
         base = {LampMode::Pulse, p.rgb, 0, base.mode == LampMode::On ? kPulseSelectedLevel : kDimLevel};
-    if (p.lastHitMs > -1e11) // resolve() eases the white hit back to the base state within kFlashMs
+    // resolve() eases the white hit back to the base state within kFlashMs. An empty track's pad does not flash in
+    // the track modes: pressing it plays nothing.
+    if (p.lastHitMs > -1e11 && (p.hasContent || ! tracks))
         return {LampMode::Flash, p.rgb, p.lastHitMs, base.mode == LampMode::Pulse ? base.level : std::uint8_t {255},
                 base.mode};
     return base;

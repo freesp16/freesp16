@@ -20,11 +20,12 @@
 // for every release (no source pushes releases; GATE tracks need them, TRK-011).
 //
 // Lamps (paintLamps, PAD-003 / UI-151/152): one ladder in every pad mode, PLAY included (io::padLamp), in the track
-// colour (`track.padColor`): dark = empty, faint = silent (muted, or another track soloed), dim = audible, full = the
-// selected track (SCALE: a root note), a soloed track breathes, and a hit — a pad press at once, or any trigger the
-// engine reports (observeHits: sequencer steps, MIDI, retrigger, repeat) — flashes white and eases back within 1 s.
-// SLICE / SCALE pads flash on their own presses (the engine reports hits per track, not per slice or note). The mode
-// keys white while on; MUTE held: the MUTE key blinks fast. At most 60 lamp frames per second.
+// colour (`track.padColor`): dark = muted, faint = silenced by another track's solo, dim = the others, empty ones
+// included, full = the selected track (SCALE: a root note), a soloed track breathes, and a hit — a pad press at once,
+// or any trigger the engine reports (observeHits: sequencer steps, MIDI, retrigger, repeat) — flashes white and eases
+// back within 1 s (an empty track's pad does not, in PLAY, TRACK and MUTE). SLICE / SCALE pads flash on their own
+// presses (the engine reports hits per track, not per slice or note). The mode keys white while on; MUTE held: the MUTE
+// key blinks fast. At most 60 lamp frames per second.
 #pragma once
 
 #include "core/commands/Command.h"

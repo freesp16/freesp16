@@ -172,13 +172,24 @@ TEST_CASE("controls lamp rules: mode, strip, pad, step and bar rules (UI-152…1
 
     io::PadLamp pad {true, 0xFF7E72};
     CHECK(io::padLamp(io::PadMode::None, pad).mode == io::LampMode::Dim);
-    CHECK(io::padLamp(io::PadMode::None, {}).mode == io::LampMode::Off); // empty track dark
+    io::PadLamp empty {false, 0xFF7E72}; // an empty track lights like the others, so its mute shows
+    CHECK(io::padLamp(io::PadMode::None, empty).mode == io::LampMode::Dim);
+    empty.selected = true;
+    CHECK(io::padLamp(io::PadMode::None, empty).mode == io::LampMode::On);
+    empty.lastHitMs = 0; // a press plays nothing: no flash in the track modes
+    CHECK(io::padLamp(io::PadMode::None, empty).mode == io::LampMode::On);
+    CHECK(io::padLamp(io::PadMode::Scale, empty).mode == io::LampMode::Flash); // SCALE flashes its own presses
+    empty.muted = true;
+    CHECK(io::padLamp(io::PadMode::Mute, empty).mode == io::LampMode::Off); // muted: dark like any muted track
     pad.muted = true;
-    CHECK(io::padLamp(io::PadMode::Mute, pad).mode == io::LampMode::Faint); // just a small light (hardware feedback)
-    CHECK(io::padLamp(io::PadMode::None, pad).mode == io::LampMode::Faint);  // in every mode that shows the tracks
+    CHECK(io::padLamp(io::PadMode::Mute, pad).mode == io::LampMode::Off);  // a muted pad is switched off, not faint
+    CHECK(io::padLamp(io::PadMode::None, pad).mode == io::LampMode::Off);  // muted: off in every mode showing tracks
+    CHECK(io::resolve(io::padLamp(io::PadMode::Mute, pad), 0).level == 0); // muted pad resolves to level 0 (off)
+    pad.muted = false;
+    pad.anySolo = true; // silenced by a solo elsewhere: still the smallest light, at every brightness
     CHECK(io::resolve(io::padLamp(io::PadMode::Mute, pad), 0).level == io::kFaintLevel);
     CHECK(io::resolve(io::padLamp(io::PadMode::Mute, pad), 0, io::LampBrightness::Dimmed3).level >= 1);
-    pad.muted = false;
+    pad.anySolo = false;
     pad.lastHitMs = 100;
     CHECK(io::padLamp(io::PadMode::None, pad).mode == io::LampMode::Flash);
     CHECK(io::padLamp(io::PadMode::Track, pad).mode == io::LampMode::Flash); // a dim pad flashes too
@@ -248,8 +259,9 @@ TEST_CASE("controls lamp rules: apply() sends every lamp to the sink, then flush
 }
 
 // The pad ladder (io::padLamp): the same states in PLAY, TRACK, MUTE and the solo view, so the pads read the same
-// whatever pad mode is on — off = empty, faint = silent, dim = audible, full = selected, pulse = soloed, a white flash
-// for any hit (the user's or the sequencer's) that eases back to the pad's own state; a silent pad never flashes.
+// whatever pad mode is on — off = muted, faint = silenced by a solo, dim = the others (empty tracks too), full =
+// selected, pulse = soloed, a white flash for any hit (the user's or the sequencer's) that eases back to the pad's own
+// state; a silent pad, or an empty track's pad, never flashes.
 TEST_CASE("controls lamp rules: one pad ladder in every pad mode (UI-151, 152)")
 {
     using io::LampMode;
@@ -257,6 +269,12 @@ TEST_CASE("controls lamp rules: one pad ladder in every pad mode (UI-151, 152)")
     for (const auto mode : {PadMode::None, PadMode::Track, PadMode::Mute, PadMode::Solo})
     {
         CAPTURE(static_cast<int>(mode));
+        io::PadLamp e {false, 0x30A0FF}; // an empty track: the same ladder, without the hit flash
+        CHECK(io::padLamp(mode, e).mode == LampMode::Dim);
+        e.lastHitMs = 1000;
+        CHECK(io::padLamp(mode, e).mode == LampMode::Dim); // pressed: nothing plays, no flash
+        e.muted = true;
+        CHECK(io::padLamp(mode, e).mode == LampMode::Off); // muted empty track: off
         io::PadLamp p {true, 0x30A0FF};
         CHECK(io::padLamp(mode, p).mode == LampMode::Dim); // unselected
         p.selected = true;
@@ -267,9 +285,9 @@ TEST_CASE("controls lamp rules: one pad ladder in every pad mode (UI-151, 152)")
         CHECK((hit.mode == LampMode::Flash && hit.settle == LampMode::Dim));
         CHECK((io::resolve(hit, 1000).level == 255 && io::resolve(hit, 1000).rgb == io::lampcolour::white));
         CHECK((io::resolve(hit, 2000).level == io::kDimLevel && io::resolve(hit, 2000).rgb == 0x30A0FF));
-        p.muted = true; // mute: the minimum, and no flash (the track does not sound)
-        CHECK(io::padLamp(mode, p).mode == LampMode::Faint);
-        CHECK(io::resolve(io::padLamp(mode, p), 1000).level == io::kFaintLevel);
+        p.muted = true; // mute: switched off, and no flash (the track does not sound)
+        CHECK(io::padLamp(mode, p).mode == LampMode::Off);         // muted + a pending hit: still off
+        CHECK(io::resolve(io::padLamp(mode, p), 1000).level == 0); // the hit never lights a muted pad
         p.muted = false;
         p.anySolo = true; // another track soloed: silent like a mute
         CHECK(io::padLamp(mode, p).mode == LampMode::Faint);
@@ -284,7 +302,7 @@ TEST_CASE("controls lamp rules: one pad ladder in every pad mode (UI-151, 152)")
         CHECK(io::resolve(soloHit, 0).level == 255);
         CHECK(io::resolve(soloHit, 3 * io::kPulseMs).level == io::kPulseSelectedLevel); // back in the breath
         p.muted = true; // muted wins over soloed (the engine: audible = unmuted and soloed)
-        CHECK(io::padLamp(mode, p).mode == LampMode::Faint);
+        CHECK(io::padLamp(mode, p).mode == LampMode::Off); // muted and soloed: off, no breath
     }
     io::PadLamp s {true, 0x30A0FF};
     CHECK(io::padLamp(PadMode::Slice, s).mode == LampMode::Dim); // a slice
@@ -297,6 +315,6 @@ TEST_CASE("controls lamp rules: one pad ladder in every pad mode (UI-151, 152)")
     CHECK(io::padLamp(PadMode::Scale, n).mode == LampMode::On); // a root note
     n.root = false;
     CHECK(io::padLamp(PadMode::Scale, n).mode == LampMode::Dim);
-    n.muted = true; // the selected track muted: every note faint
-    CHECK(io::padLamp(PadMode::Scale, n).mode == LampMode::Faint);
+    n.muted = true;                                              // the selected track muted: every note off
+    CHECK(io::padLamp(PadMode::Scale, n).mode == LampMode::Off); // SCALE, selected track muted: dark
 }
