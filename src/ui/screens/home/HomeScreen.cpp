@@ -1,6 +1,7 @@
 // HOME (07-ui-design/screens/home.md; 03-ui/screens.md UI-210…217; UID-500…504): template content+meter, context bar
 // menu, the TrackTile grid and the MASTER meter, knob strip VOLUME, PAN, PITCH, TIME STRETCH, LOOP, TRIGGER MODE of the
-// selected track (THRU: columns 3–5 empty; MIDI / AS-1: 3–6 empty, 1–2 only while CC1 volume/pan exist).
+// selected track (THRU: columns 3–5 empty; MIDI / AS-1: 3–6 empty, 1–2 only while CC1 volume/pan exist; PLUGIN:
+// VOLUME, PAN and the track's TRANSPOSE, which moves the instrument's notes in semitones).
 // Replaces the shell's interim HOME (ui/shell/Fallbacks.cpp) by registering the id.
 #include "ui/screens/home/TrackGrid.h"
 
@@ -26,6 +27,7 @@ constexpr StripSpec kHomeStrip{
     {"track.volume", "track.pan", "playback.pitch", "playback.timeStretch", "playback.loop", "track.triggerMode"}};
 constexpr StripSpec kHomeThruStrip{"TRACK {track}", {"track.volume", "track.pan", "", "", "", "track.triggerMode"}};
 constexpr StripSpec kHomeMidiStrip{"TRACK {track}", {}};
+constexpr StripSpec kHomePluginStrip{"TRACK {track}", {"track.volume", "track.pan", "seq.transpose", "", "", ""}};
 } // namespace
 
 TrackGrid::TrackGrid(const WidgetArgs& a, TrackTileModel::Variant v) noexcept
@@ -84,7 +86,10 @@ void TrackGrid::bindStripForMode() const
     if (mode == boundMode_)
         return;
     boundMode_ = mode;
-    shell_->bindStrip(mode == 2 ? &kHomeThruStrip : (mode == 0 ? nullptr : &kHomeMidiStrip));
+    shell_->bindStrip(mode == 2   ? &kHomeThruStrip
+                      : mode == 4 ? &kHomePluginStrip
+                      : mode == 0 ? nullptr
+                                  : &kHomeMidiStrip);
 }
 
 void TrackGrid::build(DrawList& dl, const UiContext& ctx) const

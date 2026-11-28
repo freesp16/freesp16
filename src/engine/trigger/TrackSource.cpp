@@ -15,6 +15,11 @@ std::uint8_t clampFrame(int f) noexcept
 {
     return static_cast<std::uint8_t>(f < 0 ? 0 : (f > kBlockFrames - 1 ? kBlockFrames - 1 : f));
 }
+
+int clampNote(int n) noexcept
+{
+    return n < 0 ? 0 : (n > 127 ? 127 : n);
+}
 } // namespace
 
 TrackSource::TrackSource() noexcept = default;
@@ -50,7 +55,10 @@ void TrackSource::setMode(TrackMode m) noexcept
     voice_.stop(0, kFadeMs); // the sounding note fades out (the envelope keeps applying while it does)
     numStarts_ = 0;
     if (mode_ == TrackMode::Plugin && plugin_ != nullptr)
+    {
         plugin_->allNotesOff(0);
+        sentNotes_.fill(0);
+    }
     if (mode_ == TrackMode::Thru && bank_ != nullptr && thruEnvelope_)
     {
         bank_->setThru(lane_, false); // back to an idle envelope; the input fades out below
@@ -64,8 +72,11 @@ void TrackSource::setPlugin(core::audio::PluginAudioNode* p) noexcept
     if (p == plugin_)
         return;
     if (plugin_ != nullptr)
+    {
         plugin_->allNotesOff(0);
-    plugin_ = p;
+        sentNotes_.fill(0);
+    }
+    plugin_ = p; // after detachPluginForMove() the held notes stay: they belong to the instrument bound here
 }
 
 void TrackSource::setPlayback(const voice::PlaybackParams& p) noexcept
@@ -124,20 +135,32 @@ void TrackSource::onEvent(const TriggerEvent& e, TriggerMode triggerMode) noexce
         if (plugin_ == nullptr)
             return;
         const int frame = clampFrame(e.frame);
-        const int rawNote = 60 + static_cast<int>(e.semitones);
-        const int note = rawNote < 0 ? 0 : (rawNote > 127 ? 127 : rawNote);
+        const int key = clampNote(60 + static_cast<int>(e.semitones));
+        auto& sent = sentNotes_[static_cast<std::size_t>(key)];
         const float vel = static_cast<float>(e.velocity) * (1.0f / 127.0f);
         switch (e.kind)
         {
         case TriggerKind::Full:
         case TriggerKind::Half:
+        {
+            const int note = clampNote(key + noteTranspose_);
+            if (sent != 0 && sent - 1 != note)
+                plugin_->noteOff(frame, sent - 1); // TRANSPOSE moved while the key was held: end the old pitch first
+            sent = static_cast<std::uint8_t>(note + 1);
             plugin_->noteOn(frame, note, vel > 1.0f ? 1.0f : (vel < 0.0f ? 0.0f : vel));
             return;
+        }
         case TriggerKind::Release:
-            // The router retains the pitch from the pad press. Other notes on this track may still be held.
+        {
+            // The router retains the pitch from the pad press; the note ends at the pitch it started at. Other notes
+            // on this track may still be held.
+            const int note = sent != 0 ? sent - 1 : clampNote(key + noteTranspose_);
+            sent = 0;
             plugin_->noteOff(frame, note);
             return;
+        }
         case TriggerKind::Stop:
+            sentNotes_.fill(0);
             plugin_->allNotesOff(frame);
             return;
         case TriggerKind::LockOnly:
@@ -208,6 +231,7 @@ void TrackSource::stopPlayback(bool loopsOnly) noexcept
     if (! loopsOnly && mode_ == TrackMode::Plugin && plugin_ != nullptr)
     {
         plugin_->allNotesOff(0);
+        sentNotes_.fill(0);
         plugin_->resetEffect(); // CLAP reset also clears instrument release tails.
     }
 }
@@ -218,7 +242,10 @@ void TrackSource::choke(int frame) noexcept
     if (mode_ == TrackMode::Plugin)
     {
         if (plugin_ != nullptr)
+        {
             plugin_->allNotesOff(f);
+            sentNotes_.fill(0);
+        }
         return;
     }
     int kept = 0; // starts at or before the choke frame never sound; later ones (a re-hit) still do

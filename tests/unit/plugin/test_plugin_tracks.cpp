@@ -421,6 +421,98 @@ TEST_CASE("plugin: a MIDI release after the swap sends the pitch from note-on", 
     CHECK_FALSE(plugin.sounding);
 }
 
+TEST_CASE("plugin: TRANSPOSE moves the instrument's notes and each note ends at its own pitch", "[plugin][engine]")
+{
+    auto e = miditest::make();
+    auto& plugin = installPlugin(*e, 0);
+    miditest::Driver driver(*e, engine::kBlockFrames);
+    driver.param("track.mode", 0, 4);
+    const auto send = [&](std::uint8_t status, std::uint8_t data1, std::uint8_t data2)
+    {
+        REQUIRE(e->midi().hub().pushIn(0, miditest::msg(status, data1, data2, miditest::hostNs(driver.frame()))));
+        driver.blocks(4);
+    };
+
+    send(0x90, 48, 100);
+    CHECK(plugin.lastNote == 60); // MIDI IN note 48 is the track's own pitch (MID-021); TRANSPOSE 0 adds nothing
+    send(0x80, 48, 0);
+    CHECK(plugin.lastOffNote == 60);
+
+    driver.param("seq.transpose", 0, 7);
+    driver.blocks(1);
+    send(0x90, 48, 100);
+    CHECK(plugin.lastNote == 67);
+
+    // TRANSPOSE moves while the key is held: the release still ends the note that sounded.
+    driver.param("seq.transpose", 0, -5);
+    driver.blocks(1);
+    const int offs = plugin.noteOffs;
+    send(0x80, 48, 0);
+    CHECK(plugin.lastOffNote == 67);
+    CHECK(plugin.noteOffs == offs + 1);
+    CHECK_FALSE(plugin.sounding);
+
+    send(0x90, 48, 100);
+    CHECK(plugin.lastNote == 55);
+    send(0x80, 48, 0);
+    CHECK(plugin.lastOffNote == 55);
+}
+
+TEST_CASE("plugin: a key struck again after TRANSPOSE moved ends its earlier pitch first", "[plugin][engine]")
+{
+    using namespace engine::trigger;
+    auto rig = trigtest::makeRig();
+    MockPluginNode mock(nullptr);
+    rig->src[0].setMode(TrackMode::Plugin);
+    rig->src[0].setPlugin(&mock);
+
+    rig->src[0].setNoteTranspose(2);
+    REQUIRE(rig->router.pushLive(engine::TriggerNow{0, 100, 60, 0}));
+    rig->block();
+    REQUIRE(mock.lastNote == 62);
+
+    rig->src[0].setNoteTranspose(12);
+    REQUIRE(rig->router.pushLive(engine::TriggerNow{0, 100, 60, 0})); // a second note on for the held key
+    rig->block();
+    CHECK(mock.lastOffNote == 62);
+    CHECK(mock.lastNote == 72);
+
+    const int offs = mock.noteOffs;
+    REQUIRE(rig->router.pushLive(engine::TriggerNow{0, 0, 60, 0}));
+    rig->block();
+    CHECK(mock.lastOffNote == 72);
+    CHECK(mock.noteOffs == offs + 1);
+    rig->src[0].setPlugin(nullptr);
+}
+
+TEST_CASE("plugin: a held transposed note keeps its pitch through a track swap", "[plugin][track-swap]")
+{
+    auto e = miditest::make();
+    auto& plugin = installPlugin(*e, 0);
+    miditest::Driver driver(*e, engine::kBlockFrames);
+    driver.param("track.mode", 0, 4);
+    driver.param("seq.transpose", 0, 7);
+    driver.blocks(1);
+    REQUIRE(e->midi().hub().pushIn(0, miditest::msg(0x90, 48, 100, miditest::hostNs(driver.frame()))));
+    driver.blocks(4);
+    REQUIRE(plugin.lastNote == 67);
+
+    services::render::QueuedBridge queued(e->bridge());
+    queued.stageTrackSwap({0, 0, 1, true});
+    postTrackParam(queued, "track.mode", 0, 0);
+    postTrackParam(queued, "track.mode", 1, 4);
+    queued.finishTrackSwaps();
+    driver.blocks(2);
+    REQUIRE(e->installed({engine::SwapSlot::TrackPlugin, 0, 1}) == &plugin);
+    REQUIRE(plugin.sounding);
+
+    driver.param("seq.transpose", 1, 0); // the instrument's new track moves to another TRANSPOSE while it is held
+    REQUIRE(e->midi().hub().pushIn(0, miditest::msg(0x80, 48, 0, miditest::hostNs(driver.frame()))));
+    driver.blocks(4);
+    CHECK(plugin.lastOffNote == 67);
+    CHECK_FALSE(plugin.sounding);
+}
+
 TEST_CASE("plugin: MIDI All Notes Off still reaches the original channel's held note after a swap",
           "[plugin][track-swap]")
 {

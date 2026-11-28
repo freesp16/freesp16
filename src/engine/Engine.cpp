@@ -387,6 +387,8 @@ void Engine::renderBlock() noexcept
     ribbon_.collect(ctx, triggerRouter_);              //    strip REPEAT hits (on the transport grid)
     sampling_.schedule(ctx, buffers_.timing, sceneSwitch_.switcher, &triggerRouter_); // live boundaries, loop trigger
     toggle_.flush(triggerRouter_);                     //    releases of dropped Toggle latches
+    for (int t = 0; t < kTracks; ++t)                  //    plugin notes sound the track's TRANSPOSE (SEQ-035)
+        sources_[static_cast<std::size_t>(t)].setNoteTranspose(perf_.transpose(t));
     triggerRouter_.process(ctx);                       //    + live hits: sort, choke, pad modes → track sources
     ribbon_.observe(triggerRouter_.blockEvents(), triggerRouter_.padState()); // the held pads
     publishRibbon(*this);                              //    → the ModMatrix, before it applies the block
@@ -646,6 +648,7 @@ void Engine::moveTrackPlugins(const TrackSwapBatch::Swap& swap) noexcept
     // cannot end their notes. installSwaps binds both sources at their new addresses at the end of the drain.
     sources_[a].detachPluginForMove();
     sources_[b].detachPluginForMove();
+    sources_[a].exchangeHeldNotes(sources_[b]); // each instrument's sounding notes move with it
     triggerRouter_.moveHeldTracks(a, b);
     midi_.moveHeldTracks(a, b);
     ribbon_.swapTracks(a, b);

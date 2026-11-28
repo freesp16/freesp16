@@ -131,6 +131,33 @@ TEST_CASE("ui.m1.home: a THRU track empties strip columns 3-5, a MIDI track all 
     CHECK(f.shell->boundColumn(2) != nullptr);
 }
 
+TEST_CASE("ui.m1.home: a PLUGIN track binds VOLUME, PAN and TRANSPOSE", "[m1]")
+{
+    M1Fixture f;
+    auto& st = f.shell->state();
+    f.set("track.mode", 12, 4);
+    st.selectedTrack = 12;
+    f.settle(3);
+    static constexpr std::string_view ids[] = {"track.volume", "track.pan", "seq.transpose"};
+    for (int c = 0; c < 3; ++c)
+    {
+        CAPTURE(c);
+        REQUIRE(f.shell->boundColumn(c) != nullptr);
+        CHECK(f.shell->boundColumn(c)->id == ids[c]);
+    }
+    for (int c = 3; c < 6; ++c)
+        CHECK(f.shell->boundColumn(c) == nullptr);
+
+    f.turn(io::knob(3), 1); // the third knob raises the track's TRANSPOSE
+    f.settle();
+    CHECK(ui::m1::trackParam(*f.shell, "seq.transpose", 12) == 1.0f);
+    CHECK(ui::m1::trackParam(*f.shell, "seq.transpose", 1) == 0.0f);
+
+    st.selectedTrack = 1;
+    f.settle(3);
+    CHECK(f.shell->boundColumn(2)->id == "playback.pitch");
+}
+
 TEST_CASE("ui.m1.trackSetting: TRACK SETTING matches track-setting.svg", "[snapshot][m1]")
 {
     Session session;
