@@ -121,7 +121,7 @@ private:
     const voice::SliceMap* sliceMap_ = nullptr;
     core::audio::PluginAudioNode* plugin_ = nullptr;
     int noteTranspose_ = 0;
-    std::array<std::uint8_t, 128> sentNotes_ {}; // per key (60 + semitones): the note the plugin got + 1, 0 = none
+    std::array<std::uint8_t, 128> sentNotes_{}; // per key (60 + semitones): the note the plugin got + 1, 0 = none
     int heldSlice_ = -1, liveSlice_ = -1, noteSlice_ = -1; // Hold lock, last pad slice (Repeat hits), sounding
     alignas(16) float gain_[kBlockFrames] {};
     alignas(16) float tailL_[kBlockFrames] {};
