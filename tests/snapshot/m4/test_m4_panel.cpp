@@ -465,23 +465,23 @@ TEST_CASE("m4panel.lamps: the pad controller paints the pads in every pad mode o
     CHECK(level(f, 3) == io::kDimLevel); // the other pads stay
     f = shown(1200);
     CHECK(level(f, 2) == io::kDimLevel);
-    // MUTE: the mode key white, a muted track's pad at the minimum, the others as in PLAY.
+    // MUTE: the mode key white, a muted track's pad switched off, the others as in PLAY.
     d.pads->onModeKey(PadMode::Mute);
     d.pads->onPad(2, 100, false, true, 1300, true); // mute track 3
     f = shown(2000);
     CHECK(f[io::Control::PadModeMute].mode == io::LampMode::On);
     CHECK(f[io::Control::PadModeTrack].mode == io::LampMode::Off);
-    CHECK(f[io::pad(3)].mode == io::LampMode::Faint); // a muted pad: just a small light
+    CHECK(f[io::pad(3)].mode == io::LampMode::Off); // a muted pad: switched off, not a small light
     CHECK(level(f, 1) == 255);
     CHECK(level(f, 2) == io::kDimLevel);
     // A sequencer hit on the muted track does not flash it (it does not sound).
     ph.trackHits[2] = 1;
     d.pads->observeHits(ph, 2100);
     f = shown(2100);
-    CHECK(f[io::pad(3)].mode == io::LampMode::Faint);
+    CHECK(f[io::pad(3)].mode == io::LampMode::Off); // the muted pad stays off on a hit
     // A frame inside the 60 Hz throttle (no new paint) still shows the last paint, not the shell's pads.
     f = shown(2105);
-    CHECK(f[io::pad(3)].mode == io::LampMode::Faint);
+    CHECK(f[io::pad(3)].mode == io::LampMode::Off); // throttled frame: muted pad still off
     CHECK(f[io::Control::PadModeMute].mode == io::LampMode::On);
     // SCALE: roots full, the other notes dim.
     d.pads->onModeKey(PadMode::Scale);

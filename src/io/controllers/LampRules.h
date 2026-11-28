@@ -7,13 +7,14 @@
 // Device-independent and allocation-free; resolve() is a few multiplies per lamp.
 //
 // The pads follow one brightness ladder in every pad mode (padLamp, our design over UI-151/152):
-//   off      the pad has nothing to play (empty track, no slice)
-//   faint    the track is silent: muted, or another track is soloed (the smallest light that still shows)
-//   dim      the track is audible and not selected (SLICE: a slice; SCALE: a note that is not a root)
+//   off      the track is muted, soloed or not (SLICE: also a pad without a slice)
+//   faint    the track is silent because another track is soloed (the smallest light that still shows)
+//   dim      the track is neither muted nor silenced and not selected, empty or not (SLICE: a slice; SCALE: a note
+//            that is not a root)
 //   on       the selected track (SCALE: a root note) in its full colour
 //   pulse    a soloed track breathes between its level and full, so the solo is seen at a glance
 //   flash    a hit — the user's or the sequencer's — jumps to full white and eases back to the state above;
-//            a silent pad never flashes (it does not sound)
+//            a silent pad, or an empty track's pad in PLAY, TRACK and MUTE, never flashes (it does not sound)
 #pragma once
 
 #include "io/controllers/ControlNames.h"
@@ -55,7 +56,7 @@ inline constexpr double kBlinkSlowHz = 2.0, kBlinkFastHz = 6.0; // UI-150
 inline constexpr double kFlashMs = 1000.0;                      // UI-151: back to the base colour over about 1 s
 inline constexpr double kPulseMs = 1500.0;                      // a soloed pad's breath (ours)
 inline constexpr std::uint8_t kDimLevel = 90;                   // "dim" ≈ 35 % of full (ours)
-// "faint": the smallest light that still shows (hardware feedback: muted pads "just a small light"); 6/255 is 2 of the
+// "faint": the smallest light that still shows (a pad a solo elsewhere silences; muted pads are off); 6/255 is 2 of the
 // panel's 74 RGB steps and stays ≥ 1 step at the lowest brightness preference (PanelCodec never rounds a lit channel
 // down to 0).
 inline constexpr std::uint8_t kFaintLevel = 6;
@@ -107,7 +108,7 @@ int stripSegment(int position) noexcept; // 0…7
 // selected track (SLICE, SCALE: every pad shows it).
 struct PadLamp
 {
-    bool hasContent = false;  // false = dark
+    bool hasContent = false;  // false = an empty track: lit like the others, but no hit flash in the track modes
     std::uint32_t rgb = 0;    // track (pad) colour
     double lastHitMs = -1e12; // most recent hit (pad press or sequencer step); ≤ −1e11 = never
     bool selected = false;    // the selected track (PLAY, TRACK, MUTE, solo view)
