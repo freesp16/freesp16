@@ -1,7 +1,8 @@
-// The active theme: generated token constants (tools/gen_theme.py <- resources/design/tokens.json) plus the dark/light
-// choice and the motion helpers. Components reference token names only (UID-050, UID-230); no colour, size or duration
-// is written in a component. Dark is the default palette, light is generated from the same file (UID-051, UID-017);
-// the choice reaches every widget through UiContext::palette.
+// The active theme: generated token constants (tools/gen_theme.py <- resources/design/tokens.json, and the Classic
+// palette from resources/design/app-tokens.json) plus the dark/light choice and the motion helpers. Components
+// reference token names only (UID-050, UID-230); no colour, size or duration is written in a component. Dark is the
+// default palette, light is generated from the same file (UID-051, UID-017); the choice reaches every widget through
+// UiContext::palette.
 #pragma once
 
 #include "ui/ThemeTokens.h"
