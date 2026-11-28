@@ -1,5 +1,6 @@
 #include "ui/widgets/EnvelopeEditor.h"
 
+#include "core/util/ampenv/EnvTime.h"
 #include "ui/theme/Draw.h"
 #include "ui/theme/Glyphs.h"
 
@@ -127,6 +128,42 @@ float yAt(const Poly& poly, float x) noexcept
             return b.x - a.x < 1e-3f ? b.y : a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x);
     }
     return poly.p[static_cast<std::size_t>(poly.n - 1)].y;
+}
+
+// The TRACK MENU thumbnail's polyline: (x0, bottom) → (xa, top) → (xh, top) → (xr, bottom), or flat from xh to xr at
+// `top` when RELEASE is INFINITY (`falls` false: the level stays where the release starts).
+struct ThumbShape
+{
+    float x0, xa, xh, xr, top, bottom;
+    bool falls;
+};
+
+ThumbShape thumbShape(RectF r, const EnvelopeModel& m) noexcept
+{
+    // kit_track env_thumb() proportions: the peak's corners in the first half (hold INF = 55 %), the release in the
+    // last 45 %. The x of a time is its place on the stage's own logarithmic range (EnvTime: seconds are exponential
+    // in the display index, so this is the knob position): ATTACK and the end of HOLD share the attack range, as HOLD
+    // is counted from the trigger; RELEASE uses its own. Nothing depends on the other stages' lengths through a
+    // window, so a detent never moves a corner against its turn.
+    namespace env = ::core::ampenv;
+    const auto knob = [](float s, env::EnvStage stage)
+    {
+        if (! (s > 0))
+            return 0.0f;
+        const auto range = env::stageRange(stage);
+        const float lo = static_cast<float>(range.minSeconds), hi = static_cast<float>(range.maxSeconds);
+        return std::clamp(std::log(s / lo) / std::log(hi / lo), 0.0f, 1.0f);
+    };
+    ThumbShape s{};
+    s.x0 = r.x + 14;
+    s.top = r.y + 12;
+    s.bottom = r.bottom() - 10;
+    const float w = r.w - 28;
+    s.xa = s.x0 + 0.5f * w * knob(m.attackS, env::EnvStage::Attack);
+    s.xh = m.holdInf ? s.x0 + 0.55f * w : s.x0 + 0.5f * w * knob(holdEnd(m), env::EnvStage::Attack);
+    s.falls = ! m.releaseInf;
+    s.xr = s.falls ? s.xh + 0.45f * w * knob(m.releaseS, env::EnvStage::Release) : s.x0 + w;
+    return s;
 }
 
 void handle(DrawList& dl, const UiContext& ctx, RectF r, std::string_view letter, bool inf, bool focused)
@@ -257,24 +294,17 @@ void EnvelopeEditor::draw(DrawList& dl, const UiContext& ctx, const EnvelopeMode
 
 void EnvelopeEditor::drawThumb(DrawList& dl, const UiContext&, RectF r, const EnvelopeModel& m)
 {
-    // kit_track env_thumb(): attack / hold / release as fractions of the thumbnail (hold INF = 55 %).
-    const float x0 = r.x + 14, y0 = r.y + 12, y1 = r.bottom() - 10, w = r.w - 28;
-    const float total = std::max(1e-3f, m.windowS);
-    const float a = std::min(1.0f, m.attackS / total), hd = m.holdInf ? 1.0f : std::min(1.0f, holdEnd(m) / total),
-                rl = m.releaseInf ? 1.0f : std::min(1.0f, m.releaseS / total);
-    const float xa = x0 + a * w * 0.3f;
-    const float xh = x0 + w * (hd >= 1 ? 0.55f : 0.3f + hd * 0.3f);
-    const float xr = xh + w * 0.45f * rl;
+    const auto s = thumbShape(r, m);
     Poly poly;
-    poly.add(x0, y1);
-    poly.add(xa, y0);
-    poly.add(xh, y0);
-    poly.add(xr, y1);
+    poly.add(s.x0, s.bottom);
+    poly.add(s.xa, s.top);
+    poly.add(s.xh, s.top);
+    poly.add(s.xr, s.falls ? s.bottom : s.top);
     const auto fill = theme::withOpacity(m.colour, 0.12f);
-    for (float x = x0; x < xr; x += 2)
+    for (float x = s.x0; x < s.xr; x += 2)
     {
         const float y = yAt(poly, x + 1);
-        dl.fill({x, y, 2, y1 - y}, fill);
+        dl.fill({x, y, 2, s.bottom - y}, fill);
     }
     stroke(dl, poly, 2, m.colour);
 }

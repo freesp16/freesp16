@@ -528,18 +528,20 @@ private:
             }
             m.bypassed = bypassedCard(kCard0 + s);
         }
-        else if (cd.thumb == Thumb::Envelope)
+        else if (cd.thumb == Thumb::Envelope) // the times as the AMP ENVELOPE page reads them (SYNC: at the tempo)
         {
             const auto ia = env::clampIndex(env::EnvStage::Attack, m1::trackParam(*shell_, "env.attack", t));
             const auto ih = env::clampIndex(env::EnvStage::Hold, m1::trackParam(*shell_, "env.hold", t, 128));
             const auto ir = env::clampIndex(env::EnvStage::Release, m1::trackParam(*shell_, "env.release", t));
+            const bool sync = m1::trackParam(*shell_, "env.sync", t) >= 0.5f;
+            const double bpm = std::max(20.0, std::strtod(state_->bpm.text, nullptr));
             auto& e = m.envelope;
-            e.attackS = env::envSeconds(env::EnvStage::Attack, ia, false, 120);
+            e.sync = sync;
+            e.attackS = env::envSeconds(env::EnvStage::Attack, ia, sync, bpm);
             e.holdInf = env::isInfinite(env::EnvStage::Hold, ih);
             e.releaseInf = env::isInfinite(env::EnvStage::Release, ir);
-            e.holdS = e.holdInf ? 0 : env::envSeconds(env::EnvStage::Hold, ih, false, 120);
-            e.releaseS = e.releaseInf ? 0 : env::envSeconds(env::EnvStage::Release, ir, false, 120);
-            e.windowS = EnvelopeEditor::fitWindow(e);
+            e.holdS = e.holdInf ? 0 : env::envSeconds(env::EnvStage::Hold, ih, sync, bpm);
+            e.releaseS = e.releaseInf ? 0 : env::envSeconds(env::EnvStage::Release, ir, sync, bpm);
             m.bypassed = bypassedCard(kCard0 + s);
         }
         else

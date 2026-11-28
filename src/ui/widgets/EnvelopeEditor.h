@@ -44,7 +44,9 @@ public:
     static float fitWindow(const EnvelopeModel&) noexcept;
     // x of time s, y of level 0–1 in the plot.
     static float xOf(const EnvelopeModel& m, float s) noexcept;
-    // A small envelope thumbnail (TRACK MENU card): shape only, fitted to `r`.
+    // A small envelope thumbnail (TRACK MENU card): shape only, in `r`. Each corner sits on its own knob's scale, not
+    // on a fitted window, so a detent moves only the corners its value moves, in its direction; at RELEASE INFINITY
+    // the level stays at the peak (no fall drawn).
     static void drawThumb(DrawList&, const UiContext&, RectF r, const EnvelopeModel&);
 };
 } // namespace ui
