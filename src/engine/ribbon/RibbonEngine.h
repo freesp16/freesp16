@@ -77,7 +77,7 @@ public:
     bool onParam(const ParamChange&) noexcept; // a ribbon.* message (consumed) or false
     // The strip / pressure stream (TriggerNow with a core::ribbon pad code); false = an ordinary trigger. `pads` maps
     // a pad's pressure to its track like the router does.
-    bool onLive(const TriggerNow&, const trigger::PadState& pads) noexcept;
+    bool onLive(const TriggerNow&, const trigger::PadState& pads, int heldTrack = -1) noexcept;
     void onStrip(int position, bool contact) noexcept;
     void onPressure(int track, int pressure) noexcept;
     void onPitchBend(int track, int value14) noexcept; // RIB-007, MID-032; 8192 = centre
@@ -89,6 +89,7 @@ public:
 
     // Step 6, before the router: this block's REPEAT hits (frame-accurate), at most kMaxHits; returns the count.
     void stopRepeats() noexcept;
+    void swapTracks(int a, int b) noexcept;
     int collectHits(const BlockContext&, std::span<trigger::TriggerEvent, kMaxHits> out) noexcept;
     template <class Sink> // TriggerRouter (push(const TriggerEvent&) → bool) or a test sink
     void collect(const BlockContext& ctx, Sink& sink) noexcept

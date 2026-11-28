@@ -15,6 +15,7 @@ work=out/package/work
 rm -rf "$work" && mkdir -p "$work/$stem-armel" "$work/$stem-emulator-mod/files/root/pdj"
 cp "$bin" "$work/$stem-armel/$PROJECT_NAME"
 cp LICENSE THIRD_PARTY.md "$work/$stem-armel/"
+cp third_party/clap/LICENSE "$work/$stem-armel/CLAP-LICENSE.txt"
 cat > "$work/$stem-armel/INSTALL.txt" <<TXT
 $PROJECT_DISPLAY_NAME $PROJECT_VERSION for the SP-16 (armel, glibc 2.13).
 Copy $PROJECT_NAME to the root of a FAT32 USB stick, next to the boot menu's autoexec.bin (the bootmenu project
@@ -28,6 +29,7 @@ printf '{"schema": 1, "id": "%s", "base_profile": "sp16-1.60", "description": "%
   "$PROJECT_NAME" "$PROJECT_DISPLAY_NAME" "$PROJECT_VERSION" > "$work/$stem-emulator-mod/mod.json"
 printf 'render=auto\ncompare=0\n' > "$work/$stem-emulator-mod/$PROJECT_NAME.conf"
 cp LICENSE THIRD_PARTY.md "$work/$stem-emulator-mod/"
+cp third_party/clap/LICENSE "$work/$stem-emulator-mod/CLAP-LICENSE.txt"
 mkdir -p out/package
 cp "$bin" "out/package/$PROJECT_NAME"
 tar -C "$work" -czf "out/package/$stem-armel.tar.gz" "$stem-armel"

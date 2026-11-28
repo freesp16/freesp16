@@ -232,7 +232,7 @@ TEST_CASE("m5ui.midi: TRACK TYPE names the AS-1 type TORAIZ AS-1 (the manual, p.
     m.f.settle();
     auto* list = dynamic_cast<ui::ListPopup*>(m.shell().topPopup());
     REQUIRE(list != nullptr);
-    CHECK(list->rowCount() == 4);
+    CHECK(list->rowCount() == 5); // SAMPLE, THRU, MIDI, TORAIZ AS-1, PLUGIN
     CHECK(list->focusedItem() == 3);
     CHECK(m.hasText("TORAIZ AS-1"));
 }

@@ -86,6 +86,32 @@ void JuceReplay::draw(juce::Graphics& g, const DrawList& list, int width, int he
             ga.draw(g);
             break;
         }
+        case DrawCmd::Op::Blit:
+        {
+            if (c.pixels == nullptr || c.srcW == 0 || c.srcH == 0)
+                break;
+            juce::Image img(juce::Image::ARGB, c.srcW, c.srcH, false);
+            {
+                juce::Image::BitmapData data(img, juce::Image::BitmapData::writeOnly);
+                for (int y = 0; y < c.srcH; ++y)
+                {
+                    const auto* src = c.pixels + static_cast<std::ptrdiff_t>(y) * c.srcStride;
+                    auto* dst = reinterpret_cast<juce::PixelARGB*>(data.getLinePointer(y));
+                    for (int x = 0; x < c.srcW; ++x)
+                    {
+                        const std::uint32_t p = src[x];
+                        dst[x].setARGB(static_cast<std::uint8_t>(p >> 24), static_cast<std::uint8_t>(p >> 16),
+                                       static_cast<std::uint8_t>(p >> 8), static_cast<std::uint8_t>(p));
+                        dst[x].premultiply();
+                    }
+                }
+            }
+            const float alpha = static_cast<float>(c.argb >> 24) / 255.0f;
+            if (alpha < 1.0f)
+                g.setOpacity(alpha);
+            g.drawImage(img, r);
+            break;
+        }
         }
     }
     g.restoreState();

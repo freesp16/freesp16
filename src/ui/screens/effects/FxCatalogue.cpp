@@ -32,7 +32,7 @@ const engine::fx::EffectDescriptor kNoneDescriptor{
     .shell = {},
     .create = nullptr};
 
-// Writes a + b + c into buf (truncated), returns the view.
+// Concatenate the parts into buf, truncating to its capacity.
 std::string_view join(char* buf, std::size_t n, std::string_view a, std::string_view b, std::string_view c = {},
                       std::string_view d = {}) noexcept
 {
@@ -40,8 +40,11 @@ std::string_view join(char* buf, std::size_t n, std::string_view a, std::string_
     for (auto part : {a, b, c, d})
     {
         const auto k = std::min(part.size(), n - at);
-        std::memcpy(buf + at, part.data(), k);
-        at += k;
+        if (k != 0)
+        {
+            std::memcpy(buf + at, part.data(), k);
+            at += k;
+        }
     }
     return {buf, at};
 }

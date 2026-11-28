@@ -140,6 +140,37 @@ TEST_CASE("project.autosave: an unsaved new project is autosaved under its name"
     CHECK(env.system().getChildFile("autosave/Untitled.json").existsAsFile());
 }
 
+TEST_CASE("project: save and autosave include live state in their project snapshots", "[project]")
+{
+    Env env("live-state");
+    REQUIRE(env.store().create("Live").ok());
+    auto& track = env.project().scenes[0].tracks[0];
+    track.mode = m::TrackMode::Plugin;
+    track.plugin.pluginId = "com.example.synth";
+    track.plugin.stateBase64 = "AA==";
+    std::string liveState = "AQ==";
+    const auto capture = [&](m::Project& snapshot) { snapshot.scenes[0].tracks[0].plugin.stateBase64 = liveState; };
+    env.store().captureRuntimeState = capture;
+    auto& autosave = env.session->autosave();
+    autosave.captureRuntimeState = capture;
+
+    REQUIRE(env.save(SaveKind::Save, {}).ok());
+    const auto saved = st::openProject(env.store().file());
+    REQUIRE(saved.ok());
+    CHECK(saved.value()->scenes[0].tracks[0].plugin.stateBase64 == "AQ==");
+
+    liveState = "Ag==";
+    setTempo(env.bus, 91.0);
+    REQUIRE(autosave.writeNow());
+    liveState = "Aw==";
+    env.workers.drain();
+    auto restored = m::newDefaultProject();
+    st::ImportReport report;
+    REQUIRE(st::Autosave::readInto(autosave.file(), *restored, report).ok());
+    CHECK(restored->scenes[0].tracks[0].plugin.stateBase64 == "Ag==");
+    CHECK(track.plugin.stateBase64 == "AA==");
+}
+
 TEST_CASE("project.device: losing the audio device pauses, autosaves at once and resumes on reconnect", "[project]")
 {
     fakes::FakeEngineBridge bridge;

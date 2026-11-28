@@ -121,7 +121,10 @@ std::size_t RestoreFxSlot::sizeBytes() const
 void SelectFxType::apply(model::Project& p)
 {
     auto& s = fxSlotAt(p, at_);
-    if (s.type == type_ || ! fxTypeAllowed(at_, type_))
+    if (! fxTypeAllowed(at_, type_) || (type_ == model::EffectType::Plugin && plugin_.pluginId.empty()))
+        return;
+    s.plugin = type_ == model::EffectType::Plugin ? plugin_ : model::PluginTrack{};
+    if (s.type == type_)
         return;
     auto& mem = s.typeMemory;
     if (s.type != model::EffectType::Off) // FX-007: remember the settings this type leaves with

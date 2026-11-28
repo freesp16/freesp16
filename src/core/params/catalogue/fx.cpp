@@ -3,6 +3,7 @@
 // GainTest, behind the feature flag "fx.test"). The twelve effects register theirs in fx_<name>.cpp.
 #include "core/params/catalogue/fx.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <deque>
@@ -630,6 +631,8 @@ std::string_view effectIdOf(model::EffectType t) noexcept
         return "ducker";
     case EffectType::VintagePitch:
         return "vpitch";
+    case EffectType::Plugin:
+        return "plugin";
     case EffectType::Off:
         break;
     }
@@ -638,7 +641,7 @@ std::string_view effectIdOf(model::EffectType t) noexcept
 
 model::EffectType effectTypeOf(std::string_view id) noexcept
 {
-    for (int i = 1; i <= static_cast<int>(model::EffectType::VintagePitch); ++i)
+    for (int i = 1; i <= static_cast<int>(model::EffectType::Plugin); ++i)
         if (effectIdOf(static_cast<model::EffectType>(i)) == id)
             return static_cast<model::EffectType>(i);
     return model::EffectType::Off;
@@ -741,6 +744,23 @@ void addSlotParams(ParamRegistry& r)
            .defaultValue = 1, // FX-089
            .scope = ParamScope::Global});
     const std::uint8_t all = kSlotInsert | kSlotSend | kSlotMaster;
+    static constexpr EffectParamDef pluginMix[] = {
+        {.key = "mix",
+         .label = "MIX",
+         .shortLabel = "MIX",
+         .k = 5,
+         .free = {0, 101},
+         .defInsert = 1,
+         .defSend = 1,
+         .defMaster = 1,
+         .format = [](float v, char* buf, int n) noexcept
+         {
+             if (! buf || n <= 0)
+                 return 0;
+             return std::clamp(
+                 std::snprintf(buf, static_cast<std::size_t>(n), "%.0f %%", 100.0 * static_cast<double>(v)), 0, n - 1);
+         }}};
+    registerEffect(r, "plugin", pluginMix, all);
     registerEffect(r, "none", kNoneParams, all, "fx.test");
     registerEffect(r, "gainTest", kGainTestParams, all, "fx.test");
 }

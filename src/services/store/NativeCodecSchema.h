@@ -503,6 +503,18 @@ void schema(V& v, T& o, const m::TrackRouting& d)
     v.end();
 }
 
+template <typename V, typename T> void schema(V& v, T& o, const m::PluginTrack& d)
+{
+    v.begin(o.extras);
+    v.field("path", o.path, d.path);
+    v.field("pluginId", o.pluginId, d.pluginId);
+    v.field("name", o.name, d.name);
+    v.field("presetKey", o.presetKey, d.presetKey);
+    v.field("stateBase64", o.stateBase64, d.stateBase64);
+    v.field("bypass", o.bypass, d.bypass);
+    v.end();
+}
+
 // One remembered type of a slot (FMT-014, "perType"): the type is the key.
 template <typename V, typename T>
 void schema(V& v, T& o, const m::EffectSettings& d)
@@ -527,6 +539,7 @@ void schema(V& v, T& o, const m::EffectSlot& d)
     v.field("type1", o.type1, d.type1);
     v.field("type2", o.type2, d.type2);
     v.field("params", o.params, d.params);
+    v.object("plugin", o.plugin, d.plugin);
     v.effectMemory("perType", o.typeMemory);
     v.end();
 }
@@ -555,6 +568,7 @@ void schema(V& v, T& o, const m::Track& d)
     v.object("send", o.send, d.send);
     v.object("lfo", o.lfo, d.lfo);
     v.object("midi", o.midi, d.midi);
+    v.object("plugin", o.plugin, d.plugin);
     v.object("routing", o.routing, d.routing);
     v.end();
 }

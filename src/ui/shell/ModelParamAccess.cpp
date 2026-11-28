@@ -232,6 +232,10 @@ using core::model::TriggerMode;
 constexpr int kPitchCentsPerUnit = 100; // playback.pitch is in semitones
 
 const ModelField kFields[] = {
+    APP_TRACK_FIELD("fx1.plugin.mix", false, x.insertFx[0].params[5], x.insertFx[0].params[5] = v),
+    APP_TRACK_FIELD("fx2.plugin.mix", false, x.insertFx[1].params[5], x.insertFx[1].params[5] = v),
+    APP_SCENE_FIELD("send.plugin.mix", x.sendFx.params[5], x.sendFx.params[5] = v),
+    APP_SCENE_FIELD("master.plugin.mix", x.masterFx.params[5], x.masterFx.params[5] = v),
     // MIXER strip
     APP_TRACK_FIELD("track.volume", false, x.volume, x.volume = toInt(v)),
     APP_TRACK_FIELD("track.pan", false, x.pan, x.pan = toInt(v)),
@@ -240,7 +244,8 @@ const ModelField kFields[] = {
     APP_TRACK_FIELD("track.sendChannel", false, x.send.channel, x.send.channel = toInt(v)),
     // TRACK (forwarded by forwardTrackChanges)
     APP_TRACK_FIELD("track.mute", true, x.mute ? 1 : 0, x.mute = v >= 0.5f),
-    APP_TRACK_FIELD("track.mode", true, static_cast<int>(x.mode), x.mode = static_cast<TrackMode>(toInt(v) & 3)),
+    APP_TRACK_FIELD("track.mode", true, static_cast<int>(x.mode),
+                    x.mode = static_cast<TrackMode>(std::clamp(toInt(v), 0, 4))),
     APP_TRACK_FIELD("track.triggerMode", true, static_cast<int>(x.triggerMode),
                     x.triggerMode = static_cast<TriggerMode>(toInt(v) & 1)),
     APP_TRACK_FIELD("track.chokeGroup", true, x.chokeGroup, x.chokeGroup = toInt(v)),
@@ -258,7 +263,8 @@ const ModelField kFields[] = {
     APP_TRACK_FIELD("playback.pitch", false, static_cast<double>(x.playback.pitchCents) / kPitchCentsPerUnit,
                     x.playback.pitchCents = static_cast<int>(std::lround(v * kPitchCentsPerUnit))),
     APP_TRACK_FIELD("playback.timeStretch", false, static_cast<int>(x.playback.stretchMode),
-                    x.playback.stretchMode = static_cast<StretchMode>(toInt(v) < 0 ? 0 : (toInt(v) > 2 ? 2 : toInt(v)))),
+                    x.playback.stretchMode =
+                        static_cast<StretchMode>(toInt(v) < 0 ? 0 : (toInt(v) > 2 ? 2 : toInt(v)))),
     APP_TRACK_FIELD("playback.loop", false, x.playback.loop ? 1 : 0, x.playback.loop = v >= 0.5f),
     APP_TRACK_FIELD("playback.reverse", false, x.playback.reverse ? 1 : 0, x.playback.reverse = v >= 0.5f),
     APP_TRACK_FIELD("playback.bypass", false, x.playback.bypass ? 1 : 0, x.playback.bypass = v >= 0.5f),
@@ -267,14 +273,15 @@ const ModelField kFields[] = {
     APP_TRACK_FIELD("playback.length", false, x.playback.length, x.playback.length = std::llround(v)),
     // AMP ENVELOPE: display index ↔ normalised storage (ENV-001)
     APP_TRACK_FIELD("env.velocity", false, x.ampEnv.volumeIndex, x.ampEnv.volumeIndex = toInt(v)),
-    APP_TRACK_FIELD("env.attack", false,
-                    core::ampenv::clampIndex(EnvStage::Attack,
-                                             core::ampenv::indexFromStored(static_cast<float>(x.ampEnv.attack))),
-                    x.ampEnv.attack = static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Attack, v)))),
+    APP_TRACK_FIELD(
+        "env.attack", false,
+        core::ampenv::clampIndex(EnvStage::Attack, core::ampenv::indexFromStored(static_cast<float>(x.ampEnv.attack))),
+        x.ampEnv.attack = static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Attack, v)))),
     APP_TRACK_FIELD("env.hold", false, core::ampenv::indexFromStored(static_cast<float>(x.ampEnv.hold)),
                     x.ampEnv.hold = static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Hold, v)))),
     APP_TRACK_FIELD("env.release", false, core::ampenv::indexFromStored(static_cast<float>(x.ampEnv.release)),
-                    x.ampEnv.release = static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Release, v)))),
+                    x.ampEnv.release =
+                        static_cast<double>(core::ampenv::storedFromIndex(envIndex(EnvStage::Release, v)))),
     APP_TRACK_FIELD("env.sync", false, x.ampEnv.sync ? 1 : 0, x.ampEnv.sync = v >= 0.5f),
     APP_TRACK_FIELD("env.attackCurve", false, static_cast<int>(x.ampEnv.attackCurve),
                     x.ampEnv.attackCurve = static_cast<EnvelopeCurve>(toInt(v) & 1)),
@@ -294,7 +301,8 @@ const ModelField kFields[] = {
                     x.lfo.triggerMode = static_cast<LfoTriggerMode>(std::clamp(toInt(v), 0, 2))),
     APP_TRACK_FIELD("lfo.triggerOn", false, x.lfo.triggerOn == LfoTriggerOn::Both ? 1 : 0,
                     x.lfo.triggerOn = v >= 0.5f ? LfoTriggerOn::Both : LfoTriggerOn::Pad),
-    APP_TRACK_FIELD("lfo.randomStart", false, x.lfo.randomSeedCount, x.lfo.randomSeedCount = std::clamp(toInt(v), 0, 127)),
+    APP_TRACK_FIELD("lfo.randomStart", false, x.lfo.randomSeedCount,
+                    x.lfo.randomSeedCount = std::clamp(toInt(v), 0, 127)),
     APP_TRACK_FIELD("lfo.bypass", false, x.lfo.bypass ? 1 : 0, x.lfo.bypass = v >= 0.5f),
     // MIDI / AS-1 tracks (MIDI NOTE, CC1, CC2, BANK SELECT, PROG CHANGE; per scene and track): saved with the project,
     // undoable, re-posted after an open. NOTE2–4 are semitones from NOTE (0 = OFF).
@@ -372,7 +380,7 @@ const ModelField kFields[] = {
                     x.routing.output = static_cast<core::model::OutputAssign>(std::clamp(toInt(v), 0, 12))),
     APP_TRACK_FIELD("routing.thruBypass", false, thruBypassOf(x.routing), setThruBypass(x.routing, v)),
     APP_TRACK_FIELD("track.motionRec", true, motionRecOf(x), setMotionRec(x, v)), // never posted: the UI's alone
-    APP_TRACK_FIELD("track.muteMode", false, muteModeOf(x), setMuteMode(x, v)), // the mixer's strip (STOP STEPS)
+    APP_TRACK_FIELD("track.muteMode", false, muteModeOf(x), setMuteMode(x, v)),   // the mixer's strip (STOP STEPS)
     APP_SCENE_FIELD("routing.assignMode", static_cast<int>(x.routing.assignMode),
                     x.routing.assignMode = static_cast<core::model::AssignMode>(std::clamp(toInt(v), 0, 1))),
     APP_SCENE_FIELD("routing.headphoneCue", x.routing.headphoneSource,
@@ -584,7 +592,7 @@ void ModelParamAccess::setRemote(const core::ParamSpec& s, std::uint16_t scope, 
         return;
     }
     const float v = s.clamp(value);
-    const int scene = (scope >> 4) & 15, track = scope & 15;
+    const int scene = f->scene ? scope & 15 : (scope >> 4) & 15, track = f->scene ? 0 : scope & 15;
     if (f->get(core::commands::project(bus_), scene, track) == v)
         return;
     bus_.execute(std::make_unique<SetModelParam>(*f, s.label, scene, track, v, false));
@@ -628,17 +636,26 @@ void forwardAllModel(const Project& p, engine::EngineBridge& bridge, const core:
 
 void fillTrackSummaries(UiState& st, const Project& p, bool (*loading)(const void*, int), const void* ctx) noexcept
 {
-    static constexpr std::string_view kTypes[] = {"SMPL", "MIDI", "THRU", "AS-1"};
+    static constexpr std::string_view kTypes[] = {"SMPL", "MIDI", "THRU", "AS-1", "PLUG"};
     static constexpr std::string_view kStretch[] = {"OFF", "RSMPL", "M.TMP"};
     const auto& scene = p.scenes[static_cast<std::size_t>(p.settings.currentScene & 15)];
     for (int t = 0; t < 16; ++t)
     {
         const auto& x = scene.tracks[static_cast<std::size_t>(t)];
         auto& s = st.tracks[static_cast<std::size_t>(t)];
-        s.typeBadge = kTypes[static_cast<int>(x.mode) & 3];
+        const int modeIdx = static_cast<int>(x.mode);
+        s.typeBadge = kTypes[modeIdx >= 0 && modeIdx < 5 ? modeIdx : 0];
         s.muted = core::commands::track::isMuted(p, p.settings.currentScene, t);
         s.soloed = x.solo;
         s.missing = false;
+        if (x.mode == TrackMode::Plugin)
+        {
+            s.hasContent = ! x.plugin.path.empty() || ! x.plugin.pluginId.empty();
+            s.name = ! x.name.empty() ? std::string_view(x.name) : std::string_view(x.plugin.name);
+            s.stretchBadge = {};
+            s.loopGlyph = {};
+            continue;
+        }
         if (x.mode != TrackMode::Sample)
         {
             s.hasContent = true;

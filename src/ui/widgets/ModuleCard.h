@@ -32,7 +32,8 @@ struct ModuleCardModel
         Effect,
         Lfo,
         Keys,
-        Port
+        Port,
+        Plugin
     };
     int slot = 0; // 0–5
     std::string_view title{};

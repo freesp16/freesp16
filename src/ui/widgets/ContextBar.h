@@ -26,6 +26,7 @@ struct ContextBarModel
     int track = 1;
     std::string_view trackName{}, typeBadge = "SMPL", stretchBadge{}, loopGlyph{};
     bool missing = false;
+    bool pluginPresets = false;
     // TrackTypeBypass
     std::string_view trackType = "SAMPLE";
     bool bypass = false;
@@ -49,7 +50,8 @@ public:
         Menu3,
         TrackBox,
         TrackType,
-        Bypass
+        Bypass,
+        PluginPresets
     };
     void set(const ContextBarModel& m) noexcept { model_ = m; }
     const ContextBarModel& model() const noexcept { return model_; }

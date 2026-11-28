@@ -150,6 +150,7 @@ struct Track
     Send send {};
     Lfo lfo {};
     MidiTrack midi {};
+    PluginTrack plugin{};
     TrackRouting routing {};
     Extras extras {};
     friend bool operator== (const Track&, const Track&) = default;

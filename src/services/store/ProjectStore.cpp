@@ -757,7 +757,9 @@ void ProjectStore::save(SaveKind kind, const juce::String& requestedName, const 
     const std::uint64_t changesAtSnapshot = changes_;
     if (! snapshot_)
         snapshot_ = std::make_shared<model::Project>();
-    *snapshot_ = core::commands::project(bus_); // the only message-thread cost of a save (bench `snapshot`)
+    *snapshot_ = core::commands::project(bus_);
+    if (captureRuntimeState)
+        captureRuntimeState(*snapshot_);
 
     WriteOptions options;
     options.carryFrom = hasFile_ ? file_ : juce::File();

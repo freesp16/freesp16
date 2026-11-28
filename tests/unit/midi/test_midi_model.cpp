@@ -79,7 +79,7 @@ TEST_CASE("midi.model: opening another project replaces every MIDI value of the 
     a.midi.input.channels[2] = 5;
     a.midi.input.noteCc = false;
     a.midi.output.channels[0] = 9;
-    a.scenes[2].tracks[7].midi.notes[1] = 64;
+    a.scenes[2].tracks[7].midi.notes[1] = -1; // a sounding harmony one semitone below NOTE
     a.scenes[2].tracks[7].midi.cc2[0].value = 99;
     a.scenes[2].tracks[7].midi.cc2[0].active = true;
     const core::model::Project b; // project B: all defaults (CH.n, ENABLE)
@@ -88,7 +88,7 @@ TEST_CASE("midi.model: opening another project replaces every MIDI value of the 
     REQUIRE(io::midi::postMidiSettings(a, e->bridge(), core::builtinParams()));
     d.blocks(2);
     REQUIRE(e->midi().receiveChannel(2) == 5);
-    REQUIRE(e->midi().track(2, 7).notes[1] == 64);
+    REQUIRE(e->midi().track(2, 7).notes[1] == -1);
     auto noteHeard = [&]
     {
         d.hits.clear();
@@ -103,7 +103,7 @@ TEST_CASE("midi.model: opening another project replaces every MIDI value of the 
     CHECK(e->midi().receiveChannel(2) == 3);
     CHECK(noteHeard()); // ENABLE again
     const auto& m = e->midi().track(2, 7);
-    CHECK(m.notes[1] == -1);
+    CHECK(m.notes[1] == 0); // NOTE2 is OFF in project B
     CHECK(m.ccValue[4] == 0);
     CHECK_FALSE(m.ccActive[4]);
     // The send channel too: a MIDI track 1 of B sends on CH.1, not A's CH.9.

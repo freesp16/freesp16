@@ -46,6 +46,8 @@ function(app_add_test_executable target labels prefix)
     target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(${target} PRIVATE APP_SOURCE_DIR="${CMAKE_SOURCE_DIR}" APP_ARTIFACT_DIR="${APP_ARTIFACT_DIR}")
     app_target_defaults(${target})
+    # Reference expressions must round each operation just as the host engine does, even on CPUs with FMA.
+    target_compile_options(${target} PRIVATE $<$<NOT:$<BOOL:${CMAKE_CROSSCOMPILING}>>:-ffp-contract=off>)
     # Tests build descriptors with designated initialisers that name only the members a case needs (the rest keep
     # their defaults on purpose); GCC 15's -Wextra reports every omitted member of those.
     target_compile_options(${target} PRIVATE -Wno-missing-field-initializers)
@@ -116,6 +118,23 @@ foreach(script IN LISTS APP_PY_TESTS)
     set_tests_properties("${name}" PROPERTIES LABELS "${labels}" SKIP_RETURN_CODE 77
         ENVIRONMENT "APP_SOURCE_DIR=${CMAKE_SOURCE_DIR};APP_BINARY_DIR=${CMAKE_BINARY_DIR};APP_EXECUTABLE=${APP_HOST_EXECUTABLE}")
 endforeach()
+
+# Elapsed-time budgets apply to optimized, uninstrumented playback.
+if(NOT APP_SANITIZERS)
+    target_compile_definitions(${APP_TARGET_PREFIX}_tests_edit PRIVATE
+        $<$<CONFIG:Release,RelWithDebInfo>:APP_CHECK_PLAYBACK_TIMING=1>)
+endif()
+
+# Exercise the real dynamic loader with a multi-descriptor bundle on the host architecture.
+add_library(clap_effect_fixture MODULE fixtures/clap/EffectFixture.cpp)
+target_include_directories(clap_effect_fixture PRIVATE ${CMAKE_SOURCE_DIR}/third_party/clap/include)
+set_target_properties(clap_effect_fixture PROPERTIES PREFIX "" SUFFIX ".clap"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/fixture-plugins")
+add_dependencies(${APP_TARGET_PREFIX}_tests_render clap_effect_fixture)
+target_compile_definitions(${APP_TARGET_PREFIX}_tests_render PRIVATE CLAP_TEST_EFFECT="$<TARGET_FILE:clap_effect_fixture>")
+add_dependencies(${APP_TARGET_PREFIX}_tests_plugin clap_effect_fixture)
+target_compile_definitions(${APP_TARGET_PREFIX}_tests_plugin PRIVATE
+    CLAP_FIXTURE_DIR="$<TARGET_FILE_DIR:clap_effect_fixture>")
 
 # Snapshot tests.
 file(GLOB_RECURSE APP_SNAPSHOT_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/snapshot/*.cpp)

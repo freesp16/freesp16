@@ -88,7 +88,13 @@ public:
         return strip_.model().columns[static_cast<std::size_t>(n0)];
     }
     const core::ParamSpec* boundColumn(int n0) const noexcept { return bound_[static_cast<std::size_t>(n0)]; }
-    std::string_view stripTab() const noexcept { return tab_.view(); }
+    std::string_view stripTab() const noexcept
+    {
+        if (! popupStrip_ && stripOwner_ != nullptr)
+            if (const auto custom = stripOwner_->stripTab(); ! custom.empty())
+                return custom;
+        return tab_.view();
+    }
     int railFocus() const noexcept { return focus_.focused; }
 
     // ShellApi

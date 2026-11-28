@@ -20,7 +20,7 @@ struct ModuleSpec
     std::string_view thumbnail;    // widget key: EffectIcon(fx1.type), WaveformThumb, EnvelopeThumb, LfoThumb, …
     std::string_view strip;        // strip binding on first tap: "fx1.panel.strip"
     std::string_view opens;        // ScreenSpec id opened on the second tap: "track.fx1"
-    std::uint8_t enabledFor = 0xF; // bit per core::model::TrackMode (Sample, Midi, Thru, Instrument)
+    std::uint8_t enabledFor = 0x1F; // bit per core::model::TrackMode (Sample, Midi, Thru, Instrument, Plugin)
     bool connector = true;         // draws the chain line to the next module
     std::string_view featureFlag {};
 };

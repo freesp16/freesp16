@@ -1,5 +1,6 @@
 #include "engine/Engine.h"
 
+#include "core/audio/PluginNode.h"
 #include "core/util/GainLaw.h"
 #include "core/util/Realtime.h"
 #include "engine/fx/EffectRegistry.h"
@@ -127,6 +128,11 @@ Engine::Engine(const EngineSetup& setup, const EngineOptions& options) : options
     arrangement_.bindParams(setup.resolveParam, params_); // arrangement.play / loop / start
     voice::acceptVoiceSwaps(*this); // SwapSlot::TrackSample / Preview (the sample library posts them)
     voice::acceptSliceSwaps(*this); // SwapSlot::SliceMap (the app posts one table per edit)
+    for (auto kind : {SwapSlot::InsertPlugin1, SwapSlot::InsertPlugin2, SwapSlot::BusPlugin})
+        acceptSwaps(kind, &core::audio::releasePluginNode);
+    acceptSwaps(SwapSlot::TrackSwapBatch, [](const void* batch) noexcept
+                { delete static_cast<const TrackSwapBatch*>(batch); });  // rt-ok: collector
+    acceptSwaps(SwapSlot::TrackPlugin, &core::audio::releasePluginNode); // SwapSlot::TrackPlugin (hosted CLAP)
     for (int t = 0; t < kTracks; ++t)
         sources_[static_cast<std::size_t>(t)].attach(&env_, t);
     triggerRouter_.attach(sources_, &mixer_);
@@ -381,6 +387,8 @@ void Engine::renderBlock() noexcept
     ribbon_.collect(ctx, triggerRouter_);              //    strip REPEAT hits (on the transport grid)
     sampling_.schedule(ctx, buffers_.timing, sceneSwitch_.switcher, &triggerRouter_); // live boundaries, loop trigger
     toggle_.flush(triggerRouter_);                     //    releases of dropped Toggle latches
+    for (int t = 0; t < kTracks; ++t)                  //    plugin notes sound the track's TRANSPOSE (SEQ-035)
+        sources_[static_cast<std::size_t>(t)].setNoteTranspose(perf_.transpose(t));
     triggerRouter_.process(ctx);                       //    + live hits: sort, choke, pad modes → track sources
     ribbon_.observe(triggerRouter_.blockEvents(), triggerRouter_.padState()); // the held pads
     publishRibbon(*this);                              //    → the ModMatrix, before it applies the block
@@ -441,20 +449,34 @@ void Engine::renderBlock() noexcept
 
 void Engine::drainMessages(BlockContext& ctx) noexcept
 {
+    const auto cost = [](const EngineMessage& m)
+    {
+        const auto* swap = std::get_if<ObjectSwap>(&m);
+        return swap && swap->slot.kind == SwapSlot::TrackSwapBatch
+                   ? 1 + static_cast<int>(static_cast<const TrackSwapBatch*>(swap->object)->edits.size())
+                   : 1;
+    };
+    int budget = options_.maxMessagesPerBlock;
     if (hasCarry_)
     {
+        const int carriedCost = cost(carry_);
         if (! apply(carry_, ctx))
             return; // still blocked: keep the order, try again next block
+        budget -= carriedCost;
         hasCarry_ = false;
     }
     EngineMessage m;
-    for (int budget = options_.maxMessagesPerBlock; budget > 0 && bridge_.pop(m); --budget)
-        if (! apply(m, ctx))
+    while (budget > 0 && bridge_.pop(m))
+    {
+        const int needed = cost(m);
+        if ((needed > budget && budget != options_.maxMessagesPerBlock) || ! apply(m, ctx))
         {
             carry_ = m;
             hasCarry_ = true;
             return;
         }
+        budget -= needed;
+    }
     TriggerNow t;
     while (triggerRouter_.pending() < trigger::TriggerRouter::kMaxLiveEvents && triggers_.pop(t))
         addLiveTrigger(t, ctx);
@@ -555,6 +577,8 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
     }
     if (const auto* s = std::get_if<ObjectSwap>(&m))
     {
+        if (s->slot.kind == SwapSlot::TrackSwapBatch)
+            return applyTrackSwaps(*static_cast<const TrackSwapBatch*>(s->object), ctx);
         // Install at block start; the replaced object is retired, never freed here (threading.md steps 3–4).
         const void* old = swaps_.get(s->slot);
         if (old == s->object)
@@ -562,6 +586,9 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
         if (old != nullptr && ! bridge_.retire(old, s->slot.kind, ctx.blockIndex))
             return false; // retire queue full: keep the old object installed, retry next block
         swaps_.exchange(s->slot, s->object);
+        const int fxSlot = pluginFxIndex(s->slot);
+        if (fxSlot >= 0 && s->slot.scene == triggerRouter_.scene())
+            fxBank_.setPlugin(fxSlot, core::audio::asPluginNode(s->object));
         return true;
     }
     if (const auto* t = std::get_if<TriggerNow>(&m))
@@ -569,9 +596,74 @@ bool Engine::apply(const EngineMessage& m, BlockContext& ctx) noexcept
     return true;
 }
 
+bool Engine::applyTrackSwaps(const TrackSwapBatch& batch, BlockContext& ctx) noexcept
+{
+    // Reserve for every replacement before changing any track. A full retire queue delays the entire edit.
+    if (! bridge_.canRetire(batch.retireSlots))
+        return false;
+    for (const auto& swap : batch.swaps)
+        moveTrackPlugins(swap);
+    for (const auto& edit : batch.edits)
+        if (const auto* param = std::get_if<ParamChange>(&edit))
+        {
+            if (params_.find(param->param) != T::None)
+                apply(*param, ctx);
+        }
+        else
+            apply(std::get<ObjectSwap>(edit), ctx);
+    batch.installed = true; // the swap table now owns any installed objects
+    return bridge_.retire(&batch, SwapSlot::TrackSwapBatch, ctx.blockIndex);
+}
+
+void Engine::moveTrackPlugins(const TrackSwapBatch::Swap& swap) noexcept
+{
+    const auto s = static_cast<std::uint8_t>(swap.scene);
+    const auto a = static_cast<std::uint8_t>(swap.first), b = static_cast<std::uint8_t>(swap.second);
+    for (auto kind : {SwapSlot::TrackPlugin, SwapSlot::InsertPlugin1, SwapSlot::InsertPlugin2})
+    {
+        const SwapSlot first{kind, s, a}, second{kind, s, b};
+        const auto* moved = swaps_.exchange(first, swaps_.get(second));
+        swaps_.exchange(second, moved);
+    }
+    for (int unit = 0; unit < 2; ++unit)
+    {
+        const int first = fx::insertSlot(a, unit), second = fx::insertSlot(b, unit);
+        auto& slots = fxScenes_.scene[s].slot;
+        std::swap(slots[first], slots[second]);
+        for (int type = 0; type < fxScenes_.types; ++type)
+        {
+            auto* values = fxScenes_.at(s, first, type);
+            std::swap_ranges(values, values + 6, fxScenes_.at(s, second, type));
+        }
+    }
+    mixer_.swapStrips(s, a, b, swap.withSequences);
+    lfo_.swapTracks(s, a, b);
+    perf_.swapTracks(s, a, b);
+    router_.swapAssignments(s, a, b);
+    toggle_.swapTracks(s, a, b, triggerRouter_);
+    if (s != triggerRouter_.scene())
+        return;
+
+    // The model diff can change either source's mode. Detach the instruments before applying it so setMode
+    // cannot end their notes. installSwaps binds both sources at their new addresses at the end of the drain.
+    sources_[a].detachPluginForMove();
+    sources_[b].detachPluginForMove();
+    sources_[a].exchangeHeldNotes(sources_[b]); // each instrument's sounding notes move with it
+    triggerRouter_.moveHeldTracks(a, b);
+    midi_.moveHeldTracks(a, b);
+    ribbon_.swapTracks(a, b);
+    modMatrix_.swapTracks(a, b);
+    // The sample voice and amp envelope stay in their lanes. Clear their old offsets before the matrix reapplies.
+    modSink_.clearVoiceModulation(a);
+    modSink_.clearVoiceModulation(b);
+    fxBank_.swapInserts(a, b);
+    thruBypassForce_ = true;
+}
+
 bool Engine::addLiveTrigger(const TriggerNow& t, BlockContext& ctx) noexcept
 {
-    if (ribbon_.onLive(t, triggerRouter_.padState())) // the strip stream (core/util/ribbon/Ribbon.h pad codes)
+    const int heldTrack = t.pad == core::ribbon::kPressurePad ? triggerRouter_.heldTrackForPad(t.track) : -1;
+    if (ribbon_.onLive(t, triggerRouter_.padState(), heldTrack)) // strip and pressure events
         return true;
     if (t.track >= kTracks)
         return true;
@@ -630,7 +722,8 @@ void Engine::renderSources(BlockContext& ctx) noexcept
         if (e.kind != trigger::TriggerKind::Full)
             continue;
         const auto& src = sources_[static_cast<std::size_t>(e.track)];
-        if (src.hasSample() && src.mode() == model::TrackMode::Sample)
+        if ((src.hasSample() && src.mode() == model::TrackMode::Sample) ||
+            (src.hasPlugin() && src.mode() == model::TrackMode::Plugin))
             ++starts;
         else if (testToneAllowed_ && (e.source == trigger::TriggerSource::Pad || e.source == trigger::TriggerSource::Midi))
             testTone_.trigger(e.velocity); // TEMPORARY: a live hit on an empty track pings (walking-skeleton behaviour)
@@ -687,6 +780,8 @@ void Engine::switchScene(int scene) noexcept
         src.setPlayback(m1_.playback.at(scene, t));
         env_.setParams(t, m1_.envParams[scene][t], transport_.effectiveBpm());
         src.setSample(voice::asSampleBuffer(swaps_.get(voice::trackSampleSlot(scene, t))));
+        src.setPlugin(core::audio::asPluginNode(
+            swaps_.get({SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene), static_cast<std::uint8_t>(t)})));
     }
     if (fxScenes_.types == 0)
         return; // no FX bank (EngineSetup without ids)
@@ -694,6 +789,7 @@ void Engine::switchScene(int scene) noexcept
     state.quirkMask = fxScenes_.quirk;
     for (int sl = 0; sl < fx::kFxSlots; ++sl)
     {
+        fxBank_.setPlugin(sl, core::audio::asPluginNode(swaps_.get(pluginFxSwap(scene, sl))));
         auto& slot = state.slot[static_cast<std::size_t>(sl)];
         if (const float* v = fxScenes_.at(scene, sl, slot.type))
             for (int k = 0; k < 6; ++k)
@@ -803,6 +899,9 @@ void Engine::installSwaps() noexcept
         sources_[static_cast<std::size_t>(t)].setSliceMap(map);
         slicePads_.setMap(t, map);
     }
+    for (int t = 0; t < kTracks; ++t)
+        sources_[static_cast<std::size_t>(t)].setPlugin(core::audio::asPluginNode(
+            swaps_.get({SwapSlot::TrackPlugin, static_cast<std::uint8_t>(scene), static_cast<std::uint8_t>(t)})));
     preview_.install(voice::asSampleBuffer(swaps_.get(voice::previewSlot())));
 }
 

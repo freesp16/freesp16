@@ -17,8 +17,6 @@
 
 namespace ui::fx
 {
-namespace
-{
 using core::model::ParamPath;
 using core::model::Scope;
 namespace efx = engine::fx;
@@ -41,6 +39,8 @@ ParamPath pathOf(Slot s, int scene, int track) noexcept
     return p;
 }
 
+namespace
+{
 std::uint16_t scopeOf(Slot s, int scene0, int track0) noexcept
 {
     return isInsert(s) ? static_cast<std::uint16_t>((scene0 & 15) << 4 | (track0 & 15))

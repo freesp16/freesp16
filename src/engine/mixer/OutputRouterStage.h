@@ -67,6 +67,7 @@ public:
     bool onParam(const ParamChange&) noexcept;      // true = a routing.* parameter (consumed)
     bool set(RoutingParam, std::uint16_t scope, float value) noexcept; // the same without the ParamId (tests); true = applied
     void setScene(int scene) noexcept;              // the scene's mode, cue and assignments (block start)
+    void swapAssignments(int scene, int a, int b) noexcept;
     void setPresent(std::uint8_t portMask) noexcept; // bit = engine::OutPort present on the device
     void setHeadphoneVolume(float index) noexcept { phones_.setLevel(index); }
     void setOutputTrim(float index1023) noexcept;

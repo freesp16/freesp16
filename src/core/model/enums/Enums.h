@@ -8,7 +8,14 @@
 
 namespace core::model
 {
-enum class TrackMode : std::uint8_t { Sample, Midi, Thru, Instrument };        // TRK, tracks.md
+enum class TrackMode : std::uint8_t
+{
+    Sample,
+    Midi,
+    Thru,
+    Instrument,
+    Plugin
+}; // TRK, tracks.md
 enum class TriggerMode : std::uint8_t { OneShot, Gate };                       // pad hits only (M p.18, p.38)
 enum class StretchMode : std::uint8_t { Off, Resample, MasterTempo };          // PLY-030
 enum class EnvelopeCurve : std::uint8_t { Linear, Curve };                     // ENV, attack/release curve
@@ -29,7 +36,8 @@ enum class EffectType : std::uint8_t
     Distortion,
     Compressor,
     Ducker,
-    VintagePitch
+    VintagePitch,
+    Plugin
 };
 enum class LfoShape : std::uint8_t { Sine, Triangle, SawUp, SawDown, Square, Random };   // our list
 enum class LfoTriggerMode : std::uint8_t { Free, Retrigger, OneShot };                 // ours (OQ-19)

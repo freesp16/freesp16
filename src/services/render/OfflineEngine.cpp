@@ -3,6 +3,7 @@
 #include "core/params/ParamRegistry.h"
 #include "core/params/catalogue/fx.h"
 #include "services/library/TrackSampleSync.h"
+#include "services/plugin/ClapHost.h"
 
 #include <algorithm>
 
@@ -129,6 +130,9 @@ OfflineEngine::~OfflineEngine() = default;
 void OfflineEngine::begin(const core::model::Project& p, const SampleSnapshot& samples, const ProjectFeeder& feed,
                           core::arrangement::SongStatus* status)
 {
+    plugins_ = std::make_unique<plugin::ClapHostService>(queue_, config_.pluginsDir, config_.sampleRate);
+    plugins_->syncFromProject(p);
+    plugins_->pollMainThread();
     if (feed)
         feed(p, queue_, status, samples);
     for (int sc = 0; sc < 16; ++sc)
@@ -164,6 +168,9 @@ int OfflineEngine::settle()
 
 void OfflineEngine::process() noexcept
 {
+    // This worker owns the offline CLAP instances. Give callbacks time between processing blocks.
+    if (plugins_ && blocks_ % 16 == 0)
+        plugins_->pollMainThread();
     queue_.flush();
     engine_->process({pointers_.data(), config_.outPorts, nullptr, 0, engine::kBlockFrames, 0});
     ++blocks_;

@@ -53,7 +53,10 @@ private:
 class SelectFxType final : public Command
 {
 public:
-    SelectFxType(model::ParamPath at, model::EffectType type) : at_(at), type_(type) {}
+    SelectFxType(model::ParamPath at, model::EffectType type, model::PluginTrack plugin = {})
+        : at_(at), type_(type), plugin_(std::move(plugin))
+    {
+    }
     std::string_view label() const override { return "FX TYPE"; }
     void apply(model::Project&) override; // a type the slot cannot hold (FX-040) is ignored
     std::unique_ptr<Command> inverse(const model::Project& before) const override;
@@ -62,6 +65,7 @@ public:
 private:
     model::ParamPath at_;
     model::EffectType type_;
+    model::PluginTrack plugin_;
 };
 
 class ToggleFxSync final : public Command

@@ -144,6 +144,28 @@ void ModuleCard::draw(DrawList& dl, const UiContext& ctx, const ModuleCardModel&
         case ModuleCardModel::Thumb::Port:
             midiPort(dl, p, t.x + t.w / 2, t.y + t.h / 2, m.port);
             break;
+        case ModuleCardModel::Thumb::Plugin:
+        {
+            const bool loaded = ! m.effect.empty() && m.effect != "none";
+            const auto ink = loaded && ! m.bypassed ? m.colour : p.text2;
+            const auto ring = loaded && ! m.bypassed ? p.text1 : p.text3;
+            // Minimal synth module icon: 3 rotary rings over a mini step/patch bar.
+            for (int k = 0; k < 3; ++k)
+            {
+                const float kx = t.x + 32.0f + static_cast<float>(k) * 44.0f;
+                const float ky = t.y + 32.0f;
+                ChannelStrip::arc(dl, kx, ky, 13.0f, 0, 2 * kPi, 2.0f, ring);
+                const float ang = -kPi * 0.75f + static_cast<float>(k) * 0.65f;
+                glyph::line(dl, kx, ky, kx + 9.0f * std::cos(ang), ky + 9.0f * std::sin(ang), 2.0f, ink);
+            }
+            for (int s = 0; s < 8; ++s)
+            {
+                const float bx = t.x + 18.0f + static_cast<float>(s) * 15.0f;
+                const bool lit = loaded && (s % 2 == 0 || s == 5);
+                dl.fill({bx, t.y + 62.0f, 10.0f, 12.0f}, lit ? ink : p.surface3, 2.0f);
+            }
+            break;
+        }
         case ModuleCardModel::Thumb::None:
             break;
         }

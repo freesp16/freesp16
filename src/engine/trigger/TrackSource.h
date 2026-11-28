@@ -11,6 +11,7 @@
 //   LockOnly   the locks only (envelope release lock, playback locks of the sounding note)
 //   Release    gate off (GATE pad up / MIDI note off): the envelope enters its release at the event frame
 //   Stop       panic / choke: the voice fades out over 2 ms (PLY-042), the envelope is dropped once it is silent
+// Plugin tracks send Full / Half as note on, Release as note off and Stop as all notes off, at the key plus TRANSPOSE.
 // render(): when the block has a voice start, the envelope's 64 gains are rendered first so the old note moves to
 // the voice's release tail with the gain it had just before the start frame (sample-accurate PLY-042 handoff); else
 // AmpEnvelopeBank::process multiplies in place (constant segments cost one scalar multiply or nothing). The voice's
@@ -20,6 +21,7 @@
 // Mode changes (TRK-002): the sounding source fades out over 2 ms and the new one fades in over 2 ms (Thru input).
 #pragma once
 
+#include "core/audio/PluginNode.h"
 #include "engine/EngineApi.h"
 #include "engine/modulation/AmpEnvelopeBank.h"
 #include "engine/trigger/TrackParams.h"
@@ -30,6 +32,7 @@
 
 #include <array>
 #include <cstdint>
+#include <utility>
 
 namespace engine::trigger
 {
@@ -51,6 +54,13 @@ public:
     void setMode(TrackMode) noexcept;                        // TRK-002: stops the sound (2 ms)
     void setInputSource(InputSource s) noexcept { input_ = s; }
     void setSample(const voice::SampleBuffer* b) noexcept { voice_.setSample(b); }
+    void setPlugin(core::audio::PluginAudioNode* p) noexcept;
+    void detachPluginForMove() noexcept { plugin_ = nullptr; }
+    // Plugin notes sound the track's TRANSPOSE (seq.transpose, SEQ-035) above their key; the engine sets it before the
+    // router's block. A note ends on the pitch it started at, even when TRANSPOSE moves while it is held.
+    void setNoteTranspose(int semitones) noexcept { noteTranspose_ = semitones; }
+    // A track swap moves the instrument to the other source, so its sounding notes go with it.
+    void exchangeHeldNotes(TrackSource& other) noexcept { std::swap(sentNotes_, other.sentNotes_); }
     void setPlayback(const voice::PlaybackParams& p) noexcept; // the track's current playback parameters
     // The track's installed slice table (null = the default 16-slice grid). A Full trigger with a slice
     // lock (ParamIndex 22: SLICE pad mode, a sequencer step) plays [start, next start) of that slice with the track's
@@ -68,7 +78,12 @@ public:
     // ---- state ----
     TrackMode mode() const noexcept { return mode_; }
     bool hasSample() const noexcept { return voice_.sample() != nullptr; }
-    bool sounding() const noexcept { return voice_.active() || thruGain_ > 0.0f; }
+    bool hasPlugin() const noexcept { return plugin_ != nullptr; }
+    bool sounding() const noexcept
+    {
+        return voice_.active() || thruGain_ > 0.0f ||
+               (mode_ == TrackMode::Plugin && plugin_ != nullptr && plugin_->active());
+    }
     float playPosition() const noexcept { return voice_.playPosition(); } // PlayheadFeed (PLY-045)
     voice::TrackVoice& voice() noexcept { return voice_; }
     const voice::TrackVoice& voice() const noexcept { return voice_; }
@@ -104,6 +119,9 @@ private:
     std::array<Start, kMaxStarts> starts_; // written before read (no braces: GCC 11 build time)
     int numStarts_ = 0;
     const voice::SliceMap* sliceMap_ = nullptr;
+    core::audio::PluginAudioNode* plugin_ = nullptr;
+    int noteTranspose_ = 0;
+    std::array<std::uint8_t, 128> sentNotes_{}; // per key (60 + semitones): the note the plugin got + 1, 0 = none
     int heldSlice_ = -1, liveSlice_ = -1, noteSlice_ = -1; // Hold lock, last pad slice (Repeat hits), sounding
     alignas(16) float gain_[kBlockFrames] {};
     alignas(16) float tailL_[kBlockFrames] {};

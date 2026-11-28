@@ -98,7 +98,8 @@ using DoneFn = std::function<void(core::Result<RenderResult>)>;
 
 // The synchronous render. `cancel` / `progress` (may be null) are polled / written once per block.
 Rendered render(const core::model::Project&, const RenderJob&, const SampleSnapshot&, const ProjectFeeder&,
-                double sampleRate, const std::atomic<bool>* cancel = nullptr, std::atomic<float>* progress = nullptr);
+                double sampleRate, const std::atomic<bool>* cancel = nullptr, std::atomic<float>* progress = nullptr,
+                const std::string& pluginsDir = {});
 
 // Writes `r` (REN-002 bit depth) to `file`, then normalizes it in place when job.normalize (REN-010), then the
 // sidecar (REN-003). Worker thread.
@@ -114,6 +115,8 @@ class RenderService
 public:
     struct Env
     {
+        std::string pluginsDir{};
+        std::function<void(core::model::Project&)> capturePluginStates;
         ProjectFeeder feed;                                  // the composition root's project forwarding
         std::function<SampleSnapshot()> samples;             // message thread: the document's buffers now
         engine::EngineBridge* live = nullptr;                // muted during a job (render.muteLive); null = none

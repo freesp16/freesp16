@@ -320,6 +320,33 @@ void Mixer::updateGates(int frame) noexcept
     audible_ = audible;
 }
 
+void Mixer::swapStrips(int scene, int a, int b, bool withSequences) noexcept
+{
+    std::swap(params_[scene][a], params_[scene][b]);
+    if (scene != scene_)
+        return;
+    std::swap(locks_[a], locks_[b]);
+    std::swap(mod_[a], mod_[b]);
+    std::swap(override_[a], override_[b]);
+    std::swap(overridden_[a], overridden_[b]);
+    std::swap(ramps_[a], ramps_[b]);
+    std::swap(mute_[a], mute_[b]);
+    const auto swapBits = [a, b](auto& mask)
+    {
+        const auto x = ((static_cast<unsigned>(mask) >> a) ^ (static_cast<unsigned>(mask) >> b)) & 1u;
+        mask ^= static_cast<std::remove_reference_t<decltype(mask)>>((x << a) | (x << b));
+    };
+    swapBits(busyRamps_);
+    swapBits(audible_);
+    swapBits(hardCut_);
+    if (withSequences)
+    {
+        swapBits(patternMute_);
+        swapBits(patternSolo_);
+    }
+    updateGates(0);
+}
+
 void Mixer::setStrip(int scene, int track, const StripParams& p, int frame) noexcept
 {
     if (scene < 0 || scene >= kScenes || track < 0 || track >= kTracks)

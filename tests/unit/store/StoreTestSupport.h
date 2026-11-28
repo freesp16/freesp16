@@ -202,6 +202,16 @@ inline void randomTrack(Rng& r, m::Track& t, const m::SamplePool& pool, bool for
     t.midi.pitchBendValue = r.range(-8192, 8191);
     t.midi.program = r.chance(0.5) ? r.range(0, 127) : -1;
     t.midi.mode = r.range(0, 1);
+    if (t.mode == m::TrackMode::Plugin || r.chance(0.15))
+    {
+        t.plugin.path = r.chance(0.5) ? "Anvil.clap" : "Sub/Synth.clap";
+        t.plugin.pluginId = "com.hdslave.anvil";
+        t.plugin.name = "Anvil";
+        t.plugin.presetKey = r.chance(0.5) ? "fm-perc" : "";
+        t.plugin.stateBase64 = r.chance(0.5) ? "AAECAw==" : "";
+        t.plugin.bypass = r.chance(0.2);
+        randomExtras(r, t.plugin.extras);
+    }
     t.routing.output = r.pick<m::OutputAssign>();
     randomExtras(r, t.extras);
     randomExtras(r, t.playback.extras);

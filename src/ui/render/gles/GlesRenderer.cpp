@@ -65,8 +65,14 @@ void main() {
 constexpr const char* fragmentShader = R"(
 precision mediump float;
 uniform sampler2D u_atlas;
+uniform sampler2D u_blit;
 varying vec2 v_uv; varying vec4 v_shape; varying vec2 v_rs; varying vec4 v_col;
 void main() {
+  if (v_uv.x >= 0.0 && v_rs.y < 0.0) {
+    vec4 px = texture2D(u_blit, v_uv).bgra;
+    gl_FragColor = vec4(px.rgb * v_col.rgb, px.a * v_col.a);
+    return;
+  }
   float a;
   if (v_uv.x >= 0.0) {
     a = texture2D(u_atlas, v_uv).a;
@@ -164,6 +170,7 @@ public:
 
         if (! buildProgram(error))
             return false;
+        glActiveTexture(GL_TEXTURE0);
         glGenTextures(1, &atlasTex_);
         glBindTexture(GL_TEXTURE_2D, atlasTex_);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -173,11 +180,22 @@ public:
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, atlas_.width(), atlas_.height(), 0, GL_ALPHA, GL_UNSIGNED_BYTE,
                      atlas_.pixels());
+        glActiveTexture(GL_TEXTURE1);
+        glGenTextures(1, &blitTex_);
+        glBindTexture(GL_TEXTURE_2D, blitTex_);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        const std::uint32_t kOnePixel = 0xFFFFFFFFu;
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &kOnePixel);
+        glActiveTexture(GL_TEXTURE0);
         glViewport(0, 0, w_, h_);
         glDisable(GL_DITHER);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         verts_.reserve(16384);
+        batches_.reserve(8);
 
         const char* renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
         const char* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
@@ -254,7 +272,14 @@ public:
             glVertexAttribPointer(2, 4, GL_FLOAT, 0, sizeof(Vertex), base + offsetof(Vertex, lx));
             glVertexAttribPointer(3, 2, GL_FLOAT, 0, sizeof(Vertex), base + offsetof(Vertex, radius));
             glVertexAttribPointer(4, 4, GL_UNSIGNED_BYTE, 1, sizeof(Vertex), base + offsetof(Vertex, rgba));
-            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(verts_.size()));
+            for (const auto& b : batches_)
+            {
+                if (b.count <= 0)
+                    continue;
+                if (b.blit != nullptr)
+                    uploadBlit(*b.blit);
+                glDrawArrays(GL_TRIANGLES, b.first, b.count);
+            }
         }
         const double b = nowMs();
         const bool ok = eglSwapBuffers(dpy_, surface_) != 0; // waits for vsync with swap interval 1
@@ -339,6 +364,7 @@ private:
         glUniform2f(glGetUniformLocation(program_, "u_scale"), 2.0f / static_cast<float>(w_),
                     -2.0f / static_cast<float>(h_));
         glUniform1i(glGetUniformLocation(program_, "u_atlas"), 0);
+        glUniform1i(glGetUniformLocation(program_, "u_blit"), 1);
         for (GLuint i = 0; i < 5; ++i)
             glEnableVertexAttribArray(i);
         glClearColor(0, 0, 0, 1);
@@ -362,13 +388,78 @@ private:
         }
     }
 
+    struct Batch
+    {
+        GLint first = 0;
+        GLsizei count = 0;
+        const DrawCmd* blit = nullptr;
+    };
+
+    void uploadBlit(const DrawCmd& c)
+    {
+        if (c.pixels == nullptr || c.srcW == 0 || c.srcH == 0)
+            return;
+        if (c.pixels == lastBlitPixels_ && c.srcW == lastBlitW_ && c.srcH == lastBlitH_ &&
+            c.textOffset == lastBlitSerial_)
+            return;
+        const std::uint32_t* src = c.pixels;
+        if (c.srcStride != c.srcW)
+        {
+            blitScratch_.resize(static_cast<std::size_t>(c.srcW) * static_cast<std::size_t>(c.srcH));
+            for (int y = 0; y < c.srcH; ++y)
+                std::memcpy(blitScratch_.data() + static_cast<std::ptrdiff_t>(y) * c.srcW,
+                            c.pixels + static_cast<std::ptrdiff_t>(y) * c.srcStride,
+                            static_cast<std::size_t>(c.srcW) * sizeof(std::uint32_t));
+            src = blitScratch_.data();
+        }
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, blitTex_);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        if (c.srcW != blitTexW_ || c.srcH != blitTexH_)
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, c.srcW, c.srcH, 0, GL_RGBA, GL_UNSIGNED_BYTE, src);
+            blitTexW_ = c.srcW;
+            blitTexH_ = c.srcH;
+        }
+        else
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, c.srcW, c.srcH, GL_RGBA, GL_UNSIGNED_BYTE, src);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glActiveTexture(GL_TEXTURE0);
+        lastBlitPixels_ = c.pixels;
+        lastBlitW_ = c.srcW;
+        lastBlitH_ = c.srcH;
+        lastBlitSerial_ = c.textOffset;
+    }
+
     void build(const DrawList& list)
     {
         verts_.clear();
+        batches_.clear();
+        const DrawCmd* batchBlit = nullptr;
+        GLint batchStart = 0;
+        const auto flushBatch = [&]()
+        {
+            const auto count = static_cast<GLsizei>(verts_.size()) - batchStart;
+            if (count > 0)
+                batches_.push_back({batchStart, count, batchBlit});
+            batchStart = static_cast<GLint>(verts_.size());
+            batchBlit = nullptr;
+        };
         const auto t = CanvasTransform::fit(w_, h_);
         const float aw = 1.0f / static_cast<float>(atlas_.width()), ah = 1.0f / static_cast<float>(atlas_.height());
         for (const auto& c : list.commands())
         {
+            if (c.op == DrawCmd::Op::Blit)
+            {
+                if (batchBlit != nullptr && (batchBlit->pixels != c.pixels || batchBlit->srcW != c.srcW ||
+                                             batchBlit->srcH != c.srcH || batchBlit->textOffset != c.textOffset))
+                    flushBatch();
+                batchBlit = &c;
+                const float x0 = t.offsetX + c.rect.x * t.scale, y0 = t.offsetY + c.rect.y * t.scale;
+                const float x1 = x0 + c.rect.w * t.scale, y1 = y0 + c.rect.h * t.scale;
+                quad(x0, y0, x1, y1, 0.0f, 0.0f, 1.0f, 1.0f, 0, 0, 0, 0, 0, -1.0f, c.argb);
+                continue;
+            }
             if (c.op == DrawCmd::Op::Text)
             {
                 const auto s = list.textOf(c);
@@ -402,6 +493,7 @@ private:
             quad(x0 - grow, y0 - grow, x0 + 2 * hw + grow, y0 + 2 * hh + grow, -1, -1, -1, -1, cx, cy, hw, hh, r, sw,
                  c.argb);
         }
+        flushBatch();
     }
 
     std::string backend_;
@@ -413,8 +505,14 @@ private:
     EGLSurface surface_ = nullptr;
     EGLContext context_ = nullptr;
     EGLint w_ = 0, h_ = 0;
-    GLuint program_ = 0, atlasTex_ = 0;
+    GLuint program_ = 0, atlasTex_ = 0, blitTex_ = 0;
+    int blitTexW_ = 1, blitTexH_ = 1;
+    const std::uint32_t* lastBlitPixels_ = nullptr;
+    std::uint16_t lastBlitW_ = 0, lastBlitH_ = 0;
+    std::uint32_t lastBlitSerial_ = 0;
+    std::vector<std::uint32_t> blitScratch_;
     std::vector<Vertex> verts_;
+    std::vector<Batch> batches_;
     std::string info_;
     FrameDamage damage_;
     std::array<IRect, 4> history_{}; // union of the damage of the last frames, newest first (buffer age)

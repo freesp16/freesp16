@@ -9,6 +9,7 @@
 
 #include "core/commands/Command.h"
 #include "core/commands/CommandGroup.h"
+#include "core/model/Track.h"
 #include "core/model/enums/Enums.h"
 
 #include <cstdint>
@@ -29,6 +30,7 @@ std::unique_ptr<Command> setTriggerMode(int scene, int track, model::TriggerMode
 std::unique_ptr<Command> setChokeGroup(int scene, int track, int group);              // "track.chokeGroup" 0–8
 std::unique_ptr<Command> setPadColour(int scene, int track, int colour);              // "track.padColor" 0–15
 std::unique_ptr<Command> setPadVelocity(int scene, int track, bool velocitySensitive); // "track.padVelocity"
+std::unique_ptr<Command> setPlugin(int scene, int track, model::PluginTrack plugin);   // "track.plugin"
 
 // Per-pattern mute: the user's mutes (MUTE pads, MIXER) live in the current pattern's `trackMutes`
 // ("scene[s].pattern[p].mutes", saved with the pattern), so every pattern keeps its own set and the engine swaps it

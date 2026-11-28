@@ -21,6 +21,7 @@ struct ProcessContext {
     std::uint32_t triggerMask;                       // tracks triggered in this block (Ducker feed)
     std::array<std::int16_t, 16> triggerOffset;      // in-block sample offset per triggered track (FX-1242), -1 = none
     std::uint16_t midiTrackMask;                     // tracks in MIDI mode (FX-1263)
+    double ppqStart = 0;
 };
 
 class EffectBase {                                   // one instance per effect type per slot, built at start-up
@@ -32,6 +33,7 @@ public:
     virtual void setOption(int which, int value) noexcept { (void) which; (void) value; } // type1/type2 enums, sync, lookAhead
     // Exactly 64 frames, planar stereo, in place, wet only (the shell does dry/wet, gate, 10 Hz HPF).
     virtual void process(float* left, float* right, const ProcessContext&) noexcept = 0;
+    virtual bool available() const noexcept { return true; }
     virtual int latencySamples() const noexcept { return 0; }     // non-zero only with look-ahead (2 ms)
     virtual void retrigger() noexcept {}                          // FX-089/090: transport start, pad/step retrigger
     virtual void setQuirkProfile(std::uint32_t mask) noexcept { (void) mask; } // FX-052…055: reference quirks on/off (parity mode)

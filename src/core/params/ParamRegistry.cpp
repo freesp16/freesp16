@@ -17,19 +17,22 @@ float ParamSpec::step(float v, int detents, bool fine) const noexcept
     // The range's ends stay exact; a value off the grid (an import, an LFO-written base) stays where the turn puts it.
     if (next == minValue || next == maxValue)
         return next;
-    // A step written as a short decimal is taken as that decimal (0.1f is 0.100000001…, and k × that would drift
-    // again); any other step (1/127 …) as the float itself.
-    const auto exact = [](float f) {
-        const double d = std::round(static_cast<double>(f) * 1e6) / 1e6;
-        return static_cast<float>(d) == f ? d : static_cast<double>(f);
-    };
     const float grid = std::min(fineStep, coarseStep) > 0 ? std::min(fineStep, coarseStep) : s;
     if (grid > 0)
     {
-        const double g = exact(grid), lo = exact(minValue);
-        const double q = (static_cast<double>(next) - lo) / g, k = std::round(q);
+        // Count millionths so short decimal grids cancel exactly at zero, even with fused multiply-add.
+        // For other steps (e.g. 1/127), keep the original float's precision in the same units.
+        constexpr double units = 1e6;
+        const auto gridUnits = [](float value)
+        {
+            const double scaled = static_cast<double>(value) * units;
+            const double whole = std::round(scaled);
+            return static_cast<float>(whole / units) == value ? whole : scaled;
+        };
+        const double g = gridUnits(grid), lo = gridUnits(minValue);
+        const double q = (static_cast<double>(next) * units - lo) / g, k = std::round(q);
         if (std::fabs(q - k) < 0.01)
-            next = clamp(static_cast<float>(lo + k * g));
+            next = clamp(static_cast<float>((lo + k * g) / units));
     }
     return next;
 }

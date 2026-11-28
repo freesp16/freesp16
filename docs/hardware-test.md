@@ -76,7 +76,7 @@ Expected (the block ends with `DIAG END`, before any project or kit is loaded):
 | `DIAG input panel ok …`, `DIAG input cdc-strip ok …` | both sources started (the EBUSY fix: no `FAILED … busy`) |
 | `DIAG interval=10 s`, `DIAG END` | |
 | `DIAG memlock code locked_kb=… mappings=… swap_kb=…` (after the project loads) | no `failed=`: the code is locked in RAM (setting `mem_lock=0` turns it off) |
-| `DIAG thread <name> tid=… policy=… prio=… nice=… cpus=…` (2 s into the run, again with every `diag`) | `freesp16` cpus=0, `audio` FIFO 70 cpus=1, `panel` FIFO 72 / `strip` FIFO 60 / `midi-out` FIFO 65 / `midi-in-N` FIFO 75 cpus=2, `recorder` FIFO 40 cpus=3, `worker` OTHER nice=10 cpus=0,3; every other thread (X, GL, JUCE) cpus=0 |
+| `DIAG thread <name> tid=… policy=… prio=… nice=… cpus=…` (2 s into the run, again with every `diag`) | main thread (named after the executable) cpus=0, `audio` FIFO 70 cpus=1, `panel` FIFO 72 / `strip` FIFO 60 / `midi-out` FIFO 65 / `midi-in-N` FIFO 75 cpus=2, `recorder` FIFO 40 cpus=3, `worker` OTHER nice=10 cpus=0,3; every other thread (X, GL, JUCE) cpus=0 |
 
 Every 10 s: `FRAME run …`, `AUDIO … xruns=0`, `LOAD … xruns=0 VmRSS=…`. Under audio load (an xrun, an engine overrun, or
 LOAD p95 ≥ 80 % of the block) the display steps down to 30 Hz for at least 3 s: `UI throttle on: 30 Hz (<cause>)` …

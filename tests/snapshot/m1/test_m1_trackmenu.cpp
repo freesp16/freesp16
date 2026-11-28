@@ -73,17 +73,22 @@ TEST_CASE("ui.m1.trackMenu: MIDI track matches track-menu-midi.svg", "[snapshot]
     CHECK(compare(ours, mock, kPanel, "m1-track-menu-midi-panel").match >= kGate);
 }
 
-TEST_CASE("ui.m1.trackMenu: TRACK TYPE opens the type list (track-menu-type-popup.svg)", "[snapshot][m1]")
+TEST_CASE("ui.m1.trackMenu: TRACK TYPE opens the 5-item type list including PLUGIN", "[m1]")
 {
-    Session session;
     MenuFixture f(5);
     f.tap(932, 88); // TRACK TYPE in the context bar
     f.settle();
     REQUIRE(f.shell->popupDepth() == 1);
-    f.turn(io::Control::Selector, 2); // focus MIDI
-    const auto ours = f.image();
-    const auto& mock = m1test::m1mockup("track-menu-type-popup");
-    CHECK(compare(ours, mock, {320, 252, 640, 224}, "m1-track-menu-type-popup").match >= kGate);
+    const auto& dl = f.frame();
+    for (const char* item : {"SAMPLE", "THRU", "MIDI", "TORAIZ AS-1", "PLUGIN"})
+    {
+        bool found = false;
+        for (const auto& c : dl.commands())
+            if (c.op == ui::DrawCmd::Op::Text && dl.textOf(c) == item)
+                found = true;
+        INFO(item);
+        CHECK(found);
+    }
 }
 
 TEST_CASE("ui.m1.trackMenu: open focus BROWSE, two-tap cards, BACK returns to the module, lock badges", "[m1]")

@@ -1,4 +1,5 @@
 #include "engine/sequencer/perf/PerfStage.h"
+#include <utility>
 
 namespace engine::sequencer::perf
 {
@@ -130,6 +131,16 @@ void PerfStage::process(const BlockContext& ctx, const stages::BlockBuffers::Tim
     if (sceneCut >= 0)
         cutScene();
     emitted_ += retrig.emitBlock(router);
+}
+
+void PerfStage::swapTracks(int scene, int a, int b) noexcept
+{
+    std::swap(tracks_[scene][a], tracks_[scene][b]);
+    if (scene == scene_)
+    {
+        retrig.swapTracks(a, b);
+        dirty_ = static_cast<std::uint16_t>(dirty_ | (1u << a) | (1u << b));
+    }
 }
 
 void PerfStage::afterRouter(const trigger::TriggerRouter& router) noexcept

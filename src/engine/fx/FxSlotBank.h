@@ -45,6 +45,15 @@
 #include <string_view>
 #include <vector>
 
+namespace engine::fx::effects
+{
+class Plugin;
+}
+namespace core::audio
+{
+class PluginAudioNode;
+}
+
 namespace engine::fx
 {
 class EffectRegistry;
@@ -85,6 +94,8 @@ public:
                slots_[static_cast<std::size_t>(2 * track + 1)]->idle();
     }
     bool sendIdle() const noexcept { return slots_[kSendSlot]->idle(); }
+    void swapInserts(int a, int b) noexcept;
+    void setPlugin(int slot, core::audio::PluginAudioNode* node) noexcept;
     void processInsert(int track, float* l, float* r, const ProcessContext& ctx) noexcept
     {
         auto& a = *slots_[static_cast<std::size_t>(2 * track)];
@@ -152,6 +163,7 @@ private:
 
     std::array<std::unique_ptr<FxProcessor>, kFxSlots> slots_{};
     std::array<Hook, kTracks + 2> hooks_{};
+    std::array<effects::Plugin*, kFxSlots> plugins_{};
     ProcessContext ctx_{44100.0, 120.0, false, 0u, {}, 0};
     std::array<SlotParams, kFxSlots> state_{};
     std::vector<const EffectDescriptor*> insertTypes_, sendTypes_, masterTypes_;

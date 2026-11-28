@@ -1,4 +1,5 @@
 #include "ui/widgets/EffectPanel.h"
+#include "ui/screens/plugin/PluginSlots.h"
 
 #include "core/params/ParamRegistry.h"
 #include "ui/screens/effects/FxCatalogue.h"
@@ -15,6 +16,7 @@
 #include "ui/widgets/OptionSelector.h"
 #include "ui/widgets/Segmented.h"
 #include "ui/widgets/Toggle.h"
+#include "ui/widgets/TrackTile.h"
 
 #include <algorithm>
 #include <array>
@@ -73,6 +75,24 @@ void knobGlyph(DrawList& dl, const tk::Palette& p, float cx, float cy, float pos
     dl.fill({cx - kBodyR, cy - kBodyR, 2 * kBodyR, 2 * kBodyR}, p.surface3, kBodyR);
     const float pc = t.c[static_cast<std::size_t>(end)], ps = t.s[static_cast<std::size_t>(end)];
     glyph::line(dl, cx + 8 * pc, cy + 8 * ps, cx + 22 * pc, cy + 22 * ps, 3, p.text1);
+}
+
+// Keep the FX header, including BYPASS and SELECT FX, accessible on every editor page.
+constexpr RectF kEditor{16, 236, 1248, 372};
+constexpr RectF kPresets{312, 160, 144, 56};
+constexpr RectF kEditorMode{470, 160, 152, 56};
+
+GridRequest slotPicker(ShellApi& shell, fx::Slot slot, int scene, int track)
+{
+    auto& slots = fx::environment().slotAccess();
+    return FxGrid::request(slot, track, slots.effect(slot, scene, track),
+                           [&shell, slot, scene, track](const engine::fx::EffectDescriptor& d)
+                           {
+                               if (d.id == "plugin")
+                                   plugin::showEffectPicker(shell, slot, scene, track);
+                               else
+                                   fx::environment().slotAccess().selectEffect(slot, scene, track, d.id);
+                           });
 }
 
 fx::Slot& lastBusPage() noexcept
@@ -134,7 +154,10 @@ fx::FxMode EffectPanel::mode() const
 EffectPanel::Key EffectPanel::currentKey() const
 {
     const auto& slots = fx::environment().slotAccess();
-    return {slot_, scene(), track(), slots.effect(slot_, scene(), track()), syncOn(), slots.changes()};
+    const auto effect = slots.effect(slot_, scene(), track());
+    const bool custom = effect == "plugin" && fx::active(slot_, mode()) &&
+                        plugin::environment().pluginAccess().hasCustomScreen(scene(), track(), slot_);
+    return {slot_, scene(), track(), effect, syncOn(), custom, slots.changes()};
 }
 
 void EffectPanel::refresh() const
@@ -211,7 +234,8 @@ void EffectPanel::rebind(const Key& k) const
     strip.tab = fx::tab(slot_);
     strip.groupMask = 0;
     for (std::size_t n = 0; n < 6; ++n)
-        strip.columns[n] = columns_[n] != nullptr ? columns_[n]->id : std::string_view{};
+        strip.columns[n] =
+            (! k.custom || slotControls_) && columns_[n] != nullptr ? columns_[n]->id : std::string_view{};
     if (shell_ != nullptr)
         shell_->bindStrip(&strip);
 
@@ -279,7 +303,7 @@ std::uint32_t EffectPanel::ink(const theme::tk::Palette& p) const noexcept
 
 int EffectPanel::focusCount() const noexcept
 {
-    int n = fx::isInsert(slot_) ? 2 : 3;
+    int n = headerCount();
     if (! fx::isInsert(slot_) && ! fx::active(slot_, fx::environment().slotAccess().mode(state_->scene)))
         return n + 1; // the banner's USE … button
     for (const auto c : cellOption_)
@@ -298,6 +322,8 @@ EffectPanel::Target EffectPanel::focusTarget() const noexcept
         return Target::Bypass;
     if (focus_ == 2 && header == 3)
         return Target::BusPage;
+    if (focus_ == header && key_.effect == "plugin")
+        return Target::Presets;
     if (! fx::isInsert(slot_) && ! fx::active(slot_, fx::environment().slotAccess().mode(state_->scene)))
         return Target::Banner;
     return Target::OptionCell;
@@ -311,6 +337,17 @@ void EffectPanel::paint(DrawList& dl, const RectF& damage, const UiContext& ctx)
     const auto& p = ctx.palette;
     dl.fill(bounds_, p.surface1, tk::radiusM);
     paintHeader(dl, ctx);
+    if (editingPlugin())
+    {
+        const auto frame = plugin::environment().pluginAccess().screenRender(
+            scene(), track(), static_cast<std::uint32_t>(ctx.nowMs), slot_);
+        if (frame.argb)
+        {
+            paintedEditorSerial_ = frame.serial;
+            dl.blit(kEditor, frame.argb, frame.width, frame.height, frame.stride, frame.serial);
+            return;
+        }
+    }
     if (fx::isNone(effect_->id))
     {
         dl.text(640, 380, Align::Centre, TextStyleId::Body, p.text3,
@@ -327,9 +364,23 @@ void EffectPanel::paintHeader(DrawList& dl, const UiContext& ctx) const
     const auto& p = ctx.palette;
     const auto target = focusTarget();
     EffectIcon::draw(dl, iconIdFor(effect_->id), 40, 168, 40, p.text1);
-    dl.text(96, 174, Align::Left, TextStyleId::Caption, p.text2, caption_.view());
-    dl.text(96, 200, Align::Left, TextStyleId::Title, p.text1, effect_->name);
-    if (! fx::isNone(effect_->id) && mixHint())
+    auto caption = caption_.view();
+    auto name = effect_->name;
+    char shortened[512];
+    if (effect_->id == "plugin")
+    {
+        const auto loaded = plugin::environment().pluginAccess().effectPlugin(slot_, scene(), track());
+        if (! loaded.name.empty())
+            name = TrackTile::middleTruncate(loaded.name, kPresets.x - 108, TextStyleId::Title, ctx.measure, shortened,
+                                             sizeof shortened);
+        if (! loaded.loaded)
+            caption = "PLUGIN UNAVAILABLE";
+    }
+    dl.text(96, 174, Align::Left, TextStyleId::Caption, p.text2, caption);
+    dl.text(96, 200, Align::Left, TextStyleId::Title, p.text1, name);
+    if (effect_->id == "plugin")
+        Button::draw(dl, ctx, kPresets, {.label = "PRESETS", .focused = focus_ >= 0 && target == Target::Presets});
+    else if (! fx::isNone(effect_->id) && mixHint())
     {
         dl.fill(kMixHint, p.surface2, 16);
         glyph::draw(dl, glyph::Kind::Info, 408, 180, 16, p.text2);
@@ -354,6 +405,8 @@ void EffectPanel::paintHeader(DrawList& dl, const UiContext& ctx) const
             }
         }
     }
+    if (key_.custom)
+        Button::draw(dl, ctx, kEditorMode, {editingPlugin() ? "SLOT MIX" : "EDITOR"});
     ToggleModel bypass;
     bypass.label = "BYPASS";
     bypass.on = fx::environment().slotAccess().bypass(slot_, scene(), track());
@@ -385,8 +438,7 @@ void EffectPanel::paintOptions(DrawList& dl, const UiContext& ctx) const
         Button::draw(dl, ctx, kBannerButton, fix);
         return;
     }
-    const int header = fx::isInsert(slot_) ? 2 : 3;
-    int focusIndex = header;
+    int focusIndex = headerCount();
     for (int c = 0; c < 6; ++c)
     {
         const int oi = cellOption_[static_cast<std::size_t>(c)];
@@ -508,13 +560,9 @@ void EffectPanel::openSelectFx()
 {
     if (shell_ == nullptr)
         return;
-    const auto current = effect_ != nullptr ? effect_->id : fx::kNone;
-    shell_->showGrid(FxGrid::request(slot_, track(), current,
-                                     [this](const engine::fx::EffectDescriptor& d)
-                                     {
-                                         fx::environment().slotAccess().selectEffect(slot_, scene(), track(), d.id);
-                                         refresh(); // the panel re-renders for the new type at once (FX-006)
-                                     }));
+    slotControls_ = false;
+    bound_ = false;
+    shell_->showGrid(slotPicker(*shell_, slot_, scene(), track()));
 }
 
 void EffectPanel::openSelector(const core::ParamSpec& s)
@@ -581,6 +629,10 @@ void EffectPanel::activate(int index, float x, float y)
     case Target::SelectFx:
         openSelectFx();
         return;
+    case Target::Presets:
+        if (shell_)
+            plugin::showEffectPresets(*shell_, slot_, scene(), track());
+        return;
     case Target::Bypass:
         slots.setBypass(slot_, scene(), track(), ! slots.bypass(slot_, scene(), track()));
         return;
@@ -596,7 +648,7 @@ void EffectPanel::activate(int index, float x, float y)
         return;
     case Target::OptionCell:
     {
-        int k = index - (fx::isInsert(slot_) ? 2 : 3);
+        int k = index - headerCount();
         for (int c = 0; c < 6; ++c)
         {
             const int oi = cellOption_[static_cast<std::size_t>(c)];
@@ -613,9 +665,67 @@ void EffectPanel::activate(int index, float x, float y)
     }
 }
 
+std::string_view EffectPanel::stripTab() const noexcept
+{
+    if (! editingPlugin())
+        return {};
+    plugin::environment().pluginAccess().readKnobs(scene(), track(), editorBank_, slot_);
+    return editorBank_.tab.view();
+}
+
+void EffectPanel::stripColumn(int col, ParamColumnModel& column) const
+{
+    if (editingPlugin() && col >= 0 && col < 6)
+        plugin::knobColumn(editorBank_, col, editorSpecs_[static_cast<std::size_t>(col)], column);
+}
+
+bool EffectPanel::stripTurnUnbound(int col, int detents, bool fine)
+{
+    return editingPlugin() &&
+           plugin::environment().pluginAccess().turnKnob(scene(), track(), col, detents, fine, slot_);
+}
+
 bool EffectPanel::handle(const io::ControlEvent& e, UiContext&)
 {
     refresh();
+    if (key_.effect == "plugin" && touch::isTouch(e) && e.value == touch::kDown &&
+        contains(kPresets, touch::x(e), touch::y(e)))
+    {
+        activate(headerCount() - 1);
+        return true;
+    }
+    if (key_.custom && touch::isTouch(e) && e.value == touch::kDown && contains(kEditorMode, touch::x(e), touch::y(e)))
+    {
+        slotControls_ = ! slotControls_;
+        editorTouch_ = false;
+        rebind(currentKey());
+        return true;
+    }
+    if (editingPlugin())
+    {
+        auto& access = plugin::environment().pluginAccess();
+        if (e.control == io::Control::Selector && e.kind == Kind::Turn)
+            return access.screenSelectorTurn(scene(), track(), e.value, slot_);
+        if (e.control == io::Control::SelectorPush && e.kind == Kind::Press)
+            return access.screenSelectorPush(scene(), track(), slot_);
+        if (touch::isTouch(e))
+        {
+            const auto x = touch::x(e), y = touch::y(e);
+            if (e.value == touch::kDown)
+                editorTouch_ = contains(kEditor, x, y);
+            if (editorTouch_)
+            {
+                const int phase = e.value == touch::kDown ? 0 : (e.value == touch::kDrag ? 1 : 2);
+                const int px = std::clamp(static_cast<int>((x - kEditor.x) * plugin::kScreenWidth / kEditor.w), 0,
+                                          plugin::kScreenWidth - 1);
+                const int py = std::clamp(static_cast<int>((y - kEditor.y) * plugin::kScreenHeight / kEditor.h), 0,
+                                          plugin::kScreenHeight - 1);
+                access.screenTouch(scene(), track(), phase, px, py, slot_);
+                editorTouch_ = phase != 2;
+                return true;
+            }
+        }
+    }
     if (e.control == io::Control::Selector && e.kind == Kind::Turn)
     {
         const int n = focusCount();
@@ -640,10 +750,10 @@ bool EffectPanel::handle(const io::ControlEvent& e, UiContext&)
         if (bus && ! fx::active(slot_, mode()))
         {
             if (contains(hitArea(kBannerButton), x, y))
-                return activate(3), true;
+                return activate(headerCount()), true;
             return false;
         }
-        int index = bus ? 3 : 2;
+        int index = headerCount();
         for (int c = 0; c < 6; ++c)
         {
             const int oi = cellOption_[static_cast<std::size_t>(c)];
@@ -670,10 +780,16 @@ bool EffectPanel::handle(const io::ControlEvent& e, UiContext&)
 
 bool EffectPanel::dirty(double nowMs) const
 {
-    if (visual_ && visual_->dirty(nowMs))
-        return true;
     const auto& slots = fx::environment().slotAccess();
-    return slots.effect(slot_, scene(), track()) != key_.effect || slots.changes() != key_.changes;
+    if (slots.effect(slot_, scene(), track()) != key_.effect || slots.changes() != key_.changes)
+        return true;
+    if (editingPlugin())
+    {
+        const auto frame = plugin::environment().pluginAccess().screenRender(scene(), track(),
+                                                                             static_cast<std::uint32_t>(nowMs), slot_);
+        return frame.argb && frame.serial != paintedEditorSerial_;
+    }
+    return visual_ && visual_->dirty(nowMs);
 }
 
 // --- registration ---------------------------------------------------------------------------------------------------
@@ -698,10 +814,7 @@ std::unique_ptr<PopupWidget> makeSelectFx(const PopupSpec&, ShellApi& shell)
     const auto id = shell.current().id;
     const auto slot = id == "track.fx2" ? fx::Slot::Fx2 : id == "mixer.busFx" ? lastBusPage() : fx::Slot::Fx1;
     const int scene = shell.state().scene, track = shell.state().selectedTrack;
-    const auto current = fx::environment().slotAccess().effect(slot, scene, track);
-    return std::make_unique<GridPopup>(
-        FxGrid::request(slot, track, current, [slot, scene, track](const engine::fx::EffectDescriptor& d)
-                        { fx::environment().slotAccess().selectEffect(slot, scene, track, d.id); }));
+    return std::make_unique<GridPopup>(slotPicker(shell, slot, scene, track));
 }
 } // namespace
 } // namespace ui

@@ -194,6 +194,8 @@ public:
     std::function<void(const juce::File&)> onSaved;
     // Called whenever name() / file() change (create, open, save as, rename): the autosave target follows.
     std::function<void(const juce::String& name, const juce::File& file)> onIdentity;
+    // Capture live state on the message thread into the copy handed to the save worker.
+    std::function<void(core::model::Project&)> captureRuntimeState;
 
     // Fault injection for the project write of the next saves (tests).
     void setWriteFault(std::function<AtomicWriter::Fault(AtomicWriter::Step)> f) { writeFault_ = std::move(f); }

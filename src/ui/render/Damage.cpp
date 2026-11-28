@@ -165,7 +165,13 @@ std::uint64_t FrameDiff::hash(const DrawList& list, const DrawCmd& c) noexcept
     h = mix(h, (static_cast<std::uint64_t>(bits(c.rect.w)) << 32) | bits(c.rect.h));
     h = mix(h, (static_cast<std::uint64_t>(bits(c.radius)) << 32) | bits(c.strokeWidth));
     h = mix(h, c.argb);
-    if (c.op == DrawCmd::Op::Text)
+    if (c.op == DrawCmd::Op::Blit)
+    {
+        h = mix(h,
+                (static_cast<std::uint64_t>(c.textOffset) << 32) | (static_cast<std::uint64_t>(c.srcW) << 16) | c.srcH);
+        h = mix(h, static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(c.pixels)));
+    }
+    else if (c.op == DrawCmd::Op::Text)
     {
         const auto s = list.textOf(c);
         std::size_t i = 0;
@@ -189,6 +195,7 @@ RectF FrameDiff::bounds(const DrawList& list, const DrawCmd& c) const noexcept
     switch (c.op)
     {
     case DrawCmd::Op::Fill:
+    case DrawCmd::Op::Blit:
         return {c.rect.x - aa, c.rect.y - aa, c.rect.w + 2 * aa, c.rect.h + 2 * aa};
     case DrawCmd::Op::Stroke:
     {

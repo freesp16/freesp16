@@ -67,6 +67,16 @@ To update freesp16, copy a new `freesp16` over the old one; `freesp16-data/` sta
 choose it in the boot menu, or remove the stick and switch the instrument off and on. The
 [installation guide](https://freesp16.github.io/install/hardware/) on the website has screenshots and troubleshooting.
 
+## Plugin presets
+
+Open **PRESETS** on a plugin track or a plugin FX slot. Choose **SAVE PRESET...**, enter a name and press **SAVE**.
+The same plugin can recall that sound under **USER** in any project on the stick. Insert, send and master FX
+share the same library. Reusing a name asks for confirmation before replacing it.
+
+User presets live in `freesp16-data/freesp16/Presets/Plugins/` on the USB stick. Copy that directory to another stick to
+transfer the library. Install the matching plugins on the destination stick. Saving a project embeds its current
+plugin settings, so replacing a library preset later leaves saved projects intact.
+
 ## Run on the Linux desktop
 
 The same app runs natively on Linux x86-64 in an 800 × 480 window, with ALSA audio (PipeWire and PulseAudio work

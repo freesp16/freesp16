@@ -70,6 +70,7 @@ public:
     {
         return retire_.retire(object, swaps_.destroyer(kind), blockIndex);
     }
+    bool canRetire(std::size_t count) noexcept { return retire_.canRetire(count); }
     void setBlocksRendered(std::uint64_t blocks) noexcept { blocks_.store(blocks, std::memory_order_release); }
 
 private:

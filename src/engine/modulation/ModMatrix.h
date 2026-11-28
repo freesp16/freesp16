@@ -111,6 +111,7 @@ public:
     void clearAll(ModSource src) noexcept;                                // every track (e.g. ribbon release)
     void touch(int track) noexcept; // the track's bases changed: re-apply its active destinations this block
     void touchAll() noexcept;       // scene switch
+    void swapTracks(int a, int b) noexcept;
 
     // Once per block, after the step locks and before the voices (see above).
     void applyBlock(fx::FxSlotBank& fx, ParamStateSink& sink) noexcept;

@@ -74,18 +74,18 @@ inline int padColour(ShellApi& shell, int track) noexcept
     return (v & 15) + 1;
 }
 
-// Track mode (core::model::TrackMode order: Sample, Midi, Thru, Instrument), from track.mode, else from the HOME
-// summary's type badge.
+// Track mode (core::model::TrackMode order: Sample, Midi, Thru, Instrument, Plugin), from track.mode, else from the
+// HOME summary's type badge.
 inline int trackMode(ShellApi& shell, int track) noexcept
 {
     if (shell.params().find("track.mode") != nullptr)
     {
         const int m = static_cast<int>(std::lround(trackParam(shell, "track.mode", track)));
-        if (m != 0)
-            return m & 3;
+        if (m > 0 && m <= 4)
+            return m;
     }
     const auto badge = shell.state().tracks[static_cast<std::size_t>((track - 1) & 15)].typeBadge;
-    return badge == "MIDI" ? 1 : badge == "THRU" ? 2 : badge == "AS-1" ? 3 : 0;
+    return badge == "MIDI" ? 1 : badge == "THRU" ? 2 : badge == "AS-1" ? 3 : badge == "PLUG" ? 4 : 0;
 }
 } // namespace ui::m1
 

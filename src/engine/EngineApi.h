@@ -47,9 +47,41 @@ constexpr std::size_t kMessageQueueSize = 4096; // threading.md: UI → audio FI
 // Values are float: sample positions above 2^24 frames (~6.3 min at 44.1 kHz) travel as an ObjectSwap (region object).
 struct ParamChange { core::ParamId param; std::uint16_t scope; float value; std::uint16_t rampSamples; };
 struct TransportCmd { enum Kind : std::uint8_t { Play, Stop, Pause, HardStop, Continue, SetTempo, Locate } kind; double value; };
-struct SwapSlot { enum Kind : std::uint8_t { TrackSample, Preview, Pattern, SceneConfig, ProjectConfig, LiveTake,
-                                              SliceMap } kind;   // SliceMap: appended (the order is stable)
-                  std::uint8_t scene, index; };                     // index = track or pattern
+struct SwapSlot
+{
+    enum Kind : std::uint8_t
+    {
+        TrackSample,
+        Preview,
+        Pattern,
+        SceneConfig,
+        ProjectConfig,
+        LiveTake,
+        SliceMap,
+        TrackPlugin,
+        InsertPlugin1,
+        InsertPlugin2,
+        BusPlugin,
+        TrackSwapBatch
+    } kind; // appended (the order is stable)
+    std::uint8_t scene, index;
+}; // index = track or pattern
+// CLAP FX instances use the same linear slot order as the mixer: two inserts per track, then Send and Master.
+inline constexpr int kPluginFxSlots = 2 * kTracks + 2;
+constexpr SwapSlot pluginFxSwap(int scene, int slot) noexcept
+{
+    const bool bus = slot >= 2 * kTracks;
+    const auto kind = bus ? SwapSlot::BusPlugin : (slot % 2 == 0 ? SwapSlot::InsertPlugin1 : SwapSlot::InsertPlugin2);
+    return {kind, static_cast<std::uint8_t>(scene), static_cast<std::uint8_t>(bus ? slot - 2 * kTracks : slot / 2)};
+}
+constexpr int pluginFxIndex(SwapSlot slot) noexcept
+{
+    if (slot.kind == SwapSlot::BusPlugin && slot.index < 2)
+        return 2 * kTracks + slot.index;
+    if ((slot.kind == SwapSlot::InsertPlugin1 || slot.kind == SwapSlot::InsertPlugin2) && slot.index < kTracks)
+        return 2 * slot.index + (slot.kind == SwapSlot::InsertPlugin2 ? 1 : 0);
+    return -1;
+}
 // Prepared off-thread, installed at block start; the replaced object goes to the RetireQueue (core/util). A post the
 // engine does not accept (post() returns false) leaves ownership with the sender.
 struct ObjectSwap { SwapSlot slot; const void* object; };
@@ -58,6 +90,35 @@ struct ObjectSwap { SwapSlot slot; const void* object; };
 struct TriggerNow { std::uint8_t track, velocity, note; std::int8_t pad; };
 using EngineMessage = std::variant<ParamChange, TransportCmd, ObjectSwap, TriggerNow>; // trivially copyable members
 static_assert(std::is_trivially_copyable_v<EngineMessage>, "engine messages cross threads by copy");
+
+// One track swap and its model diffs reach the audio thread together. Queued edits own the objects
+// inside them until the engine installs them. The outer ObjectSwap is retired after applying the edits.
+struct TrackSwapBatch
+{
+    struct Swap
+    {
+        int scene, first, second;
+        bool withSequences;
+    };
+    explicit TrackSwapBatch(void (*discard)(const ObjectSwap&)) noexcept : discard_(discard) {}
+    TrackSwapBatch(const TrackSwapBatch&) = delete;
+    TrackSwapBatch& operator=(const TrackSwapBatch&) = delete;
+    ~TrackSwapBatch()
+    {
+        if (! installed)
+            for (const auto& edit : edits)
+                if (const auto* swap = std::get_if<ObjectSwap>(&edit))
+                    discard_(*swap);
+    }
+
+    std::vector<Swap> swaps;
+    std::vector<std::variant<ParamChange, ObjectSwap>> edits;
+    std::size_t retireSlots = 1;    // the batch itself, plus up to one retirement per contained ObjectSwap
+    mutable bool installed = false; // marked by the audio thread before handing the batch to the collector
+
+private:
+    void (*discard_)(const ObjectSwap&);
+};
 
 // ---- audio → UI ----
 

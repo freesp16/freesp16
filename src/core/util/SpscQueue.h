@@ -31,6 +31,15 @@ public:
         return true;
     }
 
+    // Producer thread only. The consumer can only increase the space once checked.
+    bool canPush(std::size_t count) noexcept
+    {
+        const auto head = head_.load(std::memory_order_relaxed);
+        if (count > Capacity - (head - tailCache_))
+            tailCache_ = tail_.load(std::memory_order_acquire);
+        return count <= Capacity - (head - tailCache_);
+    }
+
     // Consumer thread only.
     bool pop(T& out) noexcept
     {

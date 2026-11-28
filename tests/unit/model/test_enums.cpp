@@ -69,6 +69,9 @@ TEST_CASE("enum display names follow enumerations.md", "[model][enum]")
 {
     CHECK(displayName(TrackMode::Sample) == "SAMPLE");
     CHECK(shortDisplayName(TrackMode::Sample) == "SMPL");
+    CHECK(displayName(TrackMode::Plugin) == "PLUGIN");
+    CHECK(shortDisplayName(TrackMode::Plugin) == "PLUG");
+    CHECK(storedName(TrackMode::Plugin) == "Plugin");
     CHECK(displayName(TriggerMode::OneShot) == "ONE SHOT");
     CHECK(storedName(TriggerMode::OneShot) == "OneShot"); // 1.60 form [OBS]
     CHECK(displayName(StretchMode::MasterTempo) == "MASTER TEMPO");
@@ -156,12 +159,13 @@ TEST_CASE("value lists: scales, retrigger, trigger codes, outputs, FX slot lists
     CHECK(headphoneCueAvailable(HeadphoneCue::Out12, AssignMode::EightChannel));
 
     // FX-040 slot lists, SELECT FX grid order, NONE first; DELAY means the insert delay on inserts, the send delay on
-    // buses; REVERB on both (on the inserts it is ours, after the reference types), DUCKER only on inserts; VINTAGE
-    // PITCH (ours) last on both.
-    REQUIRE(insertEffectTypes().size() == 13);
-    REQUIRE(busEffectTypes().size() == 12);
-    CHECK(insertEffectTypes().back() == EffectType::VintagePitch);
-    CHECK(busEffectTypes().back() == EffectType::VintagePitch);
+    // buses; DUCKER only on inserts. The plugin picker follows VINTAGE PITCH in both lists.
+    REQUIRE(insertEffectTypes().size() == 14);
+    REQUIRE(busEffectTypes().size() == 13);
+    CHECK(insertEffectTypes()[12] == EffectType::VintagePitch);
+    CHECK(busEffectTypes()[11] == EffectType::VintagePitch);
+    CHECK(insertEffectTypes().back() == EffectType::Plugin);
+    CHECK(busEffectTypes().back() == EffectType::Plugin);
     CHECK(insertEffectTypes()[0] == EffectType::Off);
     CHECK(busEffectTypes()[1] == EffectType::SendDelay);
     CHECK(effectAllowedOnInsert(EffectType::InsertDelay));

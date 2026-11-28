@@ -112,6 +112,7 @@ public:
     Mixer() noexcept;
 
     void prepare(double sampleRate, int maxBlock); // message thread: settles every ramp at its current target
+    void swapStrips(int scene, int a, int b, bool withSequences) noexcept;
     void setStrip(int scene, int track, const StripParams&, int frame) noexcept; // ramps start at `frame`
     void setGlobal(GlobalParam p, float value) noexcept { setGlobal(p, value, 0); }
     void setGlobal(GlobalParam, float value, int frame) noexcept;

@@ -34,10 +34,13 @@
 namespace core::model
 {
 struct Project;
-}
+struct ParamPath;
+} // namespace core::model
 
 namespace ui::fx
 {
+core::model::ParamPath pathOf(Slot, int scene, int track) noexcept;
+
 class ModelFxSlots final : public FxSlotAccess
 {
 public:

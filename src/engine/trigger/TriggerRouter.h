@@ -104,6 +104,8 @@ public:
         return {events_.data(), static_cast<std::size_t>(numEvents_)};
     }
     std::uint64_t dropped() const noexcept { return dropped_; } // events refused because a block was full
+    void moveHeldTracks(int a, int b) noexcept;
+    int heldTrackForPad(int pad) const noexcept { return heldTrack_[pad & 15]; }
     // Track t's applied Full / Half triggers so far, wrapping (PlayheadFeed::trackHits).
     std::uint16_t hits(int track) const noexcept { return hits_[static_cast<std::size_t>(track & 15)]; }
 

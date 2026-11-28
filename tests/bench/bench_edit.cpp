@@ -8,6 +8,7 @@
 //   bench_edit_chain_pattern_end_switch  onPatternEnd + request + the switch it causes (switcher advance included)
 //   bench_edit_apply_track_paste  audio thread: the block that drains a track paste's ParamChanges (≈ 50 messages from
 //                                 the composition root's forwarders) minus an idle block (bench_edit_engine_idle_block)
+//   bench_edit_swap_playing_tracks  block-start track permutation and a two-track model diff
 //   bench_edit_scene_prepare      worker: preparePaste of a full scene (16 patterns × 16 tracks × 64 steps, every
 //                                 third trigger locked) — the deep copy
 //   bench_edit_scene_copy         message thread: COPY of that scene (the clipboard snapshot)
@@ -26,6 +27,7 @@
 #include "engine/scene/PatternChain.h"
 #include "tests/fakes/FakeEngineBridge.h"
 #include "ui/input/pads/PadController.h"
+#include "ui/input/scenes/SceneSync.h"
 #include "ui/screens/effects/ModelFxSlots.h"
 #include "ui/shell/ModelParamAccess.h"
 
@@ -163,6 +165,7 @@ struct EngineRig
 {
     std::unique_ptr<engine::Engine> engine;
     std::vector<engine::EngineMessage> paste; // what a track paste posts
+    std::vector<std::variant<engine::ParamChange, engine::ObjectSwap>> swapEdits;
     std::vector<float> l = std::vector<float>(64), r = std::vector<float>(64);
     EngineRig()
     {
@@ -181,6 +184,19 @@ struct EngineRig
         d.editor->copy(ce::trackRef(0, 3, false));
         d.editor->paste(ce::trackRef(0, 4, false));
         paste = fake.posted;
+        fake.posted.clear();
+        ui::input::scenes::SceneSync scenes(core::builtinParams(), fake);
+        core::commands::setBridge(d.bus,
+                                  [&](const core::ChangeSet& c, const m::Project& p)
+                                  {
+                                      ui::input::pads::forwardTrackChanges(c, p, fake);
+                                      ui::forwardModelChanges(c, p, fake);
+                                      ui::fx::forwardFxChanges(c, p, fake);
+                                      scenes.onChange(c, p);
+                                  });
+        d.editor->swapTracks(0, 3, 4, true);
+        for (const auto& edit : fake.posted)
+            swapEdits.emplace_back(std::get<engine::ParamChange>(edit));
         engine->bridge().post(engine::TransportCmd {engine::TransportCmd::Play, 0.0});
     }
     void block() noexcept
@@ -208,6 +224,33 @@ BENCH(bench_edit_apply_track_paste, 200000)
             e.engine->bridge().post(msg);
         e.block();
     });
+}
+BENCH(bench_edit_swap_playing_tracks, 200000)
+{
+    EngineRig e;
+    REQUIRE(e.swapEdits.size() > e.paste.size());
+    std::array<float, engine::sequencer::perf::kLockSlots> values{};
+    const engine::trigger::LockSet locks{1, values.data(), nullptr};
+    engine::trigger::TriggerEvent step{};
+    step.track = 3;
+    step.kind = engine::trigger::TriggerKind::Full;
+    step.locks = &locks;
+    const auto postSwap = [&]
+    {
+        auto batch = std::make_unique<engine::TrackSwapBatch>(nullptr);
+        batch->swaps.push_back({0, 3, 4, true});
+        batch->edits = e.swapEdits;
+        if (e.engine->bridge().post(engine::ObjectSwap{{engine::SwapSlot::TrackSwapBatch, 0, 0}, batch.get()}))
+            batch.release();
+    };
+    state.run(
+        [&]
+        {
+            e.engine->perf().retrig.onStep(step, {2, 5}, 5512.5);
+            postSwap();
+            e.block();
+            e.engine->bridge().retirePending();
+        });
 }
 #endif
 

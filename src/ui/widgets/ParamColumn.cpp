@@ -2,6 +2,7 @@
 
 #include "ui/shell/Layout.h"
 #include "ui/theme/Glyphs.h"
+#include "ui/widgets/TrackTile.h"
 
 #include <algorithm>
 
@@ -47,8 +48,16 @@ void ParamColumn::draw(DrawList& dl, const UiContext& ctx, int index0, const Par
     const int len = c.valueText.empty()
                         ? std::clamp(s.formatValue(c.value, buf, sizeof buf), 0, static_cast<int>(sizeof buf) - 1)
                         : 0;
-    dl.text(cx, L::columnValueY, Align::Centre, TextStyleId::Value, c.locked ? p.mod : (grey ? p.text3 : p.text1),
-            c.valueText.empty() ? std::string_view(buf, static_cast<std::size_t>(len)) : c.valueText);
+    auto value = c.valueText.empty() ? std::string_view(buf, static_cast<std::size_t>(len)) : c.valueText;
+    auto style = TextStyleId::Value;
+    char shortened[256];
+    const float available = L::columnW - 2.0f;
+    if (! c.valueText.empty() && ctx.measure && ctx.measure(style, value) > available)
+    {
+        style = TextStyleId::ValueS;
+        value = TrackTile::middleTruncate(value, available, style, ctx.measure, shortened, sizeof shortened);
+    }
+    dl.text(cx, L::columnValueY, Align::Centre, style, c.locked ? p.mod : (grey ? p.text3 : p.text1), value);
     if (c.touched)
         dl.fill({x + 64, L::columnUnderlineY, 80, 2}, p.accent, 1);
     if (! c.subReadout.empty())

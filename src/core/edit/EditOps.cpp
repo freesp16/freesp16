@@ -418,6 +418,9 @@ void SwapTracksCommand::apply(Project& p)
 
 void SwapTracksCommand::collectChanges(ChangeSet& c) const
 {
+    if (a_ != b_)
+        c.addTrackSwap({static_cast<std::uint8_t>(scene_), static_cast<std::uint8_t>(a_), static_cast<std::uint8_t>(b_),
+                        withSequences_});
     addTrackPaths(c, scene_, a_);
     addTrackPaths(c, scene_, b_);
     if (withSequences_)

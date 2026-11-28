@@ -179,14 +179,22 @@ TEST_CASE("trigger.params: track.cpp's ids, ranges, defaults, CC and lock flags"
     };
     using S = core::ParamScope;
     const Row rows[] = {
-        {"track.mode", 0, 3, 0, -1, false, S::Track},           {"track.triggerMode", 0, 1, 0, 16, true, S::Track},
-        {"track.chokeGroup", 0, 8, 0, -1, false, S::Track},     {"track.padColor", 0, 15, 0, -1, false, S::Track},
-        {"track.padVelocity", 0, 1, 1, -1, false, S::Track},    {"track.inputSource", 0, 3, 0, -1, false, S::Track},
-        {"pads.velocityCurve", 0, 7, 3, -1, false, S::Global},  {"pads.fixedVelocity", 1, 127, 100, -1, false, S::Global},
-        {"scale.type", 0, 21, 0, -1, false, S::Track},          {"scale.keyShift", -12, 12, 0, -1, false, S::Track},
-        {"scale.area", -2, 2, 0, -1, false, S::Track},          {"scaleMidi.type", 0, 21, 0, -1, false, S::Track},
-        {"scaleMidi.root", 0, 119, 60, -1, false, S::Track},    {"scaleMidi.area", -2, 2, 0, -1, false, S::Track},
-        {"pads.mode", 0, 4, 0, -1, false, S::Global},           {"pads.selected", 0, 15, 0, -1, false, S::Global},
+        {"track.mode", 0, 4, 0, -1, false, S::Track},
+        {"track.triggerMode", 0, 1, 0, 16, true, S::Track},
+        {"track.chokeGroup", 0, 8, 0, -1, false, S::Track},
+        {"track.padColor", 0, 15, 0, -1, false, S::Track},
+        {"track.padVelocity", 0, 1, 1, -1, false, S::Track},
+        {"track.inputSource", 0, 3, 0, -1, false, S::Track},
+        {"pads.velocityCurve", 0, 7, 3, -1, false, S::Global},
+        {"pads.fixedVelocity", 1, 127, 100, -1, false, S::Global},
+        {"scale.type", 0, 21, 0, -1, false, S::Track},
+        {"scale.keyShift", -12, 12, 0, -1, false, S::Track},
+        {"scale.area", -2, 2, 0, -1, false, S::Track},
+        {"scaleMidi.type", 0, 21, 0, -1, false, S::Track},
+        {"scaleMidi.root", 0, 119, 60, -1, false, S::Track},
+        {"scaleMidi.area", -2, 2, 0, -1, false, S::Track},
+        {"pads.mode", 0, 4, 0, -1, false, S::Global},
+        {"pads.selected", 0, 15, 0, -1, false, S::Global},
         {"pads.shift", 0, 1, 0, -1, false, S::Global},
     };
     for (const auto& row : rows)

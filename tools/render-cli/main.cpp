@@ -3,7 +3,7 @@
 //   <name>_render_cli --project P [--scene S] [--pattern N] [--bars B] --out F.wav [--quirks reference]
 //                     [--source pattern|track|scene|arrangement] [--track T] [--repeats N] [--fx 0|1]
 //                     [--bits 16|24|32] [--remainder cut|wrap|leave] [--normalize dBFS] [--rate HZ]
-//                     [--library DIR] [--no-write]
+//                     [--library DIR] [--plugins DIR] [--no-write]
 //
 //   P          a project the registered codecs read (a native .sixteen bundle); its samples resolve against the
 //              bundle ($Bundle) and --library ($Lib); absolute paths as they are
@@ -37,11 +37,13 @@ namespace store = services::store;
 
 int usage(const char* why)
 {
-    std::fprintf(stderr,
-                 "%s\nusage: render_cli --project P [--scene S] [--pattern N] [--bars B] --out F.wav [--quirks reference]\n"
-                 "       [--source pattern|track|scene|arrangement] [--track T] [--repeats N] [--fx 0|1] [--bits 16|24|32]\n"
-                 "       [--remainder cut|wrap|leave] [--normalize dBFS] [--rate HZ] [--library DIR] [--no-write]\n",
-                 why);
+    std::fprintf(
+        stderr,
+        "%s\nusage: render_cli --project P [--scene S] [--pattern N] [--bars B] --out F.wav [--quirks reference]\n"
+        "       [--source pattern|track|scene|arrangement] [--track T] [--repeats N] [--fx 0|1] [--bits 16|24|32]\n"
+        "       [--remainder cut|wrap|leave] [--normalize dBFS] [--rate HZ] [--library DIR] [--plugins DIR] "
+        "[--no-write]\n",
+        why);
     return 2;
 }
 
@@ -129,7 +131,11 @@ int main(int argc, char** argv)
         if (const auto id = core::builtinParams().idOf("fx.quirkProfile"))
             to.post(engine::ParamChange {*id, 0, reference ? 1.0f : 0.0f, 0});
     };
-    const auto r = rnd::render(*project, job, loaded.value()->snapshot(), feeder, rate);
+    const auto plugins = opt.count("plugins")
+                             ? juce::File::getCurrentWorkingDirectory().getChildFile(opt["plugins"])
+                             : projectFile.getParentDirectory().getParentDirectory().getChildFile("Plugins");
+    const auto r = rnd::render(*project, job, loaded.value()->snapshot(), feeder, rate, nullptr, nullptr,
+                               plugins.getFullPathName().toStdString());
     double peak = 0;
     for (std::size_t i = 0; i < r.left.size(); ++i)
         peak = std::max({peak, static_cast<double>(std::fabs(r.left[i])), static_cast<double>(std::fabs(r.right[i]))});

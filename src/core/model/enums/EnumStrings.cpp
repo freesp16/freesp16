@@ -14,10 +14,11 @@ using E = EnumEntry;
 
 // Tracks (enumerations.md "Track type", "Trigger mode").
 constexpr E kTrackMode[] = {
-    {0, "Sample", "SAMPLE", "SMPL"}, // [FMT/MAN]
-    {1, "Midi", "MIDI", "MIDI"},     // [FMT/OBS]
-    {2, "Thru", "THRU", "THRU"},     // [FMT/MAN]
+    {0, "Sample", "SAMPLE", "SMPL"},         // [FMT/MAN]
+    {1, "Midi", "MIDI", "MIDI"},             // [FMT/OBS]
+    {2, "Thru", "THRU", "THRU"},             // [FMT/MAN]
     {3, "Instrument", "INSTRUMENT", "INST"}, // [OBS] fourth mode; the UI shows the profile's name (MID-060, ours)
+    {4, "Plugin", "PLUGIN", "PLUG"},         // dynamic CLAP instrument track (ours)
 };
 constexpr E kTriggerMode[] = {
     {0, "OneShot", "ONE SHOT"}, // [FMT/OBS/MAN]; 1.60 writes `OneShot`
@@ -51,6 +52,7 @@ constexpr E kEffectType[] = {
     {11, "Compressor", "COMPRESSOR", "COMP"},
     {12, "Ducker", "DUCKER"},
     {13, "VintagePitch", "VINTAGE PITCH"}, // ours: not an SP-16 effect (the SP-16 export writes Off)
+    {14, "Plugin", "PLUGIN"},
 };
 // LFO shapes: only `Sine` was seen stored [FMT]; the others are ours. The enum has SawUp/SawDown and lacks
 // PULSE25/PULSE12 of the 1.60 list: SawDown is the falling SAW of LFO-001.
@@ -227,11 +229,11 @@ constexpr bool inValueOrder(const E (&entries)[N])
 #define APP_DETAIL_CHECK(Type, Last)                                                                                   \
     static_assert(inValueOrder(k##Type), #Type ": entries out of value order or empty");                               \
     static_assert(std::size(k##Type) == static_cast<std::size_t>(Type::Last) + 1, #Type ": table size");
-APP_DETAIL_CHECK(TrackMode, Instrument)
+APP_DETAIL_CHECK(TrackMode, Plugin)
 APP_DETAIL_CHECK(TriggerMode, Gate)
 APP_DETAIL_CHECK(StretchMode, MasterTempo)
 APP_DETAIL_CHECK(EnvelopeCurve, Curve)
-APP_DETAIL_CHECK(EffectType, VintagePitch)
+APP_DETAIL_CHECK(EffectType, Plugin)
 APP_DETAIL_CHECK(LfoShape, Random)
 APP_DETAIL_CHECK(LfoTriggerMode, OneShot)
 APP_DETAIL_CHECK(LfoTriggerOn, Both)
@@ -304,17 +306,17 @@ constexpr std::span<const std::uint8_t> kScales[] = {kChromatic,
 static_assert(std::size(kScales) == std::size(kScaleType));
 
 // SELECT FX grid order (enumerations.md "Effects", FX-040). Ours, after the reference types so those keep their grid
-// positions: Reverb on the track inserts, then VINTAGE PITCH last on both.
-constexpr EffectType kInsertTypes[] = {
-    EffectType::Off,           EffectType::Chorus,          EffectType::Flanger,
-    EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::InsertDelay,
-    EffectType::LoFi,          EffectType::Compressor,      EffectType::Distortion,
-    EffectType::Phaser,        EffectType::Ducker,          EffectType::Reverb,
-    EffectType::VintagePitch};
+// positions: Reverb on the track inserts, then VINTAGE PITCH and the plugin picker on both.
+constexpr EffectType kInsertTypes[] = {EffectType::Off,           EffectType::Chorus,          EffectType::Flanger,
+                                       EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::InsertDelay,
+                                       EffectType::LoFi,          EffectType::Compressor,      EffectType::Distortion,
+                                       EffectType::Phaser,        EffectType::Ducker,          EffectType::Reverb,
+                                       EffectType::VintagePitch,  EffectType::Plugin};
 constexpr EffectType kBusTypes[] = {
     EffectType::Off,        EffectType::SendDelay,     EffectType::Reverb,          EffectType::Chorus,
     EffectType::Flanger,    EffectType::ParametricEq2, EffectType::MultiModeFilter, EffectType::LoFi,
-    EffectType::Compressor, EffectType::Distortion,    EffectType::Phaser,          EffectType::VintagePitch};
+    EffectType::Compressor, EffectType::Distortion,    EffectType::Phaser,          EffectType::VintagePitch,
+    EffectType::Plugin};
 
 template <std::size_t N> constexpr bool contains(const EffectType (&list)[N], EffectType t) noexcept
 {

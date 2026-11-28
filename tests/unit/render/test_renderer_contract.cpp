@@ -81,6 +81,42 @@ TEST_CASE("renderer contract: every host backend draws the reference list within
     }
 }
 
+TEST_CASE("renderer contract: a one-row stroke survives the FX editor scale", "[render][contract][blit]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    ui::GlyphAtlas atlas;
+    std::string error;
+    REQUIRE(atlas.build(0.625f, error));
+    const auto env = hostEnv(atlas, 800, 480);
+
+    // The software backend used to drop source row 5 when reducing 285 rows to the FX slot's height.
+    constexpr int width = 8, height = 285;
+    std::vector<std::uint32_t> source(width * height, 0x00FF0000u); // RGB in transparent texels must remain hidden.
+    std::fill_n(source.begin() + 5 * width, width, 0xFFFFFFFFu);
+    ui::DrawList dl;
+    dl.fill({0, 0, 1280, 768}, 0xFF000000u);
+    dl.blit({16, 236, 12.8f, 372}, source.data(), width, height, width, 1);
+
+    for (const char* backend : {"soft", "juce"})
+    {
+        INFO(backend);
+        auto renderer = ui::render::create(backend, env, error);
+        REQUIRE(renderer);
+        const auto pixels = drawWith(*renderer, dl);
+        unsigned coverage = 0;
+        for (int y = 148; y < 160; ++y)
+        {
+            const auto pixel = pixels[static_cast<std::size_t>(y * 800 + 12)];
+            const auto green = (pixel >> 8) & 255u;
+            CHECK(((pixel >> 16) & 255u) == green);
+            CHECK((pixel & 255u) == green);
+            coverage += green;
+        }
+        CHECK(coverage >= 100);
+        CHECK(coverage <= 260);
+    }
+}
+
 TEST_CASE("renderer contract: the registry falls back in order and reports why", "[render][contract]")
 {
     juce::ScopedJuceInitialiser_GUI gui;

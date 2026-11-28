@@ -110,6 +110,7 @@ public:
 
     // ---- audio thread (block start) ----
     void setMode(AssignMode) noexcept;               // MIX-030 (per scene): 128 + 128-sample dip (MIX-033)
+    void swapAssignments(int a, int b) noexcept;
     void setAssign(int track, OutAssign) noexcept;   // MIX-031 (per scene and track, the current scene's)
     void setPresent(std::uint8_t pairMask) noexcept; // bit p = OUT pair p exists on the device (bit 0 always)
     void setMuteAll(bool) noexcept;                  // 64-sample fade (REN-005, panic)

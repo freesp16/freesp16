@@ -4,9 +4,11 @@
 
 #include "app/LibraryAdapters.h"
 #include "app/M5Hosts.h"
+#include "app/PluginAdapter.h"
 #include "app/ProjectFeed.h"
 #include "app/QueuedBridge.h"
 #include "app/ext/Extensions.h"
+
 #include "core/commands/CommandBusAccess.h"
 #include "core/commands/arrangement/ArrangementCommands.h"
 #include "core/commands/arrangement/ArrangementPlanBuilder.h"
@@ -262,14 +264,22 @@ struct Document::Impl
         library.setInUse([this](const juce::File& f) { return pool.uses(f); });
         // The offline render service (its own Engine on its own worker; REN-001…005). The live engine is
         // muted while a job runs; render to track loads the file with the undoable LOAD (TrackLoader, REN-004).
-        renderer.emplace(services::render::RenderService::Env {
+        renderer.emplace(services::render::RenderService::Env{
+            .pluginsDir = dataDir.getChildFile("Plugins").getFullPathName().toStdString(),
+            .capturePluginStates =
+                [this](auto& snapshot)
+            {
+                if (plugins)
+                    plugins->snapshotStates(snapshot);
+            },
             .feed = feed::feeder(true),
             .samples = [this] { return services::render::SampleSnapshot::of(sync); },
             .live = &bridge,
             .sampleRate = config.sampleRate,
             .outputDir = dataDir.getChildFile("RenderedAudio"),
-            .projectName = [this] { return session ? session->store().name().toStdString() : std::string {}; },
-            .assignToTrack = [this](int scene, int track, const juce::File& file)
+            .projectName = [this] { return session ? session->store().name().toStdString() : std::string{}; },
+            .assignToTrack =
+                [this](int scene, int track, const juce::File& file)
             {
                 loader.load(scene, track, file, [this, scene, track](core::Result<void> r, const lib::LoadInfo&)
                             { log("RENDER JOB assigned scene=%d track=%d %s", scene + 1, track + 1,
@@ -283,6 +293,10 @@ struct Document::Impl
         core::commands::setBridge(bus,
                                   [this](const core::ChangeSet& changes, const core::model::Project& p)
                                   {
+                                      for (const auto& swap : changes.trackSwaps())
+                                          if (plugins && plugins->moveTrackPlugins(swap))
+                                              queued.stageTrackSwap(
+                                                  {swap.scene, swap.first, swap.second, swap.withSequences});
                                       ui::input::pads::forwardTrackChanges(changes, p, bridge);
                                       ui::forwardModelChanges(changes, p, bridge);
                                       ui::fx::forwardFxChanges(changes, p, bridge);
@@ -292,9 +306,12 @@ struct Document::Impl
                                       forwardArrangement(changes, p, bridge);
                                       sync.onChange(changes, p);
                                       slices.onChange(changes, p);
+                                      if (plugins)
+                                          plugins->syncChanges(changes, p);
                                       services::settings::forwardSettingsChanges(changes, p, bridge);
                                       if (extensions)
                                           extensions->onChange(changes, p); // nothing while ext.* is off
+                                      queued.finishTrackSwaps();
                                   });
         sync.onInstalled = [this](int s, int t, lib::TrackSampleSync::Handle sample) // re-slice it
         {
@@ -396,6 +413,8 @@ struct Document::Impl
         {
             sync.syncAll(p);
             slices.syncAll(p); // the samples still loading post theirs when installed
+            if (plugins)
+                plugins->syncFromProject(p);
             if (chain)
                 postChain(core::edit::PatternChainBuilder::clear()); // a chain belongs to the project it was built in
             forwardAll(p, bridge); // every scene (resident scenes), patterns, then the scene/pattern switch
@@ -422,6 +441,13 @@ struct Document::Impl
         ui::m2::ProjectSource::install(&*projectLog); // every save logs SAVED (panel and `cmd save-as`)
         ui::fx::environment().slots = &fxSlots;
         fxMeters.install(ui::fx::environment());
+        plugins.emplace(bridge, dataDir.getChildFile("Plugins").getFullPathName().toStdString(), config.sampleRate,
+                        [this](const std::string& line) { log("%s", line.c_str()); });
+        const auto capturePluginStates = [this](core::model::Project& snapshot) { plugins->snapshotStates(snapshot); };
+        session->store().captureRuntimeState = capturePluginStates;
+        session->autosave().captureRuntimeState = capturePluginStates;
+        pluginAdapter.emplace(bus, *plugins);
+        ui::plugin::environment().access = &*pluginAdapter;
 
         // Takes go to <library>/Recordings (SMP-007); the ring is allocated on first use.
         sampling.emplace(bridge, workers,
@@ -489,6 +515,9 @@ struct Document::Impl
         ui::fx::environment().slots = nullptr;
         ui::fx::environment().meters = nullptr;
         ui::fx::environment().metersUser = nullptr;
+        ui::plugin::environment().access = nullptr;
+        pluginAdapter.reset();
+        plugins.reset();
         ui::m1::BrowseSource::install(nullptr);
         ui::m2::ProjectSource::install(nullptr);
         ui::m2::Session::instance().install(nullptr);
@@ -653,6 +682,8 @@ struct Document::Impl
     SampleViewsAdapter views;
     ui::fx::ModelFxSlots fxSlots;
     ui::fx::EngineFxMeters fxMeters;
+    std::optional<services::plugin::ClapHostService> plugins;
+    std::optional<PluginUiAdapter> pluginAdapter;
     ui::ModelParamAccess values;
     ShellSelection selection;
     ui::input::pads::PadController pads;
@@ -803,6 +834,11 @@ struct Document::Impl
 Document::Document(engine::EngineBridge& bridge, DocumentConfig config)
     : impl_(std::make_unique<Impl>(bridge, std::move(config)))
 {
+}
+
+void Document::detachPluginHost()
+{
+    impl_->plugins->detachFromEngine();
 }
 
 Document::~Document()
@@ -981,6 +1017,8 @@ void Document::frame(double nowMs)
     if (d.sampling)
         d.sampling->frame(); // live takes → the track (worker build, swap, take ready)
     d.session->frame(nowMs);
+    if (d.plugins)
+        d.plugins->pollMainThread();
     d.prefs.tick(nowMs); // the debounced preferences save
     d.pool.collect();
     d.preview.tick();
@@ -1951,8 +1989,12 @@ void Document::Impl::render(const std::string& file, double seconds, bool withCh
     // reference. `song`: the arrangement plan too, song mode (stop at the end), its position logged per row.
     core::arrangement::SongStatus songStatus;
     {
-        services::render::OfflineEngine offline({rate, 1});
-        offline.begin(p, services::render::SampleSnapshot::of(sync), feed::feeder(song), song ? &songStatus : nullptr);
+        auto snapshot = std::make_unique<core::model::Project>(p);
+        if (plugins)
+            plugins->snapshotStates(*snapshot);
+        services::render::OfflineEngine offline({rate, 1, plugins ? plugins->pluginsDir() : std::string{}});
+        offline.begin(*snapshot, services::render::SampleSnapshot::of(sync), feed::feeder(song),
+                      song ? &songStatus : nullptr);
         auto& q = offline.bridge();
         if (song)
         {

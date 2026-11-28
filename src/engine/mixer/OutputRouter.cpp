@@ -68,6 +68,14 @@ void OutputRouter::setMode(AssignMode m) noexcept
     pendingMode_ = m; // the Selector's target; process() fades (research Output12Router 0x1b28f8 stores the selection)
 }
 
+void OutputRouter::swapAssignments(int a, int b) noexcept
+{
+    std::swap(assign_[a], assign_[b]);
+    const auto x = ((trackFades_ >> a) ^ (trackFades_ >> b)) & 1u;
+    trackFades_ ^= (x << a) | (x << b);
+    dirty_ = true;
+}
+
 void OutputRouter::setAssign(int track, OutAssign a) noexcept
 {
     if (track < 0 || track >= kTracks)
